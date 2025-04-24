@@ -42,7 +42,9 @@ functions that mirror the Julia API:
 library(dafr)
 # Setup connection to Julia
 setup_daf()
+```
 
+``` r
 # Create a DAF object in memory
 daf <- memory_daf("example")
 
@@ -59,10 +61,19 @@ set_matrix(daf, "obs", "var", "counts", mat)
 
 # Access data
 get_vector(daf, "obs", "score")
+#> [1] 0.1 0.5 0.9
 get_matrix(daf, "obs", "var", "counts")
+#>       gene1 gene2
+#> cell1     1     4
+#> cell2     2     5
+#> cell3     3     6
 
 # Get a dataframe view
 get_dataframe(daf, "obs", c("score"))
+#>       score
+#> cell1   0.1
+#> cell2   0.5
+#> cell3   0.9
 ```
 
 ## Querying Data

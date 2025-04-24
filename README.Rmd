@@ -41,7 +41,14 @@ The R package provides an interface similar to the Julia package, with functions
 library(dafr)
 # Setup connection to Julia
 setup_daf()
+```
 
+```{r run_setup, eval=TRUE, include=FALSE}
+library(dafr)
+setup_daf()
+```
+
+```{r example_data, eval=TRUE}
 # Create a DAF object in memory
 daf <- memory_daf("example")
 
@@ -67,11 +74,6 @@ get_dataframe(daf, "obs", c("score"))
 ## Querying Data
 
 One of the powerful features of dafr is its query language. You can use queries to access and transform data flexibly. The package provides a convenient `[` operator for concise query syntax:
-
-```{r query_examples, eval=TRUE, include=FALSE}
-library(dafr)
-setup_daf()
-```
 
 ```{r query_setup, eval=TRUE}
 # Create a sample dataset
