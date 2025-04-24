@@ -4,6 +4,8 @@
 # dafr - Data in Axes in Formats for R
 
 <!-- badges: start -->
+
+[![R-CMD-check](https://github.com/tanaylab/dafr/actions/workflows/R-CMD-check.yaml/badge.svg)](https://github.com/tanaylab/dafr/actions/workflows/R-CMD-check.yaml)
 <!-- badges: end -->
 
 The goal of dafr is to provide R bindings for the

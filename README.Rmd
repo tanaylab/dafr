@@ -16,6 +16,7 @@ knitr::opts_chunk$set(
 # dafr - Data in Axes in Formats for R
 
 <!-- badges: start -->
+[![R-CMD-check](https://github.com/tanaylab/dafr/actions/workflows/R-CMD-check.yaml/badge.svg)](https://github.com/tanaylab/dafr/actions/workflows/R-CMD-check.yaml)
 <!-- badges: end -->
 
 The goal of dafr is to provide R bindings for the [DataAxesFormats.jl](https://github.com/tanaylab/DataAxesFormats.jl) Julia package, which provides a uniform generic interface for accessing 1D and 2D data arranged along some set of axes. This is a much-needed generalization of the [AnnData](https://github.com/scverse/anndata) functionality.
