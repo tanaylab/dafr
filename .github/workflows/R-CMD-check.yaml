@@ -26,7 +26,7 @@ jobs:
       - name: Setup Julia
         uses: julia-actions/setup-julia@v1
         with:
-          version: 'latest' 
+          version: 'lts' 
           arch: x64
 
       - name: Cache Julia packages
