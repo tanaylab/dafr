@@ -19,7 +19,9 @@ In order to support the use of pipe operators, the query can also be a Daf objec
 A data.frame representation of the query result. If the query result is a matrix, row names and column names are the axis entries. If the query result is a scalar, a data.frame with one row and one column is returned. If the query result is a vector, a data.frame with a column "value" is returned.
 }
 \description{
-Apply a query to a Daf object and return result as a data.frame
+Executes a query on a Daf object and returns the result formatted as a data.frame for
+easier use in R analysis workflows. This is a convenience wrapper around get_query
+that provides properly structured dataframes for different result types.
 }
 \seealso{
 get_query, get_frame

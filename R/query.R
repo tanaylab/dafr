@@ -1,11 +1,17 @@
 #' Check if a query can be applied to a Daf object
 #'
+#' Determines whether a query can be validly applied to a Daf object. This is useful for
+#' checking if the properties referenced in a query exist in the Daf object before
+#' attempting to execute the query.
+#'
 #' @param daf A Daf object
 #' @param query Query string or object. Can be created using query operations such as
 #'   Axis(), Lookup(), IsGreater(), etc.
 #' @return TRUE if query can be applied, FALSE otherwise
 #' @details See the Julia [documentation](https://tanaylab.github.io/DataAxesFormats.jl/v0.1.2/queries.html#DataAxesFormats.Operations.has_query) for details.
-#' @seealso Axis, Lookup, Names, IsEqual, IsGreater, IsLess, and other query operations.
+#' @seealso Axis, Lookup, Names, AsAxis, Fetch, IfMissing, IfNot, MaskSlice, SquareMaskColumn, SquareMaskRow,
+#'   And, AndNot, Or, OrNot, Xor, XorNot, IsEqual, IsNotEqual, IsLess, IsLessEqual, IsGreater, IsGreaterEqual,
+#'   IsMatch, IsNotMatch, CountBy, GroupBy and other query operations.
 #' @export
 has_query <- function(daf, query) {
     validate_daf_object(daf)
@@ -14,14 +20,20 @@ has_query <- function(daf, query) {
 
 #' Apply a query to a Daf object
 #'
+#' Executes a query on a Daf object and returns the result. Queries provide a way to extract,
+#' filter, and manipulate data from a Daf object using a composable syntax. Queries can retrieve
+#' scalars, vectors, matrices, or sets of names depending on the operations used.
+#'
 #' @param daf A Daf object
 #' @param query Query string or object. Can be created using query operations such as
 #'   Axis(), Lookup(), IsGreater(), etc.
 #' In order to support the use of pipe operators, the query can also be a Daf object and vice versa, see examples below.
 #' @param cache Whether to cache the query result
-#' @return The result of the query
+#' @return The result of the query, which could be a scalar, vector, matrix, or set of names depending on the query
 #' @details See the Julia [documentation](https://tanaylab.github.io/DataAxesFormats.jl/v0.1.2/queries.html#DataAxesFormats.Operations.get_query) for details.
-#' @seealso Axis, Lookup, Names, IsEqual, IsGreater, IsLess, and other query operations.
+#' @seealso Axis, Lookup, Names, AsAxis, Fetch, IfMissing, IfNot, MaskSlice, SquareMaskColumn, SquareMaskRow,
+#'   And, AndNot, Or, OrNot, Xor, XorNot, IsEqual, IsNotEqual, IsLess, IsLessEqual, IsGreater, IsGreaterEqual,
+#'   IsMatch, IsNotMatch, CountBy, GroupBy and other query operations.
 #' @export
 get_query <- function(daf = NULL, query = NULL, cache = TRUE) {
     if (is.null(daf) || is.null(query)) {
@@ -42,6 +54,10 @@ get_query <- function(daf = NULL, query = NULL, cache = TRUE) {
 }
 
 #' Apply a query to a Daf object and return result as a data.frame
+#'
+#' Executes a query on a Daf object and returns the result formatted as a data.frame for
+#' easier use in R analysis workflows. This is a convenience wrapper around get_query
+#' that provides properly structured dataframes for different result types.
 #'
 #' @param daf A Daf object
 #' @param query Query string or object. Can be created using query operations such as
@@ -122,8 +138,12 @@ get_dataframe_query <- function(daf = NULL, query = NULL, cache = TRUE) {
 
 #' Parse a query string into a query object
 #'
+#' Converts a string representation of a query into a query object that can be applied to a Daf object.
+#' This allows for a more concise syntax for creating complex queries. If you want something similar
+#' to the `q` prefix used in Julia, you can write `q <- parse_query` in your R code.
+#'
 #' @param query_string String containing the query
-#' @return A query object
+#' @return A query object that can be used with get_query and has_query
 #' @details See the Julia [documentation](https://tanaylab.github.io/DataAxesFormats.jl/v0.1.2/queries.html) for details.
 #' @export
 parse_query <- function(query_string) {
@@ -131,6 +151,10 @@ parse_query <- function(query_string) {
 }
 
 #' Get the number of dimensions of a query result
+#'
+#' Determines the dimensionality of the result that would be produced by applying a query.
+#' This is useful for understanding what kind of data structure to expect from a query before
+#' executing it, which can help with writing code that handles different result types.
 #'
 #' @param query Query string or object
 #' @return Number of dimensions (-1 - names, 0 - scalar, 1 - vector, 2 - matrix)
@@ -141,11 +165,13 @@ query_result_dimensions <- function(query) {
 }
 
 #' @title Axis query operation
-#' @description A query operation for specifying a result axis. See the Julia
-#' [documentation](https://tanaylab.github.io/DataAxesFormats.jl/v0.1.2/queries.html#DataAxesFormats.Queries.Axis) for details.
-#' @param axis String specifying the axis
+#' @description A query operation for specifying a result axis in a query sequence.
+#' This is typically the first operation in a query sequence and determines which axis
+#' the query will operate on. It sets the context for subsequent operations in the query.
+#' See the Julia [documentation](https://tanaylab.github.io/DataAxesFormats.jl/v0.1.2/queries.html#DataAxesFormats.Queries.Axis) for details.
+#' @param axis String specifying the axis name
 #' @param ... Additional arguments needed to support usage of pipe operator
-#' @return A query operation object
+#' @return A query operation object that can be used in a query sequence
 #' @export
 Axis <- function(axis, ...) {
     dots <- list(...)
@@ -177,13 +203,14 @@ Axis <- function(axis, ...) {
 }
 
 #' @title Lookup query operation
-#' @description A query operation for looking up the value of a property with some name.
-#' See the Julia
-#' [documentation](https://tanaylab.github.io/DataAxesFormats.jl/v0.1.2/queries.html#DataAxesFormats.Queries.Lookup)
+#' @description A query operation for looking up the value of a property with a specific name.
+#' This operation retrieves the data associated with the specified property for the current axis context.
+#' It is typically used after an `Axis` operation to select a property from that axis.
+#' See the Julia [documentation](https://tanaylab.github.io/DataAxesFormats.jl/v0.1.2/queries.html#DataAxesFormats.Queries.Lookup)
 #' for details.
-#' @param property String specifying the property name
+#' @param property String specifying the property name to look up
 #' @param ... Additional arguments needed to support usage of pipe operator
-#' @return A query operation object
+#' @return A query operation object that can be used in a query sequence
 #' @export
 Lookup <- function(property, ...) {
     dots <- list(...)
@@ -216,12 +243,14 @@ Lookup <- function(property, ...) {
 
 
 #' @title Names query operation
-#' @description A query operation for looking up a set of names. See the Julia
-#' [documentation](https://tanaylab.github.io/DataAxesFormats.jl/v0.1.2/queries.html#DataAxesFormats.Queries.Names)
+#' @description A query operation for looking up a set of names in a Daf object.
+#' This operation retrieves metadata names such as axis names, property names, or scalar names.
+#' It is often used to discover what data is available in a Daf object.
+#' See the Julia [documentation](https://tanaylab.github.io/DataAxesFormats.jl/v0.1.2/queries.html#DataAxesFormats.Queries.Names)
 #' for details.
-#' @param kind Optional string specifying the kind
+#' @param kind Optional string specifying the kind of names to look up (e.g., "axes", "scalars")
 #' @param ... Additional arguments needed to support usage of pipe operator
-#' @return A query operation object
+#' @return A query operation object that can be used in a query sequence
 #' @export
 Names <- function(kind = NULL, ...) {
     dots <- list(...)
@@ -248,13 +277,15 @@ Names <- function(kind = NULL, ...) {
 }
 
 #' @title Fetch query operation
-#' @description A query operation for fetching the value of a property from another axis, based on a vector property whose values
-#' are entry names of the axis. See the
-#' Julia [documentation](https://tanaylab.github.io/DataAxesFormats.jl/v0.1.2/queries.html#DataAxesFormats.Queries.Fetch) for
+#' @description A query operation for fetching the value of a property from another axis.
+#' This operation is typically used after a `Lookup` operation that returns a vector whose values
+#' are entry names of another axis. The `Fetch` operation will then retrieve a property from
+#' that other axis based on these entry names. See the Julia
+#' [documentation](https://tanaylab.github.io/DataAxesFormats.jl/v0.1.2/queries.html#DataAxesFormats.Queries.Fetch) for
 #' details.
-#' @param property String specifying the property name
+#' @param property String specifying the property name to fetch from the target axis
 #' @param ... Additional arguments needed to support usage of pipe operator
-#' @return A query operation object
+#' @return A query operation object that can be used in a query sequence
 #' @export
 Fetch <- function(property, ...) {
     dots <- list(...)
@@ -286,13 +317,15 @@ Fetch <- function(property, ...) {
 }
 
 #' @title IfMissing query operation
-#' @description A query operation providing a value to use if the data is missing some property. See the
-#' Julia [documentation](https://tanaylab.github.io/DataAxesFormats.jl/v0.1.2/queries.html#DataAxesFormats.Queries.IfMissing)
+#' @description A query operation providing a default value to use if the data is missing some property.
+#' This is useful when querying for properties that might not exist for all entries, allowing you to
+#' provide a fallback value instead of getting an error. See the Julia
+#' [documentation](https://tanaylab.github.io/DataAxesFormats.jl/v0.1.2/queries.html#DataAxesFormats.Queries.IfMissing)
 #' for details.
-#' @param missing_value Value to use when data is missing
-#' @param type Optional type specification
+#' @param missing_value Value to use when data is missing the property
+#' @param type Optional type specification for the missing value (e.g., "Int64", "Float64", "Bool")
 #' @param ... Additional arguments needed to support usage of pipe operator
-#' @return A query operation object
+#' @return A query operation object that can be used in a query sequence
 #' @export
 IfMissing <- function(missing_value, type = NULL, ...) {
     dots <- list(...)
@@ -349,13 +382,14 @@ IfMissing <- function(missing_value, type = NULL, ...) {
 }
 
 #' @title IfNot query operation
-#' @description A query operation providing a value to use for "false-ish" values in a vector (empty strings, zero numeric values,
-#' or false Boolean values). See the
-#' Julia [documentation](https://tanaylab.github.io/DataAxesFormats.jl/v0.1.2/queries.html#DataAxesFormats.Queries.IfNot) for
+#' @description A query operation providing a value to use for "false-ish" values in a vector.
+#' This replaces empty strings, zero numeric values, or false Boolean values with the specified value.
+#' This is useful for handling default or missing values in data without completely replacing the property.
+#' See the Julia [documentation](https://tanaylab.github.io/DataAxesFormats.jl/v0.1.2/queries.html#DataAxesFormats.Queries.IfNot) for
 #' details.
-#' @param value Optional value to use
+#' @param value Optional value to use for replacement. If NULL, uses the default replacement value.
 #' @param ... Additional arguments needed to support usage of pipe operator
-#' @return A query operation object
+#' @return A query operation object that can be used in a query sequence
 #' @export
 IfNot <- function(value = NULL, ...) {
     dots <- list(...)
@@ -382,13 +416,15 @@ IfNot <- function(value = NULL, ...) {
 }
 
 #' @title AsAxis query operation
-#' @description There are three cases where we may want to take a vector property and consider each value to be the name of an entry
-#' of some axis: `Fetch`, `CountBy` and `GroupBy`. See the Julia
+#' @description A query operation that treats values in a vector property as names of entries in another axis.
+#' This operation is commonly used with three other operations: `Fetch`, `CountBy`, and `GroupBy`,
+#' where vector values need to be interpreted as axis entry names. If no axis is specified, values
+#' are treated as entries of a default axis based on context. See the Julia
 #' [documentation](https://tanaylab.github.io/DataAxesFormats.jl/v0.1.2/queries.html#DataAxesFormats.Queries.AsAxis) for
 #' details.
-#' @param axis Optional string specifying the axis
+#' @param axis Optional string specifying the axis name to use for interpreting the values
 #' @param ... Additional arguments needed to support usage of pipe operator
-#' @return A query operation object
+#' @return A query operation object that can be used in a query sequence
 #' @export
 AsAxis <- function(axis = NULL, ...) {
     dots <- list(...)
@@ -529,11 +565,15 @@ SquareMaskRow <- function(value, ...) {
 }
 
 #' @title And query operation
-#' @description A query operation for restricting the set of entries of an `Axis`. See the Julia
-#' [documentation](https://tanaylab.github.io/DataAxesFormats.jl/v0.1.2/queries.html#DataAxesFormats.Queries.And) for details.
-#' @param property String specifying the property
+#' @description A query operation for filtering axis entries using a Boolean mask.
+#' This operation restricts the set of entries of an axis to only those where the specified
+#' property contains true values (or non-zero/non-empty values). It essentially performs
+#' a logical AND between the current selection and the specified property, treating the
+#' property as a Boolean mask.
+#' See the Julia [documentation](https://tanaylab.github.io/DataAxesFormats.jl/v0.1.2/queries.html#DataAxesFormats.Queries.And) for details.
+#' @param property String specifying the property to use as a filter mask
 #' @param ... Additional arguments needed to support usage of pipe operator
-#' @return A query operation object
+#' @return A query operation object that can be used in a query sequence
 #' @export
 And <- function(property, ...) {
     dots <- list(...)
@@ -602,11 +642,15 @@ AndNot <- function(property, ...) {
 }
 
 #' @title Or query operation
-#' @description A query operation for expanding the set of entries of an `Axis`. See the Julia
-#' [documentation](https://tanaylab.github.io/DataAxesFormats.jl/v0.1.2/queries.html#DataAxesFormats.Queries.Or) for details.
-#' @param property String specifying the property
+#' @description A query operation for expanding the set of entries of an axis.
+#' This operation adds entries to the current selection where the specified property
+#' contains true values (or non-zero/non-empty values). It performs a logical OR
+#' between the current selection and the specified property, treating the property
+#' as a Boolean mask.
+#' See the Julia [documentation](https://tanaylab.github.io/DataAxesFormats.jl/v0.1.2/queries.html#DataAxesFormats.Queries.Or) for details.
+#' @param property String specifying the property to use for expanding the selection
 #' @param ... Additional arguments needed to support usage of pipe operator
-#' @return A query operation object
+#' @return A query operation object that can be used in a query sequence
 #' @export
 Or <- function(property, ...) {
     dots <- list(...)
@@ -746,11 +790,15 @@ XorNot <- function(property, ...) {
 }
 
 #' @title IsLess query operation
-#' @description A query operation for converting a vector value to a Boolean mask by comparing it some value. See the Julia
-#' [documentation](https://tanaylab.github.io/DataAxesFormats.jl/v0.1.2/queries.html#DataAccessFormats.Queries.IsLess) for details.
-#' @param value Value to compare against
+#' @description A query operation for filtering based on numeric comparison.
+#' This operation converts a vector property to a Boolean mask by comparing each value
+#' to the specified threshold using the less-than (`<`) operator. Only entries where the
+#' comparison returns true are included in the result. Typically used after a Lookup operation
+#' to filter entries based on numeric values.
+#' See the Julia [documentation](https://tanaylab.github.io/DataAxesFormats.jl/v0.1.2/queries.html#DataAccessFormats.Queries.IsLess) for details.
+#' @param value Threshold value to compare against
 #' @param ... Additional arguments needed to support usage of pipe operator
-#' @return A query operation object
+#' @return A query operation object that can be used in a query sequence
 #' @export
 IsLess <- function(value, ...) {
     dots <- list(...)
@@ -979,13 +1027,16 @@ IsNotMatch <- function(value, ...) {
 }
 
 #' @title CountBy query operation
-#' @description A query operation that generates a matrix of counts of combinations of pairs of values for the same entries of an
-#' axis. See the Julia
-#' [documentation](https://tanaylab.github.io/DataAxesFormats.jl/v0.1.2/queries.html#DataAccessFormats.Queries.CountBy) for
+#' @description A query operation that generates a matrix of counts of combinations of pairs of values.
+#' This operation creates a contingency table counting the occurrences of each combination of values
+#' between the current property and the specified property, for the same entries of an axis.
+#' The result is a matrix whose rows are the values of the first property, columns are the values
+#' of the second property, and entries are the counts of occurrences of each combination.
+#' See the Julia [documentation](https://tanaylab.github.io/DataAxesFormats.jl/v0.1.2/queries.html#DataAccessFormats.Queries.CountBy) for
 #' details.
-#' @param property String specifying the property
+#' @param property String specifying the property to count combinations with
 #' @param ... Additional arguments needed to support usage of pipe operator
-#' @return A query operation object
+#' @return A query operation object that can be used in a query sequence
 #' @export
 CountBy <- function(property, ...) {
     dots <- list(...)
@@ -1017,13 +1068,17 @@ CountBy <- function(property, ...) {
 }
 
 #' @title GroupBy query operation
-#' @description A query operation that uses a (following) `ReductionOperation` to aggregate the values of each group of
-#' values. See the Julia
-#' [documentation](https://tanaylab.github.io/DataAxesFormats.jl/v0.1.2/queries.html#DataAccessFormats.Queries.GroupBY) for
+#' @description A query operation that aggregates values by groups.
+#' This operation takes a property whose values define groups, and applies a subsequent
+#' reduction operation (e.g., Mean, Sum, Max) to aggregate the values within each group.
+#' If applied to a vector, the result is a vector with one entry per group. If applied to a matrix,
+#' the result is a matrix with one row per group. This is typically followed by a reduction
+#' operation that specifies how to aggregate the grouped values.
+#' See the Julia [documentation](https://tanaylab.github.io/DataAxesFormats.jl/v0.1.2/queries.html#DataAccessFormats.Queries.GroupBY) for
 #' details.
-#' @param property String specifying the property
+#' @param property String specifying the property to group by
 #' @param ... Additional arguments needed to support usage of pipe operator
-#' @return A query operation object
+#' @return A query operation object that can be used in a query sequence
 #' @export
 GroupBy <- function(property, ...) {
     dots <- list(...)

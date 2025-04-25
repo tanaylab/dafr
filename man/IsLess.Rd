@@ -7,14 +7,18 @@
 IsLess(value, ...)
 }
 \arguments{
-\item{value}{Value to compare against}
+\item{value}{Threshold value to compare against}
 
 \item{...}{Additional arguments needed to support usage of pipe operator}
 }
 \value{
-A query operation object
+A query operation object that can be used in a query sequence
 }
 \description{
-A query operation for converting a vector value to a Boolean mask by comparing it some value. See the Julia
-\href{https://tanaylab.github.io/DataAxesFormats.jl/v0.1.2/queries.html#DataAccessFormats.Queries.IsLess}{documentation} for details.
+A query operation for filtering based on numeric comparison.
+This operation converts a vector property to a Boolean mask by comparing each value
+to the specified threshold using the less-than (\code{<}) operator. Only entries where the
+comparison returns true are included in the result. Typically used after a Lookup operation
+to filter entries based on numeric values.
+See the Julia \href{https://tanaylab.github.io/DataAxesFormats.jl/v0.1.2/queries.html#DataAccessFormats.Queries.IsLess}{documentation} for details.
 }

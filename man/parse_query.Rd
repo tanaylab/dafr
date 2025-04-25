@@ -10,10 +10,12 @@ parse_query(query_string)
 \item{query_string}{String containing the query}
 }
 \value{
-A query object
+A query object that can be used with get_query and has_query
 }
 \description{
-Parse a query string into a query object
+Converts a string representation of a query into a query object that can be applied to a Daf object.
+This allows for a more concise syntax for creating complex queries. If you want something similar
+to the \code{q} prefix used in Julia, you can write \code{q <- parse_query} in your R code.
 }
 \details{
 See the Julia \href{https://tanaylab.github.io/DataAxesFormats.jl/v0.1.2/queries.html}{documentation} for details.

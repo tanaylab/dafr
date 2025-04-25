@@ -7,14 +7,18 @@
 And(property, ...)
 }
 \arguments{
-\item{property}{String specifying the property}
+\item{property}{String specifying the property to use as a filter mask}
 
 \item{...}{Additional arguments needed to support usage of pipe operator}
 }
 \value{
-A query operation object
+A query operation object that can be used in a query sequence
 }
 \description{
-A query operation for restricting the set of entries of an \code{Axis}. See the Julia
-\href{https://tanaylab.github.io/DataAxesFormats.jl/v0.1.2/queries.html#DataAxesFormats.Queries.And}{documentation} for details.
+A query operation for filtering axis entries using a Boolean mask.
+This operation restricts the set of entries of an axis to only those where the specified
+property contains true values (or non-zero/non-empty values). It essentially performs
+a logical AND between the current selection and the specified property, treating the
+property as a Boolean mask.
+See the Julia \href{https://tanaylab.github.io/DataAxesFormats.jl/v0.1.2/queries.html#DataAxesFormats.Queries.And}{documentation} for details.
 }

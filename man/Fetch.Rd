@@ -7,16 +7,18 @@
 Fetch(property, ...)
 }
 \arguments{
-\item{property}{String specifying the property name}
+\item{property}{String specifying the property name to fetch from the target axis}
 
 \item{...}{Additional arguments needed to support usage of pipe operator}
 }
 \value{
-A query operation object
+A query operation object that can be used in a query sequence
 }
 \description{
-A query operation for fetching the value of a property from another axis, based on a vector property whose values
-are entry names of the axis. See the
-Julia \href{https://tanaylab.github.io/DataAxesFormats.jl/v0.1.2/queries.html#DataAxesFormats.Queries.Fetch}{documentation} for
+A query operation for fetching the value of a property from another axis.
+This operation is typically used after a \code{Lookup} operation that returns a vector whose values
+are entry names of another axis. The \code{Fetch} operation will then retrieve a property from
+that other axis based on these entry names. See the Julia
+\href{https://tanaylab.github.io/DataAxesFormats.jl/v0.1.2/queries.html#DataAxesFormats.Queries.Fetch}{documentation} for
 details.
 }

@@ -17,25 +17,6 @@ set_seed <- function(seed) {
     cli::cli_alert_info("Set the seed of Julia and R to {.val {seed}}")
 }
 
-#' Get a random symbol name for Julia variables.
-#' taken from BayesFluxR
-#'
-#' @return A random symbol string
-#'
-#' @noRd
-get_random_symbol <- function() {
-    nframe <- sys.nframe()
-    caller <- ""
-    if (nframe > 1) {
-        caller <- deparse(sys.calls()[[nframe - 1]])
-        caller <- strsplit(caller, "\\(")[[1]][1]
-        caller <- gsub("\\.", "_", caller)
-        caller <- paste0(caller, "_")
-    }
-    sym <- paste0(sample(letters, 5, replace = TRUE), collapse = "")
-    paste0(caller, sym)
-}
-
 #' Null coalescing operator from R 4.1+, backported for compatibility
 #'
 #' @param x First value

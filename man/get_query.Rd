@@ -16,14 +16,18 @@ In order to support the use of pipe operators, the query can also be a Daf objec
 \item{cache}{Whether to cache the query result}
 }
 \value{
-The result of the query
+The result of the query, which could be a scalar, vector, matrix, or set of names depending on the query
 }
 \description{
-Apply a query to a Daf object
+Executes a query on a Daf object and returns the result. Queries provide a way to extract,
+filter, and manipulate data from a Daf object using a composable syntax. Queries can retrieve
+scalars, vectors, matrices, or sets of names depending on the operations used.
 }
 \details{
 See the Julia \href{https://tanaylab.github.io/DataAxesFormats.jl/v0.1.2/queries.html#DataAxesFormats.Operations.get_query}{documentation} for details.
 }
 \seealso{
-Axis, Lookup, Names, IsEqual, IsGreater, IsLess, and other query operations.
+Axis, Lookup, Names, AsAxis, Fetch, IfMissing, IfNot, MaskSlice, SquareMaskColumn, SquareMaskRow,
+And, AndNot, Or, OrNot, Xor, XorNot, IsEqual, IsNotEqual, IsLess, IsLessEqual, IsGreater, IsGreaterEqual,
+IsMatch, IsNotMatch, CountBy, GroupBy and other query operations.
 }

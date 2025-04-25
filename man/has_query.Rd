@@ -16,11 +16,15 @@ Axis(), Lookup(), IsGreater(), etc.}
 TRUE if query can be applied, FALSE otherwise
 }
 \description{
-Check if a query can be applied to a Daf object
+Determines whether a query can be validly applied to a Daf object. This is useful for
+checking if the properties referenced in a query exist in the Daf object before
+attempting to execute the query.
 }
 \details{
 See the Julia \href{https://tanaylab.github.io/DataAxesFormats.jl/v0.1.2/queries.html#DataAxesFormats.Operations.has_query}{documentation} for details.
 }
 \seealso{
-Axis, Lookup, Names, IsEqual, IsGreater, IsLess, and other query operations.
+Axis, Lookup, Names, AsAxis, Fetch, IfMissing, IfNot, MaskSlice, SquareMaskColumn, SquareMaskRow,
+And, AndNot, Or, OrNot, Xor, XorNot, IsEqual, IsNotEqual, IsLess, IsLessEqual, IsGreater, IsGreaterEqual,
+IsMatch, IsNotMatch, CountBy, GroupBy and other query operations.
 }

@@ -133,19 +133,23 @@ daf["/ cell : age %> Mean"] # Get mean age
 #> [1] 5.333333
 
 # Complex operations can be built using the pipe operator or query functions
-query <- Axis("cell") |>
+# Get types of cells with age > 2
+Axis("cell") |>
     And("age") |>
     IsGreater(2) |>
-    Lookup("type")
-daf[query] # Get types of cells with age > 2
+    Lookup("type") |>
+    get_query(daf)
 #> [1] "B"  "NK"
 ```
 
-The query syntax follows a simple pattern: - `/ axis` selects an axis -
-`: property` retrieves a property - `% operation` applies an
-element-wise operation - `%> reduction` applies a reduction operation -
-`& property` filters by a property - `= value`, `> value`, etc. apply
-comparison operations
+The query syntax follows a simple pattern:
+
+- `/ axis` selects an axis
+- `: property` retrieves a property
+- `% operation` applies an element-wise operation
+- `%> reduction` applies a reduction operation
+- `& property` filters by a property
+- `= value`, `> value`, etc. apply comparison operations
 
 See the Julia
 [documentation](https://tanaylab.github.io/DataAxesFormats.jl/v0.1.2/queries.html)
@@ -189,7 +193,7 @@ implementation with the ergonomics of the tidyverse.
 
 ## License (MIT)
 
-Copyright © 2024 Weizmann Institute of Science
+Copyright © 2025 Weizmann Institute of Science
 
 Permission is hereby granted, free of charge, to any person obtaining a
 copy of this software and associated documentation files (the

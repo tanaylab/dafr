@@ -71,13 +71,3 @@ adapter <- function(
 
     return(result)
 }
-
-#' Get the name of a Daf object
-#'
-#' @param daf A Daf object
-#' @return The name of the Daf object
-#' @noRd
-jl_get_name <- function(daf) {
-    validate_daf_object(daf)
-    return(julia_call("get_object_field", daf$jl_obj, "name", need_return = "R"))
-}
