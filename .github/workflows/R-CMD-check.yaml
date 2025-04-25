@@ -39,7 +39,7 @@ jobs:
 
       - name: Install JuliaCall
         run: |
-          Rscript -e 'install.packages("JuliaCall")'
+          Rscript -e 'install.packages(c("JuliaCall", "devtools"))'
 
       - name: Test setup_daf function
         run: |
