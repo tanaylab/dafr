@@ -5,7 +5,7 @@ on:
     branches: [main, master]
   pull_request:
 
-name: R-CMD-check.yaml
+name: R-CMD-check-with-Julia
 
 permissions: read-all
 
@@ -15,6 +15,7 @@ jobs:
     env:
       GITHUB_PAT: ${{ secrets.GITHUB_TOKEN }}
       R_KEEP_PKG_SOURCE: yes
+      JULIA_NUM_THREADS: 2
     steps:
       - uses: actions/checkout@v4
 
@@ -22,9 +23,31 @@ jobs:
         with:
           use-public-rspm: true
 
+      - name: Setup Julia
+        uses: julia-actions/setup-julia@v1
+        with:
+          version: 'latest' 
+          arch: x64
+
+      - name: Cache Julia packages
+        uses: actions/cache@v3
+        with:
+          path: ~/.julia
+          key: ${{ runner.os }}-julia-${{ hashFiles('**/Project.toml') }}
+          restore-keys: |
+            ${{ runner.os }}-julia-
+
+      - name: Install JuliaCall
+        run: |
+          Rscript -e 'install.packages("JuliaCall")'
+
+      - name: Test setup_daf function
+        run: |
+          Rscript -e 'library(devtools); load_all(); setup_daf(installJulia = FALSE, force_dev = TRUE)'
+
       - uses: r-lib/actions/setup-r-dependencies@v2
         with:
-          extra-packages: any::rcmdcheck
+          extra-packages: any::rcmdcheck, any::JuliaCall, any::cli, any::devtools
           needs: check
 
       - uses: r-lib/actions/check-r-package@v2
