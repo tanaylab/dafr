@@ -2,6 +2,10 @@ expect_c_equal <- function(query, expected) {
     expect_equal(as.character(query), expected)
 }
 
+set <- function(x) {
+    sort(unique(x))
+}
+
 # Test query formatting
 test_that("query formatting works correctly", {
     expect_c_equal(Axis("cell"), "/ cell")
