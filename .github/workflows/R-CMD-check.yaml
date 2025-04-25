@@ -24,10 +24,10 @@ jobs:
           use-public-rspm: true
 
       - name: Setup Julia
-        uses: julia-actions/setup-julia@v1
+        uses: julia-actions/setup-julia@v2
         with:
           version: 'lts' 
-          arch: x64
+          arch: default
 
       - name: Cache Julia packages
         uses: actions/cache@v3
