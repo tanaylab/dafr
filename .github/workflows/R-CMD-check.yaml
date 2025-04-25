@@ -39,16 +39,17 @@ jobs:
 
       - name: Install JuliaCall
         run: |
-          Rscript -e 'install.packages(c("JuliaCall", "devtools"))'
+          Rscript -e 'install.packages(c("JuliaCall", "devtools", "cli", "Matrix", "tibble", "tidyr"))'
+      
+      - uses: r-lib/actions/setup-r-dependencies@v2
+        with:
+          extra-packages: any::rcmdcheck, any::JuliaCall, any::cli, any::devtools
+          needs: check
 
       - name: Test setup_daf function
         run: |
           Rscript -e 'library(devtools); load_all(); setup_daf(installJulia = FALSE, force_dev = TRUE)'
 
-      - uses: r-lib/actions/setup-r-dependencies@v2
-        with:
-          extra-packages: any::rcmdcheck, any::JuliaCall, any::cli, any::devtools
-          needs: check
 
       - uses: r-lib/actions/check-r-package@v2
         with:
