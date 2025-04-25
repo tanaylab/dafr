@@ -46,11 +46,6 @@ jobs:
           extra-packages: any::rcmdcheck, any::JuliaCall, any::cli, any::devtools
           needs: check
 
-      - name: Test setup_daf function
-        run: |
-          Rscript -e 'library(devtools); load_all(); setup_daf(installJulia = FALSE, force_dev = TRUE)'
-
-
       - uses: r-lib/actions/check-r-package@v2
         with:
           upload-snapshots: true

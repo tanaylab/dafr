@@ -20,6 +20,11 @@ Useful links:
 \author{
 \strong{Maintainer}: Aviezer Lifshitz \email{aviezer.lifshitz@weizmann.ac.il} (\href{https://orcid.org/0000-0002-8458-9507}{ORCID})
 
+Authors:
+\itemize{
+  \item Oren Ben-Kiki \email{oren@ben-kiki.org}
+}
+
 Other contributors:
 \itemize{
   \item Weizmann Institute of Science [copyright holder]

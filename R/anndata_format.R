@@ -15,6 +15,8 @@
 #' @export
 h5ad_as_daf <- function(h5ad, name = NULL, obs_is = NULL, var_is = NULL, X_is = NULL,
                         unsupported_handler = WARN_HANDLER) {
+    h5ad <- normalizePath(h5ad)
+
     # Get Julia handler object
     jl_handler <- get_julia_handler(unsupported_handler)
 
@@ -47,6 +49,8 @@ h5ad_as_daf <- function(h5ad, name = NULL, obs_is = NULL, var_is = NULL, X_is = 
 #' @export
 daf_as_h5ad <- function(daf, h5ad, obs_is = NULL, var_is = NULL, X_is = NULL) {
     validate_daf_object(daf)
+
+    h5ad <- normalizePath(h5ad)
 
     # Call Julia function
     julia_call("DataAxesFormats.daf_as_anndata",
