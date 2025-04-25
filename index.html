@@ -154,13 +154,28 @@
 <span><span class="co">#&gt; [1] 5.333333</span></span>
 <span></span>
 <span><span class="co"># Complex operations can be built using the pipe operator or query functions</span></span>
-<span><span class="va">query</span> <span class="op">&lt;-</span> <span class="fu"><a href="reference/Axis.html">Axis</a></span><span class="op">(</span><span class="st">"cell"</span><span class="op">)</span> <span class="op">|&gt;</span></span>
+<span><span class="co"># Get types of cells with age &gt; 2</span></span>
+<span><span class="fu"><a href="reference/Axis.html">Axis</a></span><span class="op">(</span><span class="st">"cell"</span><span class="op">)</span> <span class="op">|&gt;</span></span>
 <span>    <span class="fu"><a href="reference/And.html">And</a></span><span class="op">(</span><span class="st">"age"</span><span class="op">)</span> <span class="op">|&gt;</span></span>
 <span>    <span class="fu"><a href="reference/IsGreater.html">IsGreater</a></span><span class="op">(</span><span class="fl">2</span><span class="op">)</span> <span class="op">|&gt;</span></span>
-<span>    <span class="fu"><a href="reference/Lookup.html">Lookup</a></span><span class="op">(</span><span class="st">"type"</span><span class="op">)</span></span>
-<span><span class="va">daf</span><span class="op">[</span><span class="va">query</span><span class="op">]</span> <span class="co"># Get types of cells with age &gt; 2</span></span>
+<span>    <span class="fu"><a href="reference/Lookup.html">Lookup</a></span><span class="op">(</span><span class="st">"type"</span><span class="op">)</span> <span class="op">|&gt;</span></span>
+<span>    <span class="fu"><a href="reference/get_query.html">get_query</a></span><span class="op">(</span><span class="va">daf</span><span class="op">)</span></span>
 <span><span class="co">#&gt; [1] "B"  "NK"</span></span></code></pre></div>
-<p>The query syntax follows a simple pattern: - <code>/ axis</code> selects an axis - <code>: property</code> retrieves a property - <code>% operation</code> applies an element-wise operation - <code>%&gt; reduction</code> applies a reduction operation - <code>&amp; property</code> filters by a property - <code>= value</code>, <code>&gt; value</code>, etc. apply comparison operations</p>
+<p>The query syntax follows a simple pattern:</p>
+<ul>
+<li>
+<code>/ axis</code> selects an axis</li>
+<li>
+<code>: property</code> retrieves a property</li>
+<li>
+<code>% operation</code> applies an element-wise operation</li>
+<li>
+<code>%&gt; reduction</code> applies a reduction operation</li>
+<li>
+<code>&amp; property</code> filters by a property</li>
+<li>
+<code>= value</code>, <code>&gt; value</code>, etc. apply comparison operations</li>
+</ul>
 <p>See the Julia <a href="https://tanaylab.github.io/DataAxesFormats.jl/v0.1.2/queries.html" class="external-link">documentation</a> for more details about the query language.</p>
 <div class="section level3">
 <h3 id="important-note-about-data-copying">Important Note About Data Copying<a class="anchor" aria-label="anchor" href="#important-note-about-data-copying"></a>
@@ -197,7 +212,7 @@
 <div class="section level2">
 <h2 id="license-mit">License (MIT)<a class="anchor" aria-label="anchor" href="#license-mit"></a>
 </h2>
-<p>Copyright © 2024 Weizmann Institute of Science</p>
+<p>Copyright © 2025 Weizmann Institute of Science</p>
 <p>Permission is hereby granted, free of charge, to any person obtaining a copy of this software and associated documentation files (the “Software”), to deal in the Software without restriction, including without limitation the rights to use, copy, modify, merge, publish, distribute, sublicense, and/or sell copies of the Software, and to permit persons to whom the Software is furnished to do so, subject to the following conditions:</p>
 <p>The above copyright notice and this permission notice shall be included in all copies or substantial portions of the Software.</p>
 <p>THE SOFTWARE IS PROVIDED “AS IS”, WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.</p>
