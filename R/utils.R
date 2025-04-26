@@ -28,12 +28,20 @@ set_seed <- function(seed) {
     if (is.null(x)) y else x
 }
 
-# Helper function to handle pipe logic for functions with ONE required argument followed by ...
-# Takes the value passed to the required argument, whether it was explicitly missing, and the dots list.
-# Returns a list containing:
-#   $query: The identified JuliaObject query, or NULL.
-#   $value: The actual value intended for the required argument.
-#   $provided: Logical indicating if the actual value was successfully provided.
+#' Handle pipe logic for functions with one required argument followed by ...
+#'
+#' @param required_arg_val The value passed to the required argument slot.
+#' @param required_arg_missing Logical, result of `missing(arg_name)` in caller.
+#' @param dots List, result of `list(...)` in caller.
+#'
+#' @return A list containing:
+#'   \describe{
+#'     \item{query}{The identified JuliaObject query, or NULL.}
+#'     \item{value}{The actual value intended for the required argument.}
+#'     \item{provided}{Logical indicating if the actual value was successfully provided.}
+#'   }
+#' @keywords internal
+#' @noRd
 handle_single_required_arg_pipe <- function(required_arg_val, # The actual argument value passed
                                             required_arg_missing, # Result of missing(arg_name) in caller
                                             dots) { # Result of list(...) in caller
@@ -70,11 +78,25 @@ handle_single_required_arg_pipe <- function(required_arg_val, # The actual argum
     return(list(query = query, value = actual_value, provided = value_provided))
 }
 
-# Helper function that combines pipe handling and common validation
-# Validates that the required argument was provided and matches the expected type.
-# arg_name is used for error messages.
-# type_check_fun is a function like is.character, is.numeric etc.
-# type_error_msg is the message for the type validation failure.
+#' Combine pipe handling and validation for required arguments.
+#'
+#' Validates that the required argument was provided and matches the expected type.
+#'
+#' @param arg_val Value passed to the argument.
+#' @param arg_missing Logical, result of `missing(arg_name)` in caller.
+#' @param dots List, result of `list(...)` in caller.
+#' @param arg_name Character, the name of the argument (for error messages).
+#' @param type_check_fun Function to check the type of the argument (e.g., `is.character`).
+#' @param type_error_msg Character, the error message for type validation failure.
+#'
+#' @return A list containing:
+#'   \describe{
+#'     \item{query}{The identified JuliaObject query, or NULL.}
+#'     \item{value}{The validated actual value for the required argument.}
+#'     \item{provided}{Logical, always TRUE if validation succeeds, otherwise aborts.}
+#'   }
+#' @keywords internal
+#' @noRd
 handle_query_pipe_and_validate <- function(arg_val,
                                            arg_missing,
                                            dots,
@@ -92,9 +114,17 @@ handle_query_pipe_and_validate <- function(arg_val,
     return(res)
 }
 
-# Helper function for parameterless operations that can be piped.
-# Handles extracting the query from dots, calling the Julia function,
-# and applying the pipe operator.
+#' Handle pipe logic for parameterless operations.
+#'
+#' Extracts the query from dots, calls the Julia function, and applies the pipe operator if needed.
+#'
+#' @param dots List, result of `list(...)` in caller. Expected to contain the query object if piped.
+#' @param julia_function_name Character, the name of the Julia function to call.
+#' @param op_name Character, the name of the R operation function (for error messages).
+#'
+#' @return The result of the Julia call, potentially piped from the query object.
+#' @keywords internal
+#' @noRd
 handle_parameterless_operation_pipe <- function(dots, julia_function_name, op_name) {
     query <- NULL
     # Operation functions expect the query object directly in dots
@@ -113,9 +143,22 @@ handle_parameterless_operation_pipe <- function(dots, julia_function_name, op_na
     return(result)
 }
 
-# Helper function for operations/queries with ONE optional argument + pipe.
-# Handles extracting the query and the actual argument value.
-# Returns a list: $query, $value
+#' Handle pipe logic for operations/queries with ONE optional argument.
+#'
+#' Extracts the query and the actual argument value from the function call signature
+#' and dots, considering defaults.
+#'
+#' @param arg_val The value passed to the optional argument slot.
+#' @param arg_missing Logical, result of `missing(arg_name)` in caller.
+#' @param dots List, result of `list(...)` in caller.
+#'
+#' @return A list containing:
+#'   \describe{
+#'     \item{query}{The identified JuliaObject query, or NULL.}
+#'     \item{value}{The actual value intended for the optional argument (could be default).}
+#'   }
+#' @keywords internal
+#' @noRd
 handle_optional_arg_pipe <- function(arg_val, arg_missing, dots) {
     query <- NULL
     actual_value <- arg_val # Takes default if arg_missing
