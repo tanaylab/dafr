@@ -52,7 +52,7 @@
 <!-- badges: start -->
 
 <p>The goal of dafr is to provide R bindings for the <a href="https://github.com/tanaylab/DataAxesFormats.jl" class="external-link">DataAxesFormats.jl</a> Julia package, which provides a uniform generic interface for accessing 1D and 2D data arranged along some set of axes. This is a much-needed generalization of the <a href="https://github.com/scverse/anndata" class="external-link">AnnData</a> functionality.</p>
-<p>The dafr package enables R users to access <code>Daf</code> data using familiar R interfaces while leveraging the powerful implementation provided by the Julia package. The package follows a functional interface similar to the Julia implementation.</p>
+<p>The dafr package enables R users to access <code>Daf</code> data using familiar R interfaces while leveraging the powerful implementation provided by the Julia package. The package follows a functional interface similar to the Julia implementation, with some limitations due to the limitations of JuliaCall (see <a href="#important-note-about-data-copying">below</a>).</p>
 <div class="section level2">
 <h2 id="installation">Installation<a class="anchor" aria-label="anchor" href="#installation"></a>
 </h2>
@@ -180,7 +180,7 @@
 <div class="section level3">
 <h3 id="important-note-about-data-copying">Important Note About Data Copying<a class="anchor" aria-label="anchor" href="#important-note-about-data-copying"></a>
 </h3>
-<p>Due to limitations in JuliaCall, data is copied between R and Julia during function calls. This means that operations involving large matrices or vectors will incur memory overhead. For large datasets, consider performing more operations directly on the Julia side to minimize data transfers.</p>
+<p>Due to limitations in JuliaCall, data is copied between R and Julia during function calls. This means that operations involving large matrices or vectors will incur memory overhead. For large datasets, consider performing more operations directly on the Julia side to minimize data transfers. This also means that creating properties with <code>empty_dense_vector</code> or <code>empty_sparse_vector</code> are not supported in the R version.</p>
 </div>
 </div>
 <div class="section level2">
