@@ -16,5 +16,5 @@ A query operation object
 }
 \description{
 Same as \code{Xor} but use the inverse of the mask. See the Julia
-\href{https://tanaylab.github.io/DataAxesFormats.jl/v0.1.2/queries.html#DataAccessFormats.Queries.XorNot}{documentation} for details.
+\href{https://tanaylab.github.io/DataAccessFormats.jl/v0.1.2/queries.html#DataAccessFormats.Queries.XorNot}{documentation} for details.
 }

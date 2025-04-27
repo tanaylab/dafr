@@ -174,15 +174,19 @@ query_result_dimensions <- function(query) {
 #' @return A query operation object that can be used in a query sequence
 #' @export
 Axis <- function(axis, ...) {
-    dots <- list(...)
-    res <- handle_query_pipe_and_validate(axis, missing(axis), dots, "axis")
-
-    result <- julia_call("DataAxesFormats.Queries.Axis", res$value)
-
-    if (!is.null(res$query)) {
-        result <- julia_call("|>", res$query, result)
+    res <- extract_query_and_value(axis, missing(axis), list(...), required = TRUE)
+    if (!res$provided) {
+        cli::cli_abort("{.field axis} is missing with no default")
     }
-    return(result)
+    if (!is.character(res$value)) {
+        cli::cli_abort("{.field axis} must be a character string")
+    }
+
+    ans <- julia_call("DataAxesFormats.Queries.Axis", res$value)
+    if (!is.null(res$query)) {
+        ans <- julia_call("|>", res$query, ans)
+    }
+    ans
 }
 
 #' @title Lookup query operation
@@ -196,15 +200,19 @@ Axis <- function(axis, ...) {
 #' @return A query operation object that can be used in a query sequence
 #' @export
 Lookup <- function(property, ...) {
-    dots <- list(...)
-    res <- handle_query_pipe_and_validate(property, missing(property), dots, "property")
-
-    result <- julia_call("DataAxesFormats.Queries.Lookup", res$value)
-
-    if (!is.null(res$query)) {
-        result <- julia_call("|>", res$query, result)
+    res <- extract_query_and_value(property, missing(property), list(...), required = TRUE)
+    if (!res$provided) {
+        cli::cli_abort("{.field property} is missing with no default")
     }
-    return(result)
+    if (!is.character(res$value)) {
+        cli::cli_abort("{.field property} must be a character string")
+    }
+
+    ans <- julia_call("DataAxesFormats.Queries.Lookup", res$value)
+    if (!is.null(res$query)) {
+        ans <- julia_call("|>", res$query, ans)
+    }
+    ans
 }
 
 #' @title Names query operation
@@ -218,20 +226,18 @@ Lookup <- function(property, ...) {
 #' @return A query operation object that can be used in a query sequence
 #' @export
 Names <- function(kind = NULL, ...) {
-    dots <- list(...)
-    res <- handle_optional_arg_pipe(kind, missing(kind), dots)
-
-    # Validation (optional arg)
+    res <- extract_query_and_value(kind, missing(kind), list(...),
+        required = FALSE, default = NULL
+    )
     if (!is.null(res$value) && !is.character(res$value)) {
         cli::cli_abort("{.field kind} must be a character string or NULL")
     }
 
-    result <- julia_call("DataAxesFormats.Queries.Names", res$value)
-
+    ans <- julia_call("DataAxesFormats.Queries.Names", res$value)
     if (!is.null(res$query)) {
-        result <- julia_call("|>", res$query, result)
+        ans <- julia_call("|>", res$query, ans)
     }
-    return(result)
+    ans
 }
 
 #' @title Fetch query operation
@@ -246,15 +252,19 @@ Names <- function(kind = NULL, ...) {
 #' @return A query operation object that can be used in a query sequence
 #' @export
 Fetch <- function(property, ...) {
-    dots <- list(...)
-    res <- handle_query_pipe_and_validate(property, missing(property), dots, "property")
-
-    result <- julia_call("DataAxesFormats.Queries.Fetch", res$value)
-
-    if (!is.null(res$query)) {
-        result <- julia_call("|>", res$query, result)
+    res <- extract_query_and_value(property, missing(property), list(...), required = TRUE)
+    if (!res$provided) {
+        cli::cli_abort("{.field property} is missing with no default")
     }
-    return(result)
+    if (!is.character(res$value)) {
+        cli::cli_abort("{.field property} must be a character string")
+    }
+
+    ans <- julia_call("DataAxesFormats.Queries.Fetch", res$value)
+    if (!is.null(res$query)) {
+        ans <- julia_call("|>", res$query, ans)
+    }
+    ans
 }
 
 #' @title IfMissing query operation
@@ -276,7 +286,7 @@ IfMissing <- function(missing_value, type = NULL, ...) {
     real_type <- type
     mv_missing <- missing(missing_value)
 
-    # --- Pipe Handling --- Logic derived from original implementation & comments
+    # --- Pipe Handling ---
     mv_is_query <- !mv_missing && inherits(missing_value, "JuliaObject")
     dots_non_empty <- length(dots) > 0
     dots_has_value <- dots_non_empty && !inherits(dots[[1]], "JuliaObject")
@@ -358,8 +368,7 @@ IfMissing <- function(missing_value, type = NULL, ...) {
 #' @return A query operation object that can be used in a query sequence
 #' @export
 IfNot <- function(value = NULL, ...) {
-    dots <- list(...)
-    res <- handle_optional_arg_pipe(value, missing(value), dots)
+    res <- extract_query_and_value(value, missing(value), list(...), required = FALSE, default = NULL)
 
     # No specific validation needed for value (can be NULL or various types)
 
@@ -383,8 +392,7 @@ IfNot <- function(value = NULL, ...) {
 #' @return A query operation object that can be used in a query sequence
 #' @export
 AsAxis <- function(axis = NULL, ...) {
-    dots <- list(...)
-    res <- handle_optional_arg_pipe(axis, missing(axis), dots)
+    res <- extract_query_and_value(axis, missing(axis), list(...), required = FALSE, default = NULL)
 
     # Validation (optional arg)
     if (!is.null(res$value) && !is.character(res$value)) {
@@ -409,15 +417,19 @@ AsAxis <- function(axis = NULL, ...) {
 #' @return A query operation object
 #' @export
 MaskSlice <- function(axis, ...) {
-    dots <- list(...)
-    res <- handle_query_pipe_and_validate(axis, missing(axis), dots, "axis")
-
-    result <- julia_call("DataAxesFormats.Queries.MaskSlice", res$value)
-
-    if (!is.null(res$query)) {
-        result <- julia_call("|>", res$query, result)
+    res <- extract_query_and_value(axis, missing(axis), list(...), required = TRUE)
+    if (!res$provided) {
+        cli::cli_abort("{.field axis} is missing with no default")
     }
-    return(result)
+    if (!is.character(res$value)) {
+        cli::cli_abort("{.field axis} must be a character string")
+    }
+
+    ans <- julia_call("DataAxesFormats.Queries.MaskSlice", res$value)
+    if (!is.null(res$query)) {
+        ans <- julia_call("|>", res$query, ans)
+    }
+    ans
 }
 
 #' @title SquareMaskColumn query operation
@@ -430,15 +442,19 @@ MaskSlice <- function(axis, ...) {
 #' @return A query operation object
 #' @export
 SquareMaskColumn <- function(value, ...) {
-    dots <- list(...)
-    res <- handle_query_pipe_and_validate(value, missing(value), dots, "value")
-
-    result <- julia_call("DataAxesFormats.Queries.SquareMaskColumn", res$value)
-
-    if (!is.null(res$query)) {
-        result <- julia_call("|>", res$query, result)
+    res <- extract_query_and_value(value, missing(value), list(...), required = TRUE)
+    if (!res$provided) {
+        cli::cli_abort("{.field value} is missing with no default")
     }
-    return(result)
+    if (!is.character(res$value)) {
+        cli::cli_abort("{.field value} must be a character string")
+    }
+
+    ans <- julia_call("DataAxesFormats.Queries.SquareMaskColumn", res$value)
+    if (!is.null(res$query)) {
+        ans <- julia_call("|>", res$query, ans)
+    }
+    ans
 }
 
 #' @title SquareMaskRow query operation
@@ -451,15 +467,19 @@ SquareMaskColumn <- function(value, ...) {
 #' @return A query operation object
 #' @export
 SquareMaskRow <- function(value, ...) {
-    dots <- list(...)
-    res <- handle_query_pipe_and_validate(value, missing(value), dots, "value")
-
-    result <- julia_call("DataAxesFormats.Queries.SquareMaskRow", res$value)
-
-    if (!is.null(res$query)) {
-        result <- julia_call("|>", res$query, result)
+    res <- extract_query_and_value(value, missing(value), list(...), required = TRUE)
+    if (!res$provided) {
+        cli::cli_abort("{.field value} is missing with no default")
     }
-    return(result)
+    if (!is.character(res$value)) {
+        cli::cli_abort("{.field value} must be a character string")
+    }
+
+    ans <- julia_call("DataAxesFormats.Queries.SquareMaskRow", res$value)
+    if (!is.null(res$query)) {
+        ans <- julia_call("|>", res$query, ans)
+    }
+    ans
 }
 
 #' @title And query operation
@@ -474,15 +494,19 @@ SquareMaskRow <- function(value, ...) {
 #' @return A query operation object that can be used in a query sequence
 #' @export
 And <- function(property, ...) {
-    dots <- list(...)
-    res <- handle_query_pipe_and_validate(property, missing(property), dots, "property")
-
-    result <- julia_call("DataAxesFormats.Queries.And", res$value)
-
-    if (!is.null(res$query)) {
-        result <- julia_call("|>", res$query, result)
+    res <- extract_query_and_value(property, missing(property), list(...), required = TRUE)
+    if (!res$provided) {
+        cli::cli_abort("{.field property} is missing with no default")
     }
-    return(result)
+    if (!is.character(res$value)) {
+        cli::cli_abort("{.field property} must be a character string")
+    }
+
+    ans <- julia_call("DataAxesFormats.Queries.And", res$value)
+    if (!is.null(res$query)) {
+        ans <- julia_call("|>", res$query, ans)
+    }
+    ans
 }
 
 #' @title AndNot query operation
@@ -494,15 +518,19 @@ And <- function(property, ...) {
 #' @return A query operation object
 #' @export
 AndNot <- function(property, ...) {
-    dots <- list(...)
-    res <- handle_query_pipe_and_validate(property, missing(property), dots, "property")
-
-    result <- julia_call("DataAxesFormats.Queries.AndNot", res$value)
-
-    if (!is.null(res$query)) {
-        result <- julia_call("|>", res$query, result)
+    res <- extract_query_and_value(property, missing(property), list(...), required = TRUE)
+    if (!res$provided) {
+        cli::cli_abort("{.field property} is missing with no default")
     }
-    return(result)
+    if (!is.character(res$value)) {
+        cli::cli_abort("{.field property} must be a character string")
+    }
+
+    ans <- julia_call("DataAxesFormats.Queries.AndNot", res$value)
+    if (!is.null(res$query)) {
+        ans <- julia_call("|>", res$query, ans)
+    }
+    ans
 }
 
 #' @title Or query operation
@@ -517,15 +545,19 @@ AndNot <- function(property, ...) {
 #' @return A query operation object that can be used in a query sequence
 #' @export
 Or <- function(property, ...) {
-    dots <- list(...)
-    res <- handle_query_pipe_and_validate(property, missing(property), dots, "property")
-
-    result <- julia_call("DataAxesFormats.Queries.Or", res$value)
-
-    if (!is.null(res$query)) {
-        result <- julia_call("|>", res$query, result)
+    res <- extract_query_and_value(property, missing(property), list(...), required = TRUE)
+    if (!res$provided) {
+        cli::cli_abort("{.field property} is missing with no default")
     }
-    return(result)
+    if (!is.character(res$value)) {
+        cli::cli_abort("{.field property} must be a character string")
+    }
+
+    ans <- julia_call("DataAxesFormats.Queries.Or", res$value)
+    if (!is.null(res$query)) {
+        ans <- julia_call("|>", res$query, ans)
+    }
+    ans
 }
 
 #' @title OrNot query operation
@@ -536,15 +568,19 @@ Or <- function(property, ...) {
 #' @return A query operation object
 #' @export
 OrNot <- function(property, ...) {
-    dots <- list(...)
-    res <- handle_query_pipe_and_validate(property, missing(property), dots, "property")
-
-    result <- julia_call("DataAxesFormats.Queries.OrNot", res$value)
-
-    if (!is.null(res$query)) {
-        result <- julia_call("|>", res$query, result)
+    res <- extract_query_and_value(property, missing(property), list(...), required = TRUE)
+    if (!res$provided) {
+        cli::cli_abort("{.field property} is missing with no default")
     }
-    return(result)
+    if (!is.character(res$value)) {
+        cli::cli_abort("{.field property} must be a character string")
+    }
+
+    ans <- julia_call("DataAxesFormats.Queries.OrNot", res$value)
+    if (!is.null(res$query)) {
+        ans <- julia_call("|>", res$query, ans)
+    }
+    ans
 }
 
 #' @title Xor query operation
@@ -555,34 +591,42 @@ OrNot <- function(property, ...) {
 #' @return A query operation object
 #' @export
 Xor <- function(property, ...) {
-    dots <- list(...)
-    res <- handle_query_pipe_and_validate(property, missing(property), dots, "property")
-
-    result <- julia_call("DataAxesFormats.Queries.Xor", res$value)
-
-    if (!is.null(res$query)) {
-        result <- julia_call("|>", res$query, result)
+    res <- extract_query_and_value(property, missing(property), list(...), required = TRUE)
+    if (!res$provided) {
+        cli::cli_abort("{.field property} is missing with no default")
     }
-    return(result)
+    if (!is.character(res$value)) {
+        cli::cli_abort("{.field property} must be a character string")
+    }
+
+    ans <- julia_call("DataAxesFormats.Queries.Xor", res$value)
+    if (!is.null(res$query)) {
+        ans <- julia_call("|>", res$query, ans)
+    }
+    ans
 }
 
 #' @title XorNot query operation
 #' @description Same as `Xor` but use the inverse of the mask. See the Julia
-#' [documentation](https://tanaylab.github.io/DataAxesFormats.jl/v0.1.2/queries.html#DataAccessFormats.Queries.XorNot) for details.
+#' [documentation](https://tanaylab.github.io/DataAccessFormats.jl/v0.1.2/queries.html#DataAccessFormats.Queries.XorNot) for details.
 #' @param property String specifying the property
 #' @param ... Additional arguments needed to support usage of pipe operator
 #' @return A query operation object
 #' @export
 XorNot <- function(property, ...) {
-    dots <- list(...)
-    res <- handle_query_pipe_and_validate(property, missing(property), dots, "property")
-
-    result <- julia_call("DataAxesFormats.Queries.XorNot", res$value)
-
-    if (!is.null(res$query)) {
-        result <- julia_call("|>", res$query, result)
+    res <- extract_query_and_value(property, missing(property), list(...), required = TRUE)
+    if (!res$provided) {
+        cli::cli_abort("{.field property} is missing with no default")
     }
-    return(result)
+    if (!is.character(res$value)) {
+        cli::cli_abort("{.field property} must be a character string")
+    }
+
+    ans <- julia_call("DataAxesFormats.Queries.XorNot", res$value)
+    if (!is.null(res$query)) {
+        ans <- julia_call("|>", res$query, ans)
+    }
+    ans
 }
 
 #' @title IsLess query operation
@@ -597,19 +641,17 @@ XorNot <- function(property, ...) {
 #' @return A query operation object that can be used in a query sequence
 #' @export
 IsLess <- function(value, ...) {
-    dots <- list(...)
-    # Numeric validation happens on Julia side, just check if provided.
-    res <- handle_query_pipe_and_validate(value, missing(value), dots, "value",
-        type_check_fun = function(x) TRUE, # Skip R type check
-        type_error_msg = "Internal error: type check should be skipped"
-    )
-
-    result <- julia_call("DataAxesFormats.Queries.IsLess", res$value)
-
-    if (!is.null(res$query)) {
-        result <- julia_call("|>", res$query, result)
+    res <- extract_query_and_value(value, missing(value), list(...), required = TRUE)
+    if (!res$provided) {
+        cli::cli_abort("{.field value} is missing with no default")
     }
-    return(result)
+    # Numeric validation happens on Julia side
+
+    ans <- julia_call("DataAxesFormats.Queries.IsLess", res$value)
+    if (!is.null(res$query)) {
+        ans <- julia_call("|>", res$query, ans)
+    }
+    ans
 }
 
 #' @title IsLessEqual query operation
@@ -621,17 +663,17 @@ IsLess <- function(value, ...) {
 #' @return A query operation object
 #' @export
 IsLessEqual <- function(value, ...) {
-    dots <- list(...)
-    res <- handle_query_pipe_and_validate(value, missing(value), dots, "value",
-        type_check_fun = function(x) TRUE
-    )
-
-    result <- julia_call("DataAxesFormats.Queries.IsLessEqual", res$value)
-
-    if (!is.null(res$query)) {
-        result <- julia_call("|>", res$query, result)
+    res <- extract_query_and_value(value, missing(value), list(...), required = TRUE)
+    if (!res$provided) {
+        cli::cli_abort("{.field value} is missing with no default")
     }
-    return(result)
+    # Numeric validation happens on Julia side
+
+    ans <- julia_call("DataAxesFormats.Queries.IsLessEqual", res$value)
+    if (!is.null(res$query)) {
+        ans <- julia_call("|>", res$query, ans)
+    }
+    ans
 }
 
 #' @title IsEqual query operation
@@ -644,17 +686,17 @@ IsLessEqual <- function(value, ...) {
 #' @return A query operation object
 #' @export
 IsEqual <- function(value, ...) {
-    dots <- list(...)
-    res <- handle_query_pipe_and_validate(value, missing(value), dots, "value",
-        type_check_fun = function(x) TRUE
-    )
-
-    result <- julia_call("DataAxesFormats.Queries.IsEqual", res$value)
-
-    if (!is.null(res$query)) {
-        result <- julia_call("|>", res$query, result)
+    res <- extract_query_and_value(value, missing(value), list(...), required = TRUE)
+    if (!res$provided) {
+        cli::cli_abort("{.field value} is missing with no default")
     }
-    return(result)
+    # Type validation happens on Julia side
+
+    ans <- julia_call("DataAxesFormats.Queries.IsEqual", res$value)
+    if (!is.null(res$query)) {
+        ans <- julia_call("|>", res$query, ans)
+    }
+    ans
 }
 
 #' @title IsNotEqual query operation
@@ -666,17 +708,17 @@ IsEqual <- function(value, ...) {
 #' @return A query operation object
 #' @export
 IsNotEqual <- function(value, ...) {
-    dots <- list(...)
-    res <- handle_query_pipe_and_validate(value, missing(value), dots, "value",
-        type_check_fun = function(x) TRUE
-    )
-
-    result <- julia_call("DataAxesFormats.Queries.IsNotEqual", res$value)
-
-    if (!is.null(res$query)) {
-        result <- julia_call("|>", res$query, result)
+    res <- extract_query_and_value(value, missing(value), list(...), required = TRUE)
+    if (!res$provided) {
+        cli::cli_abort("{.field value} is missing with no default")
     }
-    return(result)
+    # Type validation happens on Julia side
+
+    ans <- julia_call("DataAxesFormats.Queries.IsNotEqual", res$value)
+    if (!is.null(res$query)) {
+        ans <- julia_call("|>", res$query, ans)
+    }
+    ans
 }
 
 #' @title IsGreater query operation
@@ -688,17 +730,17 @@ IsNotEqual <- function(value, ...) {
 #' @return A query operation object
 #' @export
 IsGreater <- function(value, ...) {
-    dots <- list(...)
-    res <- handle_query_pipe_and_validate(value, missing(value), dots, "value",
-        type_check_fun = function(x) TRUE
-    )
-
-    result <- julia_call("DataAxesFormats.Queries.IsGreater", res$value)
-
-    if (!is.null(res$query)) {
-        result <- julia_call("|>", res$query, result)
+    res <- extract_query_and_value(value, missing(value), list(...), required = TRUE)
+    if (!res$provided) {
+        cli::cli_abort("{.field value} is missing with no default")
     }
-    return(result)
+    # Numeric validation happens on Julia side
+
+    ans <- julia_call("DataAxesFormats.Queries.IsGreater", res$value)
+    if (!is.null(res$query)) {
+        ans <- julia_call("|>", res$query, ans)
+    }
+    ans
 }
 
 #' @title IsGreaterEqual query operation
@@ -710,17 +752,17 @@ IsGreater <- function(value, ...) {
 #' @return A query operation object
 #' @export
 IsGreaterEqual <- function(value, ...) {
-    dots <- list(...)
-    res <- handle_query_pipe_and_validate(value, missing(value), dots, "value",
-        type_check_fun = function(x) TRUE
-    )
-
-    result <- julia_call("DataAxesFormats.Queries.IsGreaterEqual", res$value)
-
-    if (!is.null(res$query)) {
-        result <- julia_call("|>", res$query, result)
+    res <- extract_query_and_value(value, missing(value), list(...), required = TRUE)
+    if (!res$provided) {
+        cli::cli_abort("{.field value} is missing with no default")
     }
-    return(result)
+    # Numeric validation happens on Julia side
+
+    ans <- julia_call("DataAxesFormats.Queries.IsGreaterEqual", res$value)
+    if (!is.null(res$query)) {
+        ans <- julia_call("|>", res$query, ans)
+    }
+    ans
 }
 
 #' @title IsMatch query operation
@@ -733,18 +775,19 @@ IsGreaterEqual <- function(value, ...) {
 #' @return A query operation object
 #' @export
 IsMatch <- function(value, ...) {
-    dots <- list(...)
-    res <- handle_query_pipe_and_validate(value, missing(value), dots, "value",
-        type_check_fun = is.character,
-        type_error_msg = "{.field value} must be a character string (regex pattern)"
-    )
-
-    result <- julia_call("DataAxesFormats.Queries.IsMatch", res$value)
-
-    if (!is.null(res$query)) {
-        result <- julia_call("|>", res$query, result)
+    res <- extract_query_and_value(value, missing(value), list(...), required = TRUE)
+    if (!res$provided) {
+        cli::cli_abort("{.field value} is missing with no default")
     }
-    return(result)
+    if (!is.character(res$value)) {
+        cli::cli_abort("{.field value} must be a character string (regex pattern)")
+    }
+
+    ans <- julia_call("DataAxesFormats.Queries.IsMatch", res$value)
+    if (!is.null(res$query)) {
+        ans <- julia_call("|>", res$query, ans)
+    }
+    ans
 }
 
 #' @title IsNotMatch query operation
@@ -756,18 +799,19 @@ IsMatch <- function(value, ...) {
 #' @return A query operation object
 #' @export
 IsNotMatch <- function(value, ...) {
-    dots <- list(...)
-    res <- handle_query_pipe_and_validate(value, missing(value), dots, "value",
-        type_check_fun = is.character,
-        type_error_msg = "{.field value} must be a character string (regex pattern)"
-    )
-
-    result <- julia_call("DataAxesFormats.Queries.IsNotMatch", res$value)
-
-    if (!is.null(res$query)) {
-        result <- julia_call("|>", res$query, result)
+    res <- extract_query_and_value(value, missing(value), list(...), required = TRUE)
+    if (!res$provided) {
+        cli::cli_abort("{.field value} is missing with no default")
     }
-    return(result)
+    if (!is.character(res$value)) {
+        cli::cli_abort("{.field value} must be a character string (regex pattern)")
+    }
+
+    ans <- julia_call("DataAxesFormats.Queries.IsNotMatch", res$value)
+    if (!is.null(res$query)) {
+        ans <- julia_call("|>", res$query, ans)
+    }
+    ans
 }
 
 #' @title CountBy query operation
@@ -783,15 +827,19 @@ IsNotMatch <- function(value, ...) {
 #' @return A query operation object that can be used in a query sequence
 #' @export
 CountBy <- function(property, ...) {
-    dots <- list(...)
-    res <- handle_query_pipe_and_validate(property, missing(property), dots, "property")
-
-    result <- julia_call("DataAxesFormats.Queries.CountBy", res$value)
-
-    if (!is.null(res$query)) {
-        result <- julia_call("|>", res$query, result)
+    res <- extract_query_and_value(property, missing(property), list(...), required = TRUE)
+    if (!res$provided) {
+        cli::cli_abort("{.field property} is missing with no default")
     }
-    return(result)
+    if (!is.character(res$value)) {
+        cli::cli_abort("{.field property} must be a character string")
+    }
+
+    ans <- julia_call("DataAxesFormats.Queries.CountBy", res$value)
+    if (!is.null(res$query)) {
+        ans <- julia_call("|>", res$query, ans)
+    }
+    ans
 }
 
 #' @title GroupBy query operation
@@ -808,13 +856,17 @@ CountBy <- function(property, ...) {
 #' @return A query operation object that can be used in a query sequence
 #' @export
 GroupBy <- function(property, ...) {
-    dots <- list(...)
-    res <- handle_query_pipe_and_validate(property, missing(property), dots, "property")
-
-    result <- julia_call("DataAxesFormats.Queries.GroupBy", res$value)
-
-    if (!is.null(res$query)) {
-        result <- julia_call("|>", res$query, result)
+    res <- extract_query_and_value(property, missing(property), list(...), required = TRUE)
+    if (!res$provided) {
+        cli::cli_abort("{.field property} is missing with no default")
     }
-    return(result)
+    if (!is.character(res$value)) {
+        cli::cli_abort("{.field property} must be a character string")
+    }
+
+    ans <- julia_call("DataAxesFormats.Queries.GroupBy", res$value)
+    if (!is.null(res$query)) {
+        ans <- julia_call("|>", res$query, ans)
+    }
+    ans
 }

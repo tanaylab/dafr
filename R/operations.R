@@ -19,7 +19,16 @@
 #' @return A query operation object that can be used in a query sequence
 #' @export
 Abs <- function(...) {
-    handle_parameterless_operation_pipe(list(...), "DataAxesFormats.Operations.Abs", "Abs")
+    res <- extract_query_and_value(NULL, TRUE, list(...), required = FALSE)
+    if (length(list(...)) > 1 || (!is.null(res$query) && length(list(...)) > 1)) {
+        cli::cli_abort("{.code Abs} expects zero arguments or one query object")
+    }
+
+    ans <- julia_call("DataAxesFormats.Operations.Abs")
+    if (!is.null(res$query)) {
+        ans <- julia_call("|>", res$query, ans)
+    }
+    ans
 }
 
 #' @title Clamp query operation
@@ -35,44 +44,25 @@ Abs <- function(...) {
 #' @return A query operation object that can be used in a query sequence
 #' @export
 Clamp <- function(min = NULL, max = NULL, ...) {
-    dots <- list(...)
-    query <- NULL
-    actual_min <- min
-    actual_max <- max
+    min_res <- extract_query_and_value(min, missing(min), list(...), required = FALSE)
+    max_res <- extract_query_and_value(max, missing(max), list(...), required = FALSE)
 
-    # Check if query is passed via dots
-    dots_has_query <- length(dots) > 0 && inherits(dots[[1]], "JuliaObject")
-    if (dots_has_query) {
-        query <- dots[[1]]
-        # If query is in dots, min/max come from the named args
-    } else {
-        # Check if query was passed positionally (e.g., Clamp(query, min=1)) - less likely
-        # Or if min/max themselves are query objects (Clamp(min=query, max=1) or Clamp(query))
-        min_missing <- missing(min)
-        max_missing <- missing(max)
-
-        if (!min_missing && inherits(min, "JuliaObject")) {
-            query <- min
-            actual_min <- NULL # min was query, reset to default
-            # If min was query, max must be from named arg or default
-        } else if (!max_missing && inherits(max, "JuliaObject")) {
-            query <- max
-            actual_max <- NULL # max was query, reset to default
-            # If max was query, min must be from named arg or default
-        }
-        # If neither min nor max was a query, actual values remain as passed (or defaults)
+    # Determine which one has the query (if any)
+    query <- min_res$query
+    if (is.null(query)) {
+        query <- max_res$query
     }
 
-    # Validation (optional args)
-    if (!is.null(actual_min) && !is.numeric(actual_min)) {
+    # Validation
+    if (!is.null(min_res$value) && !is.numeric(min_res$value)) {
         cli::cli_abort("{.field min} must be numeric or NULL")
     }
-    if (!is.null(actual_max) && !is.numeric(actual_max)) {
+    if (!is.null(max_res$value) && !is.numeric(max_res$value)) {
         cli::cli_abort("{.field max} must be numeric or NULL")
     }
 
     # Pass arguments by name to Julia
-    result <- julia_call("DataAxesFormats.Operations.Clamp", min = actual_min, max = actual_max)
+    result <- julia_call("DataAxesFormats.Operations.Clamp", min = min_res$value, max = max_res$value)
 
     if (!is.null(query)) {
         result <- julia_call("|>", query, result)
@@ -92,22 +82,21 @@ Clamp <- function(min = NULL, max = NULL, ...) {
 #' @return A query operation object that can be used in a query sequence
 #' @export
 Convert <- function(type, ...) {
-    # Use the helper defined in utils.R
-    dots <- list(...)
-
-    # Handle pipe and validation using the combined helper
-    res <- handle_query_pipe_and_validate(type, missing(type), dots, "type",
-        type_check_fun = is.character,
-        type_error_msg = "{.field type} must be a character string"
+    res <- extract_query_and_value(type, missing(type), list(...),
+        required = TRUE
     )
-
-    # Pass argument by name to Julia
-    result <- julia_call("DataAxesFormats.Operations.Convert", type = res$value)
-
-    if (!is.null(res$query)) {
-        result <- julia_call("|>", res$query, result)
+    if (!res$provided) {
+        cli::cli_abort("{.field type} is missing with no default")
     }
-    return(result)
+    if (!is.character(res$value)) {
+        cli::cli_abort("{.field type} must be a character string")
+    }
+
+    ans <- julia_call("DataAxesFormats.Operations.Convert", type = res$value)
+    if (!is.null(res$query)) {
+        ans <- julia_call("|>", res$query, ans)
+    }
+    ans
 }
 
 #' @title Fraction query operation
@@ -121,7 +110,16 @@ Convert <- function(type, ...) {
 #' @return A query operation object that can be used in a query sequence
 #' @export
 Fraction <- function(...) {
-    handle_parameterless_operation_pipe(list(...), "DataAxesFormats.Operations.Fraction", "Fraction")
+    res <- extract_query_and_value(NULL, TRUE, list(...), required = FALSE)
+    if (length(list(...)) > 1 || (!is.null(res$query) && length(list(...)) > 1)) {
+        cli::cli_abort("{.code Fraction} expects zero arguments or one query object")
+    }
+
+    ans <- julia_call("DataAxesFormats.Operations.Fraction")
+    if (!is.null(res$query)) {
+        ans <- julia_call("|>", res$query, ans)
+    }
+    ans
 }
 
 #' @title Log query operation
@@ -137,40 +135,25 @@ Fraction <- function(...) {
 #' @return A query operation object that can be used in a query sequence
 #' @export
 Log <- function(base = exp(1), eps = 0, ...) {
-    dots <- list(...)
-    query <- NULL
-    actual_base <- base
-    actual_eps <- eps
+    base_res <- extract_query_and_value(base, missing(base), list(...), required = FALSE, default = exp(1))
+    eps_res <- extract_query_and_value(eps, missing(eps), list(...), required = FALSE, default = 0)
 
-    # Check if query is passed via dots
-    dots_has_query <- length(dots) > 0 && inherits(dots[[1]], "JuliaObject")
-    if (dots_has_query) {
-        query <- dots[[1]]
-        # If query is in dots, base/eps come from the named args
-    } else {
-        # Check if base or eps themselves are query objects
-        base_missing <- missing(base)
-        eps_missing <- missing(eps)
-
-        if (!base_missing && inherits(base, "JuliaObject")) {
-            query <- base
-            actual_base <- exp(1) # base was query, reset to default
-        } else if (!eps_missing && inherits(eps, "JuliaObject")) {
-            query <- eps
-            actual_eps <- 0 # eps was query, reset to default
-        }
+    # Determine which one has the query (if any)
+    query <- base_res$query
+    if (is.null(query)) {
+        query <- eps_res$query
     }
 
     # Validation
-    if (!is.numeric(actual_base)) {
+    if (!is.numeric(base_res$value)) {
         cli::cli_abort("{.field base} must be numeric")
     }
-    if (!is.numeric(actual_eps)) {
+    if (!is.numeric(eps_res$value)) {
         cli::cli_abort("{.field eps} must be numeric")
     }
 
     # Pass arguments by name to Julia
-    result <- julia_call("DataAxesFormats.Operations.Log", base = actual_base, eps = actual_eps)
+    result <- julia_call("DataAxesFormats.Operations.Log", base = base_res$value, eps = eps_res$value)
 
     if (!is.null(query)) {
         result <- julia_call("|>", query, result)
@@ -189,7 +172,16 @@ Log <- function(base = exp(1), eps = 0, ...) {
 #' @return A query operation object that can be used in a query sequence
 #' @export
 Round <- function(...) {
-    handle_parameterless_operation_pipe(list(...), "DataAxesFormats.Operations.Round", "Round")
+    res <- extract_query_and_value(NULL, TRUE, list(...), required = FALSE)
+    if (length(list(...)) > 1 || (!is.null(res$query) && length(list(...)) > 1)) {
+        cli::cli_abort("{.code Round} expects zero arguments or one query object")
+    }
+
+    ans <- julia_call("DataAxesFormats.Operations.Round")
+    if (!is.null(res$query)) {
+        ans <- julia_call("|>", res$query, ans)
+    }
+    ans
 }
 
 #' @title Significant query operation
@@ -215,65 +207,36 @@ Round <- function(...) {
 #' @return A query operation object that can be used in a query sequence
 #' @export
 Significant <- function(high, low = NULL, ...) {
-    dots <- list(...)
-    query <- NULL
-    actual_high <- high
-    actual_low <- low
-    high_missing <- missing(high)
+    high_res <- extract_query_and_value(high, missing(high), list(...), required = TRUE)
+    low_res <- extract_query_and_value(low, missing(low), list(...), required = FALSE)
 
-    # Handle pipe logic - query can be 'high' or in dots
-    high_is_query <- !high_missing && inherits(high, "JuliaObject")
-    dots_has_query <- length(dots) > 0 && inherits(dots[[1]], "JuliaObject")
-    dots_has_high_val <- length(dots) > 0 && !inherits(dots[[1]], "JuliaObject")
-    dots_has_low_val <- length(dots) > 1 && !inherits(dots[[2]], "JuliaObject")
-
-    if (high_is_query) {
-        query <- high
-        if (dots_has_high_val) {
-            actual_high <- dots[[1]]
-            if (dots_has_low_val) {
-                actual_low <- dots[[2]] # low provided in dots[2]
-            } else {
-                actual_low <- NULL # low not provided after high in dots, use default
-            }
-        } else {
-            # high was query, but no replacement value found in dots[1]
-            cli::cli_abort("argument {.field high} is missing when passed after query object")
-        }
-    } else if (dots_has_query) {
-        query <- dots[[1]]
-        # high and low come from named args
-        actual_high <- high
-        actual_low <- low
-        # Check if high was actually provided
-        if (high_missing) {
-            cli::cli_abort("argument {.field high} must be provided")
-        }
-    } else {
-        # No query pipe involved
-        # Check if high was provided
-        if (high_missing) {
-            cli::cli_abort("argument {.field high} must be provided")
-        }
-        actual_high <- high
-        actual_low <- low
+    # Check if high was provided
+    if (!high_res$provided) {
+        cli::cli_abort("argument {.field high} must be provided")
     }
 
     # Set default for low if NULL
+    actual_low <- low_res$value
     if (is.null(actual_low)) {
-        actual_low <- actual_high # Default low is high
+        actual_low <- high_res$value # Default low is high
     }
 
     # Validation
-    if (!is.numeric(actual_high)) {
+    if (!is.numeric(high_res$value)) {
         cli::cli_abort("{.field high} must be numeric")
     }
     if (!is.numeric(actual_low)) {
         cli::cli_abort("{.field low} must be numeric")
     }
 
+    # Use query from either high or low
+    query <- high_res$query
+    if (is.null(query)) {
+        query <- low_res$query
+    }
+
     # Pass arguments by name to Julia
-    result <- julia_call("DataAxesFormats.Operations.Significant", high = actual_high, low = actual_low)
+    result <- julia_call("DataAxesFormats.Operations.Significant", high = high_res$value, low = actual_low)
 
     if (!is.null(query)) {
         result <- julia_call("|>", query, result)
@@ -294,7 +257,16 @@ Significant <- function(high, low = NULL, ...) {
 #' @return A query operation object that can be used in a query sequence
 #' @export
 Max <- function(...) {
-    handle_parameterless_operation_pipe(list(...), "DataAxesFormats.Operations.Max", "Max")
+    res <- extract_query_and_value(NULL, TRUE, list(...), required = FALSE)
+    if (length(list(...)) > 1 || (!is.null(res$query) && length(list(...)) > 1)) {
+        cli::cli_abort("{.code Max} expects zero arguments or one query object")
+    }
+
+    ans <- julia_call("DataAxesFormats.Operations.Max")
+    if (!is.null(res$query)) {
+        ans <- julia_call("|>", res$query, ans)
+    }
+    ans
 }
 
 #' @title Min query operation
@@ -308,7 +280,16 @@ Max <- function(...) {
 #' @return A query operation object that can be used in a query sequence
 #' @export
 Min <- function(...) {
-    handle_parameterless_operation_pipe(list(...), "DataAxesFormats.Operations.Min", "Min")
+    res <- extract_query_and_value(NULL, TRUE, list(...), required = FALSE)
+    if (length(list(...)) > 1 || (!is.null(res$query) && length(list(...)) > 1)) {
+        cli::cli_abort("{.code Min} expects zero arguments or one query object")
+    }
+
+    ans <- julia_call("DataAxesFormats.Operations.Min")
+    if (!is.null(res$query)) {
+        ans <- julia_call("|>", res$query, ans)
+    }
+    ans
 }
 
 #' @title Mean query operation
@@ -322,7 +303,16 @@ Min <- function(...) {
 #' @return A query operation object that can be used in a query sequence
 #' @export
 Mean <- function(...) {
-    handle_parameterless_operation_pipe(list(...), "DataAxesFormats.Operations.Mean", "Mean")
+    res <- extract_query_and_value(NULL, TRUE, list(...), required = FALSE)
+    if (length(list(...)) > 1 || (!is.null(res$query) && length(list(...)) > 1)) {
+        cli::cli_abort("{.code Mean} expects zero arguments or one query object")
+    }
+
+    ans <- julia_call("DataAxesFormats.Operations.Mean")
+    if (!is.null(res$query)) {
+        ans <- julia_call("|>", res$query, ans)
+    }
+    ans
 }
 
 #' @title Median query operation
@@ -336,7 +326,16 @@ Mean <- function(...) {
 #' @return A query operation object that can be used in a query sequence
 #' @export
 Median <- function(...) {
-    handle_parameterless_operation_pipe(list(...), "DataAxesFormats.Operations.Median", "Median")
+    res <- extract_query_and_value(NULL, TRUE, list(...), required = FALSE)
+    if (length(list(...)) > 1 || (!is.null(res$query) && length(list(...)) > 1)) {
+        cli::cli_abort("{.code Median} expects zero arguments or one query object")
+    }
+
+    ans <- julia_call("DataAxesFormats.Operations.Median")
+    if (!is.null(res$query)) {
+        ans <- julia_call("|>", res$query, ans)
+    }
+    ans
 }
 
 #' @title Quantile query operation
@@ -352,41 +351,18 @@ Median <- function(...) {
 #' @return A query operation object that can be used in a query sequence
 #' @export
 Quantile <- function(p = 0.5, ...) {
-    dots <- list(...)
-    query <- NULL
-    actual_p <- p
-    p_missing <- missing(p)
-
-    # Handle pipe logic for optional argument 'p'
-    p_is_query <- !p_missing && inherits(p, "JuliaObject")
-    dots_has_query <- length(dots) > 0 && inherits(dots[[1]], "JuliaObject")
-    dots_has_p_val <- length(dots) > 0 && !inherits(dots[[1]], "JuliaObject")
-
-    if (p_is_query) {
-        query <- p
-        if (dots_has_p_val) {
-            actual_p <- dots[[1]]
-        } else {
-            actual_p <- 0.5 # p was query, no replacement in dots, reset to default
-        }
-    } else if (dots_has_query) {
-        query <- dots[[1]]
-        actual_p <- p # Use value from named arg (or its default)
-    } else {
-        # No query pipe
-        actual_p <- p # Use value from named arg (or its default)
-    }
+    res <- extract_query_and_value(p, missing(p), list(...), required = FALSE, default = 0.5)
 
     # Validation
-    if (!is.numeric(actual_p) || length(actual_p) != 1 || actual_p < 0 || actual_p > 1) {
+    if (!is.numeric(res$value) || length(res$value) != 1 || res$value < 0 || res$value > 1) {
         cli::cli_abort("{.field p} must be a single numeric value between 0 and 1")
     }
 
     # Pass argument by name to Julia
-    result <- julia_call("DataAxesFormats.Operations.Quantile", p = actual_p)
+    result <- julia_call("DataAxesFormats.Operations.Quantile", p = res$value)
 
-    if (!is.null(query)) {
-        result <- julia_call("|>", query, result)
+    if (!is.null(res$query)) {
+        result <- julia_call("|>", res$query, result)
     }
     return(result)
 }
@@ -402,7 +378,16 @@ Quantile <- function(p = 0.5, ...) {
 #' @return A query operation object that can be used in a query sequence
 #' @export
 Sum <- function(...) {
-    handle_parameterless_operation_pipe(list(...), "DataAxesFormats.Operations.Sum", "Sum")
+    res <- extract_query_and_value(NULL, TRUE, list(...), required = FALSE)
+    if (length(list(...)) > 1 || (!is.null(res$query) && length(list(...)) > 1)) {
+        cli::cli_abort("{.code Sum} expects zero arguments or one query object")
+    }
+
+    ans <- julia_call("DataAxesFormats.Operations.Sum")
+    if (!is.null(res$query)) {
+        ans <- julia_call("|>", res$query, ans)
+    }
+    ans
 }
 
 #' @title Std query operation
@@ -417,7 +402,16 @@ Sum <- function(...) {
 #' @return A query operation object that can be used in a query sequence
 #' @export
 Std <- function(...) {
-    handle_parameterless_operation_pipe(list(...), "DataAxesFormats.Operations.Std", "Std")
+    res <- extract_query_and_value(NULL, TRUE, list(...), required = FALSE)
+    if (length(list(...)) > 1 || (!is.null(res$query) && length(list(...)) > 1)) {
+        cli::cli_abort("{.code Std} expects zero arguments or one query object")
+    }
+
+    ans <- julia_call("DataAxesFormats.Operations.Std")
+    if (!is.null(res$query)) {
+        ans <- julia_call("|>", res$query, ans)
+    }
+    ans
 }
 
 #' @title StdN query operation
@@ -431,7 +425,16 @@ Std <- function(...) {
 #' @return A query operation object that can be used in a query sequence
 #' @export
 StdN <- function(...) {
-    handle_parameterless_operation_pipe(list(...), "DataAxesFormats.Operations.StdN", "StdN")
+    res <- extract_query_and_value(NULL, TRUE, list(...), required = FALSE)
+    if (length(list(...)) > 1 || (!is.null(res$query) && length(list(...)) > 1)) {
+        cli::cli_abort("{.code StdN} expects zero arguments or one query object")
+    }
+
+    ans <- julia_call("DataAxesFormats.Operations.StdN")
+    if (!is.null(res$query)) {
+        ans <- julia_call("|>", res$query, ans)
+    }
+    ans
 }
 
 #' @title Var query operation
@@ -446,7 +449,16 @@ StdN <- function(...) {
 #' @return A query operation object that can be used in a query sequence
 #' @export
 Var <- function(...) {
-    handle_parameterless_operation_pipe(list(...), "DataAxesFormats.Operations.Var", "Var")
+    res <- extract_query_and_value(NULL, TRUE, list(...), required = FALSE)
+    if (length(list(...)) > 1 || (!is.null(res$query) && length(list(...)) > 1)) {
+        cli::cli_abort("{.code Var} expects zero arguments or one query object")
+    }
+
+    ans <- julia_call("DataAxesFormats.Operations.Var")
+    if (!is.null(res$query)) {
+        ans <- julia_call("|>", res$query, ans)
+    }
+    ans
 }
 
 #' @title VarN query operation
@@ -461,5 +473,14 @@ Var <- function(...) {
 #' @return A query operation object that can be used in a query sequence
 #' @export
 VarN <- function(...) {
-    handle_parameterless_operation_pipe(list(...), "DataAxesFormats.Operations.VarN", "VarN")
+    res <- extract_query_and_value(NULL, TRUE, list(...), required = FALSE)
+    if (length(list(...)) > 1 || (!is.null(res$query) && length(list(...)) > 1)) {
+        cli::cli_abort("{.code VarN} expects zero arguments or one query object")
+    }
+
+    ans <- julia_call("DataAxesFormats.Operations.VarN")
+    if (!is.null(res$query)) {
+        ans <- julia_call("|>", res$query, ans)
+    }
+    ans
 }
