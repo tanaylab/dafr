@@ -18,7 +18,8 @@ functionality.
 The dafr package enables R users to access `Daf` data using familiar R
 interfaces while leveraging the powerful implementation provided by the
 Julia package. The package follows a functional interface similar to the
-Julia implementation.
+Julia implementation, with some limitations due to the limitations of
+JuliaCall (see [below](#important-note-about-data-copying)).
 
 ## Installation
 
@@ -161,7 +162,9 @@ Due to limitations in JuliaCall, data is copied between R and Julia
 during function calls. This means that operations involving large
 matrices or vectors will incur memory overhead. For large datasets,
 consider performing more operations directly on the Julia side to
-minimize data transfers.
+minimize data transfers. This also means that creating properties with
+`empty_dense_vector` or `empty_sparse_vector` are not supported in the R
+version.
 
 ## Key Features
 

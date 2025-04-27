@@ -21,7 +21,7 @@ knitr::opts_chunk$set(
 
 The goal of dafr is to provide R bindings for the [DataAxesFormats.jl](https://github.com/tanaylab/DataAxesFormats.jl) Julia package, which provides a uniform generic interface for accessing 1D and 2D data arranged along some set of axes. This is a much-needed generalization of the [AnnData](https://github.com/scverse/anndata) functionality.
 
-The dafr package enables R users to access `Daf` data using familiar R interfaces while leveraging the powerful implementation provided by the Julia package. The package follows a functional interface similar to the Julia implementation.
+The dafr package enables R users to access `Daf` data using familiar R interfaces while leveraging the powerful implementation provided by the Julia package. The package follows a functional interface similar to the Julia implementation, with some limitations due to the limitations of JuliaCall (see [below](#important-note-about-data-copying)).
 
 ## Installation
 
@@ -133,7 +133,7 @@ See the Julia [documentation](https://tanaylab.github.io/DataAxesFormats.jl/v0.1
 
 ### Important Note About Data Copying
 
-Due to limitations in JuliaCall, data is copied between R and Julia during function calls. This means that operations involving large matrices or vectors will incur memory overhead. For large datasets, consider performing more operations directly on the Julia side to minimize data transfers.
+Due to limitations in JuliaCall, data is copied between R and Julia during function calls. This means that operations involving large matrices or vectors will incur memory overhead. For large datasets, consider performing more operations directly on the Julia side to minimize data transfers. This also means that creating properties with `empty_dense_vector` or `empty_sparse_vector` are not supported in the R version.
 
 ## Key Features
 
