@@ -43,7 +43,7 @@ inefficient_action_handler <- function(handler) {
     jl_handler <- get_julia_handler(handler)
 
     # Call the Julia function to set the handler and get the previous one
-    previous_handler <- julia_call("TanayLabUtilities.MatrixLayouts._inefficient_action_handler", jl_handler)
+    previous_handler <- julia_call("_inefficient_action_handler", jl_handler)
 
     # Convert the returned Julia handler object back to an R string
     if (julia_call("Base.isequal", previous_handler, julia_eval("TanayLabUtilities.IgnoreHandler"))) {

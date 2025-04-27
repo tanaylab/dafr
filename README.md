@@ -33,8 +33,8 @@ remotes::install_github("tanaylab/dafr")
 
 Note that dafr requires the Julia programming language and the
 DataAxesFormats.jl package to be installed. The package uses
-[JuliaCall](https://github.com/Non-Contradiction/JuliaCall) to interface
-with Julia from R.
+[JuliaCall](https://github.com/JuliaInterop/JuliaCall) to interface with
+Julia from R.
 
 ## Usage
 

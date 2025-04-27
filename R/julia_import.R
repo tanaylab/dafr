@@ -90,6 +90,14 @@ define_julia_functions <- function() {
         end
         return result
     end")
+
+    julia_eval("
+    function _inefficient_action_handler(new_handler::AbnormalHandler)::AbnormalHandler
+        old_handler = TanayLabUtilities.MatrixLayouts.GLOBAL_INEFFICIENT_ACTION_HANDLER
+        TanayLabUtilities.MatrixLayouts.GLOBAL_INEFFICIENT_ACTION_HANDLER = new_handler
+        return old_handler
+    end
+    ")
 }
 
 get_julia_field <- function(julia_object, field_name, need_return = "Julia") {
