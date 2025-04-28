@@ -32,9 +32,197 @@
     </div>
 
     <div class="section level2">
-      <h2 id="all-functions">All functions<a class="anchor" aria-label="anchor" href="#all-functions"></a></h2>
+      <h2 id="core-daf-functionality">Core DAF Functionality<a class="anchor" aria-label="anchor" href="#core-daf-functionality"></a></h2>
+
+      <div class="section-desc"><p>Core functions for working with Daf objects</p></div>
 
 
+    </div><div class="section level2">
+
+
+
+
+      <dl><dt>
+
+          <code><a href="Daf.html">Daf()</a></code>
+
+        </dt>
+        <dd>Daf (Data Axes Format) S3 object</dd>
+      </dl><dl><dt>
+
+          <code><a href="is_daf.html">is_daf()</a></code>
+
+        </dt>
+        <dd>Check if object is a Daf</dd>
+      </dl><dl><dt>
+
+          <code><a href="print.Daf.html">print(<i>&lt;Daf&gt;</i>)</a></code>
+
+        </dt>
+        <dd>Print method for Daf objects</dd>
+      </dl><dl><dt>
+
+          <code><a href="description.html">description()</a></code>
+
+        </dt>
+        <dd>Get description of a Daf object</dd>
+      </dl><dl><dt>
+
+          <code><a href="sub-.Daf.html">`[`(<i>&lt;Daf&gt;</i>)</a></code>
+
+        </dt>
+        <dd>Extract results from a Daf object using a query</dd>
+      </dl><dl><dt>
+
+          <code><a href="setup_daf.html">setup_daf()</a></code>
+
+        </dt>
+        <dd>Set up of the Julia environment needed for DataAxesFormats and TanayLabUtilities</dd>
+      </dl><dl><dt>
+
+          <code><a href="name.html">name()</a></code>
+
+        </dt>
+        <dd>Gets the name of a Daf object</dd>
+      </dl></div><div class="section level2">
+      <h2 id="data-access-and-query">Data Access and Query<a class="anchor" aria-label="anchor" href="#data-access-and-query"></a></h2>
+
+      <div class="section-desc"><p>Functions for querying and retrieving data from Daf objects</p></div>
+
+
+    </div><div class="section level2">
+
+
+
+
+      <dl><dt>
+
+          <code><a href="get_dataframe.html">get_dataframe()</a></code> <code><a href="get_dataframe.html">get_tidy()</a></code>
+
+        </dt>
+        <dd>Get a dataframe from a Daf object</dd>
+      </dl><dl><dt>
+
+          <code><a href="get_dataframe_query.html">get_dataframe_query()</a></code>
+
+        </dt>
+        <dd>Apply a query to a Daf object and return result as a data.frame</dd>
+      </dl><dl><dt>
+
+          <code><a href="get_matrix.html">get_matrix()</a></code>
+
+        </dt>
+        <dd>Get matrix from a Daf object</dd>
+      </dl><dl><dt>
+
+          <code><a href="get_query.html">get_query()</a></code>
+
+        </dt>
+        <dd>Apply a query to a Daf object</dd>
+      </dl><dl><dt>
+
+          <code><a href="get_scalar.html">get_scalar()</a></code>
+
+        </dt>
+        <dd>Get scalar value from a Daf object</dd>
+      </dl><dl><dt>
+
+          <code><a href="get_vector.html">get_vector()</a></code>
+
+        </dt>
+        <dd>Get vector from a Daf object</dd>
+      </dl><dl><dt>
+
+          <code><a href="has_query.html">has_query()</a></code>
+
+        </dt>
+        <dd>Check if a query can be applied to a Daf object</dd>
+      </dl><dl><dt>
+
+          <code><a href="parse_query.html">parse_query()</a></code>
+
+        </dt>
+        <dd>Parse a query string into a query object</dd>
+      </dl><dl><dt>
+
+          <code><a href="query_result_dimensions.html">query_result_dimensions()</a></code>
+
+        </dt>
+        <dd>Get the number of dimensions of a query result</dd>
+      </dl></div><div class="section level2">
+      <h2 id="readers-and-formats">Readers and Formats<a class="anchor" aria-label="anchor" href="#readers-and-formats"></a></h2>
+
+      <div class="section-desc"><p>Reading Daf data from different sources and formats</p></div>
+
+
+    </div><div class="section level2">
+
+
+
+
+      <dl><dt>
+
+          <code><a href="memory_daf.html">memory_daf()</a></code>
+
+        </dt>
+        <dd>Create a Daf object with in-memory storage</dd>
+      </dl><dl><dt>
+
+          <code><a href="h5df.html">h5df()</a></code>
+
+        </dt>
+        <dd>Create a Daf object with HDF5-based storage</dd>
+      </dl><dl><dt>
+
+          <code><a href="files_daf.html">files_daf()</a></code>
+
+        </dt>
+        <dd>Create a Daf object with file-based storage</dd>
+      </dl><dl><dt>
+
+          <code><a href="h5ad_as_daf.html">h5ad_as_daf()</a></code>
+
+        </dt>
+        <dd>Convert h5ad file to a Daf object</dd>
+      </dl><dl><dt>
+
+          <code><a href="read_only.html">read_only()</a></code>
+
+        </dt>
+        <dd>Create a read-only wrapper for a Daf object</dd>
+      </dl><dl><dt>
+
+          <code><a href="chain_reader.html">chain_reader()</a></code>
+
+        </dt>
+        <dd>Create a read-only chain wrapper of DafReader objects</dd>
+      </dl></div><div class="section level2">
+      <h2 id="writers">Writers<a class="anchor" aria-label="anchor" href="#writers"></a></h2>
+
+      <div class="section-desc"><p>Writing Daf data to different formats</p></div>
+
+
+    </div><div class="section level2">
+
+
+
+
+      <dl><dt>
+
+          <code><a href="daf_as_h5ad.html">daf_as_h5ad()</a></code>
+
+        </dt>
+        <dd>Convert Daf object to h5ad file</dd>
+      </dl><dl><dt>
+
+          <code><a href="chain_writer.html">chain_writer()</a></code>
+
+        </dt>
+        <dd>Create a writable chain wrapper of DafReader objects</dd>
+      </dl></div><div class="section level2">
+      <h2 id="constants-and-handlers">Constants and Handlers<a class="anchor" aria-label="anchor" href="#constants-and-handlers"></a></h2>
+
+      <div class="section-desc"><p>Constants and handler functions</p></div>
 
 
     </div><div class="section level2">
@@ -68,34 +256,194 @@
         <dd>All vectors specifier</dd>
       </dl><dl><dt>
 
+          <code><a href="abnormal_handlers.html">IGNORE_HANDLER</a></code> <code><a href="abnormal_handlers.html">WARN_HANDLER</a></code> <code><a href="abnormal_handlers.html">ERROR_HANDLER</a></code>
+
+        </dt>
+        <dd>Handler types for abnormal operations</dd>
+      </dl><dl><dt>
+
+          <code><a href="inefficient_action_handler.html">inefficient_action_handler()</a></code>
+
+        </dt>
+        <dd>Set the handler for inefficient matrix access</dd>
+      </dl></div><div class="section level2">
+      <h2 id="axes-and-properties">Axes and Properties<a class="anchor" aria-label="anchor" href="#axes-and-properties"></a></h2>
+
+      <div class="section-desc"><p>Functions for managing axes and properties in Daf objects</p></div>
+
+
+    </div><div class="section level2">
+
+
+
+
+      <dl><dt>
+
+          <code><a href="has_axis.html">has_axis()</a></code>
+
+        </dt>
+        <dd>Check if an axis exists in a Daf object</dd>
+      </dl><dl><dt>
+
+          <code><a href="add_axis.html">add_axis()</a></code>
+
+        </dt>
+        <dd>Add axis to a Daf object</dd>
+      </dl><dl><dt>
+
+          <code><a href="delete_axis.html">delete_axis()</a></code>
+
+        </dt>
+        <dd>Delete axis from a Daf object</dd>
+      </dl><dl><dt>
+
+          <code><a href="axis_dict.html">axis_dict()</a></code>
+
+        </dt>
+        <dd>Get dictionary of axis entries to indices</dd>
+      </dl><dl><dt>
+
+          <code><a href="axis_entries.html">axis_entries()</a></code>
+
+        </dt>
+        <dd>Get entry names for indices in an axis</dd>
+      </dl><dl><dt>
+
+          <code><a href="axis_indices.html">axis_indices()</a></code>
+
+        </dt>
+        <dd>Get indices of entries in an axis</dd>
+      </dl><dl><dt>
+
+          <code><a href="axis_length.html">axis_length()</a></code>
+
+        </dt>
+        <dd>Get length of an axis in a Daf object</dd>
+      </dl><dl><dt>
+
+          <code><a href="axis_vector.html">axis_vector()</a></code>
+
+        </dt>
+        <dd>Get vector of axis entries from a Daf object</dd>
+      </dl><dl><dt>
+
+          <code><a href="axes_set.html">axes_set()</a></code>
+
+        </dt>
+        <dd>Get set of axis names from a Daf object</dd>
+      </dl><dl><dt>
+
+          <code><a href="matrices_set.html">matrices_set()</a></code>
+
+        </dt>
+        <dd>Get set of matrix names for axes in a Daf object</dd>
+      </dl><dl><dt>
+
+          <code><a href="scalars_set.html">scalars_set()</a></code>
+
+        </dt>
+        <dd>Get set of scalar names from a Daf object</dd>
+      </dl><dl><dt>
+
+          <code><a href="vectors_set.html">vectors_set()</a></code>
+
+        </dt>
+        <dd>Get set of vector names for an axis in a Daf object</dd>
+      </dl><dl><dt>
+
+          <code><a href="has_scalar.html">has_scalar()</a></code>
+
+        </dt>
+        <dd>Check if a scalar exists in a Daf object</dd>
+      </dl><dl><dt>
+
+          <code><a href="has_vector.html">has_vector()</a></code>
+
+        </dt>
+        <dd>Check if a vector exists in a Daf object</dd>
+      </dl><dl><dt>
+
+          <code><a href="has_matrix.html">has_matrix()</a></code>
+
+        </dt>
+        <dd>Check if a matrix exists in a Daf object</dd>
+      </dl><dl><dt>
+
+          <code><a href="delete_matrix.html">delete_matrix()</a></code>
+
+        </dt>
+        <dd>Delete matrix from a Daf object</dd>
+      </dl><dl><dt>
+
+          <code><a href="delete_scalar.html">delete_scalar()</a></code>
+
+        </dt>
+        <dd>Delete scalar from a Daf object</dd>
+      </dl><dl><dt>
+
+          <code><a href="delete_vector.html">delete_vector()</a></code>
+
+        </dt>
+        <dd>Delete vector from a Daf object</dd>
+      </dl><dl><dt>
+
+          <code><a href="get_matrix.html">get_matrix()</a></code>
+
+        </dt>
+        <dd>Get matrix from a Daf object</dd>
+      </dl><dl><dt>
+
+          <code><a href="get_scalar.html">get_scalar()</a></code>
+
+        </dt>
+        <dd>Get scalar value from a Daf object</dd>
+      </dl><dl><dt>
+
+          <code><a href="get_vector.html">get_vector()</a></code>
+
+        </dt>
+        <dd>Get vector from a Daf object</dd>
+      </dl><dl><dt>
+
+          <code><a href="set_matrix.html">set_matrix()</a></code>
+
+        </dt>
+        <dd>Set matrix in a Daf object</dd>
+      </dl><dl><dt>
+
+          <code><a href="set_scalar.html">set_scalar()</a></code>
+
+        </dt>
+        <dd>Set scalar value in a Daf object</dd>
+      </dl><dl><dt>
+
+          <code><a href="set_vector.html">set_vector()</a></code>
+
+        </dt>
+        <dd>Set vector in a Daf object</dd>
+      </dl><dl><dt>
+
+          <code><a href="relayout_matrix.html">relayout_matrix()</a></code>
+
+        </dt>
+        <dd>Relayout matrix in a Daf object</dd>
+      </dl></div><div class="section level2">
+      <h2 id="query-operations-element-wise">Query Operations - Element-wise<a class="anchor" aria-label="anchor" href="#query-operations-element-wise"></a></h2>
+
+      <div class="section-desc"><p>Element-wise operations that preserve data shape but transform values</p></div>
+
+
+    </div><div class="section level2">
+
+
+
+
+      <dl><dt>
+
           <code><a href="Abs.html">Abs()</a></code>
 
         </dt>
         <dd>Abs query operation</dd>
-      </dl><dl><dt>
-
-          <code><a href="And.html">And()</a></code>
-
-        </dt>
-        <dd>And query operation</dd>
-      </dl><dl><dt>
-
-          <code><a href="AndNot.html">AndNot()</a></code>
-
-        </dt>
-        <dd>AndNot query operation</dd>
-      </dl><dl><dt>
-
-          <code><a href="AsAxis.html">AsAxis()</a></code>
-
-        </dt>
-        <dd>AsAxis query operation</dd>
-      </dl><dl><dt>
-
-          <code><a href="Axis.html">Axis()</a></code>
-
-        </dt>
-        <dd>Axis query operation</dd>
       </dl><dl><dt>
 
           <code><a href="Clamp.html">Clamp()</a></code>
@@ -110,46 +458,158 @@
         <dd>Convert query operation</dd>
       </dl><dl><dt>
 
-          <code><a href="CountBy.html">CountBy()</a></code>
-
-        </dt>
-        <dd>CountBy query operation</dd>
-      </dl><dl><dt>
-
-          <code><a href="Daf.html">Daf()</a></code>
-
-        </dt>
-        <dd>Daf (Data Axes Format) S3 object</dd>
-      </dl><dl><dt>
-
-          <code><a href="Fetch.html">Fetch()</a></code>
-
-        </dt>
-        <dd>Fetch query operation</dd>
-      </dl><dl><dt>
-
           <code><a href="Fraction.html">Fraction()</a></code>
 
         </dt>
         <dd>Fraction query operation</dd>
       </dl><dl><dt>
 
+          <code><a href="Log.html">Log()</a></code>
+
+        </dt>
+        <dd>Log query operation</dd>
+      </dl><dl><dt>
+
+          <code><a href="Round.html">Round()</a></code>
+
+        </dt>
+        <dd>Round query operation</dd>
+      </dl><dl><dt>
+
+          <code><a href="Significant.html">Significant()</a></code>
+
+        </dt>
+        <dd>Significant query operation</dd>
+      </dl></div><div class="section level2">
+      <h2 id="query-operations-reduction">Query Operations - Reduction<a class="anchor" aria-label="anchor" href="#query-operations-reduction"></a></h2>
+
+      <div class="section-desc"><p>Reduction operations that reduce dimensions (matrix to vector, vector to scalar)</p></div>
+
+
+    </div><div class="section level2">
+
+
+
+
+      <dl><dt>
+
+          <code><a href="Sum.html">Sum()</a></code>
+
+        </dt>
+        <dd>Sum query operation</dd>
+      </dl><dl><dt>
+
+          <code><a href="Mean.html">Mean()</a></code>
+
+        </dt>
+        <dd>Mean query operation</dd>
+      </dl><dl><dt>
+
+          <code><a href="Median.html">Median()</a></code>
+
+        </dt>
+        <dd>Median query operation</dd>
+      </dl><dl><dt>
+
+          <code><a href="Min.html">Min()</a></code>
+
+        </dt>
+        <dd>Min query operation</dd>
+      </dl><dl><dt>
+
+          <code><a href="Max.html">Max()</a></code>
+
+        </dt>
+        <dd>Max query operation</dd>
+      </dl><dl><dt>
+
+          <code><a href="Var.html">Var()</a></code>
+
+        </dt>
+        <dd>Var query operation</dd>
+      </dl><dl><dt>
+
+          <code><a href="VarN.html">VarN()</a></code>
+
+        </dt>
+        <dd>VarN query operation</dd>
+      </dl><dl><dt>
+
+          <code><a href="Std.html">Std()</a></code>
+
+        </dt>
+        <dd>Std query operation</dd>
+      </dl><dl><dt>
+
+          <code><a href="StdN.html">StdN()</a></code>
+
+        </dt>
+        <dd>StdN query operation</dd>
+      </dl><dl><dt>
+
+          <code><a href="Quantile.html">Quantile()</a></code>
+
+        </dt>
+        <dd>Quantile query operation</dd>
+      </dl><dl><dt>
+
+          <code><a href="CountBy.html">CountBy()</a></code>
+
+        </dt>
+        <dd>CountBy query operation</dd>
+      </dl><dl><dt>
+
           <code><a href="GroupBy.html">GroupBy()</a></code>
 
         </dt>
         <dd>GroupBy query operation</dd>
-      </dl><dl><dt>
+      </dl></div><div class="section level2">
+      <h2 id="query-operations-logical">Query Operations - Logical<a class="anchor" aria-label="anchor" href="#query-operations-logical"></a></h2>
 
-          <code><a href="IfMissing.html">IfMissing()</a></code>
+      <div class="section-desc"><p>Logical operations for filtering and combining data</p></div>
+
+
+    </div><div class="section level2">
+
+
+
+
+      <dl><dt>
+
+          <code><a href="And.html">And()</a></code>
 
         </dt>
-        <dd>IfMissing query operation</dd>
+        <dd>And query operation</dd>
       </dl><dl><dt>
 
-          <code><a href="IfNot.html">IfNot()</a></code>
+          <code><a href="AndNot.html">AndNot()</a></code>
 
         </dt>
-        <dd>IfNot query operation</dd>
+        <dd>AndNot query operation</dd>
+      </dl><dl><dt>
+
+          <code><a href="Or.html">Or()</a></code>
+
+        </dt>
+        <dd>Or query operation</dd>
+      </dl><dl><dt>
+
+          <code><a href="OrNot.html">OrNot()</a></code>
+
+        </dt>
+        <dd>OrNot query operation</dd>
+      </dl><dl><dt>
+
+          <code><a href="Xor.html">Xor()</a></code>
+
+        </dt>
+        <dd>Xor query operation</dd>
+      </dl><dl><dt>
+
+          <code><a href="XorNot.html">XorNot()</a></code>
+
+        </dt>
+        <dd>XorNot query operation</dd>
       </dl><dl><dt>
 
           <code><a href="IsEqual.html">IsEqual()</a></code>
@@ -198,12 +658,23 @@
 
         </dt>
         <dd>IsNotMatch query operation</dd>
-      </dl><dl><dt>
+      </dl></div><div class="section level2">
+      <h2 id="query-operations-selection">Query Operations - Selection<a class="anchor" aria-label="anchor" href="#query-operations-selection"></a></h2>
 
-          <code><a href="Log.html">Log()</a></code>
+      <div class="section-desc"><p>Operations for selecting data from axes and properties</p></div>
+
+
+    </div><div class="section level2">
+
+
+
+
+      <dl><dt>
+
+          <code><a href="Axis.html">Axis()</a></code>
 
         </dt>
-        <dd>Log query operation</dd>
+        <dd>Axis query operation</dd>
       </dl><dl><dt>
 
           <code><a href="Lookup.html">Lookup()</a></code>
@@ -212,70 +683,40 @@
         <dd>Lookup query operation</dd>
       </dl><dl><dt>
 
-          <code><a href="MaskSlice.html">MaskSlice()</a></code>
-
-        </dt>
-        <dd>MaskSlice query operation</dd>
-      </dl><dl><dt>
-
-          <code><a href="Max.html">Max()</a></code>
-
-        </dt>
-        <dd>Max query operation</dd>
-      </dl><dl><dt>
-
-          <code><a href="Mean.html">Mean()</a></code>
-
-        </dt>
-        <dd>Mean query operation</dd>
-      </dl><dl><dt>
-
-          <code><a href="Median.html">Median()</a></code>
-
-        </dt>
-        <dd>Median query operation</dd>
-      </dl><dl><dt>
-
-          <code><a href="Min.html">Min()</a></code>
-
-        </dt>
-        <dd>Min query operation</dd>
-      </dl><dl><dt>
-
           <code><a href="Names.html">Names()</a></code>
 
         </dt>
         <dd>Names query operation</dd>
       </dl><dl><dt>
 
-          <code><a href="Or.html">Or()</a></code>
+          <code><a href="AsAxis.html">AsAxis()</a></code>
 
         </dt>
-        <dd>Or query operation</dd>
+        <dd>AsAxis query operation</dd>
       </dl><dl><dt>
 
-          <code><a href="OrNot.html">OrNot()</a></code>
+          <code><a href="Fetch.html">Fetch()</a></code>
 
         </dt>
-        <dd>OrNot query operation</dd>
+        <dd>Fetch query operation</dd>
       </dl><dl><dt>
 
-          <code><a href="Quantile.html">Quantile()</a></code>
+          <code><a href="IfMissing.html">IfMissing()</a></code>
 
         </dt>
-        <dd>Quantile query operation</dd>
+        <dd>IfMissing query operation</dd>
       </dl><dl><dt>
 
-          <code><a href="Round.html">Round()</a></code>
+          <code><a href="IfNot.html">IfNot()</a></code>
 
         </dt>
-        <dd>Round query operation</dd>
+        <dd>IfNot query operation</dd>
       </dl><dl><dt>
 
-          <code><a href="Significant.html">Significant()</a></code>
+          <code><a href="MaskSlice.html">MaskSlice()</a></code>
 
         </dt>
-        <dd>Significant query operation</dd>
+        <dd>MaskSlice query operation</dd>
       </dl><dl><dt>
 
           <code><a href="SquareMaskColumn.html">SquareMaskColumn()</a></code>
@@ -288,55 +729,18 @@
 
         </dt>
         <dd>SquareMaskRow query operation</dd>
-      </dl><dl><dt>
+      </dl></div><div class="section level2">
+      <h2 id="views-and-adapters">Views and Adapters<a class="anchor" aria-label="anchor" href="#views-and-adapters"></a></h2>
 
-          <code><a href="Std.html">Std()</a></code>
+      <div class="section-desc"><p>Creating views and adapters for Daf objects</p></div>
 
-        </dt>
-        <dd>Std query operation</dd>
-      </dl><dl><dt>
 
-          <code><a href="StdN.html">StdN()</a></code>
+    </div><div class="section level2">
 
-        </dt>
-        <dd>StdN query operation</dd>
-      </dl><dl><dt>
 
-          <code><a href="Sum.html">Sum()</a></code>
 
-        </dt>
-        <dd>Sum query operation</dd>
-      </dl><dl><dt>
 
-          <code><a href="Var.html">Var()</a></code>
-
-        </dt>
-        <dd>Var query operation</dd>
-      </dl><dl><dt>
-
-          <code><a href="VarN.html">VarN()</a></code>
-
-        </dt>
-        <dd>VarN query operation</dd>
-      </dl><dl><dt>
-
-          <code><a href="Xor.html">Xor()</a></code>
-
-        </dt>
-        <dd>Xor query operation</dd>
-      </dl><dl><dt>
-
-          <code><a href="XorNot.html">XorNot()</a></code>
-
-        </dt>
-        <dd>XorNot query operation</dd>
-      </dl><dl><dt>
-
-          <code><a href="abnormal_handlers.html">IGNORE_HANDLER</a></code> <code><a href="abnormal_handlers.html">WARN_HANDLER</a></code> <code><a href="abnormal_handlers.html">ERROR_HANDLER</a></code>
-
-        </dt>
-        <dd>Handler types for abnormal operations</dd>
-      </dl><dl><dt>
+      <dl><dt>
 
           <code><a href="adapter.html">adapter()</a></code>
 
@@ -344,59 +748,28 @@
         <dd>Invoke a computation on a view of some data set and return the result</dd>
       </dl><dl><dt>
 
-          <code><a href="add_axis.html">add_axis()</a></code>
+          <code><a href="viewer.html">viewer()</a></code>
 
         </dt>
-        <dd>Add axis to a Daf object</dd>
+        <dd>Create a read-only view of a Daf data set</dd>
       </dl><dl><dt>
 
-          <code><a href="axes_set.html">axes_set()</a></code>
+          <code><a href="reconstruct_axis.html">reconstruct_axis()</a></code>
 
         </dt>
-        <dd>Get set of axis names from a Daf object</dd>
-      </dl><dl><dt>
+        <dd>Reconstruct implicit axes</dd>
+      </dl></div><div class="section level2">
+      <h2 id="data-operations">Data Operations<a class="anchor" aria-label="anchor" href="#data-operations"></a></h2>
 
-          <code><a href="axis_dict.html">axis_dict()</a></code>
+      <div class="section-desc"><p>Operations for transforming and combining Daf objects</p></div>
 
-        </dt>
-        <dd>Get dictionary of axis entries to indices</dd>
-      </dl><dl><dt>
 
-          <code><a href="axis_entries.html">axis_entries()</a></code>
+    </div><div class="section level2">
 
-        </dt>
-        <dd>Get entry names for indices in an axis</dd>
-      </dl><dl><dt>
 
-          <code><a href="axis_indices.html">axis_indices()</a></code>
 
-        </dt>
-        <dd>Get indices of entries in an axis</dd>
-      </dl><dl><dt>
 
-          <code><a href="axis_length.html">axis_length()</a></code>
-
-        </dt>
-        <dd>Get length of an axis in a Daf object</dd>
-      </dl><dl><dt>
-
-          <code><a href="axis_vector.html">axis_vector()</a></code>
-
-        </dt>
-        <dd>Get vector of axis entries from a Daf object</dd>
-      </dl><dl><dt>
-
-          <code><a href="chain_reader.html">chain_reader()</a></code>
-
-        </dt>
-        <dd>Create a read-only chain wrapper of DafReader objects</dd>
-      </dl><dl><dt>
-
-          <code><a href="chain_writer.html">chain_writer()</a></code>
-
-        </dt>
-        <dd>Create a writable chain wrapper of DafReader objects</dd>
-      </dl><dl><dt>
+      <dl><dt>
 
           <code><a href="concatenate.html">concatenate()</a></code>
 
@@ -438,216 +811,23 @@
 
         </dt>
         <dd>Copy a vector from source to destination</dd>
-      </dl><dl><dt>
+      </dl></div><div class="section level2">
+      <h2 id="utilities">Utilities<a class="anchor" aria-label="anchor" href="#utilities"></a></h2>
 
-          <code><a href="daf_as_h5ad.html">daf_as_h5ad()</a></code>
+      <div class="section-desc"><p>Utility functions for working with Daf objects</p></div>
 
-        </dt>
-        <dd>Convert Daf object to h5ad file</dd>
-      </dl><dl><dt>
 
-          <code><a href="delete_axis.html">delete_axis()</a></code>
+    </div><div class="section level2">
 
-        </dt>
-        <dd>Delete axis from a Daf object</dd>
-      </dl><dl><dt>
 
-          <code><a href="delete_matrix.html">delete_matrix()</a></code>
 
-        </dt>
-        <dd>Delete matrix from a Daf object</dd>
-      </dl><dl><dt>
 
-          <code><a href="delete_scalar.html">delete_scalar()</a></code>
-
-        </dt>
-        <dd>Delete scalar from a Daf object</dd>
-      </dl><dl><dt>
-
-          <code><a href="delete_vector.html">delete_vector()</a></code>
-
-        </dt>
-        <dd>Delete vector from a Daf object</dd>
-      </dl><dl><dt>
-
-          <code><a href="description.html">description()</a></code>
-
-        </dt>
-        <dd>Get description of a Daf object</dd>
-      </dl><dl><dt>
+      <dl><dt>
 
           <code><a href="empty_cache.html">empty_cache()</a></code>
 
         </dt>
         <dd>Empty cache in a Daf object</dd>
-      </dl><dl><dt>
-
-          <code><a href="files_daf.html">files_daf()</a></code>
-
-        </dt>
-        <dd>Create a Daf object with file-based storage</dd>
-      </dl><dl><dt>
-
-          <code><a href="get_dataframe.html">get_dataframe()</a></code> <code><a href="get_dataframe.html">get_tidy()</a></code>
-
-        </dt>
-        <dd>Get a dataframe from a Daf object</dd>
-      </dl><dl><dt>
-
-          <code><a href="get_dataframe_query.html">get_dataframe_query()</a></code>
-
-        </dt>
-        <dd>Apply a query to a Daf object and return result as a data.frame</dd>
-      </dl><dl><dt>
-
-          <code><a href="get_matrix.html">get_matrix()</a></code>
-
-        </dt>
-        <dd>Get matrix from a Daf object</dd>
-      </dl><dl><dt>
-
-          <code><a href="get_query.html">get_query()</a></code>
-
-        </dt>
-        <dd>Apply a query to a Daf object</dd>
-      </dl><dl><dt>
-
-          <code><a href="get_scalar.html">get_scalar()</a></code>
-
-        </dt>
-        <dd>Get scalar value from a Daf object</dd>
-      </dl><dl><dt>
-
-          <code><a href="get_vector.html">get_vector()</a></code>
-
-        </dt>
-        <dd>Get vector from a Daf object</dd>
-      </dl><dl><dt>
-
-          <code><a href="h5ad_as_daf.html">h5ad_as_daf()</a></code>
-
-        </dt>
-        <dd>Convert h5ad file to a Daf object</dd>
-      </dl><dl><dt>
-
-          <code><a href="h5df.html">h5df()</a></code>
-
-        </dt>
-        <dd>Create a Daf object with HDF5-based storage</dd>
-      </dl><dl><dt>
-
-          <code><a href="has_axis.html">has_axis()</a></code>
-
-        </dt>
-        <dd>Check if an axis exists in a Daf object</dd>
-      </dl><dl><dt>
-
-          <code><a href="has_matrix.html">has_matrix()</a></code>
-
-        </dt>
-        <dd>Check if a matrix exists in a Daf object</dd>
-      </dl><dl><dt>
-
-          <code><a href="has_query.html">has_query()</a></code>
-
-        </dt>
-        <dd>Check if a query can be applied to a Daf object</dd>
-      </dl><dl><dt>
-
-          <code><a href="has_scalar.html">has_scalar()</a></code>
-
-        </dt>
-        <dd>Check if a scalar exists in a Daf object</dd>
-      </dl><dl><dt>
-
-          <code><a href="has_vector.html">has_vector()</a></code>
-
-        </dt>
-        <dd>Check if a vector exists in a Daf object</dd>
-      </dl><dl><dt>
-
-          <code><a href="inefficient_action_handler.html">inefficient_action_handler()</a></code>
-
-        </dt>
-        <dd>Set the handler for inefficient matrix access</dd>
-      </dl><dl><dt>
-
-          <code><a href="is_daf.html">is_daf()</a></code>
-
-        </dt>
-        <dd>Check if object is a Daf</dd>
-      </dl><dl><dt>
-
-          <code><a href="matrices_set.html">matrices_set()</a></code>
-
-        </dt>
-        <dd>Get set of matrix names for axes in a Daf object</dd>
-      </dl><dl><dt>
-
-          <code><a href="memory_daf.html">memory_daf()</a></code>
-
-        </dt>
-        <dd>Create a Daf object with in-memory storage</dd>
-      </dl><dl><dt>
-
-          <code><a href="name.html">name()</a></code>
-
-        </dt>
-        <dd>Gets the name of a Daf object</dd>
-      </dl><dl><dt>
-
-          <code><a href="parse_query.html">parse_query()</a></code>
-
-        </dt>
-        <dd>Parse a query string into a query object</dd>
-      </dl><dl><dt>
-
-          <code><a href="print.Daf.html">print(<i>&lt;Daf&gt;</i>)</a></code>
-
-        </dt>
-        <dd>Print method for Daf objects</dd>
-      </dl><dl><dt>
-
-          <code><a href="query_result_dimensions.html">query_result_dimensions()</a></code>
-
-        </dt>
-        <dd>Get the number of dimensions of a query result</dd>
-      </dl><dl><dt>
-
-          <code><a href="read_only.html">read_only()</a></code>
-
-        </dt>
-        <dd>Create a read-only wrapper for a Daf object</dd>
-      </dl><dl><dt>
-
-          <code><a href="reconstruct_axis.html">reconstruct_axis()</a></code>
-
-        </dt>
-        <dd>Reconstruct implicit axes</dd>
-      </dl><dl><dt>
-
-          <code><a href="relayout_matrix.html">relayout_matrix()</a></code>
-
-        </dt>
-        <dd>Relayout matrix in a Daf object</dd>
-      </dl><dl><dt>
-
-          <code><a href="scalars_set.html">scalars_set()</a></code>
-
-        </dt>
-        <dd>Get set of scalar names from a Daf object</dd>
-      </dl><dl><dt>
-
-          <code><a href="set_matrix.html">set_matrix()</a></code>
-
-        </dt>
-        <dd>Set matrix in a Daf object</dd>
-      </dl><dl><dt>
-
-          <code><a href="set_scalar.html">set_scalar()</a></code>
-
-        </dt>
-        <dd>Set scalar value in a Daf object</dd>
       </dl><dl><dt>
 
           <code><a href="set_seed.html">set_seed()</a></code>
@@ -656,42 +836,13 @@
         <dd>Set a seed both in Julia and R</dd>
       </dl><dl><dt>
 
-          <code><a href="set_vector.html">set_vector()</a></code>
-
-        </dt>
-        <dd>Set vector in a Daf object</dd>
-      </dl><dl><dt>
-
-          <code><a href="setup_daf.html">setup_daf()</a></code>
-
-        </dt>
-        <dd>Set up of the Julia environment needed for DataAxesFormats and TanayLabUtilities</dd>
-      </dl><dl><dt>
-
           <code><a href="setup_logger.html">setup_logger()</a></code>
 
         </dt>
         <dd>Set up a global logger</dd>
-      </dl><dl><dt>
-
-          <code><a href="sub-.Daf.html">`[`(<i>&lt;Daf&gt;</i>)</a></code>
-
-        </dt>
-        <dd>Extract results from a Daf object using a query</dd>
-      </dl><dl><dt>
-
-          <code><a href="vectors_set.html">vectors_set()</a></code>
-
-        </dt>
-        <dd>Get set of vector names for an axis in a Daf object</dd>
-      </dl><dl><dt>
-
-          <code><a href="viewer.html">viewer()</a></code>
-
-        </dt>
-        <dd>Create a read-only view of a Daf data set</dd>
       </dl></div>
-  </main></div>
+  </main><aside class="col-md-3"><nav id="toc" aria-label="Table of contents"><h2>On this page</h2>
+    </nav></aside></div>
 
 
     <footer><div class="pkgdown-footer-left">
