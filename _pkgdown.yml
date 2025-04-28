@@ -2,3 +2,128 @@ url: https://tanaylab.github.io/dafr/
 template:
   bootstrap: 5
 
+reference:
+  - title: "Core DAF Functionality"
+    desc: "Core functions for working with Daf objects"
+    contents:
+      - Daf
+      - is_daf
+      - print.Daf
+      - description
+      - '[.Daf'
+      - setup_daf
+      - name
+
+  - title: "Data Access and Query"
+    desc: "Functions for querying and retrieving data from Daf objects"
+    contents:
+      - starts_with("get_")
+      - has_query
+      - parse_query
+      - query_result_dimensions
+
+  - title: "Readers and Formats"
+    desc: "Reading Daf data from different sources and formats"
+    contents:
+      - memory_daf
+      - h5df
+      - files_daf
+      - h5ad_as_daf
+      - read_only
+      - chain_reader
+
+  - title: "Writers"
+    desc: "Writing Daf data to different formats"
+    contents:
+      - daf_as_h5ad
+      - chain_writer
+
+  - title: "Constants and Handlers"
+    desc: "Constants and handler functions"
+    contents:
+      - starts_with("ALL_")
+      - ends_with("_HANDLER")
+      - inefficient_action_handler
+
+  - title: "Axes and Properties"
+    desc: "Functions for managing axes and properties in Daf objects"
+    contents:
+      - has_axis
+      - add_axis
+      - delete_axis
+      - starts_with("axis_")
+      - ends_with("_set")
+      - has_scalar
+      - has_vector
+      - has_matrix
+      - matches("^(get|set|delete)_(scalar|vector|matrix)$")
+      - relayout_matrix
+
+  - title: "Query Operations - Element-wise"
+    desc: "Element-wise operations that preserve data shape but transform values"
+    contents:
+      - Abs
+      - Clamp
+      - Convert
+      - Fraction
+      - Log
+      - Round
+      - Significant
+
+  - title: "Query Operations - Reduction"
+    desc: "Reduction operations that reduce dimensions (matrix to vector, vector to scalar)"
+    contents:
+      - Sum
+      - Mean
+      - Median
+      - Min
+      - Max
+      - starts_with("Var")
+      - starts_with("Std")
+      - Quantile
+      - CountBy
+      - GroupBy
+
+  - title: "Query Operations - Logical"
+    desc: "Logical operations for filtering and combining data"
+    contents:
+      - And
+      - AndNot
+      - Or
+      - OrNot
+      - Xor
+      - XorNot
+      - starts_with("Is")
+
+  - title: "Query Operations - Selection"
+    desc: "Operations for selecting data from axes and properties"
+    contents:
+      - Axis
+      - Lookup
+      - Names
+      - AsAxis
+      - Fetch
+      - starts_with("If")
+      - MaskSlice
+      - starts_with("SquareMask")
+
+  - title: "Views and Adapters"
+    desc: "Creating views and adapters for Daf objects"
+    contents:
+      - adapter
+      - viewer
+      - reconstruct_axis
+
+  - title: "Data Operations"
+    desc: "Operations for transforming and combining Daf objects"
+    contents:
+      - concatenate
+      - starts_with("copy_")
+
+  - title: "Utilities"
+    desc: "Utility functions for working with Daf objects"
+    contents:
+      - empty_cache
+      - set_seed
+      - setup_logger
+
