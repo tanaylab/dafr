@@ -79,6 +79,8 @@
 <url><loc>https://tanaylab.github.io/dafr/reference/delete_vector.html</loc></url>
 <url><loc>https://tanaylab.github.io/dafr/reference/description.html</loc></url>
 <url><loc>https://tanaylab.github.io/dafr/reference/empty_cache.html</loc></url>
+<url><loc>https://tanaylab.github.io/dafr/reference/example_cells_daf.html</loc></url>
+<url><loc>https://tanaylab.github.io/dafr/reference/example_metacells_daf.html</loc></url>
 <url><loc>https://tanaylab.github.io/dafr/reference/files_daf.html</loc></url>
 <url><loc>https://tanaylab.github.io/dafr/reference/get_dataframe.html</loc></url>
 <url><loc>https://tanaylab.github.io/dafr/reference/get_dataframe_query.html</loc></url>
@@ -95,7 +97,9 @@
 <url><loc>https://tanaylab.github.io/dafr/reference/has_vector.html</loc></url>
 <url><loc>https://tanaylab.github.io/dafr/reference/index.html</loc></url>
 <url><loc>https://tanaylab.github.io/dafr/reference/inefficient_action_handler.html</loc></url>
+<url><loc>https://tanaylab.github.io/dafr/reference/install_daf_packages.html</loc></url>
 <url><loc>https://tanaylab.github.io/dafr/reference/is_daf.html</loc></url>
+<url><loc>https://tanaylab.github.io/dafr/reference/load_daf_packages.html</loc></url>
 <url><loc>https://tanaylab.github.io/dafr/reference/matrices_set.html</loc></url>
 <url><loc>https://tanaylab.github.io/dafr/reference/memory_daf.html</loc></url>
 <url><loc>https://tanaylab.github.io/dafr/reference/name.html</loc></url>
@@ -113,6 +117,7 @@
 <url><loc>https://tanaylab.github.io/dafr/reference/setup_daf.html</loc></url>
 <url><loc>https://tanaylab.github.io/dafr/reference/setup_logger.html</loc></url>
 <url><loc>https://tanaylab.github.io/dafr/reference/sub-.Daf.html</loc></url>
+<url><loc>https://tanaylab.github.io/dafr/reference/use_default_julia_environment.html</loc></url>
 <url><loc>https://tanaylab.github.io/dafr/reference/vectors_set.html</loc></url>
 <url><loc>https://tanaylab.github.io/dafr/reference/viewer.html</loc></url>
 </urlset>

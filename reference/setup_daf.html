@@ -50,11 +50,13 @@ then be set with all Julia dependencies needed.</p>
 <span>  seed <span class="op">=</span> <span class="cn">NULL</span>,</span>
 <span>  env_path <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/getwd.html" class="external-link">getwd</a></span><span class="op">(</span><span class="op">)</span>,</span>
 <span>  installJulia <span class="op">=</span> <span class="cn">FALSE</span>,</span>
-<span>  force_dev <span class="op">=</span> <span class="cn">TRUE</span>,</span>
+<span>  force_dev <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/options.html" class="external-link">getOption</a></span><span class="op">(</span><span class="st">"dafr.force_dev"</span>, <span class="cn">FALSE</span><span class="op">)</span>,</span>
 <span>  level <span class="op">=</span> <span class="st">"Warn"</span>,</span>
 <span>  show_time <span class="op">=</span> <span class="cn">TRUE</span>,</span>
 <span>  show_module <span class="op">=</span> <span class="cn">TRUE</span>,</span>
 <span>  show_location <span class="op">=</span> <span class="cn">FALSE</span>,</span>
+<span>  julia_environment <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/options.html" class="external-link">getOption</a></span><span class="op">(</span><span class="st">"dafr.julia_environment"</span>, <span class="st">"custom"</span><span class="op">)</span>,</span>
+<span>  JULIA_HOME <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/options.html" class="external-link">getOption</a></span><span class="op">(</span><span class="st">"dafr.JULIA_HOME"</span>, <span class="cn">NULL</span><span class="op">)</span>,</span>
 <span>  <span class="va">...</span></span>
 <span><span class="op">)</span></span></code></pre></div>
     </div>
@@ -65,7 +67,7 @@ then be set with all Julia dependencies needed.</p>
 
 <dl><dt id="arg-pkg-check">pkg_check<a class="anchor" aria-label="anchor" href="#arg-pkg-check"></a></dt>
 <dd><p>(Default=TRUE) Check whether needed Julia packages
-are installed</p></dd>
+are installed.</p></dd>
 
 
 <dt id="arg-seed">seed<a class="anchor" aria-label="anchor" href="#arg-seed"></a></dt>
@@ -82,7 +84,7 @@ By default, this is the current working directory.</p></dd>
 
 
 <dt id="arg-force-dev">force_dev<a class="anchor" aria-label="anchor" href="#arg-force-dev"></a></dt>
-<dd><p>(Default=FALSE) Whether to force dev versions of packages</p></dd>
+<dd><p>(Default=FALSE) Whether to force dev versions of packages, default value comes from getOption("dafr.force_dev")</p></dd>
 
 
 <dt id="arg-level">level<a class="anchor" aria-label="anchor" href="#arg-level"></a></dt>
@@ -99,6 +101,20 @@ By default, this is the current working directory.</p></dd>
 
 <dt id="arg-show-location">show_location<a class="anchor" aria-label="anchor" href="#arg-show-location"></a></dt>
 <dd><p>Whether to show source location (default: FALSE)</p></dd>
+
+
+<dt id="arg-julia-environment">julia_environment<a class="anchor" aria-label="anchor" href="#arg-julia-environment"></a></dt>
+<dd><p>Specify which Julia environment to use:
+"custom" creates a new environment (default if option not set),
+"default" uses the default Julia environment,
+any other value can be the path to a custom environment.
+Default value comes from getOption("dafr.julia_environment")</p></dd>
+
+
+<dt id="arg-julia-home">JULIA_HOME<a class="anchor" aria-label="anchor" href="#arg-julia-home"></a></dt>
+<dd><p>The path to the Julia installation.
+Default value comes from getOption("dafr.JULIA_HOME").
+See <code><a href="https://rdrr.io/pkg/JuliaCall/man/julia_setup.html" class="external-link">julia_setup</a></code> for more details.</p></dd>
 
 
 <dt id="arg--">...<a class="anchor" aria-label="anchor" href="#arg--"></a></dt>
@@ -127,6 +143,16 @@ By default, this is the current working directory.</p></dd>
 <span class="r-in"><span>        <span class="st">"https://github.com/tanaylab/TanayLabUtilities.jl"</span></span></span>
 <span class="r-in"><span>    <span class="op">)</span></span></span>
 <span class="r-in"><span><span class="op">)</span></span></span>
+<span class="r-in"><span></span></span>
+<span class="r-in"><span><span class="co"># Use default Julia environment instead of creating a new one</span></span></span>
+<span class="r-in"><span><span class="fu">setup_daf</span><span class="op">(</span>julia_environment <span class="op">=</span> <span class="st">"default"</span><span class="op">)</span></span></span>
+<span class="r-in"><span></span></span>
+<span class="r-in"><span><span class="co"># Only load packages without installation</span></span></span>
+<span class="r-in"><span><span class="fu">setup_daf</span><span class="op">(</span>pkg_check <span class="op">=</span> <span class="cn">FALSE</span><span class="op">)</span></span></span>
+<span class="r-in"><span></span></span>
+<span class="r-in"><span><span class="co"># Set global option</span></span></span>
+<span class="r-in"><span><span class="fu"><a href="https://rdrr.io/r/base/options.html" class="external-link">options</a></span><span class="op">(</span>dafr.julia_environment <span class="op">=</span> <span class="st">"default"</span><span class="op">)</span></span></span>
+<span class="r-in"><span><span class="fu">setup_daf</span><span class="op">(</span><span class="op">)</span> <span class="co"># Will use the default Julia environment</span></span></span>
 <span class="r-in"><span><span class="op">}</span> <span class="co"># }</span></span></span>
 </code></pre></div>
     </div>
