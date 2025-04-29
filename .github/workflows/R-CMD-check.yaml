@@ -37,13 +37,13 @@ jobs:
           restore-keys: |
             ${{ runner.os }}-julia-
 
-      - name: Install JuliaCall
+      - name: Install Julia dependencies
         run: |
           Rscript -e 'install.packages(c("JuliaCall", "devtools", "cli", "Matrix", "tibble", "tidyr"))'
 
-      - name: Install Suppressor Julia package
+      - name: Install Julia dependencies
         run: |
-          julia -e 'import Pkg; Pkg.add("Suppressor")'
+          julia -e 'import Pkg; Pkg.add(["Suppressor", "RCall"])'
       
       - uses: r-lib/actions/setup-r-dependencies@v2
         with:
