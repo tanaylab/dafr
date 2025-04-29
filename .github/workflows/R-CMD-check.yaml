@@ -46,6 +46,24 @@ jobs:
           key: ${{ runner.os }}-julia-${{ hashFiles('**/Project.toml') }}
           restore-keys: |
             ${{ runner.os }}-julia-
+        
+      - name: Install required Julia packages
+        run: |
+          julia -e '
+          using Pkg
+          Pkg.add("Suppressor")
+          Pkg.add("RCall")
+          Pkg.add("Logging")
+          Pkg.add("DataFrames")
+          Pkg.add("HDF5")
+          Pkg.add("LinearAlgebra")
+          Pkg.add("Muon")
+          Pkg.add("NamedArrays")
+          Pkg.add("SparseArrays")
+          # Add packages from GitHub repositories
+          Pkg.add(url="https://github.com/tanaylab/TanayLabUtilities.jl")
+          Pkg.add(url="https://github.com/tanaylab/DataAxesFormats.jl")
+          '
 
       - name: Install system dependencies
         if: runner.os == 'Linux'
