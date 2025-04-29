@@ -1,0 +1,28 @@
+Package: dafr
+Title: Data in Axes in Formats
+Version: 0.0.1
+Authors@R: c(
+    person("Aviezer", "Lifshitz", , "aviezer.lifshitz@weizmann.ac.il", role = c("aut", "cre"),
+           comment = c(ORCID = "0000-0002-8458-9507")),
+    person("Oren", "Ben-Kiki", email="oren@ben-kiki.org", role=c("aut")),
+    person("Weizmann Institute of Science", role = "cph")
+  )
+Description: An R interface to 'DataAxesFormats.jl' <https://github.com/tanaylab/DataAxesFormats.jl>, a Julia package providing a uniform interface for accessing multi-dimensional data arranged along arbitrary axes. This package generalizes and extends 'AnnData'-like functionality, supporting both 1D and 2D data, multiple data modalities, and efficient memory management. 'dafr' enables R users to create, read, modify, and analyze complex biological datasets such as single-cell data with multiple modalities (RNA-seq, ATAC-seq, etc.). The package implements efficient memory management strategies and provides a seamless interface between R and Julia for handling large-scale biological data.
+License: MIT + file LICENSE
+URL: https://tanaylab.github.io/dafr/, https://github.com/tanaylab/dafr
+BugReports: https://github.com/tanaylab/dafr/issues
+Depends: 
+    R (>= 4.1.0)
+Imports: 
+    cli,
+    JuliaCall,
+    Matrix,
+    tibble,
+    tidyr
+Suggests: 
+    testthat (>= 3.0.0)
+Config/testthat/edition: 3
+Encoding: UTF-8
+Language: en-US
+Roxygen: list(markdown = TRUE)
+RoxygenNote: 7.3.2
