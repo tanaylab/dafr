@@ -12,7 +12,14 @@ reference:
       - description
       - '[.Daf'
       - setup_daf
+      - use_default_julia_environment
       - name
+
+  - title: "Example Data"
+    desc: "Functions for loading example data"
+    contents:
+      - example_cells_daf
+      - example_metacells_daf
 
   - title: "Data Access and Query"
     desc: "Functions for querying and retrieving data from Daf objects"

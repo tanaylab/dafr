@@ -32,6 +32,7 @@ using_packages <- function(...) {
 #' @param force_dev (Default=FALSE) Whether to force dev versions of packages
 #'
 #' @return No return value, called for side effects.
+#' @keywords internal
 #' @export
 install_daf_packages <- function(force_dev = FALSE) {
     JuliaCall::julia_library("Pkg")
@@ -54,6 +55,7 @@ install_daf_packages <- function(force_dev = FALSE) {
 #' Load Julia packages needed for DataAxesFormats and TanayLabUtilities
 #'
 #' @return No return value, called for side effects.
+#' @keywords internal
 #' @export
 load_daf_packages <- function() {
     pkgs_needed <- list("TanayLabUtilities", "DataAxesFormats", "Logging")
