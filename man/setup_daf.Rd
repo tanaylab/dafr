@@ -9,17 +9,19 @@ setup_daf(
   seed = NULL,
   env_path = getwd(),
   installJulia = FALSE,
-  force_dev = TRUE,
+  force_dev = getOption("dafr.force_dev", FALSE),
   level = "Warn",
   show_time = TRUE,
   show_module = TRUE,
   show_location = FALSE,
+  julia_environment = getOption("dafr.julia_environment", "custom"),
+  JULIA_HOME = getOption("dafr.JULIA_HOME", NULL),
   ...
 )
 }
 \arguments{
 \item{pkg_check}{(Default=TRUE) Check whether needed Julia packages
-are installed}
+are installed.}
 
 \item{seed}{Seed to be used.}
 
@@ -28,7 +30,7 @@ By default, this is the current working directory.}
 
 \item{installJulia}{(Default=TRUE) Whether to install Julia}
 
-\item{force_dev}{(Default=FALSE) Whether to force dev versions of packages}
+\item{force_dev}{(Default=FALSE) Whether to force dev versions of packages, default value comes from getOption("dafr.force_dev")}
 
 \item{level}{Log level, one of "Debug", "Info", "Warn", "Error", or an integer (default: "Warn")}
 
@@ -37,6 +39,16 @@ By default, this is the current working directory.}
 \item{show_module}{Whether to show module name (default: TRUE)}
 
 \item{show_location}{Whether to show source location (default: FALSE)}
+
+\item{julia_environment}{Specify which Julia environment to use:
+"custom" creates a new environment (default if option not set),
+"default" uses the default Julia environment,
+any other value can be the path to a custom environment.
+Default value comes from getOption("dafr.julia_environment")}
+
+\item{JULIA_HOME}{The path to the Julia installation.
+Default value comes from getOption("dafr.JULIA_HOME").
+See \code{\link[JuliaCall]{julia_setup}} for more details.}
 
 \item{...}{Other parameters passed on to \code{\link[JuliaCall]{julia_setup}}}
 }
@@ -64,5 +76,15 @@ setup_daf(
         "https://github.com/tanaylab/TanayLabUtilities.jl"
     )
 )
+
+# Use default Julia environment instead of creating a new one
+setup_daf(julia_environment = "default")
+
+# Only load packages without installation
+setup_daf(pkg_check = FALSE)
+
+# Set global option
+options(dafr.julia_environment = "default")
+setup_daf() # Will use the default Julia environment
 }
 }
