@@ -40,6 +40,10 @@ jobs:
       - name: Install JuliaCall
         run: |
           Rscript -e 'install.packages(c("JuliaCall", "devtools", "cli", "Matrix", "tibble", "tidyr"))'
+
+      - name: Install Suppressor Julia package
+        run: |
+          julia -e 'import Pkg; Pkg.add("Suppressor")'
       
       - uses: r-lib/actions/setup-r-dependencies@v2
         with:
