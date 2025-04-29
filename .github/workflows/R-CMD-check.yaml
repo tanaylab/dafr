@@ -5,33 +5,39 @@ on:
     branches: [main, master]
   pull_request:
 
-name: R-CMD-check-with-Julia
-
-permissions: read-all
+name: R-CMD-check
 
 jobs:
   R-CMD-check:
-    runs-on: ubuntu-latest
+    runs-on: ${{ matrix.config.os }}
+    name: ${{ matrix.config.os }} (${{ matrix.config.r }})
+    strategy:
+      fail-fast: false
+      matrix:
+        config:
+          - {os: ubuntu-latest, r: 'release'}
+          - {os: macos-latest, r: 'release'}
+          - {os: windows-latest, r: 'release'}
+
     env:
       GITHUB_PAT: ${{ secrets.GITHUB_TOKEN }}
       R_KEEP_PKG_SOURCE: yes
       JULIA_NUM_THREADS: 2
+      AUTO_JULIA_INSTALL: true
+      R_REMOTES_NO_ERRORS_FROM_WARNINGS: true
+
     steps:
       - uses: actions/checkout@v4
 
       - uses: r-lib/actions/setup-r@v2
         with:
-          r-version: release
-          # use-public-rspm: true # Comment this out to avoid potential dev versions
+          r-version: ${{ matrix.config.r }}
+          use-public-rspm: true
 
-      - name: Setup Julia
-        uses: julia-actions/setup-julia@v2
+      - uses: julia-actions/setup-julia@v2
         with:
-          version: 'lts' # Use the Long Term Support version
+          channel: '1'
           arch: default
-
-      - name: Clean Julia depot
-        run: rm -rf ~/.julia
 
       - name: Cache Julia packages
         uses: actions/cache@v4
@@ -41,20 +47,30 @@ jobs:
           restore-keys: |
             ${{ runner.os }}-julia-
 
-      - name: Install Julia dependencies
+      - name: Install system dependencies
+        if: runner.os == 'Linux'
         run: |
-          Rscript -e 'install.packages(c("JuliaCall", "devtools", "cli", "Matrix", "tibble", "tidyr"))'
+          sudo apt-get update
+          sudo apt-get install -y libcurl4-openssl-dev
 
-      - name: Install Julia dependencies
-        run: |
-          julia -e 'import Pkg; Pkg.add(["Suppressor", "RCall"])'
-      
       - uses: r-lib/actions/setup-r-dependencies@v2
         with:
-          extra-packages: any::rcmdcheck, any::JuliaCall, any::cli, any::devtools
+          extra-packages: any::rcmdcheck, any::JuliaCall, any::cli, any::Matrix, any::tibble, any::tidyr
           needs: check
 
-      - uses: r-lib/actions/check-r-package@v2
+      - name: Check
+        env:
+          _R_CHECK_CRAN_INCOMING_REMOTE_: false
+        run: |
+          options(crayon.enabled = TRUE)
+          rcmdcheck::rcmdcheck(args = c("--no-manual", "--as-cran", "--no-multiarch"), 
+                              error_on = "warning", 
+                              check_dir = "check")
+        shell: Rscript {0}
+
+      - name: Upload check results
+        if: failure()
+        uses: actions/upload-artifact@main
         with:
-          upload-snapshots: true
-          build_args: 'c("--no-manual","--compact-vignettes=gs+qpdf")'
+          name: ${{ runner.os }}-r${{ matrix.config.r }}-results
+          path: check
