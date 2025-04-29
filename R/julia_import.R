@@ -1,6 +1,25 @@
+#' Use default or custom Julia environment
+#'
+#' Force JuliaCall to use your specified Julia environment instead of creating a new one.
+#' By default JuliaCall creates its own separate independent environment, which means
+#' that it re-downloads and re-installs all the dependency packages there.
+#' This function allows using the default Julia environment or a custom one.
+#'
+#' @param env_path Either "default" to use the default Julia environment, or a path to a custom environment
+#' @return No return value, called for side effects.
+#' @export
+use_default_julia_environment <- function(env_path = "default") {
+    if (env_path == "default") {
+        default_env <- JuliaCall::julia_eval('joinpath(DEPOT_PATH[1], "environments", "v$(VERSION.major).$(VERSION.minor)")')
+        JuliaCall::julia_eval(paste0('using Pkg; Pkg.activate("', default_env, '")'))
+    } else {
+        # Use the custom environment path provided
+        JuliaCall::julia_eval(paste0('using Pkg; Pkg.activate("', env_path, '")'))
+    }
+}
+
 import_julia_packages <- function() {
     julia_eval("using Pkg")
-    julia_eval("Pkg.update()")
 
     julia_eval("using DataAxesFormats")
     julia_eval("using TanayLabUtilities")
