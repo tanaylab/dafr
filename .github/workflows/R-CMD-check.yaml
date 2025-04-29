@@ -21,13 +21,17 @@ jobs:
 
       - uses: r-lib/actions/setup-r@v2
         with:
-          use-public-rspm: true
+          r-version: release
+          # use-public-rspm: true # Comment this out to avoid potential dev versions
 
       - name: Setup Julia
         uses: julia-actions/setup-julia@v2
         with:
-          channel: '1'
+          version: 'lts' # Use the Long Term Support version
           arch: default
+
+      - name: Clean Julia depot
+        run: rm -rf ~/.julia
 
       - name: Cache Julia packages
         uses: actions/cache@v4
