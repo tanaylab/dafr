@@ -8,11 +8,11 @@ test_that("Abs operation works", {
         Lookup("values") |>
         Abs()
     result <- get_query(daf, query)
-    expect_equal(result, c(1.5, 0, 2.5))
+    expect_equal(result, c(A = 1.5, B = 0, C = 2.5))
 
     # Test with piping
     result <- get_query(daf, Abs(Axis("cell") |> Lookup("values")))
-    expect_equal(result, c(1.5, 0, 2.5))
+    expect_equal(result, c(A = 1.5, B = 0, C = 2.5))
 })
 
 test_that("Clamp operation works", {
@@ -23,25 +23,25 @@ test_that("Clamp operation works", {
         Lookup("values") |>
         Clamp(min = 0, max = NULL)
     result <- get_query(daf, query)
-    expect_equal(result, c(0, 0, 2.5))
+    expect_equal(result, c(A = 0, B = 0, C = 2.5))
 
     # Test with max only - must explicitly set min = NULL
     query <- Axis("cell") |>
         Lookup("values") |>
         Clamp(min = NULL, max = 1)
     result <- get_query(daf, query)
-    expect_equal(result, c(-1.5, 0, 1))
+    expect_equal(result, c(A = -1.5, B = 0, C = 1))
 
     # Test with both min and max
     query <- Axis("cell") |>
         Lookup("values") |>
         Clamp(min = -1, max = 1)
     result <- get_query(daf, query)
-    expect_equal(result, c(-1, 0, 1))
+    expect_equal(result, c(A = -1, B = 0, C = 1))
 
     # Test with piping
     result <- get_query(daf, Clamp(min = 0, max = 2, Axis("cell") |> Lookup("values")))
-    expect_equal(result, c(0, 0, 2))
+    expect_equal(result, c(A = 0, B = 0, C = 2))
 })
 
 test_that("Convert operation works", {
@@ -52,11 +52,11 @@ test_that("Convert operation works", {
         Lookup("values") |>
         Convert("Float32")
     result <- get_query(daf, query)
-    expect_equal(result, c(-1.5, 0, 2.5))
+    expect_equal(result, c(A = -1.5, B = 0, C = 2.5))
 
     # Test with piping
     result <- get_query(daf, Convert("Float32", Axis("cell") |> Lookup("values")))
-    expect_equal(result, c(-1.5, 0, 2.5))
+    expect_equal(result, c(A = -1.5, B = 0, C = 2.5))
 
     # Test missing type parameter
     expect_error(Convert())
@@ -73,51 +73,51 @@ test_that("Fraction operation works", {
         Lookup("positive") |>
         Fraction()
     result <- get_query(daf, query)
-    expect_equal(result, c(2 / 10, 3 / 10, 5 / 10))
+    expect_equal(result, c(A = 2 / 10, B = 3 / 10, C = 5 / 10))
 
     # Test with piping
     result <- get_query(daf, Fraction(Axis("cell") |> Lookup("positive")))
-    expect_equal(result, c(2 / 10, 3 / 10, 5 / 10))
+    expect_equal(result, c(A = 2 / 10, B = 3 / 10, C = 5 / 10))
 })
 
 test_that("Log operation works", {
     daf <- setup_test_data()
 
     # Create a test vector with positive values only
-    set_vector(daf, "cell", "positive", c(1, 10, 100))
+    set_vector(daf, "cell", "positive", c(A = 1, B = 10, C = 100))
 
     # Test with default base (e)
     query <- Axis("cell") |>
         Lookup("positive") |>
         Log()
     result <- get_query(daf, query)
-    expect_equal(result, log(c(1, 10, 100)))
+    expect_equal(result, c(A = log(1), B = log(10), C = log(100)))
 
     # Test with base 10
     query <- Axis("cell") |>
         Lookup("positive") |>
         Log(base = 10)
     result <- get_query(daf, query)
-    expect_equal(result, log10(c(1, 10, 100)))
+    expect_equal(result, c(A = log10(1), B = log10(10), C = log10(100)))
 
     # Test with base 2
     query <- Axis("cell") |>
         Lookup("positive") |>
         Log(base = 2)
     result <- get_query(daf, query)
-    expect_equal(result, log2(c(1, 10, 100)))
+    expect_equal(result, c(A = log2(1), B = log2(10), C = log2(100)))
 
     # Test with eps to avoid log(0)
-    set_vector(daf, "cell", "with_zero", c(0, 1, 10))
+    set_vector(daf, "cell", "with_zero", c(A = 0, B = 1, C = 10))
     query <- Axis("cell") |>
         Lookup("with_zero") |>
         Log(eps = 1e-10)
     result <- get_query(daf, query)
-    expect_equal(result[1], log(1e-10), tolerance = 1e-10)
+    expect_equal(result[1], c(A = log(1e-10)), tolerance = 1e-10)
 
     # Test with piping
     result <- get_query(daf, Log(base = 10, Axis("cell") |> Lookup("positive")))
-    expect_equal(result, log10(c(1, 10, 100)))
+    expect_equal(result, c(A = log10(1), B = log10(10), C = log10(100)))
 })
 
 test_that("Round operation works", {
@@ -131,11 +131,11 @@ test_that("Round operation works", {
         Lookup("decimals") |>
         Round()
     result <- get_query(daf, query)
-    expect_equal(result, c(1, 2, 4)) # Julia rounds to nearest even integer for ties
+    expect_equal(result, c(A = 1, B = 2, C = 4)) # Julia rounds to nearest even integer for ties
 
     # Test with piping
     result <- get_query(daf, Round(Axis("cell") |> Lookup("decimals")))
-    expect_equal(result, c(1, 2, 4))
+    expect_equal(result, c(A = 1, B = 2, C = 4))
 })
 
 test_that("Significant operation works", {
@@ -149,29 +149,29 @@ test_that("Significant operation works", {
         Lookup("effect_sizes") |>
         Significant(high = 3.0)
     result <- get_query(daf, query)
-    expect_equal(result, c(0, 4.0, 0))
+    expect_equal(result, c(A = 0, B = 4.0, C = 0))
 
     # Test with high and low thresholds
     query <- Axis("cell") |>
         Lookup("effect_sizes") |>
         Significant(high = 3.0, low = 1.0)
     result <- get_query(daf, query)
-    expect_equal(result, c(1.0, 4.0, 0))
+    expect_equal(result, c(A = 1.0, B = 4.0, C = 0))
 
     # Test with no significant values
-    set_vector(daf, "cell", "low_effects", c(1.0, 2.0, 0.5))
+    set_vector(daf, "cell", "low_effects", c(A = 1.0, B = 2.0, C = 0.5))
     query <- Axis("cell") |>
         Lookup("low_effects") |>
         Significant(high = 3.0)
     result <- get_query(daf, query)
-    expect_equal(result, c(0, 0, 0))
+    expect_equal(result, c(A = 0, B = 0, C = 0))
 
     # Test with missing high parameter
     expect_error(Significant(), "argument high must be provided")
 
     # Test with piping
     result <- get_query(daf, Significant(high = 3.0, Axis("cell") |> Lookup("effect_sizes")))
-    expect_equal(result, c(0, 4.0, 0))
+    expect_equal(result, c(A = 0, B = 4.0, C = 0))
 })
 
 # Test reduction operations
@@ -195,7 +195,7 @@ test_that("Max operation works", {
         Lookup("data") |>
         Max()
     result <- get_query(daf, query)
-    expect_equal(result, c(3, 6, 9)) # Max of each column
+    expect_equal(result, c(X = 3, Y = 6, Z = 9)) # Max of each column
 
     # Test with piping
     result <- get_query(daf, Max(Axis("cell") |> Lookup("values")))
@@ -218,7 +218,7 @@ test_that("Min operation works", {
         Lookup("data") |>
         Min()
     result <- get_query(daf, query)
-    expect_equal(result, c(1, 4, 7)) # Min of each column
+    expect_equal(result, c(X = 1, Y = 4, Z = 7)) # Min of each column
 
     # Test with piping
     result <- get_query(daf, Min(Axis("cell") |> Lookup("values")))
@@ -241,7 +241,7 @@ test_that("Mean operation works", {
         Lookup("data") |>
         Mean()
     result <- get_query(daf, query)
-    expect_equal(result, c(2, 5, 8)) # Mean of each column
+    expect_equal(result, c(X = 2, Y = 5, Z = 8)) # Mean of each column
 
     # Test with piping
     result <- get_query(daf, Mean(Axis("cell") |> Lookup("values")))
@@ -264,7 +264,7 @@ test_that("Median operation works", {
         Lookup("data") |>
         Median()
     result <- get_query(daf, query)
-    expect_equal(result, c(2, 5, 8)) # Median of each column
+    expect_equal(result, c(X = 2, Y = 5, Z = 8)) # Median of each column
 
     # Test with piping
     result <- get_query(daf, Median(Axis("cell") |> Lookup("values")))
@@ -314,7 +314,7 @@ test_that("Sum operation works", {
         Lookup("data") |>
         Sum()
     result <- get_query(daf, query)
-    expect_equal(result, c(6, 15, 24)) # Sum of each column
+    expect_equal(result, c(X = 6, Y = 15, Z = 24)) # Sum of each column
 
     # Test with piping
     result <- get_query(daf, Sum(Axis("cell") |> Lookup("values")))

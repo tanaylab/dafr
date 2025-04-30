@@ -232,11 +232,6 @@ from_julia_object <- function(julia_object) {
         return(NULL)
     }
 
-    # Handle primitive types
-    if (is.character(julia_object) || is.numeric(julia_object) || is.logical(julia_object)) {
-        return(julia_object)
-    }
-
     # Check for specific Julia types
     if (inherits(julia_object, "JuliaObject")) {
         # Check for KeySet or other set types
@@ -260,6 +255,24 @@ from_julia_object <- function(julia_object) {
         if (is_dataframe) {
             return(as.data.frame(julia_object))
         }
+
+        is_string <- is_julia_type(julia_object, "AbstractString")
+        if (is_string) {
+            return(as.character(julia_object))
+        }
+
+        is_numeric <- is_julia_type(julia_object, "Number")
+        if (is_numeric) {
+            return(as.numeric(julia_object))
+        }
+
+        is_logical <- is_julia_type(julia_object, "Bool")
+        if (is_logical) {
+            return(as.logical(julia_object))
+        }
+
+        # Default fallback - convert to R
+        return(julia_eval(julia_object, need_return = "R"))
     }
 
     # Default fallback - return as is

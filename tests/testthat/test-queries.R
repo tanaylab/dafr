@@ -94,14 +94,14 @@ test_that("IfMissing handles all parameter cases correctly", {
     } else {
         # Test actual query results with IfMissing
         result <- get_query(daf, Axis("gene") |> Lookup("is_marker") |> IfMissing(FALSE))
-        expect_equal(result, rep(FALSE, 3))
+        expect_equal(result, c(X = FALSE, Y = FALSE, Z = FALSE))
 
         # Set the property for one gene
         set_vector(daf, "gene", "is_marker", c(TRUE, FALSE, FALSE))
 
         # Now the result should reflect the actual values
         result <- get_query(daf, Axis("gene") |> Lookup("is_marker") |> IfMissing(FALSE))
-        expect_equal(result, c(TRUE, FALSE, FALSE))
+        expect_equal(result, c(X = TRUE, Y = FALSE, Z = FALSE))
     }
 })
 
@@ -133,19 +133,19 @@ test_that("query results are correct", {
     expect_false(has_query(daf, "/ cell : youth"))
 
     # Test direct vector queries
-    expect_equal(get_query(daf, "/ cell : age"), c(-1, 2))
-    expect_equal(get_query(daf, "/ cell : batch"), c("U", "V"))
+    expect_equal(get_query(daf, "/ cell : age"), c(A = -1, B = 2))
+    expect_equal(get_query(daf, "/ cell : batch"), c(A = "U", B = "V"))
 
     # Test direct matrix queries
-    expect_equal(get_query(daf, "/ cell / gene : UMIs"), matrix(c(1, 4, 2, 5, 3, 6), nrow = 2, ncol = 3, byrow = TRUE))
+    expect_equal(get_query(daf, "/ cell / gene : UMIs"), matrix(c(1, 4, 2, 5, 3, 6), nrow = 2, ncol = 3, byrow = TRUE, dimnames = list(c("A", "B"), c("X", "Y", "Z"))))
 
     # Test query operations
-    expect_equal(get_query(daf, "/ cell : age % Abs"), c(1.0, 2.0))
-    expect_equal(get_query(daf, "/ cell : age % Clamp min 0.5"), c(0.5, 2.0))
-    expect_equal(get_query(daf, "/ cell : age % Convert type Int8"), c(-1L, 2L))
-    expect_equal(get_query(daf, "/ cell : age % Abs % Fraction"), c(1 / 3, 2 / 3))
-    expect_equal(get_query(daf, "/ cell : age % Abs % Log base 2"), c(0.0, 1.0))
-    expect_equal(get_query(daf, "/ cell : age % Significant high 2"), c(0, 2))
+    expect_equal(get_query(daf, "/ cell : age % Abs"), c(A = 1.0, B = 2.0))
+    expect_equal(get_query(daf, "/ cell : age % Clamp min 0.5"), c(A = 0.5, B = 2.0))
+    expect_equal(get_query(daf, "/ cell : age % Convert type Int8"), c(A = -1L, B = 2L))
+    expect_equal(get_query(daf, "/ cell : age % Abs % Fraction"), c(A = 1 / 3, B = 2 / 3))
+    expect_equal(get_query(daf, "/ cell : age % Abs % Log base 2"), c(A = 0.0, B = 1.0))
+    expect_equal(get_query(daf, "/ cell : age % Significant high 2"), c(A = 0, B = 2))
 
     # Test reduction operations
     expect_equal(get_query(daf, "/ cell : age %> Max"), 2)
@@ -551,22 +551,22 @@ test_that("[ operator for Daf objects works correctly", {
     expect_equal(set(daf["/ gene / cell ?"]), set(c("UMIs")))
 
     # Test vector queries
-    expect_equal(daf["/ cell : age"], c(-1, 2))
-    expect_equal(daf["/ cell : batch"], c("U", "V"))
+    expect_equal(daf["/ cell : age"], c(A = -1, B = 2))
+    expect_equal(daf["/ cell : batch"], c(A = "U", B = "V"))
     expect_equal(daf["/ cell : age"], get_query(daf, "/ cell : age", cache = FALSE))
 
     # Test matrix queries
-    expect_equal(daf["/ cell / gene : UMIs"], matrix(c(1, 4, 2, 5, 3, 6), nrow = 2, ncol = 3, byrow = TRUE))
+    expect_equal(daf["/ cell / gene : UMIs"], matrix(c(1, 4, 2, 5, 3, 6), nrow = 2, ncol = 3, byrow = TRUE, dimnames = list(c("A", "B"), c("X", "Y", "Z"))))
     expect_equal(daf["/ cell / gene : UMIs"], get_query(daf, "/ cell / gene : UMIs", cache = FALSE))
 
     # Test with query operations
-    expect_equal(daf["/ cell : age % Abs"], c(1.0, 2.0))
+    expect_equal(daf["/ cell : age % Abs"], c(A = 1.0, B = 2.0))
     expect_equal(daf["/ cell : age %> Max"], 2)
     expect_equal(daf["/ cell : age %> Min"], -1)
 
     # Test with query objects
     age_query <- Axis("cell") |> Lookup("age")
-    expect_equal(daf[age_query], c(-1, 2))
+    expect_equal(daf[age_query], c(A = -1, B = 2))
     expect_equal(daf[age_query], get_query(daf, age_query, cache = FALSE))
 
     # Test with complex query objects
@@ -574,7 +574,7 @@ test_that("[ operator for Daf objects works correctly", {
         Lookup("age") |>
         Abs() |>
         Log(base = 2)
-    expect_equal(daf[complex_query], log2(c(1, 2)))
+    expect_equal(daf[complex_query], log2(c(A = 1, B = 2)))
     expect_equal(daf[complex_query], get_query(daf, complex_query, cache = FALSE))
 
     # Test caching behavior by modifying data then querying again
@@ -582,7 +582,7 @@ test_that("[ operator for Daf objects works correctly", {
     set_vector(daf, "cell", "age", c(3.0, 4.0), overwrite = TRUE)
     result2 <- daf["/ cell : age"]
     expect_false(identical(result1, result2))
-    expect_equal(result2, c(3.0, 4.0))
+    expect_equal(result2, c(A = 3.0, B = 4.0))
 })
 
 test_that("[ operator handles errors properly", {

@@ -48,7 +48,7 @@ get_query <- function(daf = NULL, query = NULL, cache = TRUE) {
     }
 
     validate_daf_object(daf)
-    result <- julia_call("DataAxesFormats.Queries.get_query", daf$jl_obj, query, cache = cache)
+    result <- julia_call("DataAxesFormats.Queries.get_query", daf$jl_obj, query, cache = cache, need_return = "Julia")
 
     return(from_julia_object(result))
 }

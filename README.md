@@ -109,24 +109,28 @@ daf["/ cell ?"] # List properties of the "cell" axis
 
 # Access vector data
 daf["/ cell : age"] # Get the "age" vector for all cells
-#> [1]  1  5 10
+#>  A  B  C 
+#>  1  5 10
 
 # Access matrix data
 daf["/ cell / gene : counts"] # Get the full counts matrix
-#>      [,1] [,2] [,3]
-#> [1,]    1    4    7
-#> [2,]    2    5    8
-#> [3,]    3    6    9
+#>   X Y Z
+#> A 1 4 7
+#> B 2 5 8
+#> C 3 6 9
 
 # Filter data
 daf["/ cell & age > 2 : type"] # Get types of cells with age > 2
-#> [1] "B"  "NK"
+#>    B    C 
+#>  "B" "NK"
 
 # Transform data
 daf["/ cell : age % Abs"] # Get absolute values of ages
-#> [1]  1  5 10
+#>  A  B  C 
+#>  1  5 10
 daf["/ cell : age % Log base 2"] # Get log2 of ages
-#> [1] 0.000000 2.321928 3.321928
+#>        A        B        C 
+#> 0.000000 2.321928 3.321928
 
 # Aggregations
 daf["/ cell : age %> Max"] # Get maximum age
@@ -141,7 +145,8 @@ Axis("cell") |>
     IsGreater(2) |>
     Lookup("type") |>
     get_query(daf)
-#> [1] "B"  "NK"
+#>    B    C 
+#>  "B" "NK"
 ```
 
 The query syntax follows a simple pattern:
