@@ -1,8 +1,8 @@
 pandoc: 3.1.11
-pkgdown: 2.1.1
+pkgdown: 2.1.2
 pkgdown_sha: ~
 articles: {}
-last_built: 2025-04-29T11:09Z
+last_built: 2025-04-30T06:05Z
 urls:
   reference: https://tanaylab.github.io/dafr/reference
   article: https://tanaylab.github.io/dafr/articles
