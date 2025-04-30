@@ -16,6 +16,6 @@ A query operation object that can be used in a query sequence
 Element-wise operation that converts every element to the nearest integer value.
 This operation preserves the shape of the data (scalar, vector, or matrix) but
 rounds each value to the nearest integer. See the Julia
-\href{https://tanaylab.github.io/DataAxesFormats.jl/v0.1.2/queries.html#DataAxesFormats.Operations.Round}{documentation} for
+\href{https://tanaylab.github.io/DataAxesFormats.jl/v0.1.2/operations.html#DataAxesFormats.Operations.Round}{documentation} for
 details.
 }

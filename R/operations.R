@@ -13,7 +13,7 @@
 #' Element-wise operation that converts every element to its absolute value. This operation preserves
 #' the shape of the data (scalar, vector, or matrix) but changes the values. By default, the output
 #' data type is the unsigned version of the input data type. See the Julia
-#' [documentation](https://tanaylab.github.io/DataAxesFormats.jl/v0.1.2/queries.html#DataAxesFormats.Operations.Abs) for
+#' [documentation](https://tanaylab.github.io/DataAxesFormats.jl/v0.1.2/operations.html#DataAxesFormats.Operations.Abs) for
 #' details.
 #' @param ... Additional arguments needed to support usage of pipe operator
 #' @return A query operation object that can be used in a query sequence
@@ -36,7 +36,7 @@ Abs <- function(...) {
 #' Element-wise operation that converts every element to a value inside a range.
 #' This operation preserves the shape of the data (scalar, vector, or matrix) but changes
 #' the values, setting each value to be within the specified range. See the Julia
-#' [documentation](https://tanaylab.github.io/DataAxesFormats.jl/v0.1.2/queries.html#DataAxesFormats.Operations.Clamp) for
+#' [documentation](https://tanaylab.github.io/DataAxesFormats.jl/v0.1.2/operations.html#DataAxesFormats.Operations.Clamp) for
 #' details.
 #' @param min Minimum value; values less than this will be set to this value
 #' @param max Maximum value; values greater than this will be set to this value
@@ -61,6 +61,9 @@ Clamp <- function(min = NULL, max = NULL, ...) {
         cli::cli_abort("{.field max} must be numeric or NULL")
     }
 
+    min_res$value <- min_res$value %||% -Inf
+    max_res$value <- max_res$value %||% Inf
+
     # Pass arguments by name to Julia
     result <- julia_call("DataAxesFormats.Operations.Clamp", min = min_res$value, max = max_res$value)
 
@@ -75,7 +78,7 @@ Clamp <- function(min = NULL, max = NULL, ...) {
 #' Element-wise operation that converts every element to a given data type.
 #' This operation preserves the shape of the data (scalar, vector, or matrix) but
 #' changes the data type of the elements. See the Julia
-#' [documentation](https://tanaylab.github.io/DataAxesFormats.jl/v0.1.2/queries.html#DataAxesFormats.Operations.Convert) for
+#' [documentation](https://tanaylab.github.io/DataAxesFormats.jl/v0.1.2/operations.html#DataAxesFormats.Operations.Convert) for
 #' details.
 #' @param type Type to convert to (e.g., "Int32", "Float64")
 #' @param ... Additional arguments needed to support usage of pipe operator
@@ -92,7 +95,9 @@ Convert <- function(type, ...) {
         cli::cli_abort("{.field type} must be a character string")
     }
 
-    ans <- julia_call("DataAxesFormats.Operations.Convert", type = res$value)
+    type <- jl_R_to_julia_type(res$value)
+
+    ans <- julia_call("DataAxesFormats.Operations.Convert", type = type)
     if (!is.null(res$query)) {
         ans <- julia_call("|>", res$query, ans)
     }
@@ -104,7 +109,7 @@ Convert <- function(type, ...) {
 #' Element-wise operation that converts every element to its fraction out of the total.
 #' This operation preserves the shape of the data (scalar, vector, or matrix) but changes
 #' each value to be the fraction of the total sum of all values in the data. See the Julia
-#' [documentation](https://tanaylab.github.io/DataAxesFormats.jl/v0.1.2/queries.html#DataAxesFormats.Operations.Fraction) for
+#' [documentation](https://tanaylab.github.io/DataAxesFormats.jl/v0.1.2/operations.html#DataAxesFormats.Operations.Fraction) for
 #' details.
 #' @param ... Additional arguments needed to support usage of pipe operator
 #' @return A query operation object that can be used in a query sequence
@@ -127,7 +132,7 @@ Fraction <- function(...) {
 #' Element-wise operation that converts every element to its logarithm.
 #' This operation preserves the shape of the data (scalar, vector, or matrix) but
 #' changes each value to its logarithm with the specified base. See the Julia
-#' [documentation](https://tanaylab.github.io/DataAxesFormats.jl/v0.1.2/queries.html#DataAxesFormats.Operations.Log) for
+#' [documentation](https://tanaylab.github.io/DataAxesFormats.jl/v0.1.2/operations.html#DataAxesFormats.Operations.Log) for
 #' details.
 #' @param base Base of the logarithm (default is e ≈ 2.718)
 #' @param eps Small value added to avoid log(0) (default is 0)
@@ -166,7 +171,7 @@ Log <- function(base = exp(1), eps = 0, ...) {
 #' Element-wise operation that converts every element to the nearest integer value.
 #' This operation preserves the shape of the data (scalar, vector, or matrix) but
 #' rounds each value to the nearest integer. See the Julia
-#' [documentation](https://tanaylab.github.io/DataAxesFormats.jl/v0.1.2/queries.html#DataAxesFormats.Operations.Round) for
+#' [documentation](https://tanaylab.github.io/DataAxesFormats.jl/v0.1.2/operations.html#DataAxesFormats.Operations.Round) for
 #' details.
 #' @param ... Additional arguments needed to support usage of pipe operator
 #' @return A query operation object that can be used in a query sequence
@@ -194,7 +199,7 @@ Round <- function(...) {
 #' if it is at least 3 (that is, a ratio at least 8x or at most 1/8x); for genes that
 #' have a significant effect, we typically display all entries with a log of at least 2
 #' (that is, a ratio of at least 4x or at most 1/4x). See the Julia
-#' [documentation](https://tanaylab.github.io/DataAxesFormats.jl/v0.1.2/queries.html#DataAxesFormats.Operations.Significant) for
+#' [documentation](https://tanaylab.github.io/DataAxesFormats.jl/v0.1.2/operations.html#DataAxesFormats.Operations.Significant) for
 #' details.
 #' @param high A value is considered significant if its absolute value is higher than this.
 #'   If all values in a vector (or a matrix column) are less than this, then all the vector
@@ -251,7 +256,7 @@ Significant <- function(high, low = NULL, ...) {
 #' Reduction operation that returns the maximal element. This operation reduces the
 #' dimensionality of the data: a matrix becomes a vector (maximum of each column),
 #' and a vector becomes a scalar (maximum of all elements). See the Julia
-#' [documentation](https://tanaylab.github.io/DataAxesFormats.jl/v0.1.2/queries.html#DataAxesFormats.Operations.Max) for
+#' [documentation](https://tanaylab.github.io/DataAxesFormats.jl/v0.1.2/operations.html#DataAxesFormats.Operations.Max) for
 #' details.
 #' @param ... Additional arguments needed to support usage of pipe operator
 #' @return A query operation object that can be used in a query sequence
@@ -274,7 +279,7 @@ Max <- function(...) {
 #' Reduction operation that returns the minimal element. This operation reduces the
 #' dimensionality of the data: a matrix becomes a vector (minimum of each column),
 #' and a vector becomes a scalar (minimum of all elements). See the Julia
-#' [documentation](https://tanaylab.github.io/DataAxesFormats.jl/v0.1.2/queries.html#DataAxesFormats.Operations.Min) for
+#' [documentation](https://tanaylab.github.io/DataAxesFormats.jl/v0.1.2/operations.html#DataAxesFormats.Operations.Min) for
 #' details.
 #' @param ... Additional arguments needed to support usage of pipe operator
 #' @return A query operation object that can be used in a query sequence
@@ -297,7 +302,7 @@ Min <- function(...) {
 #' Reduction operation that returns the mean value. This operation reduces the
 #' dimensionality of the data: a matrix becomes a vector (mean of each column),
 #' and a vector becomes a scalar (mean of all elements). See the Julia
-#' [documentation](https://tanaylab.github.io/DataAxesFormats.jl/v0.1.2/queries.html#DataAxesFormats.Operations.Mean) for
+#' [documentation](https://tanaylab.github.io/DataAxesFormats.jl/v0.1.2/operations.html#DataAxesFormats.Operations.Mean) for
 #' details.
 #' @param ... Additional arguments needed to support usage of pipe operator
 #' @return A query operation object that can be used in a query sequence
@@ -320,7 +325,7 @@ Mean <- function(...) {
 #' Reduction operation that returns the median value. This operation reduces the
 #' dimensionality of the data: a matrix becomes a vector (median of each column),
 #' and a vector becomes a scalar (median of all elements). See the Julia
-#' [documentation](https://tanaylab.github.io/DataAxesFormats.jl/v0.1.2/queries.html#DataAxesFormats.Operations.Median) for
+#' [documentation](https://tanaylab.github.io/DataAxesFormats.jl/v0.1.2/operations.html#DataAxesFormats.Operations.Median) for
 #' details.
 #' @param ... Additional arguments needed to support usage of pipe operator
 #' @return A query operation object that can be used in a query sequence
@@ -344,7 +349,7 @@ Median <- function(...) {
 #' a certain fraction of the values is lower. This operation reduces the
 #' dimensionality of the data: a matrix becomes a vector (quantile of each column),
 #' and a vector becomes a scalar (quantile of all elements). See the Julia
-#' [documentation](https://tanaylab.github.io/DataAxesFormats.jl/v0.1.2/queries.html#DataAxesFormats.Operations.Quantile) for
+#' [documentation](https://tanaylab.github.io/DataAxesFormats.jl/v0.1.2/operations.html#DataAxesFormats.Operations.Quantile) for
 #' details.
 #' @param p Quantile to compute (between 0 and 1). Default is 0.5 (median).
 #' @param ... Additional arguments needed to support usage of pipe operator
@@ -372,7 +377,7 @@ Quantile <- function(p = 0.5, ...) {
 #' Reduction operation that sums elements. This operation reduces the
 #' dimensionality of the data: a matrix becomes a vector (sum of each column),
 #' and a vector becomes a scalar (sum of all elements). See the Julia
-#' [documentation](https://tanaylab.github.io/DataAxesFormats.jl/v0.1.2/queries.html#DataAxesFormats.Operations.Sum) for
+#' [documentation](https://tanaylab.github.io/DataAxesFormats.jl/v0.1.2/operations.html#DataAxesFormats.Operations.Sum) for
 #' details.
 #' @param ... Additional arguments needed to support usage of pipe operator
 #' @return A query operation object that can be used in a query sequence
@@ -396,7 +401,7 @@ Sum <- function(...) {
 #' This operation reduces the dimensionality of the data: a matrix becomes
 #' a vector (standard deviation of each column), and a vector becomes a scalar
 #' (standard deviation of all elements). See the Julia
-#' [documentation](https://tanaylab.github.io/DataAxesFormats.jl/v0.1.2/queries.html#DataAxesFormats.Operations.Std) for
+#' [documentation](https://tanaylab.github.io/DataAxesFormats.jl/v0.1.2/operations.html#DataAxesFormats.Operations.Std) for
 #' details.
 #' @param ... Additional arguments needed to support usage of pipe operator
 #' @return A query operation object that can be used in a query sequence
@@ -420,7 +425,7 @@ Std <- function(...) {
 #' (divided) by the mean of the values. This operation reduces the dimensionality
 #' of the data: a matrix becomes a vector (normalized standard deviation of each column),
 #' and a vector becomes a scalar (normalized standard deviation of all elements). See the Julia
-#' [documentation](https://tanaylab.github.io/DataAxesFormats.jl/v0.1.2/queries.html#DataAxesFormats.Operations.Std) for details.
+#' [documentation](https://tanaylab.github.io/DataAxesFormats.jl/v0.1.2/operations.html#DataAxesFormats.Operations.Std) for details.
 #' @param ... Additional arguments needed to support usage of pipe operator
 #' @return A query operation object that can be used in a query sequence
 #' @export
@@ -443,7 +448,7 @@ StdN <- function(...) {
 #' This operation reduces the dimensionality of the data: a matrix becomes
 #' a vector (variance of each column), and a vector becomes a scalar
 #' (variance of all elements). See the Julia
-#' [documentation](https://tanaylab.github.io/DataAxesFormats.jl/v0.1.2/queries.html#DataAxesFormats.Operations.Var) for
+#' [documentation](https://tanaylab.github.io/DataAxesFormats.jl/v0.1.2/operations.html#DataAxesFormats.Operations.Var) for
 #' details.
 #' @param ... Additional arguments needed to support usage of pipe operator
 #' @return A query operation object that can be used in a query sequence
@@ -467,7 +472,7 @@ Var <- function(...) {
 #' by the mean of the values. This operation reduces the dimensionality of the data:
 #' a matrix becomes a vector (normalized variance of each column), and a vector becomes
 #' a scalar (normalized variance of all elements). See the Julia
-#' [documentation](https://tanaylab.github.io/DataAxesFormats.jl/v0.1.2/queries.html#DataAxesFormats.Operations.Var)
+#' [documentation](https://tanaylab.github.io/DataAxesFormats.jl/v0.1.2/operations.html#DataAxesFormats.Operations.Var)
 #' for details.
 #' @param ... Additional arguments needed to support usage of pipe operator
 #' @return A query operation object that can be used in a query sequence

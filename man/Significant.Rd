@@ -30,6 +30,6 @@ For example, log base 2 of gene expression ratio is typically considered signifi
 if it is at least 3 (that is, a ratio at least 8x or at most 1/8x); for genes that
 have a significant effect, we typically display all entries with a log of at least 2
 (that is, a ratio of at least 4x or at most 1/4x). See the Julia
-\href{https://tanaylab.github.io/DataAxesFormats.jl/v0.1.2/queries.html#DataAxesFormats.Operations.Significant}{documentation} for
+\href{https://tanaylab.github.io/DataAxesFormats.jl/v0.1.2/operations.html#DataAxesFormats.Operations.Significant}{documentation} for
 details.
 }

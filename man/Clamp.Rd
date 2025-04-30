@@ -20,6 +20,6 @@ A query operation object that can be used in a query sequence
 Element-wise operation that converts every element to a value inside a range.
 This operation preserves the shape of the data (scalar, vector, or matrix) but changes
 the values, setting each value to be within the specified range. See the Julia
-\href{https://tanaylab.github.io/DataAxesFormats.jl/v0.1.2/queries.html#DataAxesFormats.Operations.Clamp}{documentation} for
+\href{https://tanaylab.github.io/DataAxesFormats.jl/v0.1.2/operations.html#DataAxesFormats.Operations.Clamp}{documentation} for
 details.
 }

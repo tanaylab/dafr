@@ -19,6 +19,6 @@ Reduction operation that returns the quantile value, that is, a value such that
 a certain fraction of the values is lower. This operation reduces the
 dimensionality of the data: a matrix becomes a vector (quantile of each column),
 and a vector becomes a scalar (quantile of all elements). See the Julia
-\href{https://tanaylab.github.io/DataAxesFormats.jl/v0.1.2/queries.html#DataAxesFormats.Operations.Quantile}{documentation} for
+\href{https://tanaylab.github.io/DataAxesFormats.jl/v0.1.2/operations.html#DataAxesFormats.Operations.Quantile}{documentation} for
 details.
 }

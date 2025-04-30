@@ -17,5 +17,5 @@ Reduction operation that returns the standard deviation of the values, normalize
 (divided) by the mean of the values. This operation reduces the dimensionality
 of the data: a matrix becomes a vector (normalized standard deviation of each column),
 and a vector becomes a scalar (normalized standard deviation of all elements). See the Julia
-\href{https://tanaylab.github.io/DataAxesFormats.jl/v0.1.2/queries.html#DataAxesFormats.Operations.Std}{documentation} for details.
+\href{https://tanaylab.github.io/DataAxesFormats.jl/v0.1.2/operations.html#DataAxesFormats.Operations.Std}{documentation} for details.
 }

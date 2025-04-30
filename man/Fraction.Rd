@@ -16,6 +16,6 @@ A query operation object that can be used in a query sequence
 Element-wise operation that converts every element to its fraction out of the total.
 This operation preserves the shape of the data (scalar, vector, or matrix) but changes
 each value to be the fraction of the total sum of all values in the data. See the Julia
-\href{https://tanaylab.github.io/DataAxesFormats.jl/v0.1.2/queries.html#DataAxesFormats.Operations.Fraction}{documentation} for
+\href{https://tanaylab.github.io/DataAxesFormats.jl/v0.1.2/operations.html#DataAxesFormats.Operations.Fraction}{documentation} for
 details.
 }

@@ -16,6 +16,6 @@ A query operation object that can be used in a query sequence
 Reduction operation that sums elements. This operation reduces the
 dimensionality of the data: a matrix becomes a vector (sum of each column),
 and a vector becomes a scalar (sum of all elements). See the Julia
-\href{https://tanaylab.github.io/DataAxesFormats.jl/v0.1.2/queries.html#DataAxesFormats.Operations.Sum}{documentation} for
+\href{https://tanaylab.github.io/DataAxesFormats.jl/v0.1.2/operations.html#DataAxesFormats.Operations.Sum}{documentation} for
 details.
 }

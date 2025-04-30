@@ -20,7 +20,7 @@ See the Julia \href{https://tanaylab.github.io/DataAxesFormats.jl/v0.1.2/operati
 Element-wise operation that converts every element to its absolute value. This operation preserves
 the shape of the data (scalar, vector, or matrix) but changes the values. By default, the output
 data type is the unsigned version of the input data type. See the Julia
-\href{https://tanaylab.github.io/DataAxesFormats.jl/v0.1.2/queries.html#DataAxesFormats.Operations.Abs}{documentation} for
+\href{https://tanaylab.github.io/DataAxesFormats.jl/v0.1.2/operations.html#DataAxesFormats.Operations.Abs}{documentation} for
 details.
 }
 \details{
