@@ -1,7 +1,6 @@
 #' Handler types for abnormal operations
 #'
 #' These constants define the different types of handlers for abnormal (but recoverable) operations.
-#' See the Julia [documentation](https://tanaylab.github.io/TanayLabUtilities.jl/v0.1.1/handlers.html#TanayLabUtilities.Handlers.AbnormalHandler) for details.
 #'
 #' @name abnormal_handlers
 #' @export
@@ -37,7 +36,6 @@ get_julia_handler <- function(handler) {
 #'
 #' @param handler The handler to use, one of "IgnoreHandler", "WarnHandler", or "ErrorHandler"
 #' @return The previous handler name
-#' @details See the Julia [documentation](https://tanaylab.github.io/TanayLabUtilities.jl/v0.1.1/matrix_layouts.html#TanayLabUtilities.MatrixLayouts.GLOBAL_INEFFICIENT_ACTION_HANDLER) for details.
 #' @export
 inefficient_action_handler <- function(handler) {
     jl_handler <- get_julia_handler(handler)

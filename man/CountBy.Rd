@@ -20,6 +20,6 @@ This operation creates a contingency table counting the occurrences of each comb
 between the current property and the specified property, for the same entries of an axis.
 The result is a matrix whose rows are the values of the first property, columns are the values
 of the second property, and entries are the counts of occurrences of each combination.
-See the Julia \href{https://tanaylab.github.io/DataAxesFormats.jl/v0.1.2/queries.html#DataAccessFormats.Queries.CountBy}{documentation} for
+See the Julia \href{https://tanaylab.github.io/DataAxesFormats.jl/v0.1.2/queries.html#DataAxesFormats.Queries.CountBy}{documentation} for
 details.
 }

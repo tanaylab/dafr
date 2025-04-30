@@ -16,6 +16,6 @@ A query operation object
 }
 \description{
 Similar to \code{IsMatch} except that looks for entries that do not match the pattern. See the Julia
-\href{https://tanaylab.github.io/DataAxesFormats.jl/v0.1.2/queries.html#DataAccessFormats.Queries.IsNotMatch}{documentation} for
+\href{https://tanaylab.github.io/DataAxesFormats.jl/v0.1.2/queries.html#DataAxesFormats.Queries.IsNotMatch}{documentation} for
 details.
 }

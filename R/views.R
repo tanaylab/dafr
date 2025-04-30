@@ -4,7 +4,7 @@
 #' See the Julia documentation for details.
 #'
 #' @format Character string
-#' @references \url{https://tanaylab.github.io/DataAxesFormats.jl/v0.1.2/views.html#DataAccessFormats.Views.ALL_SCALARS}
+#' @references \url{https://tanaylab.github.io/DataAxesFormats.jl/v0.1.2/views.html#DataAxesFormats.Views.ALL_SCALARS}
 #' @export
 ALL_SCALARS <- "*"
 
@@ -14,7 +14,7 @@ ALL_SCALARS <- "*"
 #' See the Julia documentation for details.
 #'
 #' @format Character string
-#' @references \url{https://tanaylab.github.io/DataAxesFormats.jl/v0.1.2/views.html#DataAccessFormats.Views.ALL_AXES}
+#' @references \url{https://tanaylab.github.io/DataAxesFormats.jl/v0.1.2/views.html#DataAxesFormats.Views.ALL_AXES}
 #' @export
 ALL_AXES <- "*"
 
@@ -24,7 +24,7 @@ ALL_AXES <- "*"
 #' See the Julia documentation for details.
 #'
 #' @format Character vector of length 2
-#' @references \url{https://tanaylab.github.io/DataAxesFormats.jl/v0.1.2/views.html#DataAccessFormats.Views.ALL_VECTORS}
+#' @references \url{https://tanaylab.github.io/DataAxesFormats.jl/v0.1.2/views.html#DataAxesFormats.Views.ALL_VECTORS}
 #' @export
 ALL_VECTORS <- c("*", "*")
 
@@ -34,7 +34,7 @@ ALL_VECTORS <- c("*", "*")
 #' See the Julia documentation for details.
 #'
 #' @format Character vector of length 3
-#' @references \url{https://tanaylab.github.io/DataAxesFormats.jl/v0.1.2/views.html#DataAccessFormats.Views.ALL_MATRICES}
+#' @references \url{https://tanaylab.github.io/DataAxesFormats.jl/v0.1.2/views.html#DataAxesFormats.Views.ALL_MATRICES}
 #' @export
 ALL_MATRICES <- c("*", "*", "*")
 

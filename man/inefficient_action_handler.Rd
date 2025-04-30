@@ -16,6 +16,3 @@ The previous handler name
 Specify the handler to use when accessing a matrix in an inefficient way ("against the grain").
 Returns the previous handler as a string.
 }
-\details{
-See the Julia \href{https://tanaylab.github.io/TanayLabUtilities.jl/v0.1.1/matrix_layouts.html#TanayLabUtilities.MatrixLayouts.GLOBAL_INEFFICIENT_ACTION_HANDLER}{documentation} for details.
-}

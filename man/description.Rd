@@ -20,5 +20,5 @@ A string description of the Daf object
 Get description of a Daf object
 }
 \details{
-See the Julia \href{https://tanaylab.github.io/DataAxesFormats.jl/v0.1.2/data.html#DataAxesFormats.Data.description}{documentation} for details.
+See the Julia \href{https://tanaylab.github.io/DataAxesFormats.jl/v0.1.2/readers.html#DataAxesFormats.Readers.description}{documentation} for details.
 }

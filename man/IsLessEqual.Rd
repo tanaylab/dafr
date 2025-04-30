@@ -16,6 +16,6 @@ A query operation object
 }
 \description{
 Similar to \code{IsLess} except that uses \code{<=} instead of \code{<} for the comparison. See the Julia
-\href{https://tanaylab.github.io/DataAxesFormats.jl/v0.1.2/queries.html#DataAccessFormats.Queries.IsLessEqual}{documentation} for
+\href{https://tanaylab.github.io/DataAxesFormats.jl/v0.1.2/queries.html#DataAxesFormats.Queries.IsLessEqual}{documentation} for
 details.
 }

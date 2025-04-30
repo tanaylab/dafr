@@ -15,6 +15,6 @@ A key to use in the \code{data} parameter of \code{viewer} to specify all the ma
 See the Julia documentation for details.
 }
 \references{
-\url{https://tanaylab.github.io/DataAxesFormats.jl/v0.1.2/views.html#DataAccessFormats.Views.ALL_MATRICES}
+\url{https://tanaylab.github.io/DataAxesFormats.jl/v0.1.2/views.html#DataAxesFormats.Views.ALL_MATRICES}
 }
 \keyword{datasets}

@@ -17,6 +17,6 @@ A query operation object
 \description{
 Equality is used for two purposes: As a comparison operator, similar to \code{IsLess} except that uses \code{=} instead of
 \code{<} for the comparison; and To select a single entry from a vector. See the Julia
-\href{https://tanaylab.github.io/DataAxesFormats.jl/v0.1.2/queries.html#DataAccessFormats.Queries.IsEqual}{documentation} for
+\href{https://tanaylab.github.io/DataAxesFormats.jl/v0.1.2/queries.html#DataAxesFormats.Queries.IsEqual}{documentation} for
 details.
 }

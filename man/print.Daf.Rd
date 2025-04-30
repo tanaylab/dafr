@@ -18,5 +18,5 @@ The Daf object (invisibly)
 Prints a description of the Daf object using Julia's description function
 }
 \details{
-See the Julia \href{https://tanaylab.github.io/DataAxesFormats.jl/v0.1.2/data.html#DataAxesFormats.Data.description}{documentation} for details.
+See the Julia \href{https://tanaylab.github.io/DataAxesFormats.jl/v0.1.2/readers.html#DataAxesFormats.Readers.description}{documentation} for details.
 }

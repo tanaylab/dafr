@@ -23,6 +23,5 @@ ERROR_HANDLER
 }
 \description{
 These constants define the different types of handlers for abnormal (but recoverable) operations.
-See the Julia \href{https://tanaylab.github.io/TanayLabUtilities.jl/v0.1.1/handlers.html#TanayLabUtilities.Handlers.AbnormalHandler}{documentation} for details.
 }
 \keyword{datasets}

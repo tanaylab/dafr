@@ -17,6 +17,6 @@ A query operation object
 \description{
 Similar to \code{IsLess} except that the compared values must be strings, and the mask
 is of the values that match the given regular expression. See the Julia
-\href{https://tanaylab.github.io/DataAxesFormats.jl/v0.1.2/queries.html#DataAccessFormats.Queries.IsMatch}{documentation} for
+\href{https://tanaylab.github.io/DataAxesFormats.jl/v0.1.2/queries.html#DataAxesFormats.Queries.IsMatch}{documentation} for
 details.
 }

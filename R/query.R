@@ -608,7 +608,7 @@ Xor <- function(property, ...) {
 
 #' @title XorNot query operation
 #' @description Same as `Xor` but use the inverse of the mask. See the Julia
-#' [documentation](https://tanaylab.github.io/DataAccessFormats.jl/v0.1.2/queries.html#DataAccessFormats.Queries.XorNot) for details.
+#' [documentation](https://tanaylab.github.io/DataAxesFormats.jl/v0.1.2/queries.html#DataAxesFormats.Queries.XorNot) for details.
 #' @param property String specifying the property
 #' @param ... Additional arguments needed to support usage of pipe operator
 #' @return A query operation object
@@ -635,7 +635,7 @@ XorNot <- function(property, ...) {
 #' to the specified threshold using the less-than (`<`) operator. Only entries where the
 #' comparison returns true are included in the result. Typically used after a Lookup operation
 #' to filter entries based on numeric values.
-#' See the Julia [documentation](https://tanaylab.github.io/DataAxesFormats.jl/v0.1.2/queries.html#DataAccessFormats.Queries.IsLess) for details.
+#' See the Julia [documentation](https://tanaylab.github.io/DataAxesFormats.jl/v0.1.2/queries.html#DataAxesFormats.Queries.IsLess) for details.
 #' @param value Threshold value to compare against
 #' @param ... Additional arguments needed to support usage of pipe operator
 #' @return A query operation object that can be used in a query sequence
@@ -656,7 +656,7 @@ IsLess <- function(value, ...) {
 
 #' @title IsLessEqual query operation
 #' @description Similar to `IsLess` except that uses `<=` instead of `<` for the comparison. See the Julia
-#' [documentation](https://tanaylab.github.io/DataAxesFormats.jl/v0.1.2/queries.html#DataAccessFormats.Queries.IsLessEqual) for
+#' [documentation](https://tanaylab.github.io/DataAxesFormats.jl/v0.1.2/queries.html#DataAxesFormats.Queries.IsLessEqual) for
 #' details.
 #' @param value Value to compare against
 #' @param ... Additional arguments needed to support usage of pipe operator
@@ -679,7 +679,7 @@ IsLessEqual <- function(value, ...) {
 #' @title IsEqual query operation
 #' @description Equality is used for two purposes: As a comparison operator, similar to `IsLess` except that uses `=` instead of
 #' `<` for the comparison; and To select a single entry from a vector. See the Julia
-#' [documentation](https://tanaylab.github.io/DataAxesFormats.jl/v0.1.2/queries.html#DataAccessFormats.Queries.IsEqual) for
+#' [documentation](https://tanaylab.github.io/DataAxesFormats.jl/v0.1.2/queries.html#DataAxesFormats.Queries.IsEqual) for
 #' details.
 #' @param value Value to compare against
 #' @param ... Additional arguments needed to support usage of pipe operator
@@ -701,7 +701,7 @@ IsEqual <- function(value, ...) {
 
 #' @title IsNotEqual query operation
 #' @description Similar to `IsLess` except that uses `!=` instead of `<` for the comparison. See the Julia
-#' [documentation](https://tanaylab.github.io/DataAxesFormats.jl/v0.1.2/queries.html#DataAccessFormats.Queries.IsNotEqual) for
+#' [documentation](https://tanaylab.github.io/DataAxesFormats.jl/v0.1.2/queries.html#DataAxesFormats.Queries.IsNotEqual) for
 #' details.
 #' @param value Value to compare against
 #' @param ... Additional arguments needed to support usage of pipe operator
@@ -723,7 +723,7 @@ IsNotEqual <- function(value, ...) {
 
 #' @title IsGreater query operation
 #' @description Similar to `IsLess` except that uses `>` instead of `<` for the comparison. See the Julia
-#' [documentation](https://tanaylab.github.io/DataAxesFormats.jl/v0.1.2/queries.html#DataAccessFormats.Queries.IsGreater) for
+#' [documentation](https://tanaylab.github.io/DataAxesFormats.jl/v0.1.2/queries.html#DataAxesFormats.Queries.IsGreater) for
 #' details.
 #' @param value Value to compare against
 #' @param ... Additional arguments needed to support usage of pipe operator
@@ -745,7 +745,7 @@ IsGreater <- function(value, ...) {
 
 #' @title IsGreaterEqual query operation
 #' @description Similar to `IsLess` except that uses `>=` instead of `<` for the comparison. See the Julia
-#' [documentation](https://tanaylab.github.io/DataAxesFormats.jl/v0.1.2/queries.html#DataAccessFormats.Queries.IsGreaterEqual) for
+#' [documentation](https://tanaylab.github.io/DataAxesFormats.jl/v0.1.2/queries.html#DataAxesFormats.Queries.IsGreaterEqual) for
 #' details.
 #' @param value Value to compare against
 #' @param ... Additional arguments needed to support usage of pipe operator
@@ -768,7 +768,7 @@ IsGreaterEqual <- function(value, ...) {
 #' @title IsMatch query operation
 #' @description Similar to `IsLess` except that the compared values must be strings, and the mask
 #' is of the values that match the given regular expression. See the Julia
-#' [documentation](https://tanaylab.github.io/DataAxesFormats.jl/v0.1.2/queries.html#DataAccessFormats.Queries.IsMatch) for
+#' [documentation](https://tanaylab.github.io/DataAxesFormats.jl/v0.1.2/queries.html#DataAxesFormats.Queries.IsMatch) for
 #' details.
 #' @param value Regular expression pattern to match against
 #' @param ... Additional arguments needed to support usage of pipe operator
@@ -792,7 +792,7 @@ IsMatch <- function(value, ...) {
 
 #' @title IsNotMatch query operation
 #' @description Similar to `IsMatch` except that looks for entries that do not match the pattern. See the Julia
-#' [documentation](https://tanaylab.github.io/DataAxesFormats.jl/v0.1.2/queries.html#DataAccessFormats.Queries.IsNotMatch) for
+#' [documentation](https://tanaylab.github.io/DataAxesFormats.jl/v0.1.2/queries.html#DataAxesFormats.Queries.IsNotMatch) for
 #' details.
 #' @param value Regular expression pattern to not match against
 #' @param ... Additional arguments needed to support usage of pipe operator
@@ -820,7 +820,7 @@ IsNotMatch <- function(value, ...) {
 #' between the current property and the specified property, for the same entries of an axis.
 #' The result is a matrix whose rows are the values of the first property, columns are the values
 #' of the second property, and entries are the counts of occurrences of each combination.
-#' See the Julia [documentation](https://tanaylab.github.io/DataAxesFormats.jl/v0.1.2/queries.html#DataAccessFormats.Queries.CountBy) for
+#' See the Julia [documentation](https://tanaylab.github.io/DataAxesFormats.jl/v0.1.2/queries.html#DataAxesFormats.Queries.CountBy) for
 #' details.
 #' @param property String specifying the property to count combinations with
 #' @param ... Additional arguments needed to support usage of pipe operator
@@ -849,7 +849,7 @@ CountBy <- function(property, ...) {
 #' If applied to a vector, the result is a vector with one entry per group. If applied to a matrix,
 #' the result is a matrix with one row per group. This is typically followed by a reduction
 #' operation that specifies how to aggregate the grouped values.
-#' See the Julia [documentation](https://tanaylab.github.io/DataAxesFormats.jl/v0.1.2/queries.html#DataAccessFormats.Queries.GroupBY) for
+#' See the Julia [documentation](https://tanaylab.github.io/DataAxesFormats.jl/v0.1.2/queries.html#DataAxesFormats.Queries.GroupBY) for
 #' details.
 #' @param property String specifying the property to group by
 #' @param ... Additional arguments needed to support usage of pipe operator
