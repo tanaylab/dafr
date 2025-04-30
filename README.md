@@ -64,7 +64,8 @@ set_matrix(daf, "obs", "var", "counts", mat)
 
 # Access data
 get_vector(daf, "obs", "score")
-#> [1] 0.1 0.5 0.9
+#> cell1 cell2 cell3 
+#>   0.1   0.5   0.9
 get_matrix(daf, "obs", "var", "counts")
 #>       gene1 gene2
 #> cell1     1     4
