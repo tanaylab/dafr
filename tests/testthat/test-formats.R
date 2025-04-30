@@ -1,21 +1,22 @@
 # Helper functions to create different DAF formats
 
 make_memory_daf <- function() {
-    daf <- dafr::memory_daf(name = "test!")
+    daf <- memory_daf(name = "test!")
     return(list(daf = daf, extra = ""))
 }
 
 make_files_daf <- function() {
     tmpdir <- tempdir()
-    daf <- dafr::files_daf(tmpdir, "w", name = "test!")
-    extra <- paste0("path: ", tmpdir, "\nmode: w\n")
+    daf <- files_daf(tmpdir, "w", name = "test!")
+    extra <- paste0("path: ", normalizePath(tmpdir), "\nmode: w\n")
     return(list(daf = daf, extra = extra))
 }
 
 make_h5df <- function() {
     tmpdir <- tempdir()
+    tmpdir <- gsub("//", "/", tempdir()) # A hack until the Julia version is updated
     h5_path <- file.path(tmpdir, "test.h5df")
-    daf <- dafr::h5df(h5_path, "w", name = "test!")
+    daf <- h5df(h5_path, "w", name = "test!")
     extra <- paste0("root: HDF5.File: (read-write) ", h5_path, "\nmode: w\n")
     return(list(daf = daf, extra = extra))
 }
@@ -169,17 +170,17 @@ test_that("vector operations work for different formats", {
         # Test getting a missing vector
         expect_error(get_vector(daf, "cell", "foo"))
 
-        expect_equal(get_vector(daf, "cell", "foo", default = NA), c(NA, NA))
+        expect_equal(get_vector(daf, "cell", "foo", default = NA), c(A = NA, B = NA))
 
         # Test with string default value
-        expect_equal(get_vector(daf, "cell", "foo", default = "savta"), c("savta", "savta"))
+        expect_equal(get_vector(daf, "cell", "foo", default = "savta"), c(A = "savta", B = "savta"))
 
         # Test with default values
-        expect_equal(get_vector(daf, "cell", "foo", default = 1), c(1, 1))
-        expect_equal(get_vector(daf, "cell", "foo", default = c(1, 2)), c(1, 2))
+        expect_equal(get_vector(daf, "cell", "foo", default = 1), c(A = 1, B = 1))
+        expect_equal(get_vector(daf, "cell", "foo", default = c(1, 2)), c(A = 1, B = 2))
 
         # Test with string vector
-        vector_entries <- c("X", "Y")
+        vector_entries <- c(A = "X", B = "Y")
         julia_type <- "String"
 
         expect_equal(length(vectors_set(daf, "cell")), 0)
@@ -212,7 +213,7 @@ test_that("vector operations work for different formats", {
         expect_false(has_vector(daf, "cell", "foo"))
 
         # Test with numeric vector
-        vector_entries <- c(1.0, 2.0)
+        vector_entries <- c(A = 1.0, B = 2.0)
 
         set_vector(daf, "cell", "foo", vector_entries)
         expect_equal(get_vector(daf, "cell", "foo"), vector_entries)
@@ -237,7 +238,7 @@ test_that("matrix operations work for different formats", {
 
         # Test getting a missing matrix
         expect_error(get_matrix(daf, "cell", "gene", "UMIs"))
-        expect_equal(get_matrix(daf, "cell", "gene", "UMIs", default = NA), matrix(NA, nrow = 2, ncol = 3))
+        expect_equal(get_matrix(daf, "cell", "gene", "UMIs", default = NA), matrix(NA, nrow = 2, ncol = 3, dimnames = list(c("A", "B"), c("X", "Y", "Z"))))
 
         # Test with default values
         expected_default <- matrix(1, nrow = 2, ncol = 3)
@@ -278,8 +279,10 @@ test_that("matrix operations work for different formats", {
             "  gene: 3 entries\n",
             "matrices:\n",
             "  cell,gene:\n",
-            "    UMIs: 2 x 3 x Float64 in Columns\n"
+            "    UMIs: 2 x 3 x Float64 in Columns (Dense)\n"
         )
+
+        expect_equal(description(daf), expected_description)
 
         # Test relayout
         expect_false(has_matrix(daf, "gene", "cell", "UMIs", relayout = FALSE))
@@ -304,6 +307,8 @@ test_that("matrix operations work for different formats", {
 test_that("sparse matrix operations work", {
     for (format_data in formats) {
         result <- format_data$create_fn()
+        format_name <- format_data$name
+        extra <- result$extra
         daf <- result$daf
 
         # Add axes
@@ -325,20 +330,37 @@ test_that("sparse matrix operations work", {
         m <- get_matrix(daf, "cell", "gene", "UMIs")
         expect_equal(m, sparse_matrix)
 
-        # Test with different matrix types
-        row_major_umis <- matrix(c(1, 2, 3, 4, 5, 6), nrow = 2, ncol = 3)
+        expected_description <- paste0(
+            "name: test!\n",
+            "type: ", format_name, "\n",
+            extra,
+            "axes:\n",
+            "  cell: 2 entries\n",
+            "  gene: 3 entries\n",
+            "matrices:\n",
+            "  cell,gene:\n",
+            "    UMIs: 2 x 3 x Float64 in Columns (Sparse Int64 83%)\n",
+            "  gene,cell:\n",
+            "    UMIs: 3 x 2 x Float64 in Columns (Sparse Int64 83%)\n"
+        )
+
+        expect_equal(description(daf), expected_description)
+
         delete_matrix(daf, "cell", "gene", "UMIs")
+
+        # Test with different matrix types
+        row_major_umis <- as(sparse_matrix, "RsparseMatrix")
         set_matrix(daf, "cell", "gene", "UMIs", row_major_umis, relayout = FALSE)
         stored_matrix <- get_matrix(daf, "cell", "gene", "UMIs", relayout = FALSE)
-        expect_equal(stored_matrix, row_major_umis, ignore_attr = TRUE)
+        expect_equal(as.matrix(stored_matrix), as.matrix(row_major_umis))
         expect_equal(rownames(stored_matrix), axis_entries(daf, "cell"))
         expect_equal(colnames(stored_matrix), axis_entries(daf, "gene"))
 
         # Test matrix overwrite
-        row_major_umis1 <- matrix(c(5, 5, 5, 5, 5, 5), nrow = 2, ncol = 3)
-        set_matrix(daf, "cell", "gene", "UMIs", row_major_umis, overwrite = TRUE)
+        m <- matrix(c(5, 5, 5, 5, 5, 5), nrow = 2, ncol = 3)
+        set_matrix(daf, "cell", "gene", "UMIs", m, overwrite = TRUE)
         stored_matrix <- get_matrix(daf, "cell", "gene", "UMIs")
-        expect_equal(stored_matrix, row_major_umis, ignore_attr = TRUE)
+        expect_equal(stored_matrix, m, ignore_attr = TRUE)
         expect_equal(rownames(stored_matrix), axis_entries(daf, "cell"))
         expect_equal(colnames(stored_matrix), axis_entries(daf, "gene"))
 

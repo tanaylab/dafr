@@ -114,20 +114,7 @@ get_dataframe_query <- function(daf = NULL, query = NULL, cache = TRUE) {
     } else if (dims == 2) {
         # For matrices, extract the values and both row and column names
         values <- from_julia_array(result)
-
-        # Convert sparse matrix to dense if needed
-        if (inherits(values, "sparseMatrix")) {
-            values <- as.matrix(values)
-        }
-
-        # Extract row and column names
-        row_names <- julia_call("NamedArrays.names", result, as.integer(1), need_return = "R")
-        col_names <- julia_call("NamedArrays.names", result, as.integer(2), need_return = "R")
-
-        # Create data frame with proper row and column names
-        df <- as.data.frame(values, stringsAsFactors = FALSE)
-        colnames(df) <- col_names
-        rownames(df) <- row_names
+        df <- as.data.frame(values)
 
         return(df)
     } else {

@@ -39,7 +39,7 @@ test_that("concatenate function works correctly", {
     expect_equal(axis_length(destination, "dataset"), 2)
     expect_true(has_vector(destination, "cell", "dataset"))
     expect_true(has_vector(destination, "dataset", "version"))
-    expect_equal(get_vector(destination, "dataset", "version"), c(1, 2))
+    expect_equal(get_vector(destination, "dataset", "version"), c("source.1!" = 1, "source.2!" = 2))
 
     # Test basic concatenation without merge
     destination2 <- memory_daf(name = "destination!")

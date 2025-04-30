@@ -22,6 +22,7 @@ memory_daf <- function(name = "memory") {
 #' @return A Daf object with file-based storage
 #' @export
 files_daf <- function(path, mode = "r", name = NULL) {
+    path <- normalizePath(path, mustWork = FALSE)
     jl_obj <- julia_call("DataAxesFormats.FilesDaf", path, mode, name = name)
     if (mode == "r") {
         return(read_only(Daf(jl_obj)))
@@ -40,6 +41,7 @@ files_daf <- function(path, mode = "r", name = NULL) {
 #' @return A Daf object with HDF5-based storage
 #' @export
 h5df <- function(root, mode = "r", name = NULL) {
+    root <- normalizePath(root, mustWork = FALSE)
     jl_obj <- julia_call("DataAxesFormats.H5df", root, mode, name = name)
     if (mode == "r") {
         return(read_only(Daf(jl_obj)))
@@ -62,7 +64,7 @@ chain_reader <- function(dsets, name = NULL) {
         julia_call("_to_daf_readers", jl_dsets),
         name = name
     )
-    return(read_only(Daf(jl_obj)))
+    return(Daf(jl_obj))
 }
 
 #' Create a writable chain wrapper of DafReader objects

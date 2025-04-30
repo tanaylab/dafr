@@ -31,7 +31,7 @@ test_that("adapter works correctly", {
 
     # Check that the vector was copied back
     expect_true(has_vector(daf, "obs", "score"))
-    expect_equal(get_vector(daf, "obs", "score"), c(10.0, 20.0))
+    expect_equal(get_vector(daf, "obs", "score"), c(A = 10.0, B = 20.0))
 
     # Check that the scalar was copied
     expect_true(has_scalar(daf, "computed"))
@@ -68,7 +68,7 @@ test_that("adapter captures new axes", {
     expect_true(has_axis(daf, "sample"))
     expect_equal(as.character(axis_vector(daf, "sample")), c("S1", "S2", "S3"))
     expect_true(has_vector(daf, "sample", "quality"))
-    expect_equal(get_vector(daf, "sample", "quality"), c(0.9, 0.8, 0.7))
+    expect_equal(get_vector(daf, "sample", "quality"), c(S1 = 0.9, S2 = 0.8, S3 = 0.7))
 })
 
 test_that("adapter with scalar renaming works", {

@@ -250,9 +250,8 @@ from_julia_object <- function(julia_object) {
         # Check for arrays
         is_array <- is_julia_type(julia_object, "AbstractArray")
 
-
         if (is_array) {
-            return(as.array(julia_object))
+            return(from_julia_array(julia_object))
         }
 
         # Check for DataFrames
@@ -267,6 +266,37 @@ from_julia_object <- function(julia_object) {
     return(julia_object)
 }
 
+create_julia_sparse_matrix <- function(sparse_matrix) {
+    if (!inherits(sparse_matrix, "dgCMatrix")) {
+        sparse_matrix <- as(sparse_matrix, "CsparseMatrix")
+    }
+
+    # Column-oriented sparse matrix (CSC format)
+    # Extract components of sparse matrix
+    # For dgCMatrix, Matrix package uses 0-based indexing internally, but Julia uses 1-based
+    colptr <- sparse_matrix@p + 1 # Convert to 1-indexed for Julia
+    rowval <- sparse_matrix@i + 1 # Convert to 1-indexed for Julia
+    nzval <- sparse_matrix@x
+
+    # Create vectors in Julia
+    jl_colptr <- julia_call("Vector", colptr)
+    jl_rowval <- julia_call("Vector", rowval)
+    jl_nzval <- julia_call("Vector", nzval)
+
+    nrows <- sparse_matrix@Dim[1]
+    ncols <- sparse_matrix@Dim[2]
+
+    # Create Julia sparse matrix
+    return(julia_call(
+        "SparseArrays.SparseMatrixCSC",
+        as.integer(nrows), as.integer(ncols),
+        as.integer(jl_colptr), as.integer(jl_rowval), jl_nzval,
+        need_return = "Julia"
+    ))
+}
+
+
+
 #' Convert R arrays, vectors and sparse matrices to Julia
 #'
 #' @param value An R object to convert to a Julia array
@@ -279,39 +309,8 @@ to_julia_array <- function(value) {
     }
 
     # Handle sparse matrices
-    if (inherits(value, "sparseMatrix") || inherits(value, "dgCMatrix") || inherits(value, "dgRMatrix")) {
-        # Extract components of sparse matrix
-        # For dgCMatrix, Matrix package uses 0-based indexing internally, but Julia uses 1-based
-        colptr <- value@p + 1 # Convert to 1-indexed for Julia
-        rowval <- value@i + 1 # Convert to 1-indexed for Julia
-        nzval <- value@x
-
-        # Create vectors in Julia
-        jl_colptr <- julia_call("Vector", colptr)
-        jl_rowval <- julia_call("Vector", rowval)
-        jl_nzval <- julia_call("Vector", nzval)
-
-        nrows <- value@Dim[1]
-        ncols <- value@Dim[2]
-
-        if (inherits(value, "dgRMatrix")) {
-            # switch nrows and ncols
-            nrows <- value@Dim[2]
-            ncols <- value@Dim[1]
-        }
-
-        julia_matrix <- julia_call(
-            "SparseArrays.SparseMatrixCSC",
-            as.integer(nrows), as.integer(ncols), as.integer(jl_colptr), as.integer(jl_rowval), jl_nzval,
-            need_return = "Julia"
-        )
-
-        if (inherits(value, "dgRMatrix")) {
-            julia_matrix <- julia_call("LinearAlgebra.transpose", julia_matrix, need_return = "Julia")
-        }
-
-        # Create Julia sparse matrix
-        return(julia_matrix)
+    if (inherits(value, "sparseMatrix")) {
+        return(create_julia_sparse_matrix(value))
     }
 
     # Handle vectors and convert to appropriate type
@@ -358,7 +357,47 @@ from_julia_array <- function(julia_array) {
             repr = "C"
         )
 
+        row_names <- julia_call("NamedArrays.names", orig_array, as.integer(1), need_return = "R")
+        col_names <- julia_call("NamedArrays.names", orig_array, as.integer(2), need_return = "R")
+
+        # Set the row and column names
+        rownames(sp) <- row_names
+        colnames(sp) <- col_names
+
         return(sp)
+    }
+
+    if (is_julia_type(orig_array, "NamedArrays.NamedVector")) {
+        # Extract the array values
+        r_array <- get_julia_field(orig_array, "array", need_return = "R")
+
+        # Make sure it's a vector
+        r_array <- as.vector(r_array)
+
+        # Extract the names using NamedArrays.names
+        names_vector <- julia_call("NamedArrays.names", orig_array, as.integer(1), need_return = "R")
+
+        # Set the names on the R vector
+        names(r_array) <- names_vector
+
+        return(r_array)
+    }
+
+    if (is_julia_type(orig_array, "NamedArrays.NamedMatrix")) {
+        # Extract the array values
+        r_array <- get_julia_field(orig_array, "array", need_return = "R")
+
+        # Make sure it's a matrix
+        r_array <- as.matrix(r_array)
+
+        row_names <- julia_call("NamedArrays.names", orig_array, as.integer(1), need_return = "R")
+        col_names <- julia_call("NamedArrays.names", orig_array, as.integer(2), need_return = "R")
+
+        # Set the row and column names
+        rownames(r_array) <- row_names
+        colnames(r_array) <- col_names
+
+        return(r_array)
     }
 
     # Handle regular arrays/vectors

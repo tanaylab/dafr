@@ -20,7 +20,7 @@ test_that("copy functions work correctly", {
     # Test copy_vector
     set_vector(source, "cell", "age", c(0.0, 1.0))
     copy_vector(destination = destination, source = source, axis = "cell", name = "age")
-    expect_equal(get_vector(destination, "cell", "age"), c(0.0, 1.0))
+    expect_equal(get_vector(destination, "cell", "age"), c(A = 0.0, B = 1.0))
 
     # Test copy_matrix
     umis <- matrix(c(0, 1, 2, 3, 4, 5), nrow = 2, ncol = 3, byrow = TRUE)
@@ -70,6 +70,6 @@ test_that("copy functions work correctly", {
     expect_equal(get_scalar(new_destination, "version"), "1.0")
     expect_equal(as.character(axis_vector(new_destination, "cell")), c("A", "B"))
     expect_equal(as.character(axis_vector(new_destination, "gene")), c("X", "Y", "Z"))
-    expect_equal(get_vector(new_destination, "cell", "age"), c(0.0, 1.0))
+    expect_equal(get_vector(new_destination, "cell", "age"), c(A = 0.0, B = 1.0))
     expect_equal(get_matrix(new_destination, "gene", "cell", "UMIs"), umis)
 })

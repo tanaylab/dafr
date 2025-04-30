@@ -13,7 +13,7 @@ test_that("read_only creates a read-only wrapper", {
     expect_equal(axes_set(readonly), "cell")
     expect_equal(axis_length(readonly, "cell"), 2)
     expect_equal(get_scalar(readonly, "version"), 1.0)
-    expect_equal(get_vector(readonly, "cell", "type"), c("T", "B"))
+    expect_equal(get_vector(readonly, "cell", "type"), c(A = "T", B = "B"))
 
     # Test description
     desc <- description(readonly)

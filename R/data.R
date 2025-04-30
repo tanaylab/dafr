@@ -275,14 +275,16 @@ get_vector <- function(daf, axis, name, default = NULL) {
     validate_daf_object(daf)
     if (!is.null(default)) {
         if (length(default) == 1 && is.na(default)) {
-            return(rep(NA, axis_length(daf, axis)))
+            result <- rep(NA, axis_length(daf, axis))
+            names(result) <- axis_entries(daf, axis)
+            return(result)
         }
-        result <- julia_call("DataAxesFormats.get_vector", daf$jl_obj, axis, name, default = default)
+        result <- julia_call("DataAxesFormats.get_vector", daf$jl_obj, axis, name, default = default, need_return = "Julia")
     } else {
-        result <- julia_call("DataAxesFormats.get_vector", daf$jl_obj, axis, name)
+        result <- julia_call("DataAxesFormats.get_vector", daf$jl_obj, axis, name, need_return = "Julia")
     }
 
-    as.vector(result)
+    return(from_julia_array(result))
 }
 
 #' Check if a matrix exists in a Daf object
@@ -486,6 +488,7 @@ set_matrix <- function(daf, rows_axis, columns_axis, name, value, overwrite = FA
     if (any(is.na(value))) {
         cli::cli_abort("{.field value} cannot contain NA values. See the Julia documentation for details.")
     }
+
     julia_call(
         "DataAxesFormats.set_matrix!",
         daf$jl_obj,
@@ -520,7 +523,10 @@ get_matrix <- function(daf, rows_axis, columns_axis, name, default = NULL, relay
     validate_daf_object(daf)
     if (!is.null(default)) {
         if (length(default) == 1 && is.na(default)) {
-            return(matrix(NA, nrow = axis_length(daf, rows_axis), ncol = axis_length(daf, columns_axis)))
+            result <- matrix(NA, nrow = axis_length(daf, rows_axis), ncol = axis_length(daf, columns_axis))
+            rownames(result) <- axis_entries(daf, rows_axis)
+            colnames(result) <- axis_entries(daf, columns_axis)
+            return(result)
         }
     }
     result <- julia_call(
@@ -533,9 +539,9 @@ get_matrix <- function(daf, rows_axis, columns_axis, name, default = NULL, relay
         default = default,
         need_return = "Julia"
     )
+
     result <- from_julia_array(result)
-    rownames(result) <- axis_entries(daf, rows_axis)
-    colnames(result) <- axis_entries(daf, columns_axis)
+
     return(result)
 }
 
