@@ -27,6 +27,7 @@ Imports:
     cli,
     JuliaCall,
     Matrix,
+    methods,
     tibble,
     tidyr
 Suggests: 
