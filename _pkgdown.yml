@@ -38,6 +38,8 @@ reference:
       - h5ad_as_daf
       - read_only
       - chain_reader
+      - complete_daf
+      - open_daf
 
   - title: "Writers"
     desc: "Writing Daf data to different formats"
