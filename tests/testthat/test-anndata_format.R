@@ -64,3 +64,42 @@ test_that("h5ad conversion works", {
     # Clean up
     unlink(h5ad_path)
 })
+
+test_that("h5ad_as_daf accepts different handler types", {
+    # Create a simple h5ad file for testing
+    origin <- memory_daf(name = "test_handlers!")
+    add_axis(origin, "cell", c("A", "B"))
+    add_axis(origin, "gene", c("X", "Y"))
+    set_matrix(origin, "gene", "cell", "UMIs", matrix(1:4, nrow = 2, ncol = 2))
+
+    h5ad_path <- tempfile(fileext = ".h5ad")
+    daf_as_h5ad(
+        origin,
+        obs_is = "cell",
+        var_is = "gene",
+        X_is = "UMIs",
+        h5ad = h5ad_path
+    )
+
+    # Test each handler type
+    expect_no_error(
+        h5ad_as_daf(h5ad_path, obs_is = "cell", var_is = "gene", X_is = "UMIs", unsupported_handler = IGNORE_HANDLER)
+    )
+
+    expect_no_error(
+        h5ad_as_daf(h5ad_path, obs_is = "cell", var_is = "gene", X_is = "UMIs", unsupported_handler = WARN_HANDLER)
+    )
+
+    expect_no_error(
+        h5ad_as_daf(h5ad_path, obs_is = "cell", var_is = "gene", X_is = "UMIs", unsupported_handler = ERROR_HANDLER)
+    )
+
+    # Test invalid handler
+    expect_error(
+        h5ad_as_daf(h5ad_path, obs_is = "cell", var_is = "gene", X_is = "UMIs", unsupported_handler = "InvalidHandler"),
+        "Handler must be one of:"
+    )
+
+    # Clean up
+    unlink(h5ad_path)
+})
