@@ -5,26 +5,36 @@ on:
     branches: [main, master]
   pull_request:
 
-name: R-CMD-check-with-Julia
-
-permissions: read-all
+name: R-CMD-check
 
 jobs:
   R-CMD-check:
-    runs-on: ubuntu-latest
+    runs-on: ${{ matrix.config.os }}
+    name: ${{ matrix.config.os }} (${{ matrix.config.r }})
+    strategy:
+      fail-fast: false
+      matrix:
+        config:
+          # - {os: ubuntu-latest, r: 'release'}
+          - {os: macos-latest, r: 'release'}
+          # - {os: windows-latest, r: 'release'}
+
     env:
       GITHUB_PAT: ${{ secrets.GITHUB_TOKEN }}
       R_KEEP_PKG_SOURCE: yes
       JULIA_NUM_THREADS: 2
+      AUTO_JULIA_INSTALL: true
+      R_REMOTES_NO_ERRORS_FROM_WARNINGS: true
+
     steps:
       - uses: actions/checkout@v4
 
       - uses: r-lib/actions/setup-r@v2
         with:
+          r-version: ${{ matrix.config.r }}
           use-public-rspm: true
 
-      - name: Setup Julia
-        uses: julia-actions/setup-julia@v2
+      - uses: julia-actions/setup-julia@v2
         with:
           channel: '1'
           arch: default
@@ -36,17 +46,49 @@ jobs:
           key: ${{ runner.os }}-julia-${{ hashFiles('**/Project.toml') }}
           restore-keys: |
             ${{ runner.os }}-julia-
-
-      - name: Install JuliaCall
+        
+      - name: Install required Julia packages
         run: |
-          Rscript -e 'install.packages(c("JuliaCall", "devtools", "cli", "Matrix", "tibble", "tidyr"))'
-      
+          julia -e '
+          using Pkg
+          Pkg.add("Suppressor")
+          Pkg.add("RCall")
+          Pkg.add("Logging")
+          Pkg.add("DataFrames")
+          Pkg.add("HDF5")
+          Pkg.add("LinearAlgebra")
+          Pkg.add("Muon")
+          Pkg.add("NamedArrays")
+          Pkg.add("SparseArrays")
+          # Add packages from GitHub repositories
+          Pkg.add(url="https://github.com/tanaylab/TanayLabUtilities.jl")
+          Pkg.add(url="https://github.com/tanaylab/DataAxesFormats.jl")
+          '
+
+      - name: Install system dependencies
+        if: runner.os == 'Linux'
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y libcurl4-openssl-dev
+
       - uses: r-lib/actions/setup-r-dependencies@v2
         with:
-          extra-packages: any::rcmdcheck, any::JuliaCall, any::cli, any::devtools
+          extra-packages: any::rcmdcheck, any::JuliaCall, any::cli, any::Matrix, any::tibble, any::tidyr
           needs: check
 
-      - uses: r-lib/actions/check-r-package@v2
+      - name: Check
+        env:
+          _R_CHECK_CRAN_INCOMING_REMOTE_: false
+        run: |
+          options(crayon.enabled = TRUE)
+          rcmdcheck::rcmdcheck(args = c("--no-manual", "--as-cran", "--no-multiarch"), 
+                              error_on = "warning", 
+                              check_dir = "check")
+        shell: Rscript {0}
+
+      - name: Upload check results
+        if: failure()
+        uses: actions/upload-artifact@main
         with:
-          upload-snapshots: true
-          build_args: 'c("--no-manual","--compact-vignettes=gs+qpdf")'
+          name: ${{ runner.os }}-r${{ matrix.config.r }}-results
+          path: check
