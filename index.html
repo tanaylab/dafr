@@ -129,24 +129,28 @@
 <span></span>
 <span><span class="co"># Access vector data</span></span>
 <span><span class="va">daf</span><span class="op">[</span><span class="st">"/ cell : age"</span><span class="op">]</span> <span class="co"># Get the "age" vector for all cells</span></span>
-<span><span class="co">#&gt; [1]  1  5 10</span></span>
+<span><span class="co">#&gt;  A  B  C </span></span>
+<span><span class="co">#&gt;  1  5 10</span></span>
 <span></span>
 <span><span class="co"># Access matrix data</span></span>
 <span><span class="va">daf</span><span class="op">[</span><span class="st">"/ cell / gene : counts"</span><span class="op">]</span> <span class="co"># Get the full counts matrix</span></span>
-<span><span class="co">#&gt;      [,1] [,2] [,3]</span></span>
-<span><span class="co">#&gt; [1,]    1    4    7</span></span>
-<span><span class="co">#&gt; [2,]    2    5    8</span></span>
-<span><span class="co">#&gt; [3,]    3    6    9</span></span>
+<span><span class="co">#&gt;   X Y Z</span></span>
+<span><span class="co">#&gt; A 1 4 7</span></span>
+<span><span class="co">#&gt; B 2 5 8</span></span>
+<span><span class="co">#&gt; C 3 6 9</span></span>
 <span></span>
 <span><span class="co"># Filter data</span></span>
 <span><span class="va">daf</span><span class="op">[</span><span class="st">"/ cell &amp; age &gt; 2 : type"</span><span class="op">]</span> <span class="co"># Get types of cells with age &gt; 2</span></span>
-<span><span class="co">#&gt; [1] "B"  "NK"</span></span>
+<span><span class="co">#&gt;    B    C </span></span>
+<span><span class="co">#&gt;  "B" "NK"</span></span>
 <span></span>
 <span><span class="co"># Transform data</span></span>
 <span><span class="va">daf</span><span class="op">[</span><span class="st">"/ cell : age % Abs"</span><span class="op">]</span> <span class="co"># Get absolute values of ages</span></span>
-<span><span class="co">#&gt; [1]  1  5 10</span></span>
+<span><span class="co">#&gt;  A  B  C </span></span>
+<span><span class="co">#&gt;  1  5 10</span></span>
 <span><span class="va">daf</span><span class="op">[</span><span class="st">"/ cell : age % Log base 2"</span><span class="op">]</span> <span class="co"># Get log2 of ages</span></span>
-<span><span class="co">#&gt; [1] 0.000000 2.321928 3.321928</span></span>
+<span><span class="co">#&gt;        A        B        C </span></span>
+<span><span class="co">#&gt; 0.000000 2.321928 3.321928</span></span>
 <span></span>
 <span><span class="co"># Aggregations</span></span>
 <span><span class="va">daf</span><span class="op">[</span><span class="st">"/ cell : age %&gt; Max"</span><span class="op">]</span> <span class="co"># Get maximum age</span></span>
@@ -161,7 +165,8 @@
 <span>    <span class="fu"><a href="reference/IsGreater.html">IsGreater</a></span><span class="op">(</span><span class="fl">2</span><span class="op">)</span> <span class="op">|&gt;</span></span>
 <span>    <span class="fu"><a href="reference/Lookup.html">Lookup</a></span><span class="op">(</span><span class="st">"type"</span><span class="op">)</span> <span class="op">|&gt;</span></span>
 <span>    <span class="fu"><a href="reference/get_query.html">get_query</a></span><span class="op">(</span><span class="va">daf</span><span class="op">)</span></span>
-<span><span class="co">#&gt; [1] "B"  "NK"</span></span></code></pre></div>
+<span><span class="co">#&gt;    B    C </span></span>
+<span><span class="co">#&gt;  "B" "NK"</span></span></code></pre></div>
 <p>The query syntax follows a simple pattern:</p>
 <ul>
 <li>
