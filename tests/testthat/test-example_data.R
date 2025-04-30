@@ -2,6 +2,8 @@ test_that("example_cells_daf returns expected structure", {
     # Load the example cells data
     daf <- example_cells_daf()
 
+    expect_error(example_cells_daf(name = 17))
+    expect_error(example_cells_daf(name = NULL))
     # Test that it returns a proper Daf object
     expect_true(is_daf(daf))
     expect_equal(name(daf), "cells!")
@@ -62,6 +64,9 @@ test_that("example_cells_daf returns expected structure", {
 test_that("example_metacells_daf returns expected structure", {
     # Load the example metacells data
     daf <- example_metacells_daf()
+
+    expect_error(example_metacells_daf(name = 17))
+    expect_error(example_metacells_daf(name = NULL))
 
     # Test that it returns a proper Daf object
     expect_true(is_daf(daf))

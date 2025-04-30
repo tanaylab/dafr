@@ -35,7 +35,7 @@ scalars_set <- function(daf) {
 #'
 #' @param daf A Daf object
 #' @param name Name of the scalar property to retrieve
-#' @param default Default value to return if the scalar doesn't exist (NULL by default)
+#' @param default Default value to return if the scalar doesn't exist. If NULL, an error is thrown.
 #' @return The scalar value or default if the property is not found
 #' @details Numeric scalars are returned as integers or doubles, regardless of the specific
 #'   data type they are stored as in the Daf data set.
@@ -104,17 +104,17 @@ axis_length <- function(daf, axis) {
 #'
 #' @param daf A Daf object
 #' @param axis Name of the axis
-#' @param default Default value if the axis doesn't exist
+#' @param null_if_missing Whether to return NULL if the axis doesn't exist
 #' @return A character vector of axis entry names
 #' @details Axis entries provide names for each position along an axis, such as gene names
 #'   for a "gene" axis or cell barcodes for a "cell" axis. These entry names can be used
 #'   to look up specific indices using the `axis_indices()` function.
 #'   See the Julia [documentation](https://tanaylab.github.io/DataAxesFormats.jl/v0.1.2/readers.html#DataAxesFormats.Readers.axis_vector) for details.
 #' @export
-axis_vector <- function(daf, axis, default = NULL) {
+axis_vector <- function(daf, axis, null_if_missing = FALSE) {
     validate_daf_object(daf)
-    if (!is.null(default)) {
-        julia_call("DataAxesFormats.axis_vector", daf$jl_obj, axis, default = default)
+    if (null_if_missing) {
+        julia_call("DataAxesFormats.axis_vector", daf$jl_obj, axis, default = NULL)
     } else {
         julia_call("DataAxesFormats.axis_vector", daf$jl_obj, axis)
     }

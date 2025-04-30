@@ -24,9 +24,6 @@ memory_daf <- function(name = "memory") {
 files_daf <- function(path, mode = "r", name = NULL) {
     path <- normalizePath(path, mustWork = FALSE)
     jl_obj <- julia_call("DataAxesFormats.FilesDaf", path, mode, name = name)
-    if (mode == "r") {
-        return(read_only(Daf(jl_obj)))
-    }
     return(Daf(jl_obj))
 }
 
@@ -43,9 +40,6 @@ files_daf <- function(path, mode = "r", name = NULL) {
 h5df <- function(root, mode = "r", name = NULL) {
     root <- normalizePath(root, mustWork = FALSE)
     jl_obj <- julia_call("DataAxesFormats.H5df", root, mode, name = name)
-    if (mode == "r") {
-        return(read_only(Daf(jl_obj)))
-    }
     return(Daf(jl_obj))
 }
 

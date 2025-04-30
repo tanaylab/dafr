@@ -48,10 +48,14 @@ test_that("scalar operations work for different formats", {
         expect_false(has_scalar(daf, "foo"))
 
         set_scalar(daf, "foo", scalar_value)
+        expect_error(set_scalar(daf, "foo", NA))
 
         expect_true(has_scalar(daf, "foo"))
         expect_equal(get_scalar(daf, "foo"), scalar_value)
         expect_equal(scalars_set(daf), "foo")
+
+        expect_error(get_scalar(daf, "savta"))
+        expect_equal(get_scalar(daf, "savta", 17), 17)
 
         if (julia_type == "String") {
             formatted_value <- paste0('"', scalar_value, '"')
@@ -99,6 +103,13 @@ test_that("scalar operations work for different formats", {
     }
 })
 
+test_that("validate_daf_object works", {
+    daf <- memory_daf()
+    expect_error(validate_daf_object(list()))
+    expect_error(validate_daf_object(NULL))
+    expect_error(validate_daf_object("not a daf"))
+})
+
 # Test axes for different formats
 test_that("axes operations work for different formats", {
     for (format_data in formats) {
@@ -122,6 +133,9 @@ test_that("axes operations work for different formats", {
         expect_equal(axis_length(daf, axis_name), 2)
         expect_equal(axis_vector(daf, axis_name), axis_entries)
 
+        expect_error(axis_vector(daf, "savta"))
+        expect_null(axis_vector(daf, "savta", null_if_missing = TRUE))
+
         # Test axis_entries function
         expect_equal(axis_entries(daf, axis_name), axis_entries)
         expect_equal(axis_entries(daf, axis_name, 1), "A")
@@ -129,6 +143,8 @@ test_that("axes operations work for different formats", {
         # Test with indices
         expect_equal(axis_indices(daf, axis_name, c("A", "B")), c(1, 2))
         expect_equal(axis_indices(daf, axis_name, "A"), 1)
+
+        expect_error(axis_indices(daf, axis_name, c(1, 2)))
 
         # Test axis_dict
         dict <- axis_dict(daf, axis_name)
@@ -259,6 +275,9 @@ test_that("matrix operations work for different formats", {
         expect_false(has_matrix(daf, "cell", "gene", "UMIs"))
 
         set_matrix(daf, "cell", "gene", "UMIs", test_matrix, relayout = FALSE)
+        test_matrix1 <- test_matrix
+        test_matrix1[1, 1] <- NA
+        expect_error(set_matrix(daf, "cell", "gene", "UMIs", test_matrix1, relayout = FALSE))
 
         expect_true(has_matrix(daf, "cell", "gene", "UMIs", relayout = FALSE))
         expect_false(has_matrix(daf, "gene", "cell", "UMIs", relayout = FALSE))

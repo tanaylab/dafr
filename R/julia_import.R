@@ -392,7 +392,6 @@ from_julia_array <- function(julia_array) {
 
         # Set the names on the R vector
         names(r_array) <- names_vector
-
         return(r_array)
     }
 
@@ -409,7 +408,6 @@ from_julia_array <- function(julia_array) {
         # Set the row and column names
         rownames(r_array) <- row_names
         colnames(r_array) <- col_names
-
         return(r_array)
     }
 

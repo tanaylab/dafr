@@ -598,3 +598,367 @@ test_that("[ operator handles errors properly", {
     add_axis(daf, "cell", c("A", "B"))
     expect_error(daf["/ cell : non_existent_property"])
 })
+
+test_that("CountBy operation works correctly", {
+    # Setup test data
+    daf <- memory_daf("test_countby")
+    add_axis(daf, "cell", c("A", "B", "C", "D", "E", "F"))
+    set_vector(daf, "cell", "type", c("T", "B", "T", "B", "NK", "T"))
+    set_vector(daf, "cell", "tissue", c("blood", "blood", "spleen", "spleen", "blood", "spleen"))
+
+    # Test basic CountBy operation
+    result <- get_query(daf, Axis("cell") |> Lookup("type") |> CountBy("tissue"))
+    expect_true(is.matrix(result))
+    expect_equal(dim(result), c(3, 2)) # 3 types x 2 tissues
+    expect_equal(rownames(result), c("B", "NK", "T"))
+    expect_equal(colnames(result), c("blood", "spleen"))
+    expect_equal(as.numeric(result["T", "blood"]), 1)
+    expect_equal(as.numeric(result["T", "spleen"]), 2)
+    expect_equal(as.numeric(result["B", "blood"]), 1)
+    expect_equal(as.numeric(result["B", "spleen"]), 1)
+    expect_equal(as.numeric(result["NK", "blood"]), 1)
+    expect_equal(as.numeric(result["NK", "spleen"]), 0)
+
+    # Test with filtering applied first
+    result <- get_query(daf, Axis("cell") |> And("type") |> IsEqual("T") |> Lookup("type") |> CountBy("tissue"))
+    expect_equal(dim(result), c(1, 2)) # 1 type x 2 tissues
+    expect_equal(rownames(result), "T")
+    expect_equal(as.numeric(result["T", "blood"]), 1)
+    expect_equal(as.numeric(result["T", "spleen"]), 2)
+
+    # Test with string query format
+    result <- get_query(daf, "/ cell : type * tissue")
+    expect_equal(dim(result), c(3, 2))
+    expect_equal(sum(as.numeric(result)), 6) # Total count should match number of cells
+})
+
+test_that("GroupBy operation works correctly", {
+    # Setup test data
+    daf <- memory_daf("test_groupby")
+    add_axis(daf, "cell", c("A", "B", "C", "D", "E", "F"))
+    set_vector(daf, "cell", "type", c("T", "B", "T", "B", "NK", "T"))
+    set_vector(daf, "cell", "age", c(1, 2, 3, 4, 5, 6))
+    set_vector(daf, "cell", "is_active", c(TRUE, FALSE, TRUE, FALSE, TRUE, FALSE))
+
+    # Test GroupBy with Mean
+    result <- get_query(daf, Axis("cell") |> Lookup("age") |> GroupBy("type") |> Mean())
+    expect_equal(names(result), c("B", "NK", "T"))
+    expect_equal(result["T"], c(T = (1 + 3 + 6) / 3))
+    expect_equal(result["B"], c(B = (2 + 4) / 2))
+    expect_equal(result["NK"], c(NK = 5))
+
+    # Test GroupBy with Max
+    result <- get_query(daf, Axis("cell") |> Lookup("age") |> GroupBy("type") |> Max())
+    expect_equal(result["T"], c(T = 6))
+    expect_equal(result["B"], c(B = 4))
+    expect_equal(result["NK"], c(NK = 5))
+
+    # Test GroupBy with Sum
+    result <- get_query(daf, Axis("cell") |> Lookup("age") |> GroupBy("type") |> Sum())
+    expect_equal(result["T"], c(T = 1 + 3 + 6))
+    expect_equal(result["B"], c(B = 2 + 4))
+    expect_equal(result["NK"], c(NK = 5))
+
+    # Test GroupBy with boolean values
+    result <- get_query(daf, Axis("cell") |> Lookup("is_active") |> GroupBy("type") |> Sum())
+    expect_equal(result["T"], c(T = 2)) # Two active T cells
+    expect_equal(result["B"], c(B = 0)) # No active B cells
+    expect_equal(result["NK"], c(NK = 1)) # One active NK cell
+
+    # Test with string query format
+    result <- get_query(daf, "/ cell : age @ type %> Mean")
+    expect_equal(length(result), 3)
+    expect_equal(names(result), c("B", "NK", "T"))
+
+    # Test with filtering before GroupBy
+    result <- get_query(daf, Axis("cell") |> And("is_active") |> Lookup("age") |> GroupBy("type") |> Mean())
+    expect_equal(names(result), c("NK", "T")) # B cells are all inactive
+    expect_equal(result["T"], c(T = (1 + 3) / 2)) # Only active T cells
+    expect_equal(result["NK"], c(NK = 5)) # The NK cell is active
+})
+
+test_that("GroupBy and CountBy handle edge cases correctly", {
+    daf <- memory_daf("test_groupby_edge")
+    add_axis(daf, "cell", c("A", "B", "C"))
+
+    # Case with single category
+    set_vector(daf, "cell", "type", c("T", "T", "T"))
+    set_vector(daf, "cell", "age", c(1, 2, 3))
+
+    result <- get_query(daf, Axis("cell") |> Lookup("age") |> GroupBy("type") |> Mean())
+    expect_equal(length(result), 1)
+    expect_equal(names(result), "T")
+    expect_equal(result["T"], c(T = 2)) # Mean of 1,2,3
+})
+
+test_that("AsAxis operation works correctly", {
+    # Setup test data
+    daf <- memory_daf("test_asaxis")
+    add_axis(daf, "cell", c("A", "B", "C"))
+    add_axis(daf, "gene", c("X", "Y", "Z"))
+    add_axis(daf, "sample", c("S1", "S2"))
+
+    set_vector(daf, "cell", "sample_id", c("S1", "S2", "S1"))
+    set_vector(daf, "sample", "batch", c("batch1", "batch2"))
+    set_vector(daf, "sample", "condition", c("control", "treated"))
+
+    # Test AsAxis with explicit axis
+    result <- get_query(daf, Axis("cell") |> Lookup("sample_id") |> AsAxis("sample") |> Fetch("batch"))
+    expect_equal(result, c(A = "batch1", B = "batch2", C = "batch1"))
+
+    # Test string format
+    result <- get_query(daf, "/ cell : sample_id ! sample => batch")
+    expect_equal(result, c(A = "batch1", B = "batch2", C = "batch1"))
+
+    # Test AsAxis with CountBy
+    set_vector(daf, "cell", "gene_name", c("X", "Y", "X"))
+    result <- get_query(daf, Axis("cell") |> Lookup("gene_name") |> AsAxis("gene") |> CountBy("sample_id"))
+    expect_true(is.matrix(result))
+    expect_equal(dim(result), c(3, 2))
+    expect_equal(rownames(result), c("X", "Y", "Z"))
+    expect_equal(colnames(result), c("S1", "S2"))
+    expect_equal(as.numeric(result["X", "S1"]), 2) # X appears twice with sample S1
+    expect_equal(as.numeric(result["Y", "S2"]), 1) # Y appears once with sample S2
+    expect_equal(as.numeric(result["Z", "S1"]), 0)
+
+    # Test AsAxis with filtering
+    result <- get_query(daf, Axis("cell") |> And("sample_id") |> IsEqual("S1") |>
+        Lookup("sample_id") |> AsAxis("sample") |> Fetch("batch"))
+    expect_equal(result, c(A = "batch1", C = "batch1"))
+})
+
+test_that("Fetch operation works correctly", {
+    # Setup test data
+    daf <- memory_daf("test_fetch")
+    add_axis(daf, "cell", c("A", "B", "C"))
+    add_axis(daf, "gene", c("X", "Y", "Z"))
+    add_axis(daf, "batch", c("B1", "B2"))
+
+    set_vector(daf, "cell", "batch", c("B1", "B2", "B1"))
+    set_vector(daf, "batch", "color", c("red", "blue"))
+    set_vector(daf, "batch", "condition", c("control", "treated"))
+
+    # Test basic Fetch
+    result <- get_query(daf, Axis("cell") |> Lookup("batch") |> Fetch("color"))
+    expect_equal(result, c(A = "red", B = "blue", C = "red"))
+
+    # Test Fetch with string notation
+    result <- get_query(daf, "/ cell : batch => color")
+    expect_equal(result, c(A = "red", B = "blue", C = "red"))
+
+    # Test Fetch with filtering
+    result <- get_query(daf, Axis("cell") |> And("batch") |> IsEqual("B1") |>
+        Lookup("batch") |> Fetch("condition"))
+    expect_equal(result, c(A = "control", C = "control"))
+})
+
+test_that("Names operation works correctly", {
+    # Setup test data
+    daf <- memory_daf("test_names")
+    add_axis(daf, "cell", c("A", "B", "C"))
+    add_axis(daf, "gene", c("X", "Y", "Z"))
+
+    set_scalar(daf, "version", "1.0")
+    set_scalar(daf, "date", "2023-01-01")
+
+    set_vector(daf, "cell", "age", c(1, 2, 3))
+    set_vector(daf, "cell", "type", c("T", "B", "NK"))
+
+    # Test Names for axes
+    result <- get_query(daf, Names("axes"))
+    expect_true(all(c("cell", "gene") %in% result))
+
+    # Test Names for scalars
+    result <- get_query(daf, Names("scalars"))
+    expect_true(all(c("version", "date") %in% result))
+
+    # Test Names for vectors on axis
+    result <- get_query(daf, Axis("cell") |> Names())
+    expect_true(all(c("age", "type") %in% result))
+
+    # Test string format
+    result <- get_query(daf, "/ cell ?")
+    expect_true(all(c("age", "type") %in% result))
+
+    # Test invalid kind
+    expect_error(get_query(daf, Names("invalid_kind")))
+})
+
+test_that("query comparison operations work correctly", {
+    # Setup test data
+    daf <- memory_daf("test_comparison_ops")
+    add_axis(daf, "cell", c("A", "B", "C", "D"))
+    set_vector(daf, "cell", "age", c(1, 2, 3, 4))
+    set_vector(daf, "cell", "batch", c("batch1", "batch2", "batch1", "batch2"))
+    set_vector(daf, "cell", "gene_name", c("FOXP3", "CD4", "RPSL15", "CD8"))
+
+    # Test IsEqual
+    result <- get_query(daf, Axis("cell") |> And("age") |> IsEqual(3) |> Lookup("batch"))
+    expect_equal(result, c(C = "batch1"))
+
+    # Test IsNotEqual
+    result <- get_query(daf, Axis("cell") |> And("age") |> IsNotEqual(3) |> Lookup("batch"))
+    expect_equal(result, c(A = "batch1", B = "batch2", D = "batch2"))
+
+    # Test IsLess
+    result <- get_query(daf, Axis("cell") |> And("age") |> IsLess(3) |> Lookup("batch"))
+    expect_equal(result, c(A = "batch1", B = "batch2"))
+
+    # Test IsLessEqual
+    result <- get_query(daf, Axis("cell") |> And("age") |> IsLessEqual(2) |> Lookup("batch"))
+    expect_equal(result, c(A = "batch1", B = "batch2"))
+
+    # Test IsGreater
+    result <- get_query(daf, Axis("cell") |> And("age") |> IsGreater(2) |> Lookup("batch"))
+    expect_equal(result, c(C = "batch1", D = "batch2"))
+
+    # Test IsGreaterEqual
+    result <- get_query(daf, Axis("cell") |> And("age") |> IsGreaterEqual(3) |> Lookup("batch"))
+    expect_equal(result, c(C = "batch1", D = "batch2"))
+
+    # Test IsMatch
+    result <- get_query(daf, Axis("cell") |> And("gene_name") |> IsMatch("CD.*") |> Lookup("age"))
+    expect_equal(result, c(B = 2, D = 4))
+
+    # Test IsNotMatch
+    result <- get_query(daf, Axis("cell") |> And("gene_name") |> IsNotMatch("CD.*") |> Lookup("age"))
+    expect_equal(result, c(A = 1, C = 3))
+})
+
+test_that("query boolean mask operations work correctly", {
+    # Setup test data
+    daf <- memory_daf("test_boolean_ops")
+    add_axis(daf, "cell", c("A", "B", "C", "D"))
+    set_vector(daf, "cell", "is_tcell", c(TRUE, TRUE, FALSE, FALSE))
+    set_vector(daf, "cell", "is_active", c(TRUE, FALSE, TRUE, FALSE))
+    set_vector(daf, "cell", "age", c(1, 2, 3, 4))
+
+    # Test And
+    result <- get_query(daf, Axis("cell") |> And("is_tcell") |> Lookup("age"))
+    expect_equal(result, c(A = 1, B = 2))
+
+    # Test AndNot
+    result <- get_query(daf, Axis("cell") |> AndNot("is_tcell") |> Lookup("age"))
+    expect_equal(result, c(C = 3, D = 4))
+
+    # Test And with IsEqual
+    result <- get_query(daf, Axis("cell") |> And("is_tcell") |> And("age") |> IsEqual(1) |> Lookup("is_active"))
+    expect_equal(result, c(A = TRUE))
+
+    # Test Or
+    result <- get_query(daf, Axis("cell") |> And("is_tcell") |> Or("is_active") |> Lookup("age"))
+    expect_equal(result, c(A = 1, B = 2, C = 3))
+
+    # Test OrNot
+    result <- get_query(daf, Axis("cell") |> And("is_tcell") |> OrNot("is_active") |> Lookup("age"))
+    expect_equal(result, c(A = 1, B = 2, D = 4))
+
+    # Test Xor
+    result <- get_query(daf, Axis("cell") |> And("is_tcell") |> Xor("is_active") |> Lookup("age"))
+    expect_equal(result, c(B = 2, C = 3))
+
+    # Test XorNot
+    result <- get_query(daf, Axis("cell") |> And("is_tcell") |> XorNot("is_active") |> Lookup("age"))
+    expect_equal(result, c(A = 1, D = 4))
+
+    # Test complex combination
+    result <- get_query(daf, Axis("cell") |> And("is_tcell") |> OrNot("is_active") |> And("age") |> IsLess(4) |> Lookup("age"))
+    expect_equal(result, c(A = 1, B = 2))
+})
+
+test_that("query IfNot operation works correctly", {
+    daf <- memory_daf("test_ifnot")
+    add_axis(daf, "cell", c("A", "B", "C", "D"))
+    set_vector(daf, "cell", "batch", c("batch1", "batch2", "batch1", "batch2"))
+    add_axis(daf, "batch", c("batch1", "batch2"))
+    set_vector(daf, "batch", "score", c(1, 3))
+    set_vector(daf, "cell", "flag", c(TRUE, FALSE, TRUE, FALSE))
+    # Test IfNot with empty string values
+    result <- get_query(daf, Axis("cell") |> Lookup("batch") |> IfNot("batch2") |> Fetch("score"))
+    expect_equal(result, c(A = 1, B = 3, C = 1, D = 3))
+})
+
+test_that("query_result_dimensions returns correct dimensions for various queries", {
+    # Test scalar query dimension
+    expect_equal(query_result_dimensions(": version"), 0)
+    expect_equal(query_result_dimensions(Lookup("version")), 0)
+
+    # Test vector query dimension
+    expect_equal(query_result_dimensions("/ cell : age"), 1)
+    expect_equal(query_result_dimensions(Axis("cell") |> Lookup("age")), 1)
+
+    # Test matrix query dimension
+    expect_equal(query_result_dimensions("/ cell / gene : UMIs"), 2)
+    expect_equal(query_result_dimensions(Axis("cell") |> Axis("gene") |> Lookup("UMIs")), 2)
+
+    # Test set of names query dimension
+    expect_equal(query_result_dimensions("? axes"), -1)
+    expect_equal(query_result_dimensions(Names("axes")), -1)
+    expect_equal(query_result_dimensions("/ cell ?"), -1)
+
+    # Test query with operations
+    expect_equal(query_result_dimensions("/ cell : age %> Mean"), 0)
+    expect_equal(query_result_dimensions("/ cell / gene : sparse_expression"), 2)
+
+    # Test with filtering operations that don't change dimensions
+    expect_equal(query_result_dimensions("/ cell & age > 2 : type"), 1)
+    expect_equal(query_result_dimensions(Axis("cell") |> And("age") |> IsGreater(2) |> Lookup("type")), 1)
+})
+
+test_that("query_result_dimensions works with pipe operators", {
+    # Test with string query
+    query_str <- "/ cell : age %> Mean"
+    dim_result <- query_str |> query_result_dimensions()
+    expect_equal(dim_result, 0)
+
+    # Test with query object
+    query_obj <- Axis("cell") |>
+        Lookup("age") |>
+        Mean()
+    dim_result <- query_obj |> query_result_dimensions()
+    expect_equal(dim_result, 0)
+})
+
+test_that("query_result_dimensions handles errors gracefully", {
+    # Test with invalid query string
+    expect_error(query_result_dimensions("invalid query"))
+
+    # Test with NULL input
+    expect_error(query_result_dimensions(NULL))
+})
+
+test_that("parse_query handles various query strings correctly", {
+    # Test basic string parsing
+    query_obj <- parse_query("/ cell")
+    expect_true(inherits(query_obj, "JuliaObject"))
+
+    # Test more complex query with multiple operations
+    query_obj <- parse_query("/ cell : age % Abs %> Mean")
+    expect_true(inherits(query_obj, "JuliaObject"))
+
+    # Test full query with various operations
+    complex_query <- parse_query("/ cell & age > 2.5 : type @ batch %> Mean")
+    expect_true(inherits(query_obj, "JuliaObject"))
+
+    # Test using the parsed query on a daf object
+    daf <- memory_daf(name = "test_parse_query")
+    add_axis(daf, "cell", c("A", "B", "C"))
+    set_vector(daf, "cell", "age", c(1, 2, 3))
+
+    # Get query using string vs parsed object should be equivalent
+    direct_result <- get_query(daf, "/ cell : age")
+    parsed_result <- get_query(daf, parse_query("/ cell : age"))
+    expect_equal(direct_result, parsed_result)
+
+    # Test with a more complex query
+    set_vector(daf, "cell", "type", c("X", "Y", "X"))
+    direct_result <- get_query(daf, "/ cell & type = X : age")
+    parsed_result <- get_query(daf, parse_query("/ cell & type = X : age"))
+    expect_equal(direct_result, parsed_result)
+    expect_equal(parsed_result, c(A = 1, C = 3))
+})
+
+test_that("parse_query handles errors correctly", {
+    # Test with malformed query
+    expect_error(parse_query("invalid query"))
+})

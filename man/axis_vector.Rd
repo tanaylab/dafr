@@ -4,14 +4,14 @@
 \alias{axis_vector}
 \title{Get vector of axis entries from a Daf object}
 \usage{
-axis_vector(daf, axis, default = NULL)
+axis_vector(daf, axis, null_if_missing = FALSE)
 }
 \arguments{
 \item{daf}{A Daf object}
 
 \item{axis}{Name of the axis}
 
-\item{default}{Default value if the axis doesn't exist}
+\item{null_if_missing}{Whether to return NULL if the axis doesn't exist}
 }
 \value{
 A character vector of axis entry names

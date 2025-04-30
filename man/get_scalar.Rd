@@ -11,7 +11,7 @@ get_scalar(daf, name, default = NULL)
 
 \item{name}{Name of the scalar property to retrieve}
 
-\item{default}{Default value to return if the scalar doesn't exist (NULL by default)}
+\item{default}{Default value to return if the scalar doesn't exist. If NULL, an error is thrown.}
 }
 \value{
 The scalar value or default if the property is not found
