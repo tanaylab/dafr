@@ -64,6 +64,7 @@
 <url><loc>https://tanaylab.github.io/dafr/reference/axis_vector.html</loc></url>
 <url><loc>https://tanaylab.github.io/dafr/reference/chain_reader.html</loc></url>
 <url><loc>https://tanaylab.github.io/dafr/reference/chain_writer.html</loc></url>
+<url><loc>https://tanaylab.github.io/dafr/reference/complete_daf.html</loc></url>
 <url><loc>https://tanaylab.github.io/dafr/reference/concatenate.html</loc></url>
 <url><loc>https://tanaylab.github.io/dafr/reference/copy_all.html</loc></url>
 <url><loc>https://tanaylab.github.io/dafr/reference/copy_axis.html</loc></url>
@@ -103,6 +104,7 @@
 <url><loc>https://tanaylab.github.io/dafr/reference/matrices_set.html</loc></url>
 <url><loc>https://tanaylab.github.io/dafr/reference/memory_daf.html</loc></url>
 <url><loc>https://tanaylab.github.io/dafr/reference/name.html</loc></url>
+<url><loc>https://tanaylab.github.io/dafr/reference/open_daf.html</loc></url>
 <url><loc>https://tanaylab.github.io/dafr/reference/parse_query.html</loc></url>
 <url><loc>https://tanaylab.github.io/dafr/reference/print.Daf.html</loc></url>
 <url><loc>https://tanaylab.github.io/dafr/reference/query_result_dimensions.html</loc></url>
