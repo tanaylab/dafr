@@ -65,6 +65,14 @@ based on the file path.</p>
     <h2 id="value">Value<a class="anchor" aria-label="anchor" href="#value"></a></h2>
     <p>A Daf object (either files_daf or h5df)</p>
     </div>
+    <div class="section level2">
+    <h2 id="details">Details<a class="anchor" aria-label="anchor" href="#details"></a></h2>
+    <p>If the path ends with <code>.h5df</code> or contains <code>.h5dfs#</code> (followed by a group path),
+then it opens an HDF5 file (or a group in one). Otherwise, it opens a files-based Daf.</p>
+<p>As a shorthand, you can specify a path to a group within an HDF5 file by using a path
+with a <code>.h5dfs</code> suffix, followed by <code>#</code> and the path of the group in the file.</p>
+<p>See the Julia <a href="https://tanaylab.github.io/DataAxesFormats.jl/v0.1.2/complete.html" class="external-link">documentation</a> for details.</p>
+    </div>
 
   </main><aside class="col-md-3"><nav id="toc" aria-label="Table of contents"><h2>On this page</h2>
     </nav></aside></div>
