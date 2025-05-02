@@ -22,6 +22,8 @@ Each repository in a chain contains a scalar property called \code{base_daf_repo
 its parent repository (if any).
 }
 \details{
-If mode is "r+", only the first (leaf) repository is opened in write mode. See the Julia
-\href{https://tanaylab.github.io/DataAxesFormats.jl/v0.1.2/readers.html#DataAxesFormats.CompleteDaf.complete_daf}{documentation} for details.
+If mode is "r+", only the first (leaf) repository is opened in write mode.
+The \code{base_daf_repository} path is relative to the directory containing the child repository.
+
+See the Julia \href{https://tanaylab.github.io/DataAxesFormats.jl/v0.1.2/complete.html}{documentation} for details.
 }

@@ -20,3 +20,12 @@ A Daf object (either files_daf or h5df)
 This function determines whether to open a files-based Daf or an HDF5-based Daf
 based on the file path.
 }
+\details{
+If the path ends with \code{.h5df} or contains \code{.h5dfs#} (followed by a group path),
+then it opens an HDF5 file (or a group in one). Otherwise, it opens a files-based Daf.
+
+As a shorthand, you can specify a path to a group within an HDF5 file by using a path
+with a \code{.h5dfs} suffix, followed by \verb{#} and the path of the group in the file.
+
+See the Julia \href{https://tanaylab.github.io/DataAxesFormats.jl/v0.1.2/complete.html}{documentation} for details.
+}

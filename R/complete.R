@@ -8,8 +8,10 @@
 #' @param mode Mode to open the repositories ("r" for read-only, "r+" for read-write)
 #' @param name Optional name for the complete Daf object
 #' @return A Daf object combining the leaf repository with all its ancestors
-#' @details If mode is "r+", only the first (leaf) repository is opened in write mode. See the Julia
-#' [documentation](https://tanaylab.github.io/DataAxesFormats.jl/v0.1.2/readers.html#DataAxesFormats.CompleteDaf.complete_daf) for details.
+#' @details If mode is "r+", only the first (leaf) repository is opened in write mode.
+#'   The `base_daf_repository` path is relative to the directory containing the child repository.
+#'
+#'   See the Julia [documentation](https://tanaylab.github.io/DataAxesFormats.jl/v0.1.2/complete.html) for details.
 #' @export
 complete_daf <- function(leaf, mode = "r", name = NULL) {
     # Validate mode parameter
@@ -32,11 +34,16 @@ complete_daf <- function(leaf, mode = "r", name = NULL) {
 #' @param mode Mode to open the storage ("r" for read-only, "r+" for read-write)
 #' @param name Optional name for the Daf object
 #' @return A Daf object (either files_daf or h5df)
+#' @details If the path ends with `.h5df` or contains `.h5dfs#` (followed by a group path),
+#'   then it opens an HDF5 file (or a group in one). Otherwise, it opens a files-based Daf.
+#'
+#'   As a shorthand, you can specify a path to a group within an HDF5 file by using a path
+#'   with a `.h5dfs` suffix, followed by `#` and the path of the group in the file.
+#'
+#'   See the Julia [documentation](https://tanaylab.github.io/DataAxesFormats.jl/v0.1.2/complete.html) for details.
 #' @export
 open_daf <- function(path, mode = "r", name = NULL) {
-    if (endsWith(path, ".h5df") || grepl("\\.h5df//", path)) {
-        return(h5df(path, mode, name = name))
-    } else {
-        return(files_daf(path, mode, name = name))
-    }
+    jl_obj <- julia_call("DataAxesFormats.CompleteDaf.open_daf", path, mode, name = name)
+
+    return(Daf(jl_obj))
 }
