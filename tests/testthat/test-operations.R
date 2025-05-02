@@ -386,3 +386,150 @@ test_that("VarN operation works", {
     result <- get_query(daf, VarN(Axis("cell") |> Lookup("positive")))
     expect_equal(result, var_uncorrected(c(2, 3, 7)) / mean(c(2, 3, 7)), tolerance = 1e-5)
 })
+
+test_that("Abs operation validates inputs correctly", {
+    expect_error(
+        Abs(1, 2)
+    )
+})
+
+test_that("Clamp operation validates inputs correctly", {
+    # Test invalid min parameter
+    expect_error(
+        Clamp(min = "not_a_number")
+    )
+
+    # Test invalid max parameter
+    expect_error(
+        Clamp(max = "not_a_number")
+    )
+})
+
+test_that("Convert operation validates inputs correctly", {
+    # Test missing type parameter
+    expect_error(
+        Convert()
+    )
+
+    # Test invalid type parameter
+    expect_error(
+        Convert(123)
+    )
+})
+
+test_that("Fraction operation validates inputs correctly", {
+    expect_error(
+        Fraction(1, 2)
+    )
+})
+
+test_that("Log operation validates inputs correctly", {
+    # Test invalid base parameter
+    expect_error(
+        Log(base = "not_a_number")
+    )
+
+    # Test invalid eps parameter
+    expect_error(
+        Log(eps = "not_a_number")
+    )
+})
+
+test_that("Round operation validates inputs correctly", {
+    expect_error(
+        Round(1, 2)
+    )
+})
+
+test_that("Significant operation validates inputs correctly", {
+    # Test missing high parameter
+    expect_error(
+        Significant()
+    )
+
+    # Test invalid high parameter
+    expect_error(
+        Significant(high = "not_a_number")
+    )
+
+    # Test invalid low parameter
+    expect_error(
+        Significant(high = 1, low = "not_a_number")
+    )
+})
+
+test_that("Max operation validates inputs correctly", {
+    expect_error(
+        Max(1, 2)
+    )
+})
+
+test_that("Min operation validates inputs correctly", {
+    expect_error(
+        Min(1, 2)
+    )
+})
+
+test_that("Mean operation validates inputs correctly", {
+    expect_error(
+        Mean(1, 2)
+    )
+})
+
+test_that("Median operation validates inputs correctly", {
+    expect_error(
+        Median(1, 2)
+    )
+})
+
+test_that("Quantile operation validates inputs correctly", {
+    # Test invalid p parameter - string
+    expect_error(
+        Quantile(p = "not_a_number")
+    )
+
+    # Test invalid p parameter - out of range
+    expect_error(
+        Quantile(p = 2)
+    )
+
+    # Test invalid p parameter - negative
+    expect_error(
+        Quantile(p = -0.5)
+    )
+
+    # Test invalid p parameter - vector
+    expect_error(
+        Quantile(p = c(0.25, 0.75))
+    )
+})
+
+test_that("Sum operation validates inputs correctly", {
+    expect_error(
+        Sum(1, 2)
+    )
+})
+
+test_that("Std operation validates inputs correctly", {
+    expect_error(
+        Std(1, 2)
+    )
+})
+
+test_that("StdN operation validates inputs correctly", {
+    expect_error(
+        StdN(1, 2)
+    )
+})
+
+test_that("Var operation validates inputs correctly", {
+    expect_error(
+        Var(1, 2)
+    )
+})
+
+test_that("VarN operation validates inputs correctly", {
+    expect_error(
+        VarN(1, 2)
+    )
+})

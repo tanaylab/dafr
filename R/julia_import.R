@@ -192,29 +192,16 @@ jl_R_to_julia_type <- function(value) {
         }
     }
 
-    # If value is a class name or type
-    if (is.character(value) && length(value) == 1) {
-        type_name <- value
-        if (type_name %in% names(JULIA_TYPE_OF_R_TYPE)) {
-            return(JULIA_TYPE_OF_R_TYPE[[type_name]])
-        }
-    }
-
-    # If the value is the actual R type (class) - not commonly used in R this way,
-    # but included for completeness
-    if (is.function(value) && inherits(value, "class")) {
-        class_name <- attr(value, "class")
-        if (class_name %in% names(JULIA_TYPE_OF_R_TYPE)) {
-            return(JULIA_TYPE_OF_R_TYPE[[class_name]])
-        }
-    }
-
     # Determine the type of the actual value
     if (!is.null(value) && !is.function(value)) {
         r_type <- typeof(value)
         if (r_type %in% names(JULIA_TYPE_OF_R_TYPE)) {
             return(JULIA_TYPE_OF_R_TYPE[[r_type]])
         }
+    }
+
+    if (is.null(value)) {
+        return(julia_eval("Nothing"))
     }
 
     # Return the value unchanged if no conversion is needed or possible

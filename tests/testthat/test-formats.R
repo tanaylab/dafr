@@ -139,6 +139,9 @@ test_that("axes operations work for different formats", {
         # Test axis_entries function
         expect_equal(axis_entries(daf, axis_name), axis_entries)
         expect_equal(axis_entries(daf, axis_name, 1), "A")
+        expect_error(axis_entries(daf, axis_name, "A"))
+        expect_error(axis_entries(daf, axis_name, 5))
+        expect_error(axis_entries(daf, axis_name, -2))
 
         # Test with indices
         expect_equal(axis_indices(daf, axis_name, c("A", "B")), c(1, 2))

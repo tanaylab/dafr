@@ -796,32 +796,88 @@ test_that("query comparison operations work correctly", {
     result <- get_query(daf, Axis("cell") |> And("age") |> IsEqual(3) |> Lookup("batch"))
     expect_equal(result, c(C = "batch1"))
 
+    result <- Axis("cell") |>
+        And("age") |>
+        IsEqual(3) |>
+        Lookup("batch") |>
+        get_query(daf)
+    expect_equal(result, c(C = "batch1"))
+
     # Test IsNotEqual
     result <- get_query(daf, Axis("cell") |> And("age") |> IsNotEqual(3) |> Lookup("batch"))
+    expect_equal(result, c(A = "batch1", B = "batch2", D = "batch2"))
+
+    result <- Axis("cell") |>
+        And("age") |>
+        IsNotEqual(3) |>
+        Lookup("batch") |>
+        get_query(daf)
     expect_equal(result, c(A = "batch1", B = "batch2", D = "batch2"))
 
     # Test IsLess
     result <- get_query(daf, Axis("cell") |> And("age") |> IsLess(3) |> Lookup("batch"))
     expect_equal(result, c(A = "batch1", B = "batch2"))
 
+    result <- Axis("cell") |>
+        And("age") |>
+        IsLess(3) |>
+        Lookup("batch") |>
+        get_query(daf)
+    expect_equal(result, c(A = "batch1", B = "batch2"))
+
     # Test IsLessEqual
     result <- get_query(daf, Axis("cell") |> And("age") |> IsLessEqual(2) |> Lookup("batch"))
+    expect_equal(result, c(A = "batch1", B = "batch2"))
+
+    result <- Axis("cell") |>
+        And("age") |>
+        IsLessEqual(2) |>
+        Lookup("batch") |>
+        get_query(daf)
     expect_equal(result, c(A = "batch1", B = "batch2"))
 
     # Test IsGreater
     result <- get_query(daf, Axis("cell") |> And("age") |> IsGreater(2) |> Lookup("batch"))
     expect_equal(result, c(C = "batch1", D = "batch2"))
 
+    result <- Axis("cell") |>
+        And("age") |>
+        IsGreater(2) |>
+        Lookup("batch") |>
+        get_query(daf)
+    expect_equal(result, c(C = "batch1", D = "batch2"))
+
     # Test IsGreaterEqual
     result <- get_query(daf, Axis("cell") |> And("age") |> IsGreaterEqual(3) |> Lookup("batch"))
+    expect_equal(result, c(C = "batch1", D = "batch2"))
+
+    result <- Axis("cell") |>
+        And("age") |>
+        IsGreaterEqual(3) |>
+        Lookup("batch") |>
+        get_query(daf)
     expect_equal(result, c(C = "batch1", D = "batch2"))
 
     # Test IsMatch
     result <- get_query(daf, Axis("cell") |> And("gene_name") |> IsMatch("CD.*") |> Lookup("age"))
     expect_equal(result, c(B = 2, D = 4))
 
+    result <- Axis("cell") |>
+        And("gene_name") |>
+        IsMatch("CD.*") |>
+        Lookup("age") |>
+        get_query(daf)
+    expect_equal(result, c(B = 2, D = 4))
+
     # Test IsNotMatch
     result <- get_query(daf, Axis("cell") |> And("gene_name") |> IsNotMatch("CD.*") |> Lookup("age"))
+    expect_equal(result, c(A = 1, C = 3))
+
+    result <- Axis("cell") |>
+        And("gene_name") |>
+        IsNotMatch("CD.*") |>
+        Lookup("age") |>
+        get_query(daf)
     expect_equal(result, c(A = 1, C = 3))
 })
 
@@ -961,4 +1017,482 @@ test_that("parse_query handles various query strings correctly", {
 test_that("parse_query handles errors correctly", {
     # Test with malformed query
     expect_error(parse_query("invalid query"))
+})
+
+test_that("MaskSlice operation works correctly", {
+    # Test function accepts valid input
+    expect_no_error(MaskSlice("gene"))
+
+    # Test function validates input
+    expect_error(MaskSlice(123), "must be a character string")
+    expect_error(MaskSlice(), "is missing with no default")
+
+    # Test string representation
+    mask_slice <- MaskSlice("gene")
+    expect_match(as.character(mask_slice), "; gene", fixed = TRUE)
+
+    # Test with pipe operator
+    query <- Axis("cell") |> MaskSlice("gene")
+    expect_match(as.character(query), "/ cell ; gene", fixed = TRUE)
+
+    # Test with actual data
+    daf <- memory_daf(name = "test_mask_slice")
+    add_axis(daf, "cell", c("A", "B", "C"))
+    add_axis(daf, "gene", c("X", "Y", "Z"))
+    add_axis(daf, "cell_type", c("T", "B"))
+
+    # Create a test expression matrix
+    expression <- matrix(c(
+        10, 5, 2, # Cell A's expression of genes X, Y, Z
+        4,  8, 3, # Cell B's expression of genes X, Y, Z
+        1,  7, 12 # Cell C's expression of genes X, Y, Z
+    ), nrow = 3, ncol = 3, byrow = TRUE)
+
+    # Set the matrix (cells x genes)
+    set_matrix(daf, "cell", "gene", "expression", expression)
+
+    # Create a marker gene matrix (genes x cell types)
+    marker_matrix <- matrix(c(
+        TRUE,  FALSE, # Gene X is marker for T but not B
+        FALSE, TRUE, # Gene Y is marker for B but not T
+        TRUE,  TRUE # Gene Z is marker for both T and B
+    ), nrow = 3, ncol = 2, byrow = TRUE)
+
+    set_matrix(daf, "gene", "cell_type", "is_marker", marker_matrix)
+
+    # Add cell type assignments
+    set_vector(daf, "cell", "type", c("T", "B", "T"))
+
+    # Test a simple MaskSlice usage - access column "T" of the is_marker matrix
+    t_markers_query <- Axis("gene") |>
+        Lookup("is_marker") |>
+        MaskSlice("cell_type") |>
+        IsEqual("T")
+
+    # This would be equivalent to selecting the column of is_marker for cell_type "T"
+    t_markers <- get_query(daf, t_markers_query)
+    expect_equal(t_markers, c(X = TRUE, Y = FALSE, Z = TRUE))
+
+    # Test the string query equivalence
+    string_query <- "/ gene : is_marker ; cell_type = T"
+    string_result <- get_query(daf, string_query)
+    expect_equal(string_result, t_markers)
+
+    # Test using mask slice to find genes highly expressed in T cells
+    # First create a vector indicating which cells are T cells
+    set_vector(daf, "cell_type", "is_t", c(TRUE, FALSE))
+
+    # Create a mask matrix for each cell showing its type
+    cell_type_matrix <- matrix(0, nrow = 3, ncol = 2)
+    colnames(cell_type_matrix) <- c("T", "B")
+    rownames(cell_type_matrix) <- c("A", "B", "C")
+    # Set values based on the type vector
+    for (i in 1:3) {
+        cell_type <- get_vector(daf, "cell", "type")[i]
+        if (cell_type == "T") {
+            cell_type_matrix[i, "T"] <- 1
+        } else {
+            cell_type_matrix[i, "B"] <- 1
+        }
+    }
+    set_matrix(daf, "cell", "cell_type", "type_matrix", cell_type_matrix)
+
+    # Now use MaskSlice to find cells that are T cells
+    t_cells_query <- Axis("cell") |>
+        Lookup("type_matrix") |>
+        MaskSlice("cell_type") |>
+        IsEqual("T")
+
+    t_cells <- get_query(daf, t_cells_query)
+    expect_equal(t_cells[t_cells > 0], c(A = 1, C = 1))
+})
+
+test_that("SquareMaskColumn operation works correctly", {
+    # Test function accepts valid input
+    expect_no_error(SquareMaskColumn("A"))
+
+    # Test function validates input
+    expect_error(SquareMaskColumn(123), "must be a character string")
+    expect_error(SquareMaskColumn(), "is missing with no default")
+
+    # Test string representation
+    square_mask_col <- SquareMaskColumn("A")
+    expect_match(as.character(square_mask_col), ";= A", fixed = TRUE)
+
+    # Test with pipe operator
+    query <- Axis("cell") |> SquareMaskColumn("A")
+    expect_match(as.character(query), "/ cell ;= A", fixed = TRUE)
+
+    # Test with actual data
+    daf <- memory_daf(name = "test_square_mask_column")
+    add_axis(daf, "cell", c("A", "B", "C"))
+
+    # Create a square similarity matrix between cells
+    similarity <- matrix(c(
+        1.0, 0.8, 0.2, # A's similarity to A, B, C
+        0.8, 1.0, 0.6, # B's similarity to A, B, C
+        0.2, 0.6, 1.0 # C's similarity to A, B, C
+    ), nrow = 3, ncol = 3, byrow = TRUE)
+
+    # Set the matrix (rows and columns are both "cell")
+    set_matrix(daf, "cell", "cell", "similarity", similarity)
+
+    # Create a query to find cells similar to cell "A" (similarity > 0.5)
+    similar_to_A_query <- Axis("cell") |>
+        And("similarity") |>
+        SquareMaskColumn("A") |>
+        IsGreater(0.5)
+
+    # Check that the query is valid
+    has_valid_query <- has_query(daf, similar_to_A_query)
+    expect_true(has_valid_query)
+
+    # For the string query approach, validate it's correctly formed
+    string_query <- "/ cell & similarity ;= A > 0.5"
+    has_valid_string_query <- has_query(daf, string_query)
+    expect_true(has_valid_string_query)
+})
+
+test_that("SquareMaskRow operation works correctly", {
+    # Test function accepts valid input
+    expect_no_error(SquareMaskRow("A"))
+
+    # Test function validates input
+    expect_error(SquareMaskRow(123), "must be a character string")
+    expect_error(SquareMaskRow(), "is missing with no default")
+
+    # Test string representation
+    square_mask_row <- SquareMaskRow("A")
+    expect_match(as.character(square_mask_row), ",= A", fixed = TRUE)
+
+    # Test with pipe operator
+    query <- Axis("cell") |> SquareMaskRow("A")
+    expect_match(as.character(query), "/ cell ,= A", fixed = TRUE)
+
+    # Test with actual data
+    daf <- memory_daf(name = "test_square_mask_row")
+    add_axis(daf, "cell", c("A", "B", "C"))
+
+    # Create a square similarity matrix between cells
+    similarity <- matrix(c(
+        1.0, 0.8, 0.2, # A's similarity to A, B, C
+        0.8, 1.0, 0.6, # B's similarity to A, B, C
+        0.2, 0.6, 1.0 # C's similarity to A, B, C
+    ), nrow = 3, ncol = 3, byrow = TRUE)
+
+    # Set the matrix (rows and columns are both "cell")
+    set_matrix(daf, "cell", "cell", "similarity", similarity)
+
+    # Create a query to find cells to which cell "A" is similar (similarity > 0.5)
+    A_is_similar_to_query <- Axis("cell") |>
+        And("similarity") |>
+        SquareMaskRow("A") |>
+        IsGreater(0.5)
+
+    # Check that the query is valid
+    has_valid_query <- has_query(daf, A_is_similar_to_query)
+    expect_true(has_valid_query)
+
+    # For the string query approach, validate it's correctly formed
+    string_query <- "/ cell & similarity ,= A > 0.5"
+    has_valid_string_query <- has_query(daf, string_query)
+    expect_true(has_valid_string_query)
+})
+
+test_that("Axis validates inputs correctly", {
+    # Test missing axis parameter
+    expect_error(
+        Axis()
+    )
+
+    # Test non-character axis parameter
+    expect_error(
+        Axis(123)
+    )
+})
+
+test_that("Lookup validates inputs correctly", {
+    # Test missing property parameter
+    expect_error(
+        Lookup()
+    )
+
+    # Test non-character property parameter
+    expect_error(
+        Lookup(123)
+    )
+})
+
+test_that("Names validates inputs correctly", {
+    # Test invalid kind parameter
+    expect_error(
+        Names(123)
+    )
+})
+
+test_that("Fetch validates inputs correctly", {
+    # Test missing property parameter
+    expect_error(
+        Fetch()
+    )
+
+    # Test non-character property parameter
+    expect_error(
+        Fetch(123)
+    )
+})
+
+test_that("IfMissing validates inputs correctly", {
+    # Test missing missing_value parameter
+    expect_error(
+        IfMissing()
+    )
+
+    # Test NA as missing_value
+    expect_error(
+        IfMissing(NA)
+    )
+})
+
+test_that("IfNot validates inputs correctly", {
+    # There are no validation errors specific to IfNot as it accepts NULL as default
+    # Just test the function exists
+    expect_no_error(
+        IfNot()
+    )
+})
+
+test_that("AsAxis validates inputs correctly", {
+    # Test non-character axis parameter
+    expect_error(
+        AsAxis(123)
+    )
+})
+
+test_that("MaskSlice validates inputs correctly", {
+    # Test missing axis parameter
+    expect_error(
+        MaskSlice()
+    )
+
+    # Test non-character axis parameter
+    expect_error(
+        MaskSlice(123)
+    )
+})
+
+test_that("SquareMaskColumn validates inputs correctly", {
+    # Test missing value parameter
+    expect_error(
+        SquareMaskColumn()
+    )
+
+    # Test non-character value parameter
+    expect_error(
+        SquareMaskColumn(123)
+    )
+})
+
+test_that("SquareMaskRow validates inputs correctly", {
+    # Test missing value parameter
+    expect_error(
+        SquareMaskRow()
+    )
+
+    # Test non-character value parameter
+    expect_error(
+        SquareMaskRow(123)
+    )
+})
+
+test_that("And validates inputs correctly", {
+    # Test missing property parameter
+    expect_error(
+        And()
+    )
+
+    # Test non-character property parameter
+    expect_error(
+        And(123)
+    )
+})
+
+test_that("AndNot validates inputs correctly", {
+    # Test missing property parameter
+    expect_error(
+        AndNot()
+    )
+
+    # Test non-character property parameter
+    expect_error(
+        AndNot(123)
+    )
+})
+
+test_that("Or validates inputs correctly", {
+    # Test missing property parameter
+    expect_error(
+        Or()
+    )
+
+    # Test non-character property parameter
+    expect_error(
+        Or(123)
+    )
+})
+
+test_that("OrNot validates inputs correctly", {
+    # Test missing property parameter
+    expect_error(
+        OrNot()
+    )
+
+    # Test non-character property parameter
+    expect_error(
+        OrNot(123)
+    )
+})
+
+test_that("Xor validates inputs correctly", {
+    # Test missing property parameter
+    expect_error(
+        Xor()
+    )
+
+    # Test non-character property parameter
+    expect_error(
+        Xor(123)
+    )
+})
+
+test_that("XorNot validates inputs correctly", {
+    # Test missing property parameter
+    expect_error(
+        XorNot()
+    )
+
+    # Test non-character property parameter
+    expect_error(
+        XorNot(123)
+    )
+})
+
+test_that("IsLess validates inputs correctly", {
+    # Test missing value parameter
+    expect_error(
+        IsLess()
+    )
+})
+
+test_that("IsLessEqual validates inputs correctly", {
+    # Test missing value parameter
+    expect_error(
+        IsLessEqual()
+    )
+})
+
+test_that("IsEqual validates inputs correctly", {
+    # Test missing value parameter
+    expect_error(
+        IsEqual()
+    )
+})
+
+test_that("IsNotEqual validates inputs correctly", {
+    # Test missing value parameter
+    expect_error(
+        IsNotEqual()
+    )
+})
+
+test_that("IsGreater validates inputs correctly", {
+    # Test missing value parameter
+    expect_error(
+        IsGreater()
+    )
+})
+
+test_that("IsGreaterEqual validates inputs correctly", {
+    # Test missing value parameter
+    expect_error(
+        IsGreaterEqual()
+    )
+})
+
+test_that("IsMatch validates inputs correctly", {
+    # Test missing value parameter
+    expect_error(
+        IsMatch()
+    )
+
+    # Test non-character value parameter
+    expect_error(
+        IsMatch(123)
+    )
+})
+
+test_that("IsNotMatch validates inputs correctly", {
+    # Test missing value parameter
+    expect_error(
+        IsNotMatch()
+    )
+
+    # Test non-character value parameter
+    expect_error(
+        IsNotMatch(123)
+    )
+})
+
+test_that("CountBy validates inputs correctly", {
+    # Test missing property parameter
+    expect_error(
+        CountBy()
+    )
+
+    # Test non-character property parameter
+    expect_error(
+        CountBy(123)
+    )
+})
+
+test_that("GroupBy validates inputs correctly", {
+    # Test missing property parameter
+    expect_error(
+        GroupBy()
+    )
+
+    # Test non-character property parameter
+    expect_error(
+        GroupBy(123)
+    )
+})
+
+test_that("get_query validates inputs correctly", {
+    # Test missing parameters
+    expect_error(
+        get_query()
+    )
+
+    expect_error(
+        get_query(NULL, "query")
+    )
+
+    expect_error(
+        get_query(memory_daf(), NULL)
+    )
+})
+
+test_that("get_dataframe_query validates inputs correctly", {
+    # Test missing parameters
+    expect_error(
+        get_dataframe_query()
+    )
+
+    expect_error(
+        get_dataframe_query(NULL, "query")
+    )
+
+    expect_error(
+        get_dataframe_query(memory_daf(), NULL)
+    )
 })

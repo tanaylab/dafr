@@ -67,4 +67,18 @@ test_that("concatenate function works correctly", {
     expect_equal(axis_length(destination2, "dataset"), 2)
     expect_true(has_vector(destination2, "cell", "dataset"))
     expect_false(has_vector(destination2, "dataset", "version"))
+
+    # Test wrong input
+    expect_error(concatenate(
+        sources = c("saba", "savta"),
+        axis = "cell",
+        destination = destination
+    ))
+
+    expect_error(concatenate(
+        destination = destination2,
+        axis = "cell",
+        sources = sources,
+        merge = list(version = "savta")
+    ))
 })
