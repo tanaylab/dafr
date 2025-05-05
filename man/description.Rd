@@ -4,7 +4,7 @@
 \alias{description}
 \title{Get description of a Daf object}
 \usage{
-description(daf, cache = FALSE, deep = FALSE)
+description(daf, cache = FALSE, deep = FALSE, tensors = TRUE)
 }
 \arguments{
 \item{daf}{A Daf object}
@@ -12,6 +12,8 @@ description(daf, cache = FALSE, deep = FALSE)
 \item{cache}{Whether to include cache information}
 
 \item{deep}{Whether to include detailed information about nested data}
+
+\item{tensors}{Whether to include tensor information}
 }
 \value{
 A string description of the Daf object

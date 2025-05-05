@@ -33,12 +33,13 @@ print.Daf <- function(x, ...) {
 #' @param daf A Daf object
 #' @param cache Whether to include cache information
 #' @param deep Whether to include detailed information about nested data
+#' @param tensors Whether to include tensor information
 #' @return A string description of the Daf object
 #' @details See the Julia [documentation](https://tanaylab.github.io/DataAxesFormats.jl/v0.1.2/readers.html#DataAxesFormats.Readers.description) for details.
 #' @export
-description <- function(daf, cache = FALSE, deep = FALSE) {
+description <- function(daf, cache = FALSE, deep = FALSE, tensors = TRUE) {
     validate_daf_object(daf)
-    julia_call("DataAxesFormats.description", daf$jl_obj, cache = cache, deep = deep)
+    julia_call("DataAxesFormats.description", daf$jl_obj, cache = cache, deep = deep, tensors = tensors)
 }
 
 #' Check if object is a Daf
