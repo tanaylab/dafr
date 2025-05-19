@@ -114,7 +114,20 @@ get_dataframe_query <- function(daf = NULL, query = NULL, cache = TRUE) {
     } else if (dims == 2) {
         # For matrices, extract the values and both row and column names
         values <- from_julia_array(result)
-        df <- as.data.frame(values)
+
+        # Handle sparse matrices differently
+        if (inherits(values, "sparseMatrix")) {
+            # Convert sparse matrix to a dense matrix for data frame conversion
+            dense_matrix <- as.matrix(values)
+            df <- as.data.frame(dense_matrix)
+
+            # Preserve row and column names from the sparse matrix
+            rownames(df) <- rownames(values)
+            colnames(df) <- colnames(values)
+        } else {
+            # Regular dense matrix
+            df <- as.data.frame(values)
+        }
 
         return(df)
     } else {

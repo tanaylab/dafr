@@ -599,6 +599,56 @@ test_that("[ operator handles errors properly", {
     expect_error(daf["/ cell : non_existent_property"])
 })
 
+test_that("[ operator retrieves vectors with multiple variants", {
+    # Create a test DAF object with a 'cells' axis
+    daf <- memory_daf(name = "test_cells_vector")
+    add_axis(daf, "cells", c("cell1", "cell2", "cell3", "cell4", "cell5"))
+
+    # Add vector properties to the 'cells' axis
+    set_vector(daf, "cells", "type", c("T", "B", "T", "NK", "B"))
+    set_vector(daf, "cells", "age", c(1.5, 2.0, 3.5, 2.5, 1.0))
+    set_vector(daf, "cells", "is_active", c(TRUE, FALSE, TRUE, TRUE, FALSE))
+
+    # Test 1: Basic vector retrieval using daf['/cells']
+    cells <- daf["/ cells"]
+    expect_equal(cells, c("cell1", "cell2", "cell3", "cell4", "cell5"))
+
+    # Test 2: Retrieve a specific property
+    cell_types <- daf["/ cells : type"]
+    expect_equal(cell_types, c(cell1 = "T", cell2 = "B", cell3 = "T", cell4 = "NK", cell5 = "B"))
+
+    # Test 3: Filter cells by type
+    t_cells <- daf["/ cells & type = T"]
+    expect_equal(t_cells, c("cell1", "cell3"))
+
+    # Test 4: Get ages of cells of a specific type
+    b_cell_ages <- daf["/ cells & type = B : age"]
+    expect_equal(b_cell_ages, c(cell2 = 2.0, cell5 = 1.0))
+
+    # Test 5: Use numerical comparison
+    old_cells <- daf["/ cells & age > 2.0"]
+    expect_equal(old_cells, c("cell3", "cell4"))
+
+    # Test 6: Combine multiple filters
+    active_t_cells <- daf["/ cells & type = T & is_active"]
+    expect_equal(active_t_cells, c("cell1", "cell3"))
+
+    # Test 7: Apply transformation to a vector
+    log_ages <- daf["/ cells : age % Log base 2 eps 1.0"]
+    expect_equal(log_ages, log2(c(cell1 = 1.5, cell2 = 2.0, cell3 = 3.5, cell4 = 2.5, cell5 = 1.0) + 1.0))
+
+    # Test 8: Using pipe notation
+    pipe_query <- Axis("cells") |>
+        And("age") |>
+        IsGreater(2.0)
+    old_cells_ages <- daf[pipe_query |> Lookup("age")]
+    expect_equal(old_cells_ages, c(cell3 = 3.5, cell4 = 2.5))
+
+    # Test 9: Get property names using query
+    cell_properties <- daf["/ cells ?"]
+    expect_true(all(c("type", "age", "is_active") %in% cell_properties))
+})
+
 test_that("CountBy operation works correctly", {
     # Setup test data
     daf <- memory_daf("test_countby")

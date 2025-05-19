@@ -117,6 +117,20 @@ define_julia_functions <- function() {
         return old_handler
     end
     ")
+
+    # Add function to strip ReadOnly and NamedArray wrappers
+    julia_eval("
+    function _strip_wrappers(array::Union{ReadOnlyArray, NamedArrays.NamedArray})::AbstractArray
+        array = parent(array)
+        return _strip_wrappers(array)
+    end
+    ")
+
+    julia_eval("
+    function _strip_wrappers(array::AbstractArray)::AbstractArray
+        return array
+    end
+    ")
 }
 
 get_julia_field <- function(julia_object, field_name, need_return = "Julia") {
@@ -333,9 +347,13 @@ to_julia_array <- function(value) {
 #' @return An R array, vector or sparse matrix
 #' @noRd
 from_julia_array <- function(julia_array) {
+    # Keep original array for name access
     orig_array <- julia_array
-    julia_array <- get_julia_field(orig_array, "array")
 
+    # First strip any ReadOnly wrappers
+    julia_array <- julia_call("_strip_wrappers", orig_array, need_return = "Julia")
+
+    # Check for sparse matrix first
     if (is_julia_type(julia_array, "SparseArrays.SparseMatrixCSC")) {
         # Extract components from Julia SparseMatrixCSC
         colptr <- get_julia_field(julia_array, "colptr", need_return = "R")
@@ -367,11 +385,10 @@ from_julia_array <- function(julia_array) {
         return(sp)
     }
 
+    # Handle NamedVector
     if (is_julia_type(orig_array, "NamedArrays.NamedVector")) {
-        # Extract the array values
-        r_array <- get_julia_field(orig_array, "array", need_return = "R")
-
-        # Make sure it's a vector
+        # For NamedVectors, get the data directly
+        r_array <- julia_call("collect", julia_array, need_return = "R")
         r_array <- as.vector(r_array)
 
         # Extract the names using NamedArrays.names
@@ -382,13 +399,13 @@ from_julia_array <- function(julia_array) {
         return(r_array)
     }
 
+    # Handle NamedMatrix
     if (is_julia_type(orig_array, "NamedArrays.NamedMatrix")) {
-        # Extract the array values
-        r_array <- get_julia_field(orig_array, "array", need_return = "R")
-
-        # Make sure it's a matrix
+        # For NamedMatrix, we collect the array directly
+        r_array <- julia_call("collect", julia_array, need_return = "R")
         r_array <- as.matrix(r_array)
 
+        # Get row and column names
         row_names <- julia_call("NamedArrays.names", orig_array, as.integer(1), need_return = "R")
         col_names <- julia_call("NamedArrays.names", orig_array, as.integer(2), need_return = "R")
 
@@ -398,11 +415,11 @@ from_julia_array <- function(julia_array) {
         return(r_array)
     }
 
-    # Handle regular arrays/vectors
-    r_array <- get_julia_field(orig_array, "array", need_return = "R")
+    # Handle regular arrays by directly collecting them
+    r_array <- julia_call("collect", julia_array, need_return = "R")
 
     # If the array is 1-dimensional, convert to vector
-    if (length(dim(r_array)) == 1 || (length(dim(r_array)) == 2 && any(dim(r_array) == 1))) {
+    if (is.vector(r_array) || length(dim(r_array)) == 1 || (length(dim(r_array)) == 2 && any(dim(r_array) == 1))) {
         r_array <- as.vector(r_array)
     }
 
