@@ -13,6 +13,8 @@ reference:
       - '[.Daf'
       - setup_daf
       - use_default_julia_environment
+      - install_daf_packages
+      - load_daf_packages
       - name
 
   - title: "Example Data"
@@ -20,6 +22,7 @@ reference:
     contents:
       - example_cells_daf
       - example_metacells_daf
+      - example_chain_daf
 
   - title: "Data Access and Query"
     desc: "Functions for querying and retrieving data from Daf objects"
@@ -28,6 +31,8 @@ reference:
       - has_query
       - parse_query
       - query_result_dimensions
+      - is_axis_query
+      - query_axis_name
 
   - title: "Readers and Formats"
     desc: "Reading Daf data from different sources and formats"
@@ -51,6 +56,7 @@ reference:
     desc: "Constants and handler functions"
     contents:
       - starts_with("ALL_")
+      - starts_with("VIEW_ALL_")
       - ends_with("_HANDLER")
       - inefficient_action_handler
 
@@ -67,6 +73,8 @@ reference:
       - has_matrix
       - matches("^(get|set|delete)_(scalar|vector|matrix)$")
       - relayout_matrix
+      - matrix_version_counter
+      - vector_version_counter
 
   - title: "Query Operations - Element-wise"
     desc: "Element-wise operations that preserve data shape but transform values"
@@ -122,6 +130,32 @@ reference:
       - adapter
       - viewer
       - reconstruct_axis
+
+  - title: "Contracts"
+    desc: "Contract-based validation for Daf objects"
+    contents:
+      - RequiredInput
+      - OptionalInput
+      - GuaranteedOutput
+      - OptionalOutput
+      - create_contract
+      - contractor
+      - contract_docs
+      - verify_contract
+      - verify_input
+      - verify_output
+      - print.DafContract
+      - scalar_contract
+      - vector_contract
+      - matrix_contract
+      - tensor_contract
+
+  - title: "Groups"
+    desc: "Functions for working with groups of axis entries"
+    contents:
+      - group_names
+      - compact_groups
+      - collect_group_members
 
   - title: "Data Operations"
     desc: "Operations for transforming and combining Daf objects"
