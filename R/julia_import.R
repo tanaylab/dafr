@@ -1,3 +1,19 @@
+#' Check if Julia is initialized
+#'
+#' @return TRUE if Julia has been initialized via setup_daf(), FALSE otherwise
+#' @noRd
+is_julia_initialized <- function() {
+    tryCatch(
+        {
+            JuliaCall::julia_eval("true")
+            TRUE
+        },
+        error = function(e) {
+            FALSE
+        }
+    )
+}
+
 #' Use default or custom Julia environment
 #'
 #' Force JuliaCall to use your specified Julia environment instead of creating a new one.

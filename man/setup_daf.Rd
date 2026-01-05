@@ -14,7 +14,7 @@ setup_daf(
   show_time = TRUE,
   show_module = TRUE,
   show_location = FALSE,
-  julia_environment = getOption("dafr.julia_environment", "custom"),
+  julia_environment = getOption("dafr.julia_environment", "default"),
   JULIA_HOME = getOption("dafr.JULIA_HOME", NULL),
   ...
 )

@@ -870,3 +870,39 @@ GroupBy <- function(property, ...) {
     }
     ans
 }
+
+#' Check if a query returns axis entries
+#'
+#' Determines whether a query will return axis entries (names) as opposed to
+#' scalar values, vectors, or matrices.
+#'
+#' @param query Query string or query object
+#' @return TRUE if the query returns axis entries, FALSE otherwise
+#' @details This is useful for determining the expected result type of a query
+#'   before executing it. A query that returns axis entries can be used as a filter
+#'   for other queries.
+#' @export
+is_axis_query <- function(query) {
+    # Convert string to Query object if needed
+    if (is.character(query)) {
+        query <- parse_query(query)
+    }
+    julia_call("DataAxesFormats.Queries.is_axis_query", query)
+}
+
+#' Get the axis name from a query
+#'
+#' Returns the name of the axis that a query operates on.
+#'
+#' @param query Query string or query object
+#' @return The name of the axis as a character string
+#' @details This is useful for understanding which axis a query will affect
+#'   or for building compound queries programmatically.
+#' @export
+query_axis_name <- function(query) {
+    # Convert string to Query object if needed
+    if (is.character(query)) {
+        query <- parse_query(query)
+    }
+    julia_call("DataAxesFormats.Queries.query_axis_name", query)
+}

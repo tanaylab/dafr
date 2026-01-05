@@ -352,6 +352,13 @@ test_that("sparse matrix operations work", {
         m <- get_matrix(daf, "cell", "gene", "UMIs")
         expect_equal(m, sparse_matrix)
 
+        # Memory format drops explicit zeros on relayout, others keep them
+        if (format_name == "MemoryDaf") {
+            relayout_sparse <- "Sparse 4 (67%) [Int64]"
+        } else {
+            relayout_sparse <- "Sparse 5 (83%) [Int64]"
+        }
+
         expected_description <- paste0(
             "name: test!\n",
             "type: ", format_name, "\n",
@@ -361,9 +368,9 @@ test_that("sparse matrix operations work", {
             "  gene: 3 entries\n",
             "matrices:\n",
             "  cell,gene:\n",
-            "    UMIs: 2 x 3 x Float64 in Columns (Sparse Int64 83%)\n",
+            "    UMIs: 2 x 3 x Float64 in Columns (Sparse 5 (83%) [Int64])\n",
             "  gene,cell:\n",
-            "    UMIs: 3 x 2 x Float64 in Columns (Sparse Int64 83%)\n"
+            "    UMIs: 3 x 2 x Float64 in Columns (", relayout_sparse, ")\n"
         )
 
         expect_equal(description(daf), expected_description)

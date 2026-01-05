@@ -705,3 +705,54 @@ read_only <- function(daf, name = NULL) {
     readonly_obj <- julia_call("DataAxesFormats.read_only", daf$jl_obj, name = name)
     return(Daf(readonly_obj))
 }
+
+#' Get axis version counter
+#'
+#' Returns the version counter for an axis, which is incremented when the axis is modified.
+#' This is useful for cache invalidation.
+#'
+#' @param daf A Daf object
+#' @param axis Name of the axis
+#' @return An integer version counter
+#' @details The version counter is incremented whenever the axis entries are modified.
+#'   This can be used to detect changes and invalidate caches.
+#' @export
+axis_version_counter <- function(daf, axis) {
+    validate_daf_object(daf)
+    julia_call("DataAxesFormats.axis_version_counter", daf$jl_obj, axis)
+}
+
+#' Get vector version counter
+#'
+#' Returns the version counter for a vector property, which is incremented when the vector is modified.
+#' This is useful for cache invalidation.
+#'
+#' @param daf A Daf object
+#' @param axis Name of the axis
+#' @param name Name of the vector property
+#' @return An integer version counter
+#' @details The version counter is incremented whenever the vector data is modified.
+#'   This can be used to detect changes and invalidate caches.
+#' @export
+vector_version_counter <- function(daf, axis, name) {
+    validate_daf_object(daf)
+    julia_call("DataAxesFormats.vector_version_counter", daf$jl_obj, axis, name)
+}
+
+#' Get matrix version counter
+#'
+#' Returns the version counter for a matrix property, which is incremented when the matrix is modified.
+#' This is useful for cache invalidation.
+#'
+#' @param daf A Daf object
+#' @param rows_axis Name of the rows axis
+#' @param columns_axis Name of the columns axis
+#' @param name Name of the matrix property
+#' @return An integer version counter
+#' @details The version counter is incremented whenever the matrix data is modified.
+#'   This can be used to detect changes and invalidate caches.
+#' @export
+matrix_version_counter <- function(daf, rows_axis, columns_axis, name) {
+    validate_daf_object(daf)
+    julia_call("DataAxesFormats.matrix_version_counter", daf$jl_obj, rows_axis, columns_axis, name)
+}

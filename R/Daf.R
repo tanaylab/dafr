@@ -33,7 +33,7 @@ print.Daf <- function(x, ...) {
 #' @param daf A Daf object
 #' @param cache Whether to include cache information
 #' @param deep Whether to include detailed information about nested data
-#' @param tensors Whether to include tensor information
+#' @param tensors Whether to include tensor information (condensed list of tensor matrices)
 #' @return A string description of the Daf object
 #' @details See the Julia [documentation](https://tanaylab.github.io/DataAxesFormats.jl/v0.1.2/readers.html#DataAxesFormats.Readers.description) for details.
 #' @export
