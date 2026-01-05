@@ -1,0 +1,40 @@
+# Collect group members from group indices
+
+Given a vector where each element is a group index for the corresponding
+entry, returns a list of vectors containing the indices of entries in
+each group.
+
+## Usage
+
+``` r
+collect_group_members(group_indices)
+```
+
+## Arguments
+
+- group_indices:
+
+  An integer vector where element i contains the group index for
+  entry i. A value of 0 indicates the entry belongs to no group.
+
+## Value
+
+A list of integer vectors, where each vector contains the indices of
+entries belonging to that group
+
+## Details
+
+This is the inverse operation of assigning group indices. It's useful
+for converting a per-entry group assignment into a per-group member
+list.
+
+## Examples
+
+``` r
+if (FALSE) { # \dontrun{
+# If entries 1,3 are in group 1, entry 2 is in group 2, entry 4 is in no group
+group_indices <- c(1L, 2L, 1L, 0L)
+members <- collect_group_members(group_indices)
+# Returns: list(c(1L, 3L), c(2L))
+} # }
+```

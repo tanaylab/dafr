@@ -7,7 +7,7 @@
 
     <a class="navbar-brand me-2" href="../index.html">dafr</a>
 
-    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">0.0.1</small>
+    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">0.0.2</small>
 
 
     <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbar" aria-controls="navbar" aria-expanded="false" aria-label="Toggle navigation">
@@ -33,10 +33,62 @@
     </div>
 
     <div class="section level2">
+<h2 class="pkg-version" data-toc-text="0.0.2" id="dafr-002">dafr 0.0.2<a class="anchor" aria-label="anchor" href="#dafr-002"></a></h2>
+<div class="section level3">
+<h3 id="new-features-0-0-2">New Features<a class="anchor" aria-label="anchor" href="#new-features-0-0-2"></a></h3>
+<div class="section level4">
+<h4 id="contract-system-0-0-2">Contract System<a class="anchor" aria-label="anchor" href="#contract-system-0-0-2"></a></h4>
+<ul><li>Added <code><a href="../reference/create_contract.html">create_contract()</a></code> for defining data contracts with axes and data specifications</li>
+<li>Added <code><a href="../reference/axis_contract.html">axis_contract()</a></code>, <code><a href="../reference/scalar_contract.html">scalar_contract()</a></code>, <code><a href="../reference/vector_contract.html">vector_contract()</a></code>, <code><a href="../reference/matrix_contract.html">matrix_contract()</a></code> for specifying contract requirements</li>
+<li>Added <code><a href="../reference/tensor_contract.html">tensor_contract()</a></code> for 3D tensor specifications</li>
+<li>Added <code><a href="../reference/verify_contract.html">verify_contract()</a></code>, <code><a href="../reference/verify_input.html">verify_input()</a></code>, <code><a href="../reference/verify_output.html">verify_output()</a></code> for validating Daf objects against contracts</li>
+<li>Added <code><a href="../reference/contractor.html">contractor()</a></code> for creating contract-aware Daf wrappers</li>
+<li>Added <code><a href="../reference/contract_docs.html">contract_docs()</a></code> for generating markdown/text documentation from contracts</li>
+<li>Added expectation types: <code>RequiredInput</code>, <code>OptionalInput</code>, <code>GuaranteedOutput</code>, <code>OptionalOutput</code>
+</li>
+</ul></div>
+<div class="section level4">
+<h4 id="group-functions-0-0-2">Group Functions<a class="anchor" aria-label="anchor" href="#group-functions-0-0-2"></a></h4>
+<ul><li>Added <code><a href="../reference/group_names.html">group_names()</a></code> for generating unique deterministic names for groups based on members</li>
+<li>Added <code><a href="../reference/collect_group_members.html">collect_group_members()</a></code> for converting group indices to member lists</li>
+<li>Added <code><a href="../reference/compact_groups.html">compact_groups()</a></code> for compacting non-consecutive group indices to 1..N</li>
+</ul></div>
+<div class="section level4">
+<h4 id="view-constants-0-0-2">View Constants<a class="anchor" aria-label="anchor" href="#view-constants-0-0-2"></a></h4>
+<ul><li>Added <code>VIEW_ALL_AXES</code>, <code>VIEW_ALL_SCALARS</code>, <code>VIEW_ALL_VECTORS</code>, <code>VIEW_ALL_MATRICES</code>, <code>VIEW_ALL_DATA</code> constants for creating views of complete data</li>
+</ul></div>
+<div class="section level4">
+<h4 id="query-utilities-0-0-2">Query Utilities<a class="anchor" aria-label="anchor" href="#query-utilities-0-0-2"></a></h4>
+<ul><li>Added <code><a href="../reference/is_axis_query.html">is_axis_query()</a></code> to check if a query targets only axes</li>
+<li>Added <code><a href="../reference/query_axis_name.html">query_axis_name()</a></code> to extract axis name from axis-only queries</li>
+</ul></div>
+<div class="section level4">
+<h4 id="version-counters-0-0-2">Version Counters<a class="anchor" aria-label="anchor" href="#version-counters-0-0-2"></a></h4>
+<ul><li>Added <code><a href="../reference/axis_version_counter.html">axis_version_counter()</a></code>, <code><a href="../reference/vector_version_counter.html">vector_version_counter()</a></code>, <code><a href="../reference/matrix_version_counter.html">matrix_version_counter()</a></code> for tracking data modifications</li>
+</ul></div>
+<div class="section level4">
+<h4 id="completeopen-functions-0-0-2">Complete/Open Functions<a class="anchor" aria-label="anchor" href="#completeopen-functions-0-0-2"></a></h4>
+<ul><li>Added <code><a href="../reference/complete_daf.html">complete_daf()</a></code> for opening complete chains of Daf repositories</li>
+<li>Added <code><a href="../reference/open_daf.html">open_daf()</a></code> for smart opening of files-based or HDF5-based Daf</li>
+</ul></div>
+<div class="section level4">
+<h4 id="example-data-0-0-2">Example Data<a class="anchor" aria-label="anchor" href="#example-data-0-0-2"></a></h4>
+<ul><li>Added <code><a href="../reference/example_chain_daf.html">example_chain_daf()</a></code> for creating example chain data</li>
+</ul></div>
+</div>
+<div class="section level3">
+<h3 id="improvements-0-0-2">Improvements<a class="anchor" aria-label="anchor" href="#improvements-0-0-2"></a></h3>
+<ul><li>Added <code>tensors</code> parameter to <code><a href="../reference/description.html">description()</a></code> function</li>
+<li>Fixed issue with error when returning only names (<a href="https://github.com/tanaylab/dafr/issues/6" class="external-link">#6</a>)</li>
+<li>Improved test coverage with 1201 tests (up from baseline)</li>
+</ul></div>
+</div>
+    <div class="section level2">
 <h2 class="pkg-version" data-toc-text="0.0.1" id="dafr-001">dafr 0.0.1<a class="anchor" aria-label="anchor" href="#dafr-001"></a></h2>
 <ul><li>Initial WIP</li>
 </ul></div>
-  </main></div>
+  </main><aside class="col-md-3"><nav id="toc" aria-label="Table of contents"><h2>On this page</h2>
+    </nav></aside></div>
 
 
     <footer><div class="pkgdown-footer-left">
@@ -44,7 +96,7 @@
 </div>
 
 <div class="pkgdown-footer-right">
-  <p>Site built with <a href="https://pkgdown.r-lib.org/" class="external-link">pkgdown</a> 2.1.2.</p>
+  <p>Site built with <a href="https://pkgdown.r-lib.org/" class="external-link">pkgdown</a> 2.2.0.</p>
 </div>
 
     </footer></div>

@@ -1,0 +1,31 @@
+# CountBy query operation
+
+A query operation that generates a matrix of counts of combinations of
+pairs of values. This operation creates a contingency table counting the
+occurrences of each combination of values between the current property
+and the specified property, for the same entries of an axis. The result
+is a matrix whose rows are the values of the first property, columns are
+the values of the second property, and entries are the counts of
+occurrences of each combination. See the Julia
+[documentation](https://tanaylab.github.io/DataAxesFormats.jl/v0.1.2/queries.html#DataAxesFormats.Queries.CountBy)
+for details.
+
+## Usage
+
+``` r
+CountBy(property, ...)
+```
+
+## Arguments
+
+- property:
+
+  String specifying the property to count combinations with
+
+- ...:
+
+  Additional arguments needed to support usage of pipe operator
+
+## Value
+
+A query operation object that can be used in a query sequence
