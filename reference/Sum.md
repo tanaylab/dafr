@@ -10,10 +10,15 @@ for details.
 ## Usage
 
 ``` r
-Sum(...)
+Sum(type = NULL, ...)
 ```
 
 ## Arguments
+
+- type:
+
+  Optional result type (e.g., "Float64"). If NULL, the default type is
+  used.
 
 - ...:
 

@@ -17,7 +17,11 @@ copy_tensor(
   rename = NULL,
   empty = NULL,
   relayout = TRUE,
-  overwrite = FALSE
+  overwrite = FALSE,
+  eltype = NULL,
+  bestify = FALSE,
+  min_sparse_saving_fraction = NULL,
+  insist = TRUE
 )
 ```
 
@@ -70,6 +74,23 @@ copy_tensor(
 - overwrite:
 
   Whether to overwrite if tensor already exists
+
+- eltype:
+
+  Optional element type to convert to (e.g., "Float64", "Int32"). If
+  NULL, the original type is preserved.
+
+- bestify:
+
+  Whether to bestify the tensor storage (FALSE by default)
+
+- min_sparse_saving_fraction:
+
+  Optional minimum sparse saving fraction. If NULL, the default is used.
+
+- insist:
+
+  Whether to fail if the tensor doesn't exist (TRUE by default)
 
 ## Value
 

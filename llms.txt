@@ -265,6 +265,16 @@ Functions for querying and retrieving data from Daf objects
   : Get a dataframe from a Daf object
 - [`get_dataframe_query()`](https://tanaylab.github.io/dafr/reference/get_dataframe_query.md)
   : Apply a query to a Daf object and return result as a data.frame
+- [`get_empty_dense_matrix()`](https://tanaylab.github.io/dafr/reference/get_empty_dense_matrix.md)
+  : Get an empty dense matrix for filling
+- [`get_empty_dense_vector()`](https://tanaylab.github.io/dafr/reference/get_empty_dense_vector.md)
+  : Get an empty dense vector for filling
+- [`get_empty_sparse_matrix()`](https://tanaylab.github.io/dafr/reference/get_empty_sparse_matrix.md)
+  : Get an empty sparse matrix for filling
+- [`get_empty_sparse_vector()`](https://tanaylab.github.io/dafr/reference/get_empty_sparse_vector.md)
+  : Get an empty sparse vector for filling
+- [`get_frame()`](https://tanaylab.github.io/dafr/reference/get_frame.md)
+  : Get a dataframe from a Daf object (Julia-style)
 - [`get_matrix()`](https://tanaylab.github.io/dafr/reference/get_matrix.md)
   : Get matrix from a Daf object
 - [`get_query()`](https://tanaylab.github.io/dafr/reference/get_query.md)
@@ -283,6 +293,12 @@ Functions for querying and retrieving data from Daf objects
   : Check if a query returns axis entries
 - [`query_axis_name()`](https://tanaylab.github.io/dafr/reference/query_axis_name.md)
   : Get the axis name from a query
+- [`query_requires_relayout()`](https://tanaylab.github.io/dafr/reference/query_requires_relayout.md)
+  : Check if a query requires relayout
+- [`escape_value()`](https://tanaylab.github.io/dafr/reference/escape_value.md)
+  : Escape a value for use in a query string
+- [`unescape_value()`](https://tanaylab.github.io/dafr/reference/unescape_value.md)
+  : Unescape a value from a query string
 
 ## Readers and Formats
 
@@ -405,6 +421,18 @@ Functions for managing axes and properties in Daf objects
   : Get matrix version counter
 - [`vector_version_counter()`](https://tanaylab.github.io/dafr/reference/vector_version_counter.md)
   : Get vector version counter
+- [`get_empty_dense_vector()`](https://tanaylab.github.io/dafr/reference/get_empty_dense_vector.md)
+  : Get an empty dense vector for filling
+- [`get_empty_sparse_vector()`](https://tanaylab.github.io/dafr/reference/get_empty_sparse_vector.md)
+  : Get an empty sparse vector for filling
+- [`get_empty_dense_matrix()`](https://tanaylab.github.io/dafr/reference/get_empty_dense_matrix.md)
+  : Get an empty dense matrix for filling
+- [`get_empty_sparse_matrix()`](https://tanaylab.github.io/dafr/reference/get_empty_sparse_matrix.md)
+  : Get an empty sparse matrix for filling
+- [`filled_empty_sparse_vector()`](https://tanaylab.github.io/dafr/reference/filled_empty_sparse_vector.md)
+  : Signal that an empty sparse vector has been filled
+- [`filled_empty_sparse_matrix()`](https://tanaylab.github.io/dafr/reference/filled_empty_sparse_matrix.md)
+  : Signal that an empty sparse matrix has been filled
 
 ## Query Operations - Element-wise
 
@@ -450,6 +478,12 @@ scalar)
   query operation
 - [`Quantile()`](https://tanaylab.github.io/dafr/reference/Quantile.md)
   : Quantile query operation
+- [`Count()`](https://tanaylab.github.io/dafr/reference/Count.md) :
+  Count query operation
+- [`GeoMean()`](https://tanaylab.github.io/dafr/reference/GeoMean.md) :
+  GeoMean query operation
+- [`Mode()`](https://tanaylab.github.io/dafr/reference/Mode.md) : Mode
+  query operation
 - [`CountBy()`](https://tanaylab.github.io/dafr/reference/CountBy.md) :
   CountBy query operation
 - [`GroupBy()`](https://tanaylab.github.io/dafr/reference/GroupBy.md) :

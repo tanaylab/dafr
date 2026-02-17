@@ -1,0 +1,42 @@
+# Get a dataframe from a Daf object (Julia-style)
+
+Retrieves multiple vector properties for an axis as a dataframe,
+returning the raw Julia-style result. For a more R-friendly version, see
+[`get_dataframe()`](https://tanaylab.github.io/dafr/reference/get_dataframe.md).
+
+## Usage
+
+``` r
+get_frame(daf, axis, columns = NULL, cache = FALSE)
+```
+
+## Arguments
+
+- daf:
+
+  A Daf object
+
+- axis:
+
+  Axis name or query object
+
+- columns:
+
+  Vector of column specifications or named list / vector mapping column
+  names to queries
+
+- cache:
+
+  Whether to cache the query results
+
+## Value
+
+A data.frame containing the specified columns for the axis. If columns
+is NULL, all columns are returned, with an additional column "name"
+containing the axis entries.
+
+## Details
+
+See the Julia
+[documentation](https://tanaylab.github.io/DataAxesFormats.jl/v0.1.2/queries.html#DataAxesFormats.Queries.get_frame)
+for more details.

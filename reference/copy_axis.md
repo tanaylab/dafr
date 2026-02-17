@@ -10,7 +10,7 @@ copy_axis(
   source,
   axis,
   rename = NULL,
-  default = NULL,
+  default,
   overwrite = FALSE,
   insist = TRUE
 )

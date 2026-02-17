@@ -10,7 +10,7 @@ for details.
 ## Usage
 
 ``` r
-Clamp(min = NULL, max = NULL, ...)
+Clamp(min = NULL, max = NULL, type = NULL, ...)
 ```
 
 ## Arguments
@@ -22,6 +22,11 @@ Clamp(min = NULL, max = NULL, ...)
 - max:
 
   Maximum value; values greater than this will be set to this value
+
+- type:
+
+  Optional result type (e.g., "Float64"). If NULL, the default type is
+  used.
 
 - ...:
 

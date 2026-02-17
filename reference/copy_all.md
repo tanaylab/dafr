@@ -5,7 +5,15 @@ Copy all content from source to destination
 ## Usage
 
 ``` r
-copy_all(destination, source, empty = NULL, overwrite = FALSE, relayout = TRUE)
+copy_all(
+  destination,
+  source,
+  empty = NULL,
+  overwrite = FALSE,
+  relayout = TRUE,
+  types = NULL,
+  insist = TRUE
+)
 ```
 
 ## Arguments
@@ -29,6 +37,15 @@ copy_all(destination, source, empty = NULL, overwrite = FALSE, relayout = TRUE)
 - relayout:
 
   Whether to allow relayout
+
+- types:
+
+  Optional named list mapping data keys to types for conversion. If
+  NULL, the original types are preserved.
+
+- insist:
+
+  Whether to fail if data doesn't exist (TRUE by default)
 
 ## Value
 

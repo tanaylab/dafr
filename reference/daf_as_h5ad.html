@@ -39,7 +39,14 @@
 
     <div class="section level2">
     <h2 id="ref-usage">Usage<a class="anchor" aria-label="anchor" href="#ref-usage"></a></h2>
-    <div class="sourceCode"><pre class="sourceCode r"><code><span><span class="fu">daf_as_h5ad</span><span class="op">(</span><span class="va">daf</span>, <span class="va">h5ad</span>, obs_is <span class="op">=</span> <span class="cn">NULL</span>, var_is <span class="op">=</span> <span class="cn">NULL</span>, X_is <span class="op">=</span> <span class="cn">NULL</span><span class="op">)</span></span></code></pre></div>
+    <div class="sourceCode"><pre class="sourceCode r"><code><span><span class="fu">daf_as_h5ad</span><span class="op">(</span></span>
+<span>  <span class="va">daf</span>,</span>
+<span>  <span class="va">h5ad</span>,</span>
+<span>  obs_is <span class="op">=</span> <span class="cn">NULL</span>,</span>
+<span>  var_is <span class="op">=</span> <span class="cn">NULL</span>,</span>
+<span>  X_is <span class="op">=</span> <span class="cn">NULL</span>,</span>
+<span>  X_eltype <span class="op">=</span> <span class="cn">NULL</span></span>
+<span><span class="op">)</span></span></code></pre></div>
     </div>
 
     <div class="section level2">
@@ -64,6 +71,10 @@
 
 <dt id="arg-x-is">X_is<a class="anchor" aria-label="anchor" href="#arg-x-is"></a></dt>
 <dd><p>Optional name for the main matrix</p></dd>
+
+
+<dt id="arg-x-eltype">X_eltype<a class="anchor" aria-label="anchor" href="#arg-x-eltype"></a></dt>
+<dd><p>Optional element type for the X matrix (e.g., "Float32"). If NULL, the original type is preserved.</p></dd>
 
 </dl></div>
     <div class="section level2">

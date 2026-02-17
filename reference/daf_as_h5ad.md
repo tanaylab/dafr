@@ -5,7 +5,14 @@ View the Daf data set as AnnData and save it to an h5ad file
 ## Usage
 
 ``` r
-daf_as_h5ad(daf, h5ad, obs_is = NULL, var_is = NULL, X_is = NULL)
+daf_as_h5ad(
+  daf,
+  h5ad,
+  obs_is = NULL,
+  var_is = NULL,
+  X_is = NULL,
+  X_eltype = NULL
+)
 ```
 
 ## Arguments
@@ -29,6 +36,11 @@ daf_as_h5ad(daf, h5ad, obs_is = NULL, var_is = NULL, X_is = NULL)
 - X_is:
 
   Optional name for the main matrix
+
+- X_eltype:
+
+  Optional element type for the X matrix (e.g., "Float32"). If NULL, the
+  original type is preserved.
 
 ## Value
 

@@ -10,7 +10,7 @@ for details.
 ## Usage
 
 ``` r
-Log(base = exp(1), eps = 0, ...)
+Log(base = exp(1), eps = 0, type = NULL, ...)
 ```
 
 ## Arguments
@@ -22,6 +22,11 @@ Log(base = exp(1), eps = 0, ...)
 - eps:
 
   Small value added to avoid log(0) (default is 0)
+
+- type:
+
+  Optional result type (e.g., "Float64"). If NULL, the default type is
+  used.
 
 - ...:
 

@@ -11,10 +11,20 @@ for details.
 ## Usage
 
 ``` r
-VarN(...)
+VarN(type = NULL, eps = NULL, ...)
 ```
 
 ## Arguments
+
+- type:
+
+  Optional result type (e.g., "Float64"). If NULL, the default type is
+  used.
+
+- eps:
+
+  Optional small value added to the mean before dividing. If NULL, the
+  default is used.
 
 - ...:
 

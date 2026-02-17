@@ -10,8 +10,10 @@ copy_scalar(
   source,
   name,
   rename = NULL,
-  default = NULL,
-  overwrite = FALSE
+  default,
+  overwrite = FALSE,
+  type = NULL,
+  insist = TRUE
 )
 ```
 
@@ -35,11 +37,24 @@ copy_scalar(
 
 - default:
 
-  Default value if scalar doesn't exist
+  Default value if scalar doesn't exist. If not provided (the default),
+  an error will be raised if the scalar is missing in the source. If
+  explicitly set to NULL, the copy will silently skip missing scalars.
 
 - overwrite:
 
   Whether to overwrite if scalar already exists
+
+- type:
+
+  Optional type to convert the scalar to (e.g., "Float64", "Int32"). If
+  NULL, the original type is preserved.
+
+- insist:
+
+  Whether to skip if the destination already has the scalar (FALSE) or
+  to attempt the copy regardless (TRUE, the default). Only relevant when
+  overwrite=FALSE.
 
 ## Value
 

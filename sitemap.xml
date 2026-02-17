@@ -16,10 +16,12 @@
 <url><loc>https://tanaylab.github.io/dafr/reference/Axis.html</loc></url>
 <url><loc>https://tanaylab.github.io/dafr/reference/Clamp.html</loc></url>
 <url><loc>https://tanaylab.github.io/dafr/reference/Convert.html</loc></url>
+<url><loc>https://tanaylab.github.io/dafr/reference/Count.html</loc></url>
 <url><loc>https://tanaylab.github.io/dafr/reference/CountBy.html</loc></url>
 <url><loc>https://tanaylab.github.io/dafr/reference/Daf.html</loc></url>
 <url><loc>https://tanaylab.github.io/dafr/reference/Fetch.html</loc></url>
 <url><loc>https://tanaylab.github.io/dafr/reference/Fraction.html</loc></url>
+<url><loc>https://tanaylab.github.io/dafr/reference/GeoMean.html</loc></url>
 <url><loc>https://tanaylab.github.io/dafr/reference/GroupBy.html</loc></url>
 <url><loc>https://tanaylab.github.io/dafr/reference/IfMissing.html</loc></url>
 <url><loc>https://tanaylab.github.io/dafr/reference/IfNot.html</loc></url>
@@ -38,6 +40,7 @@
 <url><loc>https://tanaylab.github.io/dafr/reference/Mean.html</loc></url>
 <url><loc>https://tanaylab.github.io/dafr/reference/Median.html</loc></url>
 <url><loc>https://tanaylab.github.io/dafr/reference/Min.html</loc></url>
+<url><loc>https://tanaylab.github.io/dafr/reference/Mode.html</loc></url>
 <url><loc>https://tanaylab.github.io/dafr/reference/Names.html</loc></url>
 <url><loc>https://tanaylab.github.io/dafr/reference/Or.html</loc></url>
 <url><loc>https://tanaylab.github.io/dafr/reference/OrNot.html</loc></url>
@@ -93,12 +96,20 @@
 <url><loc>https://tanaylab.github.io/dafr/reference/delete_vector.html</loc></url>
 <url><loc>https://tanaylab.github.io/dafr/reference/description.html</loc></url>
 <url><loc>https://tanaylab.github.io/dafr/reference/empty_cache.html</loc></url>
+<url><loc>https://tanaylab.github.io/dafr/reference/escape_value.html</loc></url>
 <url><loc>https://tanaylab.github.io/dafr/reference/example_cells_daf.html</loc></url>
 <url><loc>https://tanaylab.github.io/dafr/reference/example_chain_daf.html</loc></url>
 <url><loc>https://tanaylab.github.io/dafr/reference/example_metacells_daf.html</loc></url>
 <url><loc>https://tanaylab.github.io/dafr/reference/files_daf.html</loc></url>
+<url><loc>https://tanaylab.github.io/dafr/reference/filled_empty_sparse_matrix.html</loc></url>
+<url><loc>https://tanaylab.github.io/dafr/reference/filled_empty_sparse_vector.html</loc></url>
 <url><loc>https://tanaylab.github.io/dafr/reference/get_dataframe.html</loc></url>
 <url><loc>https://tanaylab.github.io/dafr/reference/get_dataframe_query.html</loc></url>
+<url><loc>https://tanaylab.github.io/dafr/reference/get_empty_dense_matrix.html</loc></url>
+<url><loc>https://tanaylab.github.io/dafr/reference/get_empty_dense_vector.html</loc></url>
+<url><loc>https://tanaylab.github.io/dafr/reference/get_empty_sparse_matrix.html</loc></url>
+<url><loc>https://tanaylab.github.io/dafr/reference/get_empty_sparse_vector.html</loc></url>
+<url><loc>https://tanaylab.github.io/dafr/reference/get_frame.html</loc></url>
 <url><loc>https://tanaylab.github.io/dafr/reference/get_matrix.html</loc></url>
 <url><loc>https://tanaylab.github.io/dafr/reference/get_query.html</loc></url>
 <url><loc>https://tanaylab.github.io/dafr/reference/get_scalar.html</loc></url>
@@ -127,6 +138,7 @@
 <url><loc>https://tanaylab.github.io/dafr/reference/print.Daf.html</loc></url>
 <url><loc>https://tanaylab.github.io/dafr/reference/print.DafContract.html</loc></url>
 <url><loc>https://tanaylab.github.io/dafr/reference/query_axis_name.html</loc></url>
+<url><loc>https://tanaylab.github.io/dafr/reference/query_requires_relayout.html</loc></url>
 <url><loc>https://tanaylab.github.io/dafr/reference/query_result_dimensions.html</loc></url>
 <url><loc>https://tanaylab.github.io/dafr/reference/read_only.html</loc></url>
 <url><loc>https://tanaylab.github.io/dafr/reference/reconstruct_axis.html</loc></url>
@@ -141,6 +153,7 @@
 <url><loc>https://tanaylab.github.io/dafr/reference/setup_logger.html</loc></url>
 <url><loc>https://tanaylab.github.io/dafr/reference/sub-.Daf.html</loc></url>
 <url><loc>https://tanaylab.github.io/dafr/reference/tensor_contract.html</loc></url>
+<url><loc>https://tanaylab.github.io/dafr/reference/unescape_value.html</loc></url>
 <url><loc>https://tanaylab.github.io/dafr/reference/use_default_julia_environment.html</loc></url>
 <url><loc>https://tanaylab.github.io/dafr/reference/vector_contract.html</loc></url>
 <url><loc>https://tanaylab.github.io/dafr/reference/vector_version_counter.html</loc></url>

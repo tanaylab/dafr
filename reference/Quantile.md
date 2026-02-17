@@ -11,7 +11,7 @@ for details.
 ## Usage
 
 ``` r
-Quantile(p = 0.5, ...)
+Quantile(p = 0.5, type = NULL, ...)
 ```
 
 ## Arguments
@@ -19,6 +19,11 @@ Quantile(p = 0.5, ...)
 - p:
 
   Quantile to compute (between 0 and 1). Default is 0.5 (median).
+
+- type:
+
+  Optional result type (e.g., "Float64"). If NULL, the default type is
+  used.
 
 - ...:
 

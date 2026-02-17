@@ -46,9 +46,13 @@
 <span>  <span class="va">name</span>,</span>
 <span>  reaxis <span class="op">=</span> <span class="cn">NULL</span>,</span>
 <span>  rename <span class="op">=</span> <span class="cn">NULL</span>,</span>
-<span>  default <span class="op">=</span> <span class="cn">NULL</span>,</span>
+<span>  <span class="va">default</span>,</span>
 <span>  empty <span class="op">=</span> <span class="cn">NULL</span>,</span>
-<span>  overwrite <span class="op">=</span> <span class="cn">FALSE</span></span>
+<span>  overwrite <span class="op">=</span> <span class="cn">FALSE</span>,</span>
+<span>  eltype <span class="op">=</span> <span class="cn">NULL</span>,</span>
+<span>  bestify <span class="op">=</span> <span class="cn">FALSE</span>,</span>
+<span>  min_sparse_saving_fraction <span class="op">=</span> <span class="cn">NULL</span>,</span>
+<span>  insist <span class="op">=</span> <span class="cn">TRUE</span></span>
 <span><span class="op">)</span></span></code></pre></div>
     </div>
 
@@ -90,6 +94,22 @@
 
 <dt id="arg-overwrite">overwrite<a class="anchor" aria-label="anchor" href="#arg-overwrite"></a></dt>
 <dd><p>Whether to overwrite if vector already exists</p></dd>
+
+
+<dt id="arg-eltype">eltype<a class="anchor" aria-label="anchor" href="#arg-eltype"></a></dt>
+<dd><p>Optional element type to convert to (e.g., "Float64", "Int32"). If NULL, the original type is preserved.</p></dd>
+
+
+<dt id="arg-bestify">bestify<a class="anchor" aria-label="anchor" href="#arg-bestify"></a></dt>
+<dd><p>Whether to bestify the vector storage (FALSE by default)</p></dd>
+
+
+<dt id="arg-min-sparse-saving-fraction">min_sparse_saving_fraction<a class="anchor" aria-label="anchor" href="#arg-min-sparse-saving-fraction"></a></dt>
+<dd><p>Optional minimum sparse saving fraction. If NULL, the default is used.</p></dd>
+
+
+<dt id="arg-insist">insist<a class="anchor" aria-label="anchor" href="#arg-insist"></a></dt>
+<dd><p>Whether to fail if the vector doesn't exist (TRUE by default)</p></dd>
 
 </dl></div>
     <div class="section level2">
