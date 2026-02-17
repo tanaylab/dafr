@@ -102,6 +102,10 @@ define_julia_functions <- function() {
     end
     ")
 
+    # Add functions to ensure a value is always a Vector (handles JuliaCall scalar conversion)
+    julia_eval("_to_julia_vec(x::AbstractVector) = x")
+    julia_eval("_to_julia_vec(x) = [x]")
+
     # Add function to get field from Julia object
     julia_eval("
     function get_object_field(obj, field_name)
@@ -326,6 +330,18 @@ create_julia_sparse_matrix <- function(sparse_matrix) {
 }
 
 
+
+#' Convert an R vector to a Julia Vector, safely handling single-element vectors
+#'
+#' JuliaCall converts single-element R vectors to Julia scalars. This function
+#' ensures the result is always a Julia Vector by using a Julia helper function.
+#'
+#' @param value An R vector (integer or numeric)
+#' @return A Julia Vector object
+#' @noRd
+to_julia_vector <- function(value) {
+    julia_call("_to_julia_vec", value, need_return = "Julia")
+}
 
 #' Convert R arrays, vectors and sparse matrices to Julia
 #'

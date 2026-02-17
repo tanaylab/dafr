@@ -33,6 +33,9 @@ reference:
       - query_result_dimensions
       - is_axis_query
       - query_axis_name
+      - query_requires_relayout
+      - escape_value
+      - unescape_value
 
   - title: "Readers and Formats"
     desc: "Reading Daf data from different sources and formats"
@@ -75,6 +78,12 @@ reference:
       - relayout_matrix
       - matrix_version_counter
       - vector_version_counter
+      - get_empty_dense_vector
+      - get_empty_sparse_vector
+      - get_empty_dense_matrix
+      - get_empty_sparse_matrix
+      - filled_empty_sparse_vector
+      - filled_empty_sparse_matrix
 
   - title: "Query Operations - Element-wise"
     desc: "Element-wise operations that preserve data shape but transform values"
@@ -98,6 +107,9 @@ reference:
       - starts_with("Var")
       - starts_with("Std")
       - Quantile
+      - Count
+      - GeoMean
+      - Mode
       - CountBy
       - GroupBy
 

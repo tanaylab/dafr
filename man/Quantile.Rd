@@ -4,10 +4,12 @@
 \alias{Quantile}
 \title{Quantile query operation}
 \usage{
-Quantile(p = 0.5, ...)
+Quantile(p = 0.5, type = NULL, ...)
 }
 \arguments{
 \item{p}{Quantile to compute (between 0 and 1). Default is 0.5 (median).}
+
+\item{type}{Optional result type (e.g., "Float64"). If NULL, the default type is used.}
 
 \item{...}{Additional arguments needed to support usage of pipe operator}
 }

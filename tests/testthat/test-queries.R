@@ -1546,3 +1546,98 @@ test_that("get_dataframe_query validates inputs correctly", {
         get_dataframe_query(memory_daf(), NULL)
     )
 })
+
+# Tests for escape_value and unescape_value
+
+test_that("escape_value escapes simple strings correctly", {
+    # A plain string without special characters should remain the same
+    result <- escape_value("hello")
+    expect_equal(result, "hello")
+})
+
+test_that("escape_value and unescape_value are inverse operations", {
+    # Test round-trip for simple values
+    original <- "simple"
+    escaped <- escape_value(original)
+    unescaped <- unescape_value(escaped)
+    expect_equal(unescaped, original)
+
+    # Test round-trip for values with special characters
+    original_special <- "hello world"
+    escaped_special <- escape_value(original_special)
+    unescaped_special <- unescape_value(escaped_special)
+    expect_equal(unescaped_special, original_special)
+})
+
+test_that("escape_value handles values with spaces", {
+    result <- escape_value("hello world")
+    # The escaped value should be different from the original since it contains a space
+    unescaped <- unescape_value(result)
+    expect_equal(unescaped, "hello world")
+})
+
+test_that("escape_value handles values with backslashes", {
+    result <- escape_value("path\\to\\file")
+    unescaped <- unescape_value(result)
+    expect_equal(unescaped, "path\\to\\file")
+})
+
+test_that("unescape_value reverses escape_value for various inputs", {
+    test_values <- c("simple", "with space", "with\\backslash", "with.dot", "12345")
+    for (val in test_values) {
+        escaped <- escape_value(val)
+        unescaped <- unescape_value(escaped)
+        expect_equal(unescaped, val, info = paste("Failed for value:", val))
+    }
+})
+
+# Tests for query_requires_relayout
+
+test_that("query_requires_relayout returns FALSE for vector queries", {
+    daf <- memory_daf(name = "relayout_test!")
+    add_axis(daf, "cell", c("A", "B", "C"))
+    set_vector(daf, "cell", "age", c(1, 2, 3))
+
+    # A simple vector query should not require relayout
+    result <- query_requires_relayout(daf, "/ cell : age")
+    expect_false(result)
+})
+
+test_that("query_requires_relayout returns FALSE for scalar queries", {
+    daf <- memory_daf(name = "relayout_scalar_test!")
+    set_scalar(daf, "version", "1.0")
+
+    result <- query_requires_relayout(daf, ": version")
+    expect_false(result)
+})
+
+test_that("query_requires_relayout works with matrix queries", {
+    daf <- memory_daf(name = "relayout_matrix_test!")
+    add_axis(daf, "cell", c("A", "B"))
+    add_axis(daf, "gene", c("X", "Y", "Z"))
+
+    # Set matrix in one orientation
+    mat <- matrix(1:6, nrow = 2, ncol = 3)
+    set_matrix(daf, "cell", "gene", "expr", mat, relayout = FALSE)
+
+    # Query in the same orientation should NOT require relayout
+    result <- query_requires_relayout(daf, "/ cell / gene : expr")
+    expect_false(result)
+
+    # Query in flipped orientation should require relayout
+    result <- query_requires_relayout(daf, "/ gene / cell : expr")
+    expect_true(result)
+})
+
+test_that("query_requires_relayout works with query objects", {
+    daf <- memory_daf(name = "relayout_obj_test!")
+    add_axis(daf, "cell", c("A", "B"))
+    add_axis(daf, "gene", c("X", "Y", "Z"))
+    mat <- matrix(1:6, nrow = 2, ncol = 3)
+    set_matrix(daf, "cell", "gene", "expr", mat, relayout = FALSE)
+
+    # Using query objects
+    query <- Axis("cell") |> Axis("gene") |> Lookup("expr")
+    result <- query_requires_relayout(daf, query)
+    expect_false(result)
+})

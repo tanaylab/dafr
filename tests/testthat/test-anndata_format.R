@@ -103,3 +103,97 @@ test_that("h5ad_as_daf accepts different handler types", {
     # Clean up
     unlink(h5ad_path)
 })
+
+test_that("daf_as_h5ad with X_eltype parameter works", {
+    # Create a memory daf with integer matrix
+    origin <- memory_daf(name = "eltype_test!")
+    add_axis(origin, "cell", c("A", "B"))
+    add_axis(origin, "gene", c("X", "Y", "Z"))
+
+    # Create integer matrix data
+    umis <- matrix(c(0, 1, 2, 3, 4, 5), nrow = 3, ncol = 2, byrow = TRUE)
+    colnames(umis) <- c("A", "B")
+    rownames(umis) <- c("X", "Y", "Z")
+    set_matrix(origin, "gene", "cell", "UMIs", umis, relayout = FALSE)
+
+    h5ad_path <- tempfile(fileext = ".h5ad")
+
+    # Convert to h5ad with X_eltype = "Float32"
+    expect_no_error(
+        daf_as_h5ad(
+            origin,
+            obs_is = "cell",
+            var_is = "gene",
+            X_is = "UMIs",
+            h5ad = h5ad_path,
+            X_eltype = "Float32"
+        )
+    )
+
+    # Check that the file was created
+    expect_true(file.exists(h5ad_path))
+
+    # Convert back to daf and verify data is preserved
+    back <- h5ad_as_daf(
+        h5ad_path,
+        obs_is = "cell",
+        var_is = "gene",
+        X_is = "UMIs",
+        name = "anndata_eltype!"
+    )
+
+    expect_equal(name(back), "anndata_eltype!")
+    expect_true(has_axis(back, "cell"))
+    expect_true(has_axis(back, "gene"))
+
+    # The matrix data should be preserved (possibly with float conversion)
+    original_matrix <- get_matrix(origin, "gene", "cell", "UMIs")
+    converted_matrix <- get_matrix(back, "gene", "cell", "UMIs")
+    expect_equal(as.matrix(original_matrix), as.matrix(converted_matrix), tolerance = 1e-5, ignore_attr = TRUE)
+
+    # Clean up
+    unlink(h5ad_path)
+})
+
+test_that("daf_as_h5ad without X_eltype preserves original type", {
+    # Create a memory daf
+    origin <- memory_daf(name = "no_eltype_test!")
+    add_axis(origin, "cell", c("A", "B"))
+    add_axis(origin, "gene", c("X", "Y"))
+
+    umis <- matrix(c(10, 20, 30, 40), nrow = 2, ncol = 2)
+    colnames(umis) <- c("A", "B")
+    rownames(umis) <- c("X", "Y")
+    set_matrix(origin, "gene", "cell", "UMIs", umis, relayout = FALSE)
+
+    h5ad_path <- tempfile(fileext = ".h5ad")
+
+    # Convert without specifying X_eltype
+    expect_no_error(
+        daf_as_h5ad(
+            origin,
+            obs_is = "cell",
+            var_is = "gene",
+            X_is = "UMIs",
+            h5ad = h5ad_path
+        )
+    )
+
+    expect_true(file.exists(h5ad_path))
+
+    # Convert back and verify
+    back <- h5ad_as_daf(
+        h5ad_path,
+        obs_is = "cell",
+        var_is = "gene",
+        X_is = "UMIs",
+        name = "back!"
+    )
+
+    original_matrix <- get_matrix(origin, "gene", "cell", "UMIs")
+    converted_matrix <- get_matrix(back, "gene", "cell", "UMIs")
+    expect_equal(as.matrix(original_matrix), as.matrix(converted_matrix), ignore_attr = TRUE)
+
+    # Clean up
+    unlink(h5ad_path)
+})

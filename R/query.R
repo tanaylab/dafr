@@ -906,3 +906,44 @@ query_axis_name <- function(query) {
     }
     julia_call("DataAxesFormats.Queries.query_axis_name", query)
 }
+
+#' Escape a value for use in a query string
+#'
+#' Escapes special characters in a value so it can be safely embedded in a query string.
+#' This is needed when values contain characters that have special meaning in the query
+#' syntax (e.g., spaces, quotes, backslashes).
+#'
+#' @param value A character string value to escape
+#' @return The escaped value as a character string
+#' @details See the Julia [documentation](https://tanaylab.github.io/DataAxesFormats.jl/v0.1.2/queries.html#DataAxesFormats.Queries.escape_value) for details.
+#' @export
+escape_value <- function(value) {
+    julia_call("DataAxesFormats.Queries.escape_value", value)
+}
+
+#' Unescape a value from a query string
+#'
+#' Reverses the escaping done by `escape_value`, restoring the original value.
+#'
+#' @param value A character string value to unescape
+#' @return The unescaped value as a character string
+#' @details See the Julia [documentation](https://tanaylab.github.io/DataAxesFormats.jl/v0.1.2/queries.html#DataAxesFormats.Queries.unescape_value) for details.
+#' @export
+unescape_value <- function(value) {
+    julia_call("DataAxesFormats.Queries.unescape_value", value)
+}
+
+#' Check if a query requires relayout
+#'
+#' Determines whether executing a query on a Daf object would require a matrix relayout
+#' operation. This is useful for performance optimization, as relayout can be expensive.
+#'
+#' @param daf A Daf object
+#' @param query Query string or query object
+#' @return TRUE if the query requires relayout, FALSE otherwise
+#' @details See the Julia [documentation](https://tanaylab.github.io/DataAxesFormats.jl/v0.1.2/queries.html#DataAxesFormats.Queries.query_requires_relayout) for details.
+#' @export
+query_requires_relayout <- function(daf, query) {
+    validate_daf_object(daf)
+    julia_call("DataAxesFormats.Queries.query_requires_relayout", daf$jl_obj, query)
+}

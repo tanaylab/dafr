@@ -4,9 +4,11 @@
 \alias{Median}
 \title{Median query operation}
 \usage{
-Median(...)
+Median(type = NULL, ...)
 }
 \arguments{
+\item{type}{Optional result type (e.g., "Float64"). If NULL, the default type is used.}
+
 \item{...}{Additional arguments needed to support usage of pipe operator}
 }
 \value{
