@@ -7,7 +7,7 @@
 
     <a class="navbar-brand me-2" href="../index.html">dafr</a>
 
-    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">0.0.2</small>
+    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">0.0.3</small>
 
 
     <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbar" aria-controls="navbar" aria-expanded="false" aria-label="Toggle navigation">
@@ -32,6 +32,63 @@
       <small>Source: <a href="https://github.com/tanaylab/dafr/blob/main/NEWS.md" class="external-link"><code>NEWS.md</code></a></small>
     </div>
 
+    <div class="section level2">
+<h2 class="pkg-version" data-toc-text="0.0.3" id="dafr-003">dafr 0.0.3<a class="anchor" aria-label="anchor" href="#dafr-003"></a></h2>
+<div class="section level3">
+<h3 id="new-functions-0-0-3">New Functions<a class="anchor" aria-label="anchor" href="#new-functions-0-0-3"></a></h3>
+<div class="section level4">
+<h4 id="new-operations-0-0-3">New Operations<a class="anchor" aria-label="anchor" href="#new-operations-0-0-3"></a></h4>
+<ul><li>Added <code><a href="../reference/Count.html">Count()</a></code> for counting non-zero elements, with optional <code>type</code> parameter</li>
+<li>Added <code><a href="../reference/GeoMean.html">GeoMean()</a></code> for geometric mean reduction, with optional <code>type</code> and <code>eps</code> parameters</li>
+<li>Added <code><a href="../reference/Mode.html">Mode()</a></code> for most common value reduction</li>
+</ul></div>
+<div class="section level4">
+<h4 id="query-utilities-0-0-3">Query Utilities<a class="anchor" aria-label="anchor" href="#query-utilities-0-0-3"></a></h4>
+<ul><li>Added <code><a href="../reference/escape_value.html">escape_value()</a></code> for escaping special characters in query strings</li>
+<li>Added <code><a href="../reference/unescape_value.html">unescape_value()</a></code> for reversing <code><a href="../reference/escape_value.html">escape_value()</a></code>
+</li>
+<li>Added <code><a href="../reference/query_requires_relayout.html">query_requires_relayout()</a></code> to check if a query needs data relayout</li>
+</ul></div>
+<div class="section level4">
+<h4 id="empty-data-functions-0-0-3">Empty Data Functions<a class="anchor" aria-label="anchor" href="#empty-data-functions-0-0-3"></a></h4>
+<ul><li>Added <code><a href="../reference/get_empty_dense_vector.html">get_empty_dense_vector()</a></code> for getting empty dense vectors for in-place filling</li>
+<li>Added <code><a href="../reference/get_empty_sparse_vector.html">get_empty_sparse_vector()</a></code> for getting empty sparse vectors for in-place filling</li>
+<li>Added <code><a href="../reference/get_empty_dense_matrix.html">get_empty_dense_matrix()</a></code> for getting empty dense matrices for in-place filling</li>
+<li>Added <code><a href="../reference/get_empty_sparse_matrix.html">get_empty_sparse_matrix()</a></code> for getting empty sparse matrices for in-place filling</li>
+<li>Added <code><a href="../reference/filled_empty_sparse_vector.html">filled_empty_sparse_vector()</a></code> for committing filled sparse vectors back to Daf</li>
+<li>Added <code><a href="../reference/filled_empty_sparse_matrix.html">filled_empty_sparse_matrix()</a></code> for committing filled sparse matrices back to Daf</li>
+<li>Exported <code><a href="../reference/get_frame.html">get_frame()</a></code> for direct use</li>
+</ul></div>
+</div>
+<div class="section level3">
+<h3 id="enhanced-parameters-0-0-3">Enhanced Parameters<a class="anchor" aria-label="anchor" href="#enhanced-parameters-0-0-3"></a></h3>
+<ul><li>Added <code>type</code> parameter to all reduction operations (<code>Abs</code>, <code>Sum</code>, <code>Mean</code>, <code>Median</code>, <code>Quantile</code>, <code>Var</code>, <code>VarN</code>, <code>Std</code>, <code>StdN</code>, <code>Min</code>, <code>Max</code>, <code>Count</code>, <code>Fraction</code>, <code>Round</code>, <code>Clamp</code>, <code>Log</code>)</li>
+<li>Added <code>eps</code> parameter to <code>VarN</code>, <code>StdN</code>, <code>GeoMean</code>
+</li>
+<li>Added <code>type</code> and <code>insist</code> parameters to <code><a href="../reference/copy_scalar.html">copy_scalar()</a></code>
+</li>
+<li>Added <code>eltype</code>, <code>bestify</code>, <code>min_sparse_saving_fraction</code>, and <code>insist</code> parameters to <code><a href="../reference/copy_vector.html">copy_vector()</a></code>
+</li>
+<li>Added <code>eltype</code>, <code>bestify</code>, <code>min_sparse_saving_fraction</code>, and <code>insist</code> parameters to <code><a href="../reference/copy_matrix.html">copy_matrix()</a></code>
+</li>
+<li>Added <code>relayout</code>, <code>bestify</code>, <code>min_sparse_saving_fraction</code> parameters to <code><a href="../reference/copy_tensor.html">copy_tensor()</a></code>
+</li>
+<li>Added <code>X_eltype</code> parameter to <code><a href="../reference/daf_as_h5ad.html">daf_as_h5ad()</a></code>
+</li>
+</ul></div>
+<div class="section level3">
+<h3 id="cicd-0-0-3">CI/CD<a class="anchor" aria-label="anchor" href="#cicd-0-0-3"></a></h3>
+<ul><li>Added GitHub Actions workflows for R CMD check, conda build, and pkgdown site deployment</li>
+<li>Added conda recipe for building and distributing conda packages</li>
+<li>Fixed CI test execution to properly install package before running testthat tests</li>
+</ul></div>
+<div class="section level3">
+<h3 id="tests-0-0-3">Tests<a class="anchor" aria-label="anchor" href="#tests-0-0-3"></a></h3>
+<ul><li>Added comprehensive tests for all new functions and parameters</li>
+<li>New test files: <code>test-operations.R</code>, <code>test-copies.R</code>, <code>test-data-writers.R</code>, <code>test-queries.R</code>, <code>test-anndata_format.R</code>
+</li>
+</ul></div>
+</div>
     <div class="section level2">
 <h2 class="pkg-version" data-toc-text="0.0.2" id="dafr-002">dafr 0.0.2<a class="anchor" aria-label="anchor" href="#dafr-002"></a></h2>
 <div class="section level3">
