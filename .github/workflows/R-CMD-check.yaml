@@ -38,8 +38,7 @@ jobs:
 
       - uses: julia-actions/setup-julia@v2
         with:
-          version: '1'
-          arch: x64
+          version: '1.11'
 
       - name: Cache Julia packages
         uses: actions/cache@v4
@@ -87,7 +86,7 @@ jobs:
           options(crayon.enabled = TRUE)
           rcmdcheck::rcmdcheck(
             args = c("--no-manual", "--as-cran", "--no-multiarch"),
-            error_on = "warning",
+            error_on = "error",
             check_dir = "check"
           )
         shell: Rscript {0}
