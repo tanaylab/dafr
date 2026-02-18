@@ -17,9 +17,10 @@ jobs:
       fail-fast: false
       matrix:
         config:
-          - {os: ubuntu-latest, r: 'release'}
-          - {os: ubuntu-latest, r: 'devel'}
-          - {os: macos-latest, r: 'release'}
+          # Julia 1.10 on Ubuntu to avoid RCall segfault with Julia 1.11+
+          - {os: ubuntu-latest, r: 'release', julia: '1.10'}
+          - {os: ubuntu-latest, r: 'devel', julia: '1.10'}
+          - {os: macos-latest, r: 'release', julia: '1.11'}
 
     env:
       GITHUB_PAT: ${{ secrets.GITHUB_TOKEN }}
@@ -39,15 +40,15 @@ jobs:
 
       - uses: julia-actions/setup-julia@v2
         with:
-          version: '1.11'
+          version: ${{ matrix.config.julia }}
 
       - name: Cache Julia packages
         uses: actions/cache@v4
         with:
           path: ~/.julia
-          key: ${{ runner.os }}-R${{ steps.setup-r.outputs.installed-r-version }}-julia-${{ hashFiles('**/Project.toml') }}-${{ hashFiles('**/Manifest.toml') }}
+          key: ${{ runner.os }}-R${{ steps.setup-r.outputs.installed-r-version }}-julia${{ matrix.config.julia }}-${{ hashFiles('**/Project.toml') }}-${{ hashFiles('**/Manifest.toml') }}
           restore-keys: |
-            ${{ runner.os }}-R${{ steps.setup-r.outputs.installed-r-version }}-julia-
+            ${{ runner.os }}-R${{ steps.setup-r.outputs.installed-r-version }}-julia${{ matrix.config.julia }}-
 
       - name: Set R_HOME and configure RCall
         run: |
@@ -56,7 +57,6 @@ jobs:
           echo "LD_LIBRARY_PATH=${R_HOME_PATH}/lib:${LD_LIBRARY_PATH}" >> $GITHUB_ENV
           echo "JULIA_COPY_STACKS=1" >> $GITHUB_ENV
           echo "R home is: ${R_HOME_PATH}"
-          ls -la "${R_HOME_PATH}/lib/" | head -5
 
       - name: Install required Julia packages
         run: |
