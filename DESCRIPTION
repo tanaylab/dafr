@@ -1,6 +1,6 @@
 Package: dafr
 Title: Data in Axes in Formats
-Version: 0.0.2
+Version: 0.0.3
 Authors@R: c(
     person("Aviezer", "Lifshitz", , "aviezer.lifshitz@weizmann.ac.il", role = c("aut", "cre"),
            comment = c(ORCID = "0000-0002-8458-9507")),

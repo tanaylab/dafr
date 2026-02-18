@@ -1,3 +1,47 @@
+# dafr 0.0.3
+
+## New Functions
+
+### New Operations
+* Added `Count()` for counting non-zero elements, with optional `type` parameter
+* Added `GeoMean()` for geometric mean reduction, with optional `type` and `eps` parameters
+* Added `Mode()` for most common value reduction
+
+### Query Utilities
+* Added `escape_value()` for escaping special characters in query strings
+* Added `unescape_value()` for reversing `escape_value()`
+* Added `query_requires_relayout()` to check if a query needs data relayout
+
+### Empty Data Functions
+* Added `get_empty_dense_vector()` for getting empty dense vectors for in-place filling
+* Added `get_empty_sparse_vector()` for getting empty sparse vectors for in-place filling
+* Added `get_empty_dense_matrix()` for getting empty dense matrices for in-place filling
+* Added `get_empty_sparse_matrix()` for getting empty sparse matrices for in-place filling
+* Added `filled_empty_sparse_vector()` for committing filled sparse vectors back to Daf
+* Added `filled_empty_sparse_matrix()` for committing filled sparse matrices back to Daf
+* Exported `get_frame()` for direct use
+
+## Enhanced Parameters
+
+* Added `type` parameter to all reduction operations (`Abs`, `Sum`, `Mean`, `Median`, `Quantile`, `Var`, `VarN`, `Std`, `StdN`, `Min`, `Max`, `Count`, `Fraction`, `Round`, `Clamp`, `Log`)
+* Added `eps` parameter to `VarN`, `StdN`, `GeoMean`
+* Added `type` and `insist` parameters to `copy_scalar()`
+* Added `eltype`, `bestify`, `min_sparse_saving_fraction`, and `insist` parameters to `copy_vector()`
+* Added `eltype`, `bestify`, `min_sparse_saving_fraction`, and `insist` parameters to `copy_matrix()`
+* Added `relayout`, `bestify`, `min_sparse_saving_fraction` parameters to `copy_tensor()`
+* Added `X_eltype` parameter to `daf_as_h5ad()`
+
+## CI/CD
+
+* Added GitHub Actions workflows for R CMD check, conda build, and pkgdown site deployment
+* Added conda recipe for building and distributing conda packages
+* Fixed CI test execution to properly install package before running testthat tests
+
+## Tests
+
+* Added comprehensive tests for all new functions and parameters
+* New test files: `test-operations.R`, `test-copies.R`, `test-data-writers.R`, `test-queries.R`, `test-anndata_format.R`
+
 # dafr 0.0.2
 
 ## New Features
