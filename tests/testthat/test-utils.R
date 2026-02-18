@@ -1,4 +1,4 @@
-julia_eval("import Random")
+JuliaCall::julia_eval("import Random")
 
 test_that("set_seed sets the same seed in both R and Julia", {
     # Set a specific seed

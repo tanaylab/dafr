@@ -401,24 +401,24 @@ test_that("get_dataframe_query reports appropriate errors", {
 
 test_that("process_frame_columns handles different column formats correctly", {
     # Test with NULL
-    result <- process_frame_columns(NULL)
+    result <- dafr:::process_frame_columns(NULL)
     expect_null(result)
 
     # Test with single string
     columns <- "age"
-    result <- process_frame_columns(columns)
+    result <- dafr:::process_frame_columns(columns)
     expect_equal(length(result), 1)
 
     # Simple named list/vector
     columns <- list(age = "age", batch = "batch")
-    result <- process_frame_columns(columns)
+    result <- dafr:::process_frame_columns(columns)
 
     # Named list with nested lists
     columns <- list(
         age = "age",
         list(sex = ": batch => sex")
     )
-    result <- process_frame_columns(columns)
+    result <- dafr:::process_frame_columns(columns)
 
     # Complex mixed format
     columns <- list(
@@ -426,7 +426,7 @@ test_that("process_frame_columns handles different column formats correctly", {
         list(sex = ": batch => sex"),
         batch = "batch"
     )
-    result <- process_frame_columns(columns)
+    result <- dafr:::process_frame_columns(columns)
 })
 
 test_that("get_dataframe handles various column formats correctly", {
