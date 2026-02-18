@@ -55,57 +55,57 @@ test_that("set_seed produces different results with different seeds", {
 })
 
 test_that("julia_project_status doesn't fail", {
-    expect_no_error(julia_project_status())
+    expect_no_error(dafr:::julia_project_status())
 })
 
 test_that("R type name strings are converted to correct Julia types", {
     # Test basic type mappings
-    expect_true(julia_call("==", jl_R_to_julia_type("logical"), julia_eval("Bool")))
-    expect_true(julia_call("==", jl_R_to_julia_type("integer"), julia_eval("Int64")))
-    expect_true(julia_call("==", jl_R_to_julia_type("double"), julia_eval("Float64")))
-    expect_true(julia_call("==", jl_R_to_julia_type("int8"), julia_eval("Int8")))
-    expect_true(julia_call("==", jl_R_to_julia_type("int16"), julia_eval("Int16")))
-    expect_true(julia_call("==", jl_R_to_julia_type("int32"), julia_eval("Int32")))
-    expect_true(julia_call("==", jl_R_to_julia_type("int64"), julia_eval("Int64")))
-    expect_true(julia_call("==", jl_R_to_julia_type("uint8"), julia_eval("UInt8")))
-    expect_true(julia_call("==", jl_R_to_julia_type("uint16"), julia_eval("UInt16")))
-    expect_true(julia_call("==", jl_R_to_julia_type("uint32"), julia_eval("UInt32")))
-    expect_true(julia_call("==", jl_R_to_julia_type("uint64"), julia_eval("UInt64")))
-    expect_true(julia_call("==", jl_R_to_julia_type("float32"), julia_eval("Float32")))
-    expect_true(julia_call("==", jl_R_to_julia_type("float64"), julia_eval("Float64")))
+    expect_true(JuliaCall::julia_call("==", dafr:::jl_R_to_julia_type("logical"), JuliaCall::julia_eval("Bool")))
+    expect_true(JuliaCall::julia_call("==", dafr:::jl_R_to_julia_type("integer"), JuliaCall::julia_eval("Int64")))
+    expect_true(JuliaCall::julia_call("==", dafr:::jl_R_to_julia_type("double"), JuliaCall::julia_eval("Float64")))
+    expect_true(JuliaCall::julia_call("==", dafr:::jl_R_to_julia_type("int8"), JuliaCall::julia_eval("Int8")))
+    expect_true(JuliaCall::julia_call("==", dafr:::jl_R_to_julia_type("int16"), JuliaCall::julia_eval("Int16")))
+    expect_true(JuliaCall::julia_call("==", dafr:::jl_R_to_julia_type("int32"), JuliaCall::julia_eval("Int32")))
+    expect_true(JuliaCall::julia_call("==", dafr:::jl_R_to_julia_type("int64"), JuliaCall::julia_eval("Int64")))
+    expect_true(JuliaCall::julia_call("==", dafr:::jl_R_to_julia_type("uint8"), JuliaCall::julia_eval("UInt8")))
+    expect_true(JuliaCall::julia_call("==", dafr:::jl_R_to_julia_type("uint16"), JuliaCall::julia_eval("UInt16")))
+    expect_true(JuliaCall::julia_call("==", dafr:::jl_R_to_julia_type("uint32"), JuliaCall::julia_eval("UInt32")))
+    expect_true(JuliaCall::julia_call("==", dafr:::jl_R_to_julia_type("uint64"), JuliaCall::julia_eval("UInt64")))
+    expect_true(JuliaCall::julia_call("==", dafr:::jl_R_to_julia_type("float32"), JuliaCall::julia_eval("Float32")))
+    expect_true(JuliaCall::julia_call("==", dafr:::jl_R_to_julia_type("float64"), JuliaCall::julia_eval("Float64")))
 })
 
 test_that("R values are converted to correct Julia types", {
     # Test logical values
-    expect_true(julia_call("==", jl_R_to_julia_type(TRUE), julia_eval("Bool")))
-    expect_true(julia_call("==", jl_R_to_julia_type(FALSE), julia_eval("Bool")))
+    expect_true(JuliaCall::julia_call("==", dafr:::jl_R_to_julia_type(TRUE), JuliaCall::julia_eval("Bool")))
+    expect_true(JuliaCall::julia_call("==", dafr:::jl_R_to_julia_type(FALSE), JuliaCall::julia_eval("Bool")))
 
     # Test integer values
-    expect_true(julia_call("==", jl_R_to_julia_type(1L), julia_eval("Int64")))
-    expect_true(julia_call("==", jl_R_to_julia_type(as.integer(-100)), julia_eval("Int64")))
+    expect_true(JuliaCall::julia_call("==", dafr:::jl_R_to_julia_type(1L), JuliaCall::julia_eval("Int64")))
+    expect_true(JuliaCall::julia_call("==", dafr:::jl_R_to_julia_type(as.integer(-100)), JuliaCall::julia_eval("Int64")))
 
     # Test double values
-    expect_true(julia_call("==", jl_R_to_julia_type(2.5), julia_eval("Float64")))
-    expect_true(julia_call("==", jl_R_to_julia_type(-3.14), julia_eval("Float64")))
+    expect_true(JuliaCall::julia_call("==", dafr:::jl_R_to_julia_type(2.5), JuliaCall::julia_eval("Float64")))
+    expect_true(JuliaCall::julia_call("==", dafr:::jl_R_to_julia_type(-3.14), JuliaCall::julia_eval("Float64")))
 
     # Test character values
-    expect_true(julia_call("==", jl_R_to_julia_type("logical"), julia_eval("Bool")))
-    expect_true(julia_call("==", jl_R_to_julia_type("integer"), julia_eval("Int64")))
+    expect_true(JuliaCall::julia_call("==", dafr:::jl_R_to_julia_type("logical"), JuliaCall::julia_eval("Bool")))
+    expect_true(JuliaCall::julia_call("==", dafr:::jl_R_to_julia_type("integer"), JuliaCall::julia_eval("Int64")))
 
     # Test vectors (ensure the function handles these correctly)
-    expect_true(julia_call("==", jl_R_to_julia_type(c(TRUE, FALSE)), julia_eval("Bool")))
-    expect_true(julia_call("==", jl_R_to_julia_type(c(1L, 2L)), julia_eval("Int64")))
-    expect_true(julia_call("==", jl_R_to_julia_type(c(1.0, 2.5)), julia_eval("Float64")))
+    expect_true(JuliaCall::julia_call("==", dafr:::jl_R_to_julia_type(c(TRUE, FALSE)), JuliaCall::julia_eval("Bool")))
+    expect_true(JuliaCall::julia_call("==", dafr:::jl_R_to_julia_type(c(1L, 2L)), JuliaCall::julia_eval("Int64")))
+    expect_true(JuliaCall::julia_call("==", dafr:::jl_R_to_julia_type(c(1.0, 2.5)), JuliaCall::julia_eval("Float64")))
 })
 
 test_that("jl_R_to_julia_type handles special cases correctly", {
     # Test NULL handling
-    null_result <- jl_R_to_julia_type(NULL)
-    expect_true(julia_call("==", null_result, julia_eval("Nothing")))
+    null_result <- dafr:::jl_R_to_julia_type(NULL)
+    expect_true(JuliaCall::julia_call("==", null_result, JuliaCall::julia_eval("Nothing")))
 
     # Test custom Julia type expressions
-    vector_type <- jl_R_to_julia_type("Vector{Float64}")
-    expect_true(julia_call("==", vector_type, julia_eval("Vector{Float64}")))
+    vector_type <- dafr:::jl_R_to_julia_type("Vector{Float64}")
+    expect_true(JuliaCall::julia_call("==", vector_type, JuliaCall::julia_eval("Vector{Float64}")))
 
-    expect_error(jl_R_to_julia_type("UnknownType"))
+    expect_error(dafr:::jl_R_to_julia_type("UnknownType"))
 })
