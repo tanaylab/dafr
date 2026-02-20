@@ -30,11 +30,35 @@ using_packages <- function(...) {
 #' Install Julia packages needed for DataAxesFormats and TanayLabUtilities
 #'
 #' @param force_dev (Default=FALSE) Whether to force dev versions of packages
+#' @param confirm_install Whether to allow installation of Julia packages
+#'   that may write to the Julia package store. If \code{NULL} (default),
+#'   prompt interactively and fail in non-interactive sessions.
 #'
 #' @return No return value, called for side effects.
 #' @keywords internal
 #' @export
-install_daf_packages <- function(force_dev = FALSE) {
+install_daf_packages <- function(force_dev = FALSE, confirm_install = NULL) {
+    if (is.null(confirm_install)) {
+        if (interactive()) {
+            confirm_install <- isTRUE(utils::askYesNo(
+                "Install required Julia packages for dafr? This may download packages and write to your Julia package store."
+            ))
+        } else {
+            confirm_install <- FALSE
+        }
+    }
+
+    if (!isTRUE(confirm_install)) {
+        stop(
+            paste(
+                "Julia package installation was not confirmed.",
+                "Use confirm_install = TRUE to allow installation,",
+                "or use pkg_check = FALSE to skip installation."
+            ),
+            call. = FALSE
+        )
+    }
+
     JuliaCall::julia_library("Pkg")
 
     pkgs_needed <- list("TanayLabUtilities", "DataAxesFormats", "Logging")
@@ -78,6 +102,9 @@ load_daf_packages <- function() {
 #'                 By default, this is the current working directory.
 #' @param installJulia (Default=TRUE) Whether to install Julia
 #' @param force_dev (Default=FALSE) Whether to force dev versions of packages, default value comes from getOption("dafr.force_dev")
+#' @param confirm_install Whether to allow installation of Julia packages
+#'   that may write to the Julia package store. If \code{NULL} (default),
+#'   prompt interactively and fail in non-interactive sessions.
 #' @param julia_environment Specify which Julia environment to use:
 #'                         "custom" creates a new environment (default if option not set),
 #'                         "default" uses the default Julia environment,
@@ -121,6 +148,7 @@ load_daf_packages <- function() {
 setup_daf <- function(pkg_check = TRUE, seed = NULL,
                       env_path = getwd(), installJulia = FALSE,
                       force_dev = getOption("dafr.force_dev", FALSE),
+                      confirm_install = NULL,
                       level = "Warn",
                       show_time = TRUE,
                       show_module = TRUE,
@@ -138,7 +166,7 @@ setup_daf <- function(pkg_check = TRUE, seed = NULL,
 
     # Install packages if required
     if (pkg_check) {
-        install_daf_packages(force_dev = force_dev)
+        install_daf_packages(force_dev = force_dev, confirm_install = confirm_install)
     }
 
     # Load packages

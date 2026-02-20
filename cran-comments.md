@@ -17,4 +17,9 @@ Notes observed:
 `dafr` interfaces with Julia via `JuliaCall`. Julia runtime and Julia packages are declared in
 `SystemRequirements` and are only initialized when users call `setup_daf()`.
 
-The test suite is gated to avoid Julia-dependent checks on CRAN environments.
+Julia-dependent tests are skipped on CRAN (`tests/testthat.R`) because they require an external
+Julia runtime and Julia package installation/downloads. CRAN checks therefore run package load,
+documentation, examples, and non-Julia checks without external runtime/network setup.
+
+To avoid unintended writes in non-interactive environments, Julia package installation now requires
+explicit confirmation (`confirm_install = TRUE`) or is skipped (`pkg_check = FALSE`).
