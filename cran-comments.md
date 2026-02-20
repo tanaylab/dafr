@@ -5,13 +5,12 @@
 ## R CMD check results
 
 - `R CMD build .`
-- `R CMD check --as-cran --no-manual dafr_0.0.3.tar.gz`
+- `_R_CHECK_SYSTEM_CLOCK_=FALSE R CMD check --as-cran --no-manual dafr_0.0.3.tar.gz`
 
-Result: 0 errors | 0 warnings | 2 notes
+Result: 0 errors | 0 warnings | 1 note
 
 Notes observed:
 - New submission.
-- unable to verify current time (environment-specific).
 
 ## Julia dependency notes
 
