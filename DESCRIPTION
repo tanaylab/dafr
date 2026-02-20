@@ -23,6 +23,8 @@ URL: https://tanaylab.github.io/dafr/, https://github.com/tanaylab/dafr
 BugReports: https://github.com/tanaylab/dafr/issues
 Depends: 
     R (>= 4.1.0)
+SystemRequirements: Julia (>= 1.10), DataAxesFormats.jl, TanayLabUtilities.jl,
+    Muon.jl, NamedArrays.jl
 Imports: 
     cli,
     JuliaCall,
