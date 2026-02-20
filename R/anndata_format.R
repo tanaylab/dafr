@@ -41,21 +41,28 @@ h5ad_as_daf <- function(h5ad, name = NULL, obs_is = NULL, var_is = NULL, X_is = 
 #' @param obs_is Optional name for the observation axis
 #' @param var_is Optional name for the variable axis
 #' @param X_is Optional name for the main matrix
+#' @param X_eltype Optional element type for the X matrix (e.g., "Float32"). If NULL, the original type is preserved.
 #' @return Invisibly returns the input Daf object
 #' @details See the Julia [documentation](https://tanaylab.github.io/DataAxesFormats.jl/v0.1.2/anndata_format.html#DataAxesFormats.AnnDataFormat.daf_as_anndata) for details.
 #' Note this just creates the h5ad file. The Julia (Muon.jl) AnnData object is not returned or exposed to R.
 #' @export
-daf_as_h5ad <- function(daf, h5ad, obs_is = NULL, var_is = NULL, X_is = NULL) {
+daf_as_h5ad <- function(daf, h5ad, obs_is = NULL, var_is = NULL, X_is = NULL, X_eltype = NULL) {
     validate_daf_object(daf)
 
-    # Call Julia function
-    julia_call("DataAxesFormats.daf_as_anndata",
+    kwargs <- list(
         daf$jl_obj,
         obs_is = obs_is,
         var_is = var_is,
         X_is = X_is,
         h5ad = h5ad
     )
+
+    if (!is.null(X_eltype)) {
+        kwargs[["X_eltype"]] <- jl_R_to_julia_type(X_eltype)
+    }
+
+    # Call Julia function
+    do.call(julia_call, c(list("DataAxesFormats.daf_as_anndata"), kwargs))
 
     invisible(daf)
 }

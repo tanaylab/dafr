@@ -13,10 +13,14 @@ copy_matrix(
   rows_reaxis = NULL,
   columns_reaxis = NULL,
   rename = NULL,
-  default = NULL,
+  default,
   empty = NULL,
   relayout = TRUE,
-  overwrite = FALSE
+  overwrite = FALSE,
+  eltype = NULL,
+  bestify = FALSE,
+  min_sparse_saving_fraction = NULL,
+  insist = TRUE
 )
 }
 \arguments{
@@ -43,6 +47,14 @@ copy_matrix(
 \item{relayout}{Whether to allow relayout}
 
 \item{overwrite}{Whether to overwrite if matrix already exists}
+
+\item{eltype}{Optional element type to convert to (e.g., "Float64", "Int32"). If NULL, the original type is preserved.}
+
+\item{bestify}{Whether to bestify the matrix storage (FALSE by default)}
+
+\item{min_sparse_saving_fraction}{Optional minimum sparse saving fraction. If NULL, the default is used.}
+
+\item{insist}{Whether to fail if the matrix doesn't exist (TRUE by default)}
 }
 \value{
 The destination Daf object (invisibly)

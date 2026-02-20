@@ -13,7 +13,7 @@ description(daf, cache = FALSE, deep = FALSE, tensors = TRUE)
 
 \item{deep}{Whether to include detailed information about nested data}
 
-\item{tensors}{Whether to include tensor information}
+\item{tensors}{Whether to include tensor information (condensed list of tensor matrices)}
 }
 \value{
 A string description of the Daf object

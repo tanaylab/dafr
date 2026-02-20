@@ -4,7 +4,15 @@
 \alias{copy_all}
 \title{Copy all content from source to destination}
 \usage{
-copy_all(destination, source, empty = NULL, overwrite = FALSE, relayout = TRUE)
+copy_all(
+  destination,
+  source,
+  empty = NULL,
+  overwrite = FALSE,
+  relayout = TRUE,
+  types = NULL,
+  insist = TRUE
+)
 }
 \arguments{
 \item{destination}{A Daf object to copy to}
@@ -16,6 +24,10 @@ copy_all(destination, source, empty = NULL, overwrite = FALSE, relayout = TRUE)
 \item{overwrite}{Whether to overwrite if data already exists}
 
 \item{relayout}{Whether to allow relayout}
+
+\item{types}{Optional named list mapping data keys to types for conversion. If NULL, the original types are preserved.}
+
+\item{insist}{Whether to fail if data doesn't exist (TRUE by default)}
 }
 \value{
 The destination Daf object (invisibly)

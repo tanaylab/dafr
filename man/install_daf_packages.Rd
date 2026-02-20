@@ -4,10 +4,14 @@
 \alias{install_daf_packages}
 \title{Install Julia packages needed for DataAxesFormats and TanayLabUtilities}
 \usage{
-install_daf_packages(force_dev = FALSE)
+install_daf_packages(force_dev = FALSE, confirm_install = NULL)
 }
 \arguments{
 \item{force_dev}{(Default=FALSE) Whether to force dev versions of packages}
+
+\item{confirm_install}{Whether to allow installation of Julia packages
+that may write to the Julia package store. If \code{NULL} (default),
+prompt interactively and fail in non-interactive sessions.}
 }
 \value{
 No return value, called for side effects.

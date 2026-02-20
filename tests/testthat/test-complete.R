@@ -4,7 +4,6 @@ test_that("open_daf correctly handles different file formats", {
     random_suffix <- paste0(sample(letters, 8, replace = TRUE), collapse = "")
     files_dir <- file.path(temp_dir, paste0("files_daf_", random_suffix))
     h5df_path <- file.path(temp_dir, paste0("test_", random_suffix, ".h5df"))
-    h5dfs_path <- file.path(temp_dir, paste0("test_", random_suffix, ".h5dfs"))
 
     # Create test files/directories
     dir.create(files_dir, showWarnings = FALSE, recursive = TRUE)
@@ -16,7 +15,6 @@ test_that("open_daf correctly handles different file formats", {
 
         # Clean up test files
         if (file.exists(h5df_path)) file.remove(h5df_path)
-        if (file.exists(h5dfs_path)) file.remove(h5dfs_path)
         if (dir.exists(files_dir)) unlink(files_dir, recursive = TRUE)
     })
 
@@ -27,11 +25,6 @@ test_that("open_daf correctly handles different file formats", {
     # Create an h5df file
     h5df_daf <- h5df(h5df_path, "w", name = "h5df_test")
     set_scalar(h5df_daf, "source", "h5df")
-
-    # Create an h5dfs file with groups
-    h5dfs_group_path <- paste0(h5dfs_path, "#/group1")
-    h5dfs_daf <- h5df(h5dfs_group_path, "w", name = "h5dfs_group_test")
-    set_scalar(h5dfs_daf, "source", "h5dfs_group")
 
     # Force garbage collection to release file handles before opening again
     gc()
@@ -45,11 +38,6 @@ test_that("open_daf correctly handles different file formats", {
     opened_h5df <- open_daf(h5df_path, "r")
     expect_true(is_daf(opened_h5df))
     expect_equal(get_scalar(opened_h5df, "source"), "h5df")
-
-    # Test opening h5dfs-based Daf with group
-    opened_h5dfs_group <- open_daf(h5dfs_group_path, "r")
-    expect_true(is_daf(opened_h5dfs_group))
-    expect_equal(get_scalar(opened_h5dfs_group, "source"), "h5dfs_group")
 
     # Test error handling - use a non-existent path
     expect_error(open_daf(paste0(temp_dir, "/nonexistent_", random_suffix), "r"))

@@ -1,0 +1,54 @@
+{% set name = "r-dafr" %}
+{% set version = load_file_regex(load_file="DESCRIPTION", regex_pattern='Version: (\S+)').group(1) %}
+
+package:
+  name: {{ name|lower }}
+  version: {{ version }}
+
+source:
+  path: ..
+
+build:
+  number: 0
+  noarch: generic
+  rpaths:
+    - lib/R/lib/
+    - lib/
+
+requirements:
+  host:
+    - r-base >=4.1.0
+    - r-cli
+    - r-juliacall
+    - r-matrix
+    - r-tibble
+    - r-tidyr
+  run:
+    - r-base >=4.1.0
+    - r-cli
+    - r-juliacall
+    - r-matrix
+    - r-tibble
+    - r-tidyr
+    - julia >=1.6
+
+test:
+  commands:
+    - $R -e "library('dafr')"
+
+about:
+  home: https://tanaylab.github.io/dafr/
+  dev_url: https://github.com/tanaylab/dafr
+  license: MIT
+  license_family: MIT
+  license_file: LICENSE
+  summary: R interface to DataAxesFormats.jl for multi-dimensional biological data
+  description: |
+    An R interface to DataAxesFormats.jl, a Julia package providing a uniform
+    interface for accessing multi-dimensional data arranged along arbitrary axes.
+    Supports both 1D and 2D data, multiple data modalities, and efficient memory
+    management for large-scale biological datasets.
+
+extra:
+  recipe-maintainers:
+    - aviezerl
