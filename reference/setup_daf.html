@@ -51,6 +51,7 @@ then be set with all Julia dependencies needed.</p>
 <span>  env_path <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/getwd.html" class="external-link">getwd</a></span><span class="op">(</span><span class="op">)</span>,</span>
 <span>  installJulia <span class="op">=</span> <span class="cn">FALSE</span>,</span>
 <span>  force_dev <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/options.html" class="external-link">getOption</a></span><span class="op">(</span><span class="st">"dafr.force_dev"</span>, <span class="cn">FALSE</span><span class="op">)</span>,</span>
+<span>  confirm_install <span class="op">=</span> <span class="cn">NULL</span>,</span>
 <span>  level <span class="op">=</span> <span class="st">"Warn"</span>,</span>
 <span>  show_time <span class="op">=</span> <span class="cn">TRUE</span>,</span>
 <span>  show_module <span class="op">=</span> <span class="cn">TRUE</span>,</span>
@@ -85,6 +86,12 @@ By default, this is the current working directory.</p></dd>
 
 <dt id="arg-force-dev">force_dev<a class="anchor" aria-label="anchor" href="#arg-force-dev"></a></dt>
 <dd><p>(Default=FALSE) Whether to force dev versions of packages, default value comes from getOption("dafr.force_dev")</p></dd>
+
+
+<dt id="arg-confirm-install">confirm_install<a class="anchor" aria-label="anchor" href="#arg-confirm-install"></a></dt>
+<dd><p>Whether to allow installation of Julia packages
+that may write to the Julia package store. If <code>NULL</code> (default),
+prompt interactively and fail in non-interactive sessions.</p></dd>
 
 
 <dt id="arg-level">level<a class="anchor" aria-label="anchor" href="#arg-level"></a></dt>

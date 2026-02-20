@@ -13,6 +13,7 @@ setup_daf(
   env_path = getwd(),
   installJulia = FALSE,
   force_dev = getOption("dafr.force_dev", FALSE),
+  confirm_install = NULL,
   level = "Warn",
   show_time = TRUE,
   show_module = TRUE,
@@ -46,6 +47,12 @@ setup_daf(
 
   (Default=FALSE) Whether to force dev versions of packages, default
   value comes from getOption("dafr.force_dev")
+
+- confirm_install:
+
+  Whether to allow installation of Julia packages that may write to the
+  Julia package store. If `NULL` (default), prompt interactively and
+  fail in non-interactive sessions.
 
 - level:
 
