@@ -8,3 +8,5 @@
 ^conda-recipe$
 ^\.a5c$
 ^\.claude$
+^environment\.yml$
+^cran-comments\.md$
