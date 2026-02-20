@@ -4,12 +4,14 @@
 \alias{Log}
 \title{Log query operation}
 \usage{
-Log(base = exp(1), eps = 0, ...)
+Log(base = exp(1), eps = 0, type = NULL, ...)
 }
 \arguments{
 \item{base}{Base of the logarithm (default is e ≈ 2.718)}
 
 \item{eps}{Small value added to avoid log(0) (default is 0)}
+
+\item{type}{Optional result type (e.g., "Float64"). If NULL, the default type is used.}
 
 \item{...}{Additional arguments needed to support usage of pipe operator}
 }

@@ -4,12 +4,14 @@
 \alias{Clamp}
 \title{Clamp query operation}
 \usage{
-Clamp(min = NULL, max = NULL, ...)
+Clamp(min = NULL, max = NULL, type = NULL, ...)
 }
 \arguments{
 \item{min}{Minimum value; values less than this will be set to this value}
 
 \item{max}{Maximum value; values greater than this will be set to this value}
+
+\item{type}{Optional result type (e.g., "Float64"). If NULL, the default type is used.}
 
 \item{...}{Additional arguments needed to support usage of pipe operator}
 }

@@ -20,7 +20,7 @@ complete_daf <- function(leaf, mode = "r", name = NULL) {
     }
 
     # Call the Julia implementation directly
-    jl_obj <- julia_call("DataAxesFormats.CompleteDaf.complete_daf", leaf, mode, name = name)
+    jl_obj <- julia_call("DataAxesFormats.complete_daf", leaf, mode, name = name)
 
     return(Daf(jl_obj))
 }
@@ -43,7 +43,12 @@ complete_daf <- function(leaf, mode = "r", name = NULL) {
 #'   See the Julia [documentation](https://tanaylab.github.io/DataAxesFormats.jl/v0.1.2/complete.html) for details.
 #' @export
 open_daf <- function(path, mode = "r", name = NULL) {
-    jl_obj <- julia_call("DataAxesFormats.CompleteDaf.open_daf", path, mode, name = name)
-
-    return(Daf(jl_obj))
+    # Determine the type of Daf repository based on the path
+    if (grepl("\\.h5df$", path) || grepl("\\.h5dfs#", path)) {
+        # HDF5-based Daf
+        return(h5df(path, mode, name = name))
+    } else {
+        # Files-based Daf
+        return(files_daf(path, mode, name = name))
+    }
 }

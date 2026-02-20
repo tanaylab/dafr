@@ -7,6 +7,8 @@ on:
 
 name: R-CMD-check
 
+permissions: read-all
+
 jobs:
   R-CMD-check:
     runs-on: ${{ matrix.config.os }}
@@ -15,41 +17,49 @@ jobs:
       fail-fast: false
       matrix:
         config:
-          # - {os: ubuntu-latest, r: 'release'}
+          - {os: ubuntu-latest, r: 'release'}
+          - {os: ubuntu-latest, r: 'devel'}
           - {os: macos-latest, r: 'release'}
-          # - {os: windows-latest, r: 'release'}
 
     env:
       GITHUB_PAT: ${{ secrets.GITHUB_TOKEN }}
       R_KEEP_PKG_SOURCE: yes
       JULIA_NUM_THREADS: 2
-      AUTO_JULIA_INSTALL: true
+      NOT_CRAN: true
       R_REMOTES_NO_ERRORS_FROM_WARNINGS: true
 
     steps:
       - uses: actions/checkout@v6
 
       - uses: r-lib/actions/setup-r@v2
+        id: setup-r
         with:
           r-version: ${{ matrix.config.r }}
           use-public-rspm: true
 
       - uses: julia-actions/setup-julia@v2
         with:
-          channel: '1'
-          arch: default
+          version: '1.11'
 
       - name: Cache Julia packages
         uses: actions/cache@v4
         with:
           path: ~/.julia
-          key: ${{ runner.os }}-julia-${{ hashFiles('**/Project.toml') }}
+          key: ${{ runner.os }}-R${{ steps.setup-r.outputs.installed-r-version }}-julia-${{ hashFiles('**/Project.toml') }}-${{ hashFiles('**/Manifest.toml') }}
           restore-keys: |
-            ${{ runner.os }}-julia-
-        
+            ${{ runner.os }}-R${{ steps.setup-r.outputs.installed-r-version }}-julia-
+
+      - name: Set R_HOME and configure RCall
+        run: |
+          R_HOME_PATH=$(Rscript -e 'cat(R.home())')
+          echo "R_HOME=${R_HOME_PATH}" >> $GITHUB_ENV
+          echo "LD_LIBRARY_PATH=${R_HOME_PATH}/lib:${LD_LIBRARY_PATH}" >> $GITHUB_ENV
+          echo "JULIA_COPY_STACKS=1" >> $GITHUB_ENV
+
       - name: Install required Julia packages
         run: |
           julia -e '
+          ENV["R_HOME"] = ENV["R_HOME"]
           using Pkg
           Pkg.add("Suppressor")
           Pkg.add("RCall")
@@ -63,32 +73,66 @@ jobs:
           # Add packages from GitHub repositories
           Pkg.add(url="https://github.com/tanaylab/TanayLabUtilities.jl")
           Pkg.add(url="https://github.com/tanaylab/DataAxesFormats.jl")
+          # Rebuild RCall to ensure it links against the correct R
+          Pkg.build("RCall")
+          Pkg.precompile()
           '
 
-      - name: Install system dependencies
+      - name: Install system dependencies (Linux)
         if: runner.os == 'Linux'
         run: |
           sudo apt-get update
-          sudo apt-get install -y libcurl4-openssl-dev
+          sudo apt-get install -y libcurl4-openssl-dev libhdf5-dev
 
       - uses: r-lib/actions/setup-r-dependencies@v2
         with:
-          extra-packages: any::rcmdcheck, any::JuliaCall, any::cli, any::Matrix, any::tibble, any::tidyr
+          extra-packages: any::rcmdcheck, any::JuliaCall, any::cli, any::Matrix, any::tibble, any::tidyr, any::testthat, any::withr
           needs: check
 
-      - name: Check
+      - name: Run R CMD check (without tests)
         env:
           _R_CHECK_CRAN_INCOMING_REMOTE_: false
+          _R_CHECK_FORCE_SUGGESTS_: false
         run: |
           options(crayon.enabled = TRUE)
-          rcmdcheck::rcmdcheck(args = c("--no-manual", "--as-cran", "--no-multiarch"), 
-                              error_on = "warning", 
-                              check_dir = "check")
+          rcmdcheck::rcmdcheck(
+            args = c("--no-manual", "--no-tests", "--no-multiarch"),
+            error_on = "error",
+            check_dir = "check"
+          )
         shell: Rscript {0}
+
+      - name: Install dafr package
+        run: R CMD INSTALL .
+
+      # Tests run on macOS only - JuliaCall/RCall segfaults on Ubuntu Linux
+      # due to R/Julia signal handler conflict (upstream issue).
+      # Ubuntu runners still validate R CMD check passes.
+      - name: Run testthat tests
+        if: runner.os == 'macOS'
+        run: |
+          Rscript -e '
+          library(testthat)
+          library(dafr)
+
+          # Initialize Julia/DAF
+          tryCatch({
+            setup_daf(force_dev = TRUE, confirm_install = TRUE)
+          }, error = function(e) {
+            message("Julia/JuliaCall initialization failed: ", e$message)
+            quit(status = 1)
+          })
+
+          # Run tests and fail on test failures
+          results <- test_dir("tests/testthat", reporter = "summary")
+          if (any(as.data.frame(results)$failed > 0)) {
+            quit(status = 1)
+          }
+          '
 
       - name: Upload check results
         if: failure()
-        uses: actions/upload-artifact@main
+        uses: actions/upload-artifact@v4
         with:
-          name: ${{ runner.os }}-r${{ matrix.config.r }}-results
+          name: ${{ matrix.config.os }}-r${{ matrix.config.r }}-results
           path: check

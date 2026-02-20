@@ -4,25 +4,20 @@
 \alias{Abs}
 \title{Abs query operation}
 \usage{
-Abs(...)
+Abs(type = NULL, ...)
 }
 \arguments{
+\item{type}{Optional result type (e.g., "Float64"). If NULL, the default type is used.}
+
 \item{...}{Additional arguments needed to support usage of pipe operator}
 }
 \value{
 A query operation object that can be used in a query sequence
 }
 \description{
-A \code{Daf} query can use operations to process the data: Element-wise operations that preserve
-the shape of the data, and Reduction operations that reduce a matrix to a vector, or a vector to a scalar.
-See the Julia \href{https://tanaylab.github.io/DataAxesFormats.jl/v0.1.2/operations.html}{documentation} for details.
-
 Element-wise operation that converts every element to its absolute value. This operation preserves
 the shape of the data (scalar, vector, or matrix) but changes the values. By default, the output
 data type is the unsigned version of the input data type. See the Julia
 \href{https://tanaylab.github.io/DataAxesFormats.jl/v0.1.2/operations.html#DataAxesFormats.Operations.Abs}{documentation} for
 details.
-}
-\details{
-Query operations for DataAxesFormats
 }

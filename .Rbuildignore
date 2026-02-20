@@ -5,3 +5,14 @@
 ^docs$
 ^pkgdown$
 ^\.github$
+^conda-recipe$
+^\.a5c$
+^\.claude$
+^environment\.yml$
+^cran-comments\.md$
+^Library$
+^Outputs$
+^PACKAGES$
+^PACKAGES\.gz$
+^PACKAGES\.rds$
+^timings\.tab$

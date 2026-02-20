@@ -4,9 +4,13 @@
 \alias{VarN}
 \title{VarN query operation}
 \usage{
-VarN(...)
+VarN(type = NULL, eps = NULL, ...)
 }
 \arguments{
+\item{type}{Optional result type (e.g., "Float64"). If NULL, the default type is used.}
+
+\item{eps}{Optional small value added to the mean before dividing. If NULL, the default is used.}
+
 \item{...}{Additional arguments needed to support usage of pipe operator}
 }
 \value{

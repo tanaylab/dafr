@@ -4,7 +4,14 @@
 \alias{daf_as_h5ad}
 \title{Convert Daf object to h5ad file}
 \usage{
-daf_as_h5ad(daf, h5ad, obs_is = NULL, var_is = NULL, X_is = NULL)
+daf_as_h5ad(
+  daf,
+  h5ad,
+  obs_is = NULL,
+  var_is = NULL,
+  X_is = NULL,
+  X_eltype = NULL
+)
 }
 \arguments{
 \item{daf}{A Daf object}
@@ -16,6 +23,8 @@ daf_as_h5ad(daf, h5ad, obs_is = NULL, var_is = NULL, X_is = NULL)
 \item{var_is}{Optional name for the variable axis}
 
 \item{X_is}{Optional name for the main matrix}
+
+\item{X_eltype}{Optional element type for the X matrix (e.g., "Float32"). If NULL, the original type is preserved.}
 }
 \value{
 Invisibly returns the input Daf object

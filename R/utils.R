@@ -12,6 +12,7 @@
 #' }
 #' @export
 set_seed <- function(seed) {
+    stopifnot(is.numeric(seed), length(seed) == 1)
     JuliaCall::julia_command(paste0("Random.seed!(", seed, ");"))
     set.seed(seed)
     cli::cli_alert_info("Set the seed of Julia and R to {.val {seed}}")

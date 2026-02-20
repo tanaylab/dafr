@@ -615,7 +615,10 @@ name <- function(x, ...) {
     x$jl_obj$name
 }
 
-#' Get a dataframe from a Daf object
+#' Get a dataframe from a Daf object (Julia-style)
+#'
+#' Retrieves multiple vector properties for an axis as a dataframe, returning the raw
+#' Julia-style result. For a more R-friendly version, see `get_dataframe()`.
 #'
 #' @param daf A Daf object
 #' @param axis Axis name or query object
@@ -623,7 +626,7 @@ name <- function(x, ...) {
 #' @param cache Whether to cache the query results
 #' @return A data.frame containing the specified columns for the axis. If columns is NULL, all columns are returned, with an additional column "name" containing the axis entries.
 #' @details See the Julia [documentation](https://tanaylab.github.io/DataAxesFormats.jl/v0.1.2/queries.html#DataAxesFormats.Queries.get_frame) for more details.
-#' @noRd
+#' @export
 get_frame <- function(daf, axis, columns = NULL, cache = FALSE) {
     validate_daf_object(daf)
 
@@ -704,4 +707,252 @@ read_only <- function(daf, name = NULL) {
     name <- name %||% name(daf)
     readonly_obj <- julia_call("DataAxesFormats.read_only", daf$jl_obj, name = name)
     return(Daf(readonly_obj))
+}
+
+#' Get axis version counter
+#'
+#' Returns the version counter for an axis, which is incremented when the axis is modified.
+#' This is useful for cache invalidation.
+#'
+#' @param daf A Daf object
+#' @param axis Name of the axis
+#' @return An integer version counter
+#' @details The version counter is incremented whenever the axis entries are modified.
+#'   This can be used to detect changes and invalidate caches.
+#' @export
+axis_version_counter <- function(daf, axis) {
+    validate_daf_object(daf)
+    julia_call("DataAxesFormats.axis_version_counter", daf$jl_obj, axis)
+}
+
+#' Get vector version counter
+#'
+#' Returns the version counter for a vector property, which is incremented when the vector is modified.
+#' This is useful for cache invalidation.
+#'
+#' @param daf A Daf object
+#' @param axis Name of the axis
+#' @param name Name of the vector property
+#' @return An integer version counter
+#' @details The version counter is incremented whenever the vector data is modified.
+#'   This can be used to detect changes and invalidate caches.
+#' @export
+vector_version_counter <- function(daf, axis, name) {
+    validate_daf_object(daf)
+    julia_call("DataAxesFormats.vector_version_counter", daf$jl_obj, axis, name)
+}
+
+#' Get an empty dense vector for filling
+#'
+#' Returns an empty dense vector for the specified axis and property, which can be filled
+#' in-place. This is useful for efficiently constructing large vectors without allocating
+#' temporary storage. After filling, the vector is automatically stored in the Daf object.
+#'
+#' @param daf A Daf object
+#' @param axis Name of the axis
+#' @param name Name of the vector property
+#' @param eltype Element type for the vector (e.g., "Float64", "Int32")
+#' @param overwrite Whether to overwrite if vector already exists (FALSE by default)
+#' @return A Julia vector object that can be filled in-place
+#' @details See the Julia [documentation](https://tanaylab.github.io/DataAxesFormats.jl/v0.1.2/writers.html#DataAxesFormats.Writers.get_empty_dense_vector!) for details.
+#' @export
+get_empty_dense_vector <- function(daf, axis, name, eltype, overwrite = FALSE) {
+    validate_daf_object(daf)
+    julia_type <- jl_R_to_julia_type(eltype)
+    result <- julia_call(
+        "DataAxesFormats.get_empty_dense_vector!",
+        daf$jl_obj,
+        axis,
+        name,
+        julia_type,
+        overwrite = overwrite,
+        need_return = "Julia"
+    )
+    return(result)
+}
+
+#' Get an empty sparse vector for filling
+#'
+#' Returns an empty sparse vector for the specified axis and property, which can be filled
+#' in-place. This is useful for efficiently constructing large sparse vectors.
+#' After filling with `filled_empty_sparse_vector`, the vector is stored in the Daf object.
+#'
+#' @param daf A Daf object
+#' @param axis Name of the axis
+#' @param name Name of the vector property
+#' @param eltype Element type for the vector values (e.g., "Float64", "Int32")
+#' @param nnz Number of non-zero elements expected
+#' @param indtype Optional index type (e.g., "Int32"). If NULL, the default is used.
+#' @param overwrite Whether to overwrite if vector already exists (FALSE by default)
+#' @return A Julia sparse vector object that can be filled in-place
+#' @details See the Julia [documentation](https://tanaylab.github.io/DataAxesFormats.jl/v0.1.2/writers.html#DataAxesFormats.Writers.get_empty_sparse_vector!) for details.
+#' @export
+get_empty_sparse_vector <- function(daf, axis, name, eltype, nnz, indtype = "Int64", overwrite = FALSE) {
+    validate_daf_object(daf)
+    julia_type <- jl_R_to_julia_type(eltype)
+    julia_indtype <- jl_R_to_julia_type(indtype)
+    result <- julia_call(
+        "DataAxesFormats.get_empty_sparse_vector!",
+        daf$jl_obj,
+        axis,
+        name,
+        julia_type,
+        as.integer(nnz),
+        julia_indtype,
+        overwrite = overwrite,
+        need_return = "Julia"
+    )
+    return(result)
+}
+
+#' Get an empty dense matrix for filling
+#'
+#' Returns an empty dense matrix for the specified axes and property, which can be filled
+#' in-place. This is useful for efficiently constructing large matrices without allocating
+#' temporary storage. After filling, the matrix is automatically stored in the Daf object.
+#'
+#' @param daf A Daf object
+#' @param rows_axis Name of the rows axis
+#' @param columns_axis Name of the columns axis
+#' @param name Name of the matrix property
+#' @param eltype Element type for the matrix (e.g., "Float64", "Int32")
+#' @param overwrite Whether to overwrite if matrix already exists (FALSE by default)
+#' @return A Julia matrix object that can be filled in-place
+#' @details See the Julia [documentation](https://tanaylab.github.io/DataAxesFormats.jl/v0.1.2/writers.html#DataAxesFormats.Writers.get_empty_dense_matrix!) for details.
+#' @export
+get_empty_dense_matrix <- function(daf, rows_axis, columns_axis, name, eltype, overwrite = FALSE) {
+    validate_daf_object(daf)
+    julia_type <- jl_R_to_julia_type(eltype)
+    result <- julia_call(
+        "DataAxesFormats.get_empty_dense_matrix!",
+        daf$jl_obj,
+        rows_axis,
+        columns_axis,
+        name,
+        julia_type,
+        overwrite = overwrite,
+        need_return = "Julia"
+    )
+    return(result)
+}
+
+#' Get an empty sparse matrix for filling
+#'
+#' Returns an empty sparse matrix for the specified axes and property, which can be filled
+#' in-place. This is useful for efficiently constructing large sparse matrices.
+#' After filling with `filled_empty_sparse_matrix`, the matrix is stored in the Daf object.
+#'
+#' @param daf A Daf object
+#' @param rows_axis Name of the rows axis
+#' @param columns_axis Name of the columns axis
+#' @param name Name of the matrix property
+#' @param eltype Element type for the matrix values (e.g., "Float64", "Int32")
+#' @param nnz Number of non-zero elements expected
+#' @param indtype Optional index type (e.g., "Int32"). If NULL, the default is used.
+#' @param overwrite Whether to overwrite if matrix already exists (FALSE by default)
+#' @return A Julia sparse matrix object that can be filled in-place
+#' @details See the Julia [documentation](https://tanaylab.github.io/DataAxesFormats.jl/v0.1.2/writers.html#DataAxesFormats.Writers.get_empty_sparse_matrix!) for details.
+#' @export
+get_empty_sparse_matrix <- function(daf, rows_axis, columns_axis, name, eltype, nnz, indtype = "Int64", overwrite = FALSE) {
+    validate_daf_object(daf)
+    julia_type <- jl_R_to_julia_type(eltype)
+    julia_indtype <- jl_R_to_julia_type(indtype)
+    result <- julia_call(
+        "DataAxesFormats.get_empty_sparse_matrix!",
+        daf$jl_obj,
+        rows_axis,
+        columns_axis,
+        name,
+        julia_type,
+        as.integer(nnz),
+        julia_indtype,
+        overwrite = overwrite,
+        need_return = "Julia"
+    )
+    return(result)
+}
+
+#' Signal that an empty sparse vector has been filled
+#'
+#' After obtaining an empty sparse vector via `get_empty_sparse_vector` and filling in
+#' its non-zero indices and values, call this function to finalize the vector and store
+#' it in the Daf object.
+#'
+#' @param daf A Daf object
+#' @param axis Name of the axis
+#' @param name Name of the vector property
+#' @param nzind Vector of non-zero indices (1-based)
+#' @param nzval Vector of non-zero values
+#' @return The Daf object (invisibly, for chaining operations)
+#' @details See the Julia [documentation](https://tanaylab.github.io/DataAxesFormats.jl/v0.1.2/writers.html#DataAxesFormats.Writers.filled_empty_sparse_vector!) for details.
+#' @export
+filled_empty_sparse_vector <- function(daf, axis, name, nzind, nzval) {
+    validate_daf_object(daf)
+    # Ensure vectors are passed as Julia Vectors, not scalars
+    # (JuliaCall converts single-element R vectors to Julia scalars)
+    jl_nzind <- to_julia_vector(as.integer(nzind))
+    jl_nzval <- to_julia_vector(as.numeric(nzval))
+    julia_call(
+        "DataAxesFormats.filled_empty_sparse_vector!",
+        daf$jl_obj,
+        axis,
+        name,
+        jl_nzind,
+        jl_nzval
+    )
+    invisible(daf)
+}
+
+#' Signal that an empty sparse matrix has been filled
+#'
+#' After obtaining an empty sparse matrix via `get_empty_sparse_matrix` and filling in
+#' its column pointers, row values, and non-zero values, call this function to finalize
+#' the matrix and store it in the Daf object.
+#'
+#' @param daf A Daf object
+#' @param rows_axis Name of the rows axis
+#' @param columns_axis Name of the columns axis
+#' @param name Name of the matrix property
+#' @param colptr Vector of column pointers (1-based)
+#' @param rowval Vector of row indices for non-zero values (1-based)
+#' @param nzval Vector of non-zero values
+#' @return The Daf object (invisibly, for chaining operations)
+#' @details See the Julia [documentation](https://tanaylab.github.io/DataAxesFormats.jl/v0.1.2/writers.html#DataAxesFormats.Writers.filled_empty_sparse_matrix!) for details.
+#' @export
+filled_empty_sparse_matrix <- function(daf, rows_axis, columns_axis, name, colptr, rowval, nzval) {
+    validate_daf_object(daf)
+    # Ensure vectors are passed as Julia Vectors, not scalars
+    # (JuliaCall converts single-element R vectors to Julia scalars)
+    jl_colptr <- to_julia_vector(as.integer(colptr))
+    jl_rowval <- to_julia_vector(as.integer(rowval))
+    jl_nzval <- to_julia_vector(as.numeric(nzval))
+    julia_call(
+        "DataAxesFormats.filled_empty_sparse_matrix!",
+        daf$jl_obj,
+        rows_axis,
+        columns_axis,
+        name,
+        jl_colptr,
+        jl_rowval,
+        jl_nzval
+    )
+    invisible(daf)
+}
+
+#' Get matrix version counter
+#'
+#' Returns the version counter for a matrix property, which is incremented when the matrix is modified.
+#' This is useful for cache invalidation.
+#'
+#' @param daf A Daf object
+#' @param rows_axis Name of the rows axis
+#' @param columns_axis Name of the columns axis
+#' @param name Name of the matrix property
+#' @return An integer version counter
+#' @details The version counter is incremented whenever the matrix data is modified.
+#'   This can be used to detect changes and invalidate caches.
+#' @export
+matrix_version_counter <- function(daf, rows_axis, columns_axis, name) {
+    validate_daf_object(daf)
+    julia_call("DataAxesFormats.matrix_version_counter", daf$jl_obj, rows_axis, columns_axis, name)
 }

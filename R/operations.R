@@ -6,6 +6,15 @@
 #' See the Julia [documentation](https://tanaylab.github.io/DataAxesFormats.jl/v0.1.2/operations.html) for details.
 #'
 
+#' Validate that dots only contains at most one JuliaObject (the piped query)
+#' @noRd
+validate_dots <- function(dots, fname) {
+    non_query <- Filter(function(x) !inherits(x, "JuliaObject"), dots)
+    if (length(non_query) > 0) {
+        cli::cli_abort("Unexpected extra arguments passed to {.code {fname}}")
+    }
+}
+
 # Mathematical operations
 
 #' @title Abs query operation
@@ -15,18 +24,25 @@
 #' data type is the unsigned version of the input data type. See the Julia
 #' [documentation](https://tanaylab.github.io/DataAxesFormats.jl/v0.1.2/operations.html#DataAxesFormats.Operations.Abs) for
 #' details.
+#' @param type Optional result type (e.g., "Float64"). If NULL, the default type is used.
 #' @param ... Additional arguments needed to support usage of pipe operator
 #' @return A query operation object that can be used in a query sequence
 #' @export
-Abs <- function(...) {
-    res <- extract_query_and_value(NULL, TRUE, list(...), required = FALSE)
-    if (length(list(...)) > 1 || (!is.null(res$query) && length(list(...)) > 1)) {
-        cli::cli_abort("{.code Abs} expects zero arguments or one query object")
-    }
+Abs <- function(type = NULL, ...) {
+    validate_dots(list(...), "Abs")
+    res <- extract_query_and_value(type, missing(type), list(...), required = FALSE)
 
-    ans <- julia_call("DataAxesFormats.Operations.Abs")
-    if (!is.null(res$query)) {
-        ans <- julia_call("|>", res$query, ans)
+    query <- res$query
+    type_val <- res$value
+
+    if (!is.null(type_val)) {
+        julia_type <- jl_R_to_julia_type(type_val)
+        ans <- julia_call("DataAxesFormats.Operations.Abs", type = julia_type)
+    } else {
+        ans <- julia_call("DataAxesFormats.Operations.Abs")
+    }
+    if (!is.null(query)) {
+        ans <- julia_call("|>", query, ans)
     }
     ans
 }
@@ -40,10 +56,19 @@ Abs <- function(...) {
 #' details.
 #' @param min Minimum value; values less than this will be set to this value
 #' @param max Maximum value; values greater than this will be set to this value
+#' @param type Optional result type (e.g., "Float64"). If NULL, the default type is used.
 #' @param ... Additional arguments needed to support usage of pipe operator
 #' @return A query operation object that can be used in a query sequence
 #' @export
-Clamp <- function(min = NULL, max = NULL, ...) {
+Clamp <- function(min = NULL, max = NULL, type = NULL, ...) {
+    # When piped with named min/max, the query object may land in 'type'
+    if (inherits(type, "JuliaObject")) {
+        extra_query <- type
+        type <- NULL
+    } else {
+        extra_query <- NULL
+    }
+
     min_res <- extract_query_and_value(min, missing(min), list(...), required = FALSE)
     max_res <- extract_query_and_value(max, missing(max), list(...), required = FALSE)
 
@@ -51,6 +76,9 @@ Clamp <- function(min = NULL, max = NULL, ...) {
     query <- min_res$query
     if (is.null(query)) {
         query <- max_res$query
+    }
+    if (is.null(query)) {
+        query <- extra_query
     }
 
     # Validation
@@ -65,7 +93,12 @@ Clamp <- function(min = NULL, max = NULL, ...) {
     max_res$value <- max_res$value %||% Inf
 
     # Pass arguments by name to Julia
-    result <- julia_call("DataAxesFormats.Operations.Clamp", min = min_res$value, max = max_res$value)
+    if (!is.null(type)) {
+        julia_type <- jl_R_to_julia_type(type)
+        result <- julia_call("DataAxesFormats.Operations.Clamp", min = min_res$value, max = max_res$value, type = julia_type)
+    } else {
+        result <- julia_call("DataAxesFormats.Operations.Clamp", min = min_res$value, max = max_res$value)
+    }
 
     if (!is.null(query)) {
         result <- julia_call("|>", query, result)
@@ -111,18 +144,25 @@ Convert <- function(type, ...) {
 #' each value to be the fraction of the total sum of all values in the data. See the Julia
 #' [documentation](https://tanaylab.github.io/DataAxesFormats.jl/v0.1.2/operations.html#DataAxesFormats.Operations.Fraction) for
 #' details.
+#' @param type Optional result type (e.g., "Float64"). If NULL, the default type is used.
 #' @param ... Additional arguments needed to support usage of pipe operator
 #' @return A query operation object that can be used in a query sequence
 #' @export
-Fraction <- function(...) {
-    res <- extract_query_and_value(NULL, TRUE, list(...), required = FALSE)
-    if (length(list(...)) > 1 || (!is.null(res$query) && length(list(...)) > 1)) {
-        cli::cli_abort("{.code Fraction} expects zero arguments or one query object")
-    }
+Fraction <- function(type = NULL, ...) {
+    validate_dots(list(...), "Fraction")
+    res <- extract_query_and_value(type, missing(type), list(...), required = FALSE)
 
-    ans <- julia_call("DataAxesFormats.Operations.Fraction")
-    if (!is.null(res$query)) {
-        ans <- julia_call("|>", res$query, ans)
+    query <- res$query
+    type_val <- res$value
+
+    if (!is.null(type_val)) {
+        julia_type <- jl_R_to_julia_type(type_val)
+        ans <- julia_call("DataAxesFormats.Operations.Fraction", type = julia_type)
+    } else {
+        ans <- julia_call("DataAxesFormats.Operations.Fraction")
+    }
+    if (!is.null(query)) {
+        ans <- julia_call("|>", query, ans)
     }
     ans
 }
@@ -136,10 +176,19 @@ Fraction <- function(...) {
 #' details.
 #' @param base Base of the logarithm (default is e ≈ 2.718)
 #' @param eps Small value added to avoid log(0) (default is 0)
+#' @param type Optional result type (e.g., "Float64"). If NULL, the default type is used.
 #' @param ... Additional arguments needed to support usage of pipe operator
 #' @return A query operation object that can be used in a query sequence
 #' @export
-Log <- function(base = exp(1), eps = 0, ...) {
+Log <- function(base = exp(1), eps = 0, type = NULL, ...) {
+    # When piped with named base/eps, the query object may land in 'type'
+    if (inherits(type, "JuliaObject")) {
+        extra_query <- type
+        type <- NULL
+    } else {
+        extra_query <- NULL
+    }
+
     base_res <- extract_query_and_value(base, missing(base), list(...), required = FALSE, default = exp(1))
     eps_res <- extract_query_and_value(eps, missing(eps), list(...), required = FALSE, default = 0)
 
@@ -147,6 +196,9 @@ Log <- function(base = exp(1), eps = 0, ...) {
     query <- base_res$query
     if (is.null(query)) {
         query <- eps_res$query
+    }
+    if (is.null(query)) {
+        query <- extra_query
     }
 
     # Validation
@@ -158,7 +210,12 @@ Log <- function(base = exp(1), eps = 0, ...) {
     }
 
     # Pass arguments by name to Julia
-    result <- julia_call("DataAxesFormats.Operations.Log", base = base_res$value, eps = eps_res$value)
+    if (!is.null(type)) {
+        julia_type <- jl_R_to_julia_type(type)
+        result <- julia_call("DataAxesFormats.Operations.Log", base = base_res$value, eps = eps_res$value, type = julia_type)
+    } else {
+        result <- julia_call("DataAxesFormats.Operations.Log", base = base_res$value, eps = eps_res$value)
+    }
 
     if (!is.null(query)) {
         result <- julia_call("|>", query, result)
@@ -173,18 +230,25 @@ Log <- function(base = exp(1), eps = 0, ...) {
 #' rounds each value to the nearest integer. See the Julia
 #' [documentation](https://tanaylab.github.io/DataAxesFormats.jl/v0.1.2/operations.html#DataAxesFormats.Operations.Round) for
 #' details.
+#' @param type Optional result type (e.g., "Float64"). If NULL, the default type is used.
 #' @param ... Additional arguments needed to support usage of pipe operator
 #' @return A query operation object that can be used in a query sequence
 #' @export
-Round <- function(...) {
-    res <- extract_query_and_value(NULL, TRUE, list(...), required = FALSE)
-    if (length(list(...)) > 1 || (!is.null(res$query) && length(list(...)) > 1)) {
-        cli::cli_abort("{.code Round} expects zero arguments or one query object")
-    }
+Round <- function(type = NULL, ...) {
+    validate_dots(list(...), "Round")
+    res <- extract_query_and_value(type, missing(type), list(...), required = FALSE)
 
-    ans <- julia_call("DataAxesFormats.Operations.Round")
-    if (!is.null(res$query)) {
-        ans <- julia_call("|>", res$query, ans)
+    query <- res$query
+    type_val <- res$value
+
+    if (!is.null(type_val)) {
+        julia_type <- jl_R_to_julia_type(type_val)
+        ans <- julia_call("DataAxesFormats.Operations.Round", type = julia_type)
+    } else {
+        ans <- julia_call("DataAxesFormats.Operations.Round")
+    }
+    if (!is.null(query)) {
+        ans <- julia_call("|>", query, ans)
     }
     ans
 }
@@ -304,18 +368,25 @@ Min <- function(...) {
 #' and a vector becomes a scalar (mean of all elements). See the Julia
 #' [documentation](https://tanaylab.github.io/DataAxesFormats.jl/v0.1.2/operations.html#DataAxesFormats.Operations.Mean) for
 #' details.
+#' @param type Optional result type (e.g., "Float64"). If NULL, the default type is used.
 #' @param ... Additional arguments needed to support usage of pipe operator
 #' @return A query operation object that can be used in a query sequence
 #' @export
-Mean <- function(...) {
-    res <- extract_query_and_value(NULL, TRUE, list(...), required = FALSE)
-    if (length(list(...)) > 1 || (!is.null(res$query) && length(list(...)) > 1)) {
-        cli::cli_abort("{.code Mean} expects zero arguments or one query object")
-    }
+Mean <- function(type = NULL, ...) {
+    validate_dots(list(...), "Mean")
+    res <- extract_query_and_value(type, missing(type), list(...), required = FALSE)
 
-    ans <- julia_call("DataAxesFormats.Operations.Mean")
-    if (!is.null(res$query)) {
-        ans <- julia_call("|>", res$query, ans)
+    query <- res$query
+    type_val <- res$value
+
+    if (!is.null(type_val)) {
+        julia_type <- jl_R_to_julia_type(type_val)
+        ans <- julia_call("DataAxesFormats.Operations.Mean", type = julia_type)
+    } else {
+        ans <- julia_call("DataAxesFormats.Operations.Mean")
+    }
+    if (!is.null(query)) {
+        ans <- julia_call("|>", query, ans)
     }
     ans
 }
@@ -327,18 +398,25 @@ Mean <- function(...) {
 #' and a vector becomes a scalar (median of all elements). See the Julia
 #' [documentation](https://tanaylab.github.io/DataAxesFormats.jl/v0.1.2/operations.html#DataAxesFormats.Operations.Median) for
 #' details.
+#' @param type Optional result type (e.g., "Float64"). If NULL, the default type is used.
 #' @param ... Additional arguments needed to support usage of pipe operator
 #' @return A query operation object that can be used in a query sequence
 #' @export
-Median <- function(...) {
-    res <- extract_query_and_value(NULL, TRUE, list(...), required = FALSE)
-    if (length(list(...)) > 1 || (!is.null(res$query) && length(list(...)) > 1)) {
-        cli::cli_abort("{.code Median} expects zero arguments or one query object")
-    }
+Median <- function(type = NULL, ...) {
+    validate_dots(list(...), "Median")
+    res <- extract_query_and_value(type, missing(type), list(...), required = FALSE)
 
-    ans <- julia_call("DataAxesFormats.Operations.Median")
-    if (!is.null(res$query)) {
-        ans <- julia_call("|>", res$query, ans)
+    query <- res$query
+    type_val <- res$value
+
+    if (!is.null(type_val)) {
+        julia_type <- jl_R_to_julia_type(type_val)
+        ans <- julia_call("DataAxesFormats.Operations.Median", type = julia_type)
+    } else {
+        ans <- julia_call("DataAxesFormats.Operations.Median")
+    }
+    if (!is.null(query)) {
+        ans <- julia_call("|>", query, ans)
     }
     ans
 }
@@ -352,11 +430,26 @@ Median <- function(...) {
 #' [documentation](https://tanaylab.github.io/DataAxesFormats.jl/v0.1.2/operations.html#DataAxesFormats.Operations.Quantile) for
 #' details.
 #' @param p Quantile to compute (between 0 and 1). Default is 0.5 (median).
+#' @param type Optional result type (e.g., "Float64"). If NULL, the default type is used.
 #' @param ... Additional arguments needed to support usage of pipe operator
 #' @return A query operation object that can be used in a query sequence
 #' @export
-Quantile <- function(p = 0.5, ...) {
+Quantile <- function(p = 0.5, type = NULL, ...) {
+    # When piped with named p, the query object may land in 'type'
+    if (inherits(type, "JuliaObject")) {
+        extra_query <- type
+        type <- NULL
+    } else {
+        extra_query <- NULL
+    }
+
     res <- extract_query_and_value(p, missing(p), list(...), required = FALSE, default = 0.5)
+
+    # Also check extra_query
+    query <- res$query
+    if (is.null(query)) {
+        query <- extra_query
+    }
 
     # Validation
     if (!is.numeric(res$value) || length(res$value) != 1 || res$value < 0 || res$value > 1) {
@@ -364,10 +457,15 @@ Quantile <- function(p = 0.5, ...) {
     }
 
     # Pass argument by name to Julia
-    result <- julia_call("DataAxesFormats.Operations.Quantile", p = res$value)
+    if (!is.null(type)) {
+        julia_type <- jl_R_to_julia_type(type)
+        result <- julia_call("DataAxesFormats.Operations.Quantile", p = res$value, type = julia_type)
+    } else {
+        result <- julia_call("DataAxesFormats.Operations.Quantile", p = res$value)
+    }
 
-    if (!is.null(res$query)) {
-        result <- julia_call("|>", res$query, result)
+    if (!is.null(query)) {
+        result <- julia_call("|>", query, result)
     }
     return(result)
 }
@@ -379,18 +477,25 @@ Quantile <- function(p = 0.5, ...) {
 #' and a vector becomes a scalar (sum of all elements). See the Julia
 #' [documentation](https://tanaylab.github.io/DataAxesFormats.jl/v0.1.2/operations.html#DataAxesFormats.Operations.Sum) for
 #' details.
+#' @param type Optional result type (e.g., "Float64"). If NULL, the default type is used.
 #' @param ... Additional arguments needed to support usage of pipe operator
 #' @return A query operation object that can be used in a query sequence
 #' @export
-Sum <- function(...) {
-    res <- extract_query_and_value(NULL, TRUE, list(...), required = FALSE)
-    if (length(list(...)) > 1 || (!is.null(res$query) && length(list(...)) > 1)) {
-        cli::cli_abort("{.code Sum} expects zero arguments or one query object")
-    }
+Sum <- function(type = NULL, ...) {
+    validate_dots(list(...), "Sum")
+    res <- extract_query_and_value(type, missing(type), list(...), required = FALSE)
 
-    ans <- julia_call("DataAxesFormats.Operations.Sum")
-    if (!is.null(res$query)) {
-        ans <- julia_call("|>", res$query, ans)
+    query <- res$query
+    type_val <- res$value
+
+    if (!is.null(type_val)) {
+        julia_type <- jl_R_to_julia_type(type_val)
+        ans <- julia_call("DataAxesFormats.Operations.Sum", type = julia_type)
+    } else {
+        ans <- julia_call("DataAxesFormats.Operations.Sum")
+    }
+    if (!is.null(query)) {
+        ans <- julia_call("|>", query, ans)
     }
     ans
 }
@@ -403,18 +508,25 @@ Sum <- function(...) {
 #' (standard deviation of all elements). See the Julia
 #' [documentation](https://tanaylab.github.io/DataAxesFormats.jl/v0.1.2/operations.html#DataAxesFormats.Operations.Std) for
 #' details.
+#' @param type Optional result type (e.g., "Float64"). If NULL, the default type is used.
 #' @param ... Additional arguments needed to support usage of pipe operator
 #' @return A query operation object that can be used in a query sequence
 #' @export
-Std <- function(...) {
-    res <- extract_query_and_value(NULL, TRUE, list(...), required = FALSE)
-    if (length(list(...)) > 1 || (!is.null(res$query) && length(list(...)) > 1)) {
-        cli::cli_abort("{.code Std} expects zero arguments or one query object")
-    }
+Std <- function(type = NULL, ...) {
+    validate_dots(list(...), "Std")
+    res <- extract_query_and_value(type, missing(type), list(...), required = FALSE)
 
-    ans <- julia_call("DataAxesFormats.Operations.Std")
-    if (!is.null(res$query)) {
-        ans <- julia_call("|>", res$query, ans)
+    query <- res$query
+    type_val <- res$value
+
+    if (!is.null(type_val)) {
+        julia_type <- jl_R_to_julia_type(type_val)
+        ans <- julia_call("DataAxesFormats.Operations.Std", type = julia_type)
+    } else {
+        ans <- julia_call("DataAxesFormats.Operations.Std")
+    }
+    if (!is.null(query)) {
+        ans <- julia_call("|>", query, ans)
     }
     ans
 }
@@ -426,18 +538,50 @@ Std <- function(...) {
 #' of the data: a matrix becomes a vector (normalized standard deviation of each column),
 #' and a vector becomes a scalar (normalized standard deviation of all elements). See the Julia
 #' [documentation](https://tanaylab.github.io/DataAxesFormats.jl/v0.1.2/operations.html#DataAxesFormats.Operations.Std) for details.
+#' @param type Optional result type (e.g., "Float64"). If NULL, the default type is used.
+#' @param eps Optional small value added to the mean before dividing. If NULL, the default is used.
 #' @param ... Additional arguments needed to support usage of pipe operator
 #' @return A query operation object that can be used in a query sequence
 #' @export
-StdN <- function(...) {
-    res <- extract_query_and_value(NULL, TRUE, list(...), required = FALSE)
-    if (length(list(...)) > 1 || (!is.null(res$query) && length(list(...)) > 1)) {
-        cli::cli_abort("{.code StdN} expects zero arguments or one query object")
+StdN <- function(type = NULL, eps = NULL, ...) {
+    validate_dots(list(...), "StdN")
+    # When piped with named type, the query object may land in 'eps'
+    if (inherits(eps, "JuliaObject")) {
+        extra_query <- eps
+        eps <- NULL
+    } else {
+        extra_query <- NULL
+    }
+    # Validate: if both type and eps are non-NULL non-JuliaObject, type must be a character string
+    if (!is.null(type) && !inherits(type, "JuliaObject") && !is.character(type)) {
+        if (!is.null(eps)) {
+            cli::cli_abort("Unexpected extra arguments passed to {.code StdN}")
+        }
     }
 
-    ans <- julia_call("DataAxesFormats.Operations.StdN")
-    if (!is.null(res$query)) {
-        ans <- julia_call("|>", res$query, ans)
+    res <- extract_query_and_value(type, missing(type), list(...), required = FALSE)
+
+    query <- res$query
+    if (is.null(query)) {
+        query <- extra_query
+    }
+    type_val <- res$value
+
+    kwargs <- list()
+    if (!is.null(type_val)) {
+        kwargs[["type"]] <- jl_R_to_julia_type(type_val)
+    }
+    if (!is.null(eps)) {
+        kwargs[["eps"]] <- eps
+    }
+
+    if (length(kwargs) > 0) {
+        ans <- do.call(julia_call, c(list("DataAxesFormats.Operations.StdN"), kwargs))
+    } else {
+        ans <- julia_call("DataAxesFormats.Operations.StdN")
+    }
+    if (!is.null(query)) {
+        ans <- julia_call("|>", query, ans)
     }
     ans
 }
@@ -450,18 +594,25 @@ StdN <- function(...) {
 #' (variance of all elements). See the Julia
 #' [documentation](https://tanaylab.github.io/DataAxesFormats.jl/v0.1.2/operations.html#DataAxesFormats.Operations.Var) for
 #' details.
+#' @param type Optional result type (e.g., "Float64"). If NULL, the default type is used.
 #' @param ... Additional arguments needed to support usage of pipe operator
 #' @return A query operation object that can be used in a query sequence
 #' @export
-Var <- function(...) {
-    res <- extract_query_and_value(NULL, TRUE, list(...), required = FALSE)
-    if (length(list(...)) > 1 || (!is.null(res$query) && length(list(...)) > 1)) {
-        cli::cli_abort("{.code Var} expects zero arguments or one query object")
-    }
+Var <- function(type = NULL, ...) {
+    validate_dots(list(...), "Var")
+    res <- extract_query_and_value(type, missing(type), list(...), required = FALSE)
 
-    ans <- julia_call("DataAxesFormats.Operations.Var")
-    if (!is.null(res$query)) {
-        ans <- julia_call("|>", res$query, ans)
+    query <- res$query
+    type_val <- res$value
+
+    if (!is.null(type_val)) {
+        julia_type <- jl_R_to_julia_type(type_val)
+        ans <- julia_call("DataAxesFormats.Operations.Var", type = julia_type)
+    } else {
+        ans <- julia_call("DataAxesFormats.Operations.Var")
+    }
+    if (!is.null(query)) {
+        ans <- julia_call("|>", query, ans)
     }
     ans
 }
@@ -474,16 +625,148 @@ Var <- function(...) {
 #' a scalar (normalized variance of all elements). See the Julia
 #' [documentation](https://tanaylab.github.io/DataAxesFormats.jl/v0.1.2/operations.html#DataAxesFormats.Operations.Var)
 #' for details.
+#' @param type Optional result type (e.g., "Float64"). If NULL, the default type is used.
+#' @param eps Optional small value added to the mean before dividing. If NULL, the default is used.
 #' @param ... Additional arguments needed to support usage of pipe operator
 #' @return A query operation object that can be used in a query sequence
 #' @export
-VarN <- function(...) {
-    res <- extract_query_and_value(NULL, TRUE, list(...), required = FALSE)
-    if (length(list(...)) > 1 || (!is.null(res$query) && length(list(...)) > 1)) {
-        cli::cli_abort("{.code VarN} expects zero arguments or one query object")
+VarN <- function(type = NULL, eps = NULL, ...) {
+    validate_dots(list(...), "VarN")
+    # When piped with named type, the query object may land in 'eps'
+    if (inherits(eps, "JuliaObject")) {
+        extra_query <- eps
+        eps <- NULL
+    } else {
+        extra_query <- NULL
+    }
+    # Validate: if both type and eps are non-NULL non-JuliaObject, type must be a character string
+    if (!is.null(type) && !inherits(type, "JuliaObject") && !is.character(type)) {
+        if (!is.null(eps)) {
+            cli::cli_abort("Unexpected extra arguments passed to {.code VarN}")
+        }
     }
 
-    ans <- julia_call("DataAxesFormats.Operations.VarN")
+    res <- extract_query_and_value(type, missing(type), list(...), required = FALSE)
+
+    query <- res$query
+    if (is.null(query)) {
+        query <- extra_query
+    }
+    type_val <- res$value
+
+    kwargs <- list()
+    if (!is.null(type_val)) {
+        kwargs[["type"]] <- jl_R_to_julia_type(type_val)
+    }
+    if (!is.null(eps)) {
+        kwargs[["eps"]] <- eps
+    }
+
+    if (length(kwargs) > 0) {
+        ans <- do.call(julia_call, c(list("DataAxesFormats.Operations.VarN"), kwargs))
+    } else {
+        ans <- julia_call("DataAxesFormats.Operations.VarN")
+    }
+    if (!is.null(query)) {
+        ans <- julia_call("|>", query, ans)
+    }
+    ans
+}
+
+#' @title Count query operation
+#' @description
+#' Reduction operation that counts the non-zero elements. This operation reduces the
+#' dimensionality of the data: a matrix becomes a vector (count of non-zero elements in each column),
+#' and a vector becomes a scalar (count of non-zero elements). See the Julia
+#' [documentation](https://tanaylab.github.io/DataAxesFormats.jl/v0.1.2/operations.html#DataAxesFormats.Operations.Count) for
+#' details.
+#' @param type Optional result type (e.g., "Float64"). If NULL, the default type is used.
+#' @param ... Additional arguments needed to support usage of pipe operator
+#' @return A query operation object that can be used in a query sequence
+#' @export
+Count <- function(type = NULL, ...) {
+    res <- extract_query_and_value(type, missing(type), list(...), required = FALSE)
+
+    query <- res$query
+    type_val <- res$value
+
+    if (!is.null(type_val)) {
+        julia_type <- jl_R_to_julia_type(type_val)
+        ans <- julia_call("DataAxesFormats.Operations.Count", type = julia_type)
+    } else {
+        ans <- julia_call("DataAxesFormats.Operations.Count")
+    }
+    if (!is.null(query)) {
+        ans <- julia_call("|>", query, ans)
+    }
+    ans
+}
+
+#' @title GeoMean query operation
+#' @description
+#' Reduction operation that returns the geometric mean of the values. This operation reduces the
+#' dimensionality of the data: a matrix becomes a vector (geometric mean of each column),
+#' and a vector becomes a scalar (geometric mean of all elements). See the Julia
+#' [documentation](https://tanaylab.github.io/DataAxesFormats.jl/v0.1.2/operations.html#DataAxesFormats.Operations.GeoMean) for
+#' details.
+#' @param type Optional result type (e.g., "Float64"). If NULL, the default type is used.
+#' @param eps Optional small value added before computing the geometric mean. If NULL, the default is used.
+#' @param ... Additional arguments needed to support usage of pipe operator
+#' @return A query operation object that can be used in a query sequence
+#' @export
+GeoMean <- function(type = NULL, eps = NULL, ...) {
+    # When piped with named type, the query object may land in 'eps'
+    if (inherits(eps, "JuliaObject")) {
+        extra_query <- eps
+        eps <- NULL
+    } else {
+        extra_query <- NULL
+    }
+
+    res <- extract_query_and_value(type, missing(type), list(...), required = FALSE)
+
+    query <- res$query
+    if (is.null(query)) {
+        query <- extra_query
+    }
+    type_val <- res$value
+
+    kwargs <- list()
+    if (!is.null(type_val)) {
+        kwargs[["type"]] <- jl_R_to_julia_type(type_val)
+    }
+    if (!is.null(eps)) {
+        kwargs[["eps"]] <- eps
+    }
+
+    if (length(kwargs) > 0) {
+        ans <- do.call(julia_call, c(list("DataAxesFormats.Operations.GeoMean"), kwargs))
+    } else {
+        ans <- julia_call("DataAxesFormats.Operations.GeoMean")
+    }
+    if (!is.null(query)) {
+        ans <- julia_call("|>", query, ans)
+    }
+    ans
+}
+
+#' @title Mode query operation
+#' @description
+#' Reduction operation that returns the most common value. This operation reduces the
+#' dimensionality of the data: a matrix becomes a vector (mode of each column),
+#' and a vector becomes a scalar (mode of all elements). See the Julia
+#' [documentation](https://tanaylab.github.io/DataAxesFormats.jl/v0.1.2/operations.html#DataAxesFormats.Operations.Mode) for
+#' details.
+#' @param ... Additional arguments needed to support usage of pipe operator
+#' @return A query operation object that can be used in a query sequence
+#' @export
+Mode <- function(...) {
+    res <- extract_query_and_value(NULL, TRUE, list(...), required = FALSE)
+    if (length(list(...)) > 1 || (!is.null(res$query) && length(list(...)) > 1)) {
+        cli::cli_abort("{.code Mode} expects zero arguments or one query object")
+    }
+
+    ans <- julia_call("DataAxesFormats.Operations.Mode")
     if (!is.null(res$query)) {
         ans <- julia_call("|>", res$query, ans)
     }

@@ -38,6 +38,57 @@ ALL_VECTORS <- c("*", "*")
 #' @export
 ALL_MATRICES <- c("*", "*", "*")
 
+#' View all axes specifier
+#'
+#' A pair to use in the `axes` parameter of `viewer` to expose all base axes with their original names.
+#' See the Julia documentation for details.
+#'
+#' @format A named list representing the pair ALL_AXES => "="
+#' @references \url{https://tanaylab.github.io/DataAxesFormats.jl/v0.1.2/views.html#DataAxesFormats.Views.VIEW_ALL_AXES}
+#' @export
+VIEW_ALL_AXES <- stats::setNames(list("="), ALL_AXES)
+
+#' View all scalars specifier
+#'
+#' A pair to use in the `data` parameter of `viewer` to expose all base scalars with their original names.
+#' See the Julia documentation for details.
+#'
+#' @format A named list representing the pair ALL_SCALARS => "="
+#' @references \url{https://tanaylab.github.io/DataAxesFormats.jl/v0.1.2/views.html#DataAxesFormats.Views.VIEW_ALL_SCALARS}
+#' @export
+VIEW_ALL_SCALARS <- stats::setNames(list("="), ALL_SCALARS)
+
+#' View all vectors specifier
+#'
+#' A pair to use in the `data` parameter of `viewer` to expose all base vectors with their original names.
+#' See the Julia documentation for details.
+#'
+#' @format A named list representing the pair ALL_VECTORS => "="
+#' @references \url{https://tanaylab.github.io/DataAxesFormats.jl/v0.1.2/views.html#DataAxesFormats.Views.VIEW_ALL_VECTORS}
+#' @export
+VIEW_ALL_VECTORS <- stats::setNames(list("="), paste(ALL_VECTORS, collapse = ","))
+
+#' View all matrices specifier
+#'
+#' A pair to use in the `data` parameter of `viewer` to expose all base matrices with their original names.
+#' See the Julia documentation for details.
+#'
+#' @format A named list representing the pair ALL_MATRICES => "="
+#' @references \url{https://tanaylab.github.io/DataAxesFormats.jl/v0.1.2/views.html#DataAxesFormats.Views.VIEW_ALL_MATRICES}
+#' @export
+VIEW_ALL_MATRICES <- stats::setNames(list("="), paste(ALL_MATRICES, collapse = ","))
+
+#' View all data specifier
+#'
+#' A list of pairs to use in the `data` parameter of `viewer` to expose all base data
+#' (scalars, vectors, and matrices) with their original names.
+#' See the Julia documentation for details.
+#'
+#' @format A list containing VIEW_ALL_SCALARS, VIEW_ALL_VECTORS, and VIEW_ALL_MATRICES
+#' @references \url{https://tanaylab.github.io/DataAxesFormats.jl/v0.1.2/views.html#DataAxesFormats.Views.VIEW_ALL_DATA}
+#' @export
+VIEW_ALL_DATA <- list(VIEW_ALL_SCALARS, VIEW_ALL_VECTORS, VIEW_ALL_MATRICES)
+
 #' @title Create a read-only view of a Daf data set
 #'
 #' @description Wrap a Daf data set with a read-only DafView

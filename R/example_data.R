@@ -29,3 +29,19 @@ example_metacells_daf <- function(name = "metacells!") {
     jl_obj <- julia_call("DataAxesFormats.ExampleData.example_metacells_daf", name = name)
     Daf(jl_obj)
 }
+
+#' Load example chain data into a Daf object
+#'
+#' @param name Name for the Daf object (default: "chain!")
+#' @return A Daf object containing chained example cells and metacells data
+#' @details This function creates a chain of example cells and metacells data.
+#'   See the Julia [documentation](https://tanaylab.github.io/DataAxesFormats.jl/v0.1.2/example_data.html) for details.
+#' @export
+example_chain_daf <- function(name = "chain!") {
+    if (!is.character(name)) {
+        cli::cli_abort("{.field name} must be a character string")
+    }
+
+    jl_obj <- julia_call("DataAxesFormats.ExampleData.example_chain_daf", name = name)
+    Daf(jl_obj)
+}
