@@ -42,7 +42,7 @@ jobs:
           version: '1.11'
 
       - name: Cache Julia packages
-        uses: actions/cache@v4
+        uses: actions/cache@v5
         with:
           path: ~/.julia
           key: ${{ runner.os }}-R${{ steps.setup-r.outputs.installed-r-version }}-julia-${{ hashFiles('**/Project.toml') }}-${{ hashFiles('**/Manifest.toml') }}
