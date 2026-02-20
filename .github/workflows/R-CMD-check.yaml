@@ -117,7 +117,7 @@ jobs:
 
           # Initialize Julia/DAF
           tryCatch({
-            setup_daf(force_dev = TRUE)
+            setup_daf(force_dev = TRUE, confirm_install = TRUE)
           }, error = function(e) {
             message("Julia/JuliaCall initialization failed: ", e$message)
             quit(status = 1)
