@@ -16,3 +16,5 @@
 ^PACKAGES\.gz$
 ^PACKAGES\.rds$
 ^timings\.tab$
+^.*\.Rcheck$
+^.*_[0-9].*\.tar\.gz$

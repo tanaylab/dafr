@@ -1,3 +1,17 @@
 dev
 docs
 dafr.code-workspace
+
+# Local agent/editor state
+.a5c/
+.claude/
+
+# R package build/check artifacts
+*.Rcheck/
+*_*.tar.gz
+Library/
+Outputs/
+PACKAGES
+PACKAGES.gz
+PACKAGES.rds
+timings.tab
