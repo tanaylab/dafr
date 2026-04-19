@@ -1,12 +1,12 @@
-new_tempfile <- function(ext = "bin") {
+new_tempfile <- function(ext = "bin", envir = parent.frame()) {
   f <- tempfile(fileext = paste0(".", ext))
-  withr::defer_parent(unlink(f, force = TRUE))
+  withr::defer(unlink(f, force = TRUE), envir = envir)
   f
 }
 
-new_tempdir <- function() {
+new_tempdir <- function(envir = parent.frame()) {
   d <- tempfile()
   dir.create(d)
-  withr::defer_parent(unlink(d, recursive = TRUE, force = TRUE))
+  withr::defer(unlink(d, recursive = TRUE, force = TRUE), envir = envir)
   d
 }

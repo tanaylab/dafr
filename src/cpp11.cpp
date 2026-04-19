@@ -26,9 +26,17 @@ extern "C" SEXP _dafr_mmap_lgl_altrep_cpp(SEXP path, SEXP length_double) {
     return cpp11::as_sexp(mmap_lgl_altrep_cpp(cpp11::as_cpp<cpp11::decay_t<std::string>>(path), cpp11::as_cpp<cpp11::decay_t<double>>(length_double)));
   END_CPP11
 }
+// altrep_mmap_r.cpp
+bool is_altrep_cpp(SEXP x);
+extern "C" SEXP _dafr_is_altrep_cpp(SEXP x) {
+  BEGIN_CPP11
+    return cpp11::as_sexp(is_altrep_cpp(cpp11::as_cpp<cpp11::decay_t<SEXP>>(x)));
+  END_CPP11
+}
 
 extern "C" {
 static const R_CallMethodDef CallEntries[] = {
+    {"_dafr_is_altrep_cpp",        (DL_FUNC) &_dafr_is_altrep_cpp,        1},
     {"_dafr_mmap_int_altrep_cpp",  (DL_FUNC) &_dafr_mmap_int_altrep_cpp,  2},
     {"_dafr_mmap_lgl_altrep_cpp",  (DL_FUNC) &_dafr_mmap_lgl_altrep_cpp,  2},
     {"_dafr_mmap_real_altrep_cpp", (DL_FUNC) &_dafr_mmap_real_altrep_cpp, 2},

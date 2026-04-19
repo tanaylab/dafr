@@ -11,3 +11,7 @@ mmap_int_altrep_cpp <- function(path, length_double) {
 mmap_lgl_altrep_cpp <- function(path, length_double) {
   .Call(`_dafr_mmap_lgl_altrep_cpp`, path, length_double)
 }
+
+is_altrep_cpp <- function(x) {
+  .Call(`_dafr_is_altrep_cpp`, x)
+}

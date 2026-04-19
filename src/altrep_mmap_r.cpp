@@ -45,3 +45,9 @@ SEXP mmap_lgl_altrep_cpp(std::string path, double length_double) {
     }
     return dafr::make_mmap_lgl_altrep(region, length);
 }
+
+// Test helper: returns TRUE iff x is an ALTREP SEXP.
+[[cpp11::register]]
+bool is_altrep_cpp(SEXP x) {
+    return ALTREP(x) != 0;
+}

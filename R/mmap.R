@@ -14,9 +14,16 @@ mmap_dgCMatrix <- function(x_path, i_path, p_path, nrow, ncol, nnz,
   stopifnot(file.exists(x_path), file.exists(i_path), file.exists(p_path))
   stopifnot(is.numeric(nrow), is.numeric(ncol), is.numeric(nnz))
 
+  if (!is.null(dimnames)) {
+    stopifnot(is.list(dimnames), length(dimnames) == 2L)
+  }
+
   x_slot <- mmap_real(x_path, nnz)
   i_slot <- mmap_int(i_path,  nnz)
   p_slot <- mmap_int(p_path,  as.integer(ncol) + 1L)
+
+  # Cheap CSC invariant check: p[ncol+1] must equal nnz.
+  stopifnot(p_slot[as.integer(ncol) + 1L] == nnz)
 
   m <- methods::new("dgCMatrix",
     x        = x_slot,

@@ -8,13 +8,8 @@ make_test_dgC_files <- function() {
   m <- methods::as(dense, "CsparseMatrix")  # dgCMatrix
   stopifnot(inherits(m, "dgCMatrix"))
 
-  # Create a tempdir whose cleanup is scoped to the calling test_that frame.
-  # (Cannot use new_tempdir() here: its withr::defer_parent() defers to this
-  # helper's own frame, which would unlink the dir before the test returns.)
-  d <- tempfile()
-  dir.create(d)
-  withr::defer(unlink(d, recursive = TRUE, force = TRUE),
-               envir = parent.frame())
+  # Pass parent.frame() because this fixture is nested inside the test_that caller.
+  d <- new_tempdir(envir = parent.frame())
   writeBin(m@x, file.path(d, "x.bin"), size = 8L)
   writeBin(as.integer(m@i), file.path(d, "i.bin"), size = 4L)  # 0-based
   writeBin(as.integer(m@p), file.path(d, "p.bin"), size = 4L)
@@ -78,4 +73,68 @@ test_that("element assignment triggers materialization, doesn't crash", {
     nrow = 10, ncol = 10, nnz = tf$nnz
   )
   expect_silent(m[1, 1] <- 99)
+})
+
+test_that("slots remain ALTREP after dgCMatrix construction (POC anchor)", {
+  tf <- make_test_dgC_files()
+  m <- mmap_dgCMatrix(
+    x_path = file.path(tf$dir, "x.bin"),
+    i_path = file.path(tf$dir, "i.bin"),
+    p_path = file.path(tf$dir, "p.bin"),
+    nrow   = 10, ncol = 10, nnz = tf$nnz
+  )
+  expect_true(is_altrep(m@x))
+  expect_true(is_altrep(m@i))
+  expect_true(is_altrep(m@p))
+})
+
+test_that("slots remain ALTREP after Matrix::colSums (read-only path)", {
+  tf <- make_test_dgC_files()
+  m <- mmap_dgCMatrix(
+    x_path = file.path(tf$dir, "x.bin"),
+    i_path = file.path(tf$dir, "i.bin"),
+    p_path = file.path(tf$dir, "p.bin"),
+    nrow   = 10, ncol = 10, nnz = tf$nnz
+  )
+  Matrix::colSums(m)
+  expect_true(is_altrep(m@x))
+  expect_true(is_altrep(m@i))
+  expect_true(is_altrep(m@p))
+})
+
+test_that("mmap_dgCMatrix accepts and preserves dimnames", {
+  tf <- make_test_dgC_files()
+  rn <- paste0("r", 1:10)
+  cn <- paste0("c", 1:10)
+  m <- mmap_dgCMatrix(
+    x_path = file.path(tf$dir, "x.bin"),
+    i_path = file.path(tf$dir, "i.bin"),
+    p_path = file.path(tf$dir, "p.bin"),
+    nrow   = 10, ncol = 10, nnz = tf$nnz,
+    dimnames = list(rn, cn)
+  )
+  expect_equal(rownames(m), rn)
+  expect_equal(colnames(m), cn)
+})
+
+test_that("mmap_dgCMatrix rejects invalid dimnames", {
+  tf <- make_test_dgC_files()
+  expect_error(mmap_dgCMatrix(
+    x_path = file.path(tf$dir, "x.bin"),
+    i_path = file.path(tf$dir, "i.bin"),
+    p_path = file.path(tf$dir, "p.bin"),
+    nrow   = 10, ncol = 10, nnz = tf$nnz,
+    dimnames = "not a list"
+  ), "is.list")
+})
+
+test_that("mmap_dgCMatrix rejects wrong nnz (violates p[ncol+1] == nnz)", {
+  tf <- make_test_dgC_files()
+  # Pass nnz that doesn't match the CSC invariant from p
+  expect_error(mmap_dgCMatrix(
+    x_path = file.path(tf$dir, "x.bin"),
+    i_path = file.path(tf$dir, "i.bin"),
+    p_path = file.path(tf$dir, "p.bin"),
+    nrow   = 10, ncol = 10, nnz = tf$nnz + 100  # wrong — but file has nnz bytes worth of x
+  ))
 })
