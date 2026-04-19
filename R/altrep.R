@@ -1,7 +1,16 @@
-#' Open a binary file as a read-only mmap-backed numeric vector.
+#' Open a binary file as a read-only mmap-backed vector.
 #'
-#' Length is the number of `double` elements; the file must contain at least
-#' `length * 8` bytes.
+#' `mmap_real` opens a file of IEEE 754 doubles, `mmap_int` opens int32,
+#' `mmap_lgl` opens int32 interpreted as R logicals. `length` is the
+#' element count; the file must contain at least `length * sizeof(element)`
+#' bytes.
+#'
+#' Length is passed through as `double` to accommodate `R_xlen_t`; values
+#' above 2^53 lose precision. Pass only integer-valued doubles.
+#'
+#' @param path Path to the binary file.
+#' @param length Number of elements to map.
+#' @return An ALTREP-backed R vector sharing the file's memory.
 #' @export
 mmap_real <- function(path, length) {
   stopifnot(file.exists(path), is.numeric(length), length >= 0)

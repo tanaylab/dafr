@@ -4,7 +4,7 @@
 \alias{mmap_real}
 \alias{mmap_int}
 \alias{mmap_lgl}
-\title{Open a binary file as a read-only mmap-backed numeric vector.}
+\title{Open a binary file as a read-only mmap-backed vector.}
 \usage{
 mmap_real(path, length)
 
@@ -12,7 +12,21 @@ mmap_int(path, length)
 
 mmap_lgl(path, length)
 }
+\arguments{
+\item{path}{Path to the binary file.}
+
+\item{length}{Number of elements to map.}
+}
+\value{
+An ALTREP-backed R vector sharing the file's memory.
+}
 \description{
-Length is the number of \code{double} elements; the file must contain at least
-\code{length * 8} bytes.
+\code{mmap_real} opens a file of IEEE 754 doubles, \code{mmap_int} opens int32,
+\code{mmap_lgl} opens int32 interpreted as R logicals. \code{length} is the
+element count; the file must contain at least \code{length * sizeof(element)}
+bytes.
+}
+\details{
+Length is passed through as \code{double} to accommodate \code{R_xlen_t}; values
+above 2^53 lose precision. Pass only integer-valued doubles.
 }
