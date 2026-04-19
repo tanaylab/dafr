@@ -7,6 +7,17 @@
 #include <memory>
 #include <cstring>
 
+// ---- Thread-safety ----
+//
+// R's ALTREP API is not thread-safe. The methods in this file read and
+// write the ALTREP's data1/data2 slots in place (see writeable Dataptr,
+// which materializes by swapping data1 -> R_NilValue and data2 -> a
+// freshly allocated vector). Callers MUST ensure that ALTREP methods for
+// a given SEXP are never invoked from multiple threads concurrently.
+// In particular, if a parallel kernel (OpenMP etc.) needs writable
+// access, force materialization in the serial region before entering
+// the parallel section.
+
 namespace dafr {
 
 // The ALTREP classes; populated in init_altrep_mmap().
@@ -36,6 +47,9 @@ static SEXP wrap_region(std::shared_ptr<MmapRegion> region, R_xlen_t length) {
     auto *holder = new std::shared_ptr<MmapRegion>(std::move(region));
     SEXP len_sxp = PROTECT(Rf_ScalarReal(static_cast<double>(length)));
     SEXP xptr = PROTECT(R_MakeExternalPtr(holder, R_NilValue, len_sxp));
+    // onexit=TRUE is safe: region_finalizer guards on holder non-null, so
+    // even if the finalizer is invoked at R exit after a prior GC-triggered
+    // run has already deleted the holder, it's a harmless no-op.
     R_RegisterCFinalizerEx(xptr, region_finalizer, TRUE);
     UNPROTECT(2);
     return xptr;
@@ -105,8 +119,11 @@ static double mmap_real_elt(SEXP x, R_xlen_t i) {
 
 static R_xlen_t mmap_real_get_region(SEXP x, R_xlen_t start, R_xlen_t size, double *buf) {
     const double *p = static_cast<const double*>(mmap_real_dataptr_or_null(x));
-    R_xlen_t avail = mmap_real_length(x) - start;
+    R_xlen_t len = mmap_real_length(x);
+    if (start < 0 || start >= len) return 0;
+    R_xlen_t avail = len - start;
     R_xlen_t n = (size < avail) ? size : avail;
+    if (n <= 0) return 0;
     std::memcpy(buf, p + start, n * sizeof(double));
     return n;
 }
@@ -187,8 +204,11 @@ static const void *mmap_int_dataptr_or_null(SEXP x) {
 }
 static R_xlen_t mmap_int_get_region(SEXP x, R_xlen_t start, R_xlen_t size, int *buf) {
     const int *p = static_cast<const int*>(mmap_int_dataptr_or_null(x));
-    R_xlen_t avail = mmap_int_length(x) - start;
+    R_xlen_t len = mmap_int_length(x);
+    if (start < 0 || start >= len) return 0;
+    R_xlen_t avail = len - start;
     R_xlen_t n = (size < avail) ? size : avail;
+    if (n <= 0) return 0;
     std::memcpy(buf, p + start, n * sizeof(int));
     return n;
 }
@@ -259,8 +279,11 @@ static const void *mmap_lgl_dataptr_or_null(SEXP x) {
 }
 static R_xlen_t mmap_lgl_get_region(SEXP x, R_xlen_t start, R_xlen_t size, int *buf) {
     const int *p = static_cast<const int*>(mmap_lgl_dataptr_or_null(x));
-    R_xlen_t avail = mmap_lgl_length(x) - start;
+    R_xlen_t len = mmap_lgl_length(x);
+    if (start < 0 || start >= len) return 0;
+    R_xlen_t avail = len - start;
     R_xlen_t n = (size < avail) ? size : avail;
+    if (n <= 0) return 0;
     std::memcpy(buf, p + start, n * sizeof(int));
     return n;
 }
