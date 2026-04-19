@@ -1,0 +1,43 @@
+Package: dafr
+Title: Multi-Dimensional Data Along Arbitrary Axes
+Version: 0.0.0.9000
+Authors@R: c(
+    person("Aviezer", "Lifshitz", , "aviezer.lifshitz@weizmann.ac.il",
+           role = c("aut", "cre"),
+           comment = c(ORCID = "0000-0002-8458-9507")),
+    person("Oren", "Ben-Kiki", , "oren@ben-kiki.org", role = "aut"),
+    person("Weizmann Institute of Science", role = "cph")
+  )
+Description: A native R implementation of the DataAxesFormats (DAF) data
+    model for multi-dimensional data along arbitrary axes. Provides the
+    MemoryDaf and FilesDaf storage backends, a query DSL, views, chains,
+    contracts, computations, adapters, and operations. Designed for
+    efficiency on large single-cell datasets via memory-mapped file
+    access (ALTREP), hand-tuned C++ kernels, and optional OpenMP
+    parallelism.
+License: MIT + file LICENSE
+URL: https://github.com/tanaylab/dafr
+BugReports: https://github.com/tanaylab/dafr/issues
+Depends:
+    R (>= 4.4.0)
+Imports:
+    S7,
+    Matrix,
+    cli,
+    bit64,
+    methods
+LinkingTo:
+    cpp11
+Suggests:
+    testthat (>= 3.0.0),
+    hedgehog,
+    bench,
+    withr,
+    knitr,
+    rmarkdown
+SystemRequirements: C++17
+Config/testthat/edition: 3
+Encoding: UTF-8
+Language: en-US
+Roxygen: list(markdown = TRUE)
+RoxygenNote: 7.3.3
