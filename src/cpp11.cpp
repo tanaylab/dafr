@@ -40,6 +40,13 @@ extern "C" SEXP _dafr_kernel_csc_colsums_cpp(SEXP x, SEXP p, SEXP ncol) {
     return cpp11::as_sexp(kernel_csc_colsums_cpp(cpp11::as_cpp<cpp11::decay_t<cpp11::doubles>>(x), cpp11::as_cpp<cpp11::decay_t<cpp11::integers>>(p), cpp11::as_cpp<cpp11::decay_t<int>>(ncol)));
   END_CPP11
 }
+// kernel_csc_to_csr.cpp
+cpp11::writable::list kernel_csc_to_csr_cpp(cpp11::doubles x, cpp11::integers i, cpp11::integers p, int nrow, int ncol);
+extern "C" SEXP _dafr_kernel_csc_to_csr_cpp(SEXP x, SEXP i, SEXP p, SEXP nrow, SEXP ncol) {
+  BEGIN_CPP11
+    return cpp11::as_sexp(kernel_csc_to_csr_cpp(cpp11::as_cpp<cpp11::decay_t<cpp11::doubles>>(x), cpp11::as_cpp<cpp11::decay_t<cpp11::integers>>(i), cpp11::as_cpp<cpp11::decay_t<cpp11::integers>>(p), cpp11::as_cpp<cpp11::decay_t<int>>(nrow), cpp11::as_cpp<cpp11::decay_t<int>>(ncol)));
+  END_CPP11
+}
 // kernel_eltwise_log_add.cpp
 cpp11::writable::doubles kernel_log_add_cpp(cpp11::doubles x, cpp11::doubles y);
 extern "C" SEXP _dafr_kernel_log_add_cpp(SEXP x, SEXP y) {
@@ -52,6 +59,7 @@ extern "C" {
 static const R_CallMethodDef CallEntries[] = {
     {"_dafr_is_altrep_cpp",          (DL_FUNC) &_dafr_is_altrep_cpp,          1},
     {"_dafr_kernel_csc_colsums_cpp", (DL_FUNC) &_dafr_kernel_csc_colsums_cpp, 3},
+    {"_dafr_kernel_csc_to_csr_cpp",  (DL_FUNC) &_dafr_kernel_csc_to_csr_cpp,  5},
     {"_dafr_kernel_log_add_cpp",     (DL_FUNC) &_dafr_kernel_log_add_cpp,     2},
     {"_dafr_mmap_int_altrep_cpp",    (DL_FUNC) &_dafr_mmap_int_altrep_cpp,    2},
     {"_dafr_mmap_lgl_altrep_cpp",    (DL_FUNC) &_dafr_mmap_lgl_altrep_cpp,    2},
