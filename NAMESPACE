@@ -3,6 +3,7 @@
 export(DafReadOnly)
 export(DafReader)
 export(DafWriter)
+export(empty_cache)
 export(register_dafr_handler)
 importFrom(S7,class_character)
 importFrom(S7,class_environment)
