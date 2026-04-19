@@ -33,10 +33,18 @@ extern "C" SEXP _dafr_is_altrep_cpp(SEXP x) {
     return cpp11::as_sexp(is_altrep_cpp(cpp11::as_cpp<cpp11::decay_t<SEXP>>(x)));
   END_CPP11
 }
+// kernel_eltwise_log_add.cpp
+cpp11::writable::doubles kernel_log_add_cpp(cpp11::doubles x, cpp11::doubles y);
+extern "C" SEXP _dafr_kernel_log_add_cpp(SEXP x, SEXP y) {
+  BEGIN_CPP11
+    return cpp11::as_sexp(kernel_log_add_cpp(cpp11::as_cpp<cpp11::decay_t<cpp11::doubles>>(x), cpp11::as_cpp<cpp11::decay_t<cpp11::doubles>>(y)));
+  END_CPP11
+}
 
 extern "C" {
 static const R_CallMethodDef CallEntries[] = {
     {"_dafr_is_altrep_cpp",        (DL_FUNC) &_dafr_is_altrep_cpp,        1},
+    {"_dafr_kernel_log_add_cpp",   (DL_FUNC) &_dafr_kernel_log_add_cpp,   2},
     {"_dafr_mmap_int_altrep_cpp",  (DL_FUNC) &_dafr_mmap_int_altrep_cpp,  2},
     {"_dafr_mmap_lgl_altrep_cpp",  (DL_FUNC) &_dafr_mmap_lgl_altrep_cpp,  2},
     {"_dafr_mmap_real_altrep_cpp", (DL_FUNC) &_dafr_mmap_real_altrep_cpp, 2},
