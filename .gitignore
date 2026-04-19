@@ -1,0 +1,12 @@
+.Rproj.user
+.Rhistory
+.RData
+.Ruserdata
+*.o
+*.so
+*.dll
+src/symbols.rds
+.DS_Store
+
+# dev/ has its own git repo (design docs, specs, plans, benchmarks, scripts)
+dev/
