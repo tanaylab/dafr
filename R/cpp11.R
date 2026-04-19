@@ -16,6 +16,10 @@ is_altrep_cpp <- function(x) {
   .Call(`_dafr_is_altrep_cpp`, x)
 }
 
+kernel_csc_colsums_cpp <- function(x, p, ncol) {
+  .Call(`_dafr_kernel_csc_colsums_cpp`, x, p, ncol)
+}
+
 kernel_log_add_cpp <- function(x, y) {
   .Call(`_dafr_kernel_log_add_cpp`, x, y)
 }
