@@ -29,12 +29,15 @@ Imports:
 LinkingTo:
     cpp11
 Suggests:
-    testthat (>= 3.0.0),
-    hedgehog,
     bench,
-    withr,
+    hedgehog,
     knitr,
-    rmarkdown
+    rmarkdown,
+    scran,
+    Seurat,
+    SingleCellExperiment,
+    testthat (>= 3.0.0),
+    withr
 SystemRequirements: C++17
 Config/testthat/edition: 3
 Encoding: UTF-8

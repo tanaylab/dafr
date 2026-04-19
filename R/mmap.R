@@ -8,6 +8,8 @@
 #' @param x_path,i_path,p_path Paths to the `.bin` files.
 #' @param nrow,ncol,nnz Matrix shape + number of non-zeros.
 #' @param dimnames Optional `list(rowname_character, colname_character)`.
+#' @importClassesFrom Matrix dgCMatrix
+#' @importFrom Matrix sparseMatrix
 #' @export
 mmap_dgCMatrix <- function(x_path, i_path, p_path, nrow, ncol, nnz,
                            dimnames = NULL) {
