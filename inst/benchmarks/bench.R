@@ -56,8 +56,10 @@ bm_t <- bench::mark(
   iterations = 5, check = FALSE
 )
 
-# Write results.
-results_dir <- "~/src/dafr-native/dev/benchmarks"
+# Write results. Path is relative to caller's cwd (the package repo root,
+# per the smoke-check invocation); this keeps the script portable across
+# machines and usable from CI.
+results_dir <- "dev/benchmarks"
 dir.create(results_dir, recursive = TRUE, showWarnings = FALSE)
 ts <- format(Sys.time(), "%Y-%m-%d-%H%M%S")
 csv_out <- file.path(results_dir, paste0("slice-0-baseline-", ts, ".csv"))
