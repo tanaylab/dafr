@@ -194,3 +194,46 @@ S7::method(format_delete_axis,
   bump_axis_counter(daf, axis)
   invisible()
 }
+
+# ---- Vectors: query ---------------------------------------------------------
+
+.memory_axis_vectors <- function(daf, axis, create = FALSE) {
+  if (!format_has_axis(daf, axis)) {
+    stop(sprintf("axis %s does not exist", sQuote(axis)), call. = FALSE)
+  }
+  vectors <- S7::prop(daf, "internal")$vectors
+  if (exists(axis, envir = vectors, inherits = FALSE)) {
+    return(get(axis, envir = vectors, inherits = FALSE))
+  }
+  if (create) {
+    new_env <- new.env(parent = emptyenv())
+    assign(axis, new_env, envir = vectors)
+    return(new_env)
+  }
+  NULL
+}
+
+S7::method(format_has_vector,
+           list(MemoryDaf, S7::class_character, S7::class_character)) <- function(daf, axis, name) {
+  if (!format_has_axis(daf, axis)) return(FALSE)
+  env <- .memory_axis_vectors(daf, axis, create = FALSE)
+  if (is.null(env)) return(FALSE)
+  exists(name, envir = env, inherits = FALSE)
+}
+
+S7::method(format_vectors_set,
+           list(MemoryDaf, S7::class_character)) <- function(daf, axis) {
+  env <- .memory_axis_vectors(daf, axis, create = FALSE)
+  if (is.null(env)) return(character(0L))
+  sort(ls(env, all.names = TRUE), method = "radix")
+}
+
+S7::method(format_get_vector,
+           list(MemoryDaf, S7::class_character, S7::class_character)) <- function(daf, axis, name) {
+  env <- .memory_axis_vectors(daf, axis, create = FALSE)
+  if (is.null(env) || !exists(name, envir = env, inherits = FALSE)) {
+    stop(sprintf("vector %s does not exist on axis %s",
+                 sQuote(name), sQuote(axis)), call. = FALSE)
+  }
+  get(name, envir = env, inherits = FALSE)
+}
