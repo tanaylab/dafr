@@ -106,3 +106,112 @@ viewer <- function(daf, name = NULL, axes = NULL, data = NULL) {
   }
   out
 }
+
+# --- Query rewriters ----------------------------------------------------
+
+.view_query_for_scalar <- function(view, name) {
+  override <- view@view_scalars[[name]]
+  if (is.null(override) || identical(override, "=") || identical(override, name)) {
+    return(paste0(". ", name))
+  }
+  override
+}
+
+.view_query_for_axis <- function(view, axis) {
+  override <- view@view_axes[[axis]]
+  if (is.null(override) || identical(override, "=") || identical(override, axis)) {
+    return(paste0("@ ", axis))
+  }
+  override
+}
+
+.view_query_for_vector <- function(view, axis, name) {
+  key <- paste(axis, name, sep = "|")
+  override <- view@view_vectors[[key]]
+  if (is.null(override) || identical(override$query, "=")) {
+    return(sprintf("@ %s : %s", axis, name))
+  }
+  override$query
+}
+
+.view_query_for_matrix <- function(view, rows_axis, columns_axis, name) {
+  key <- paste(rows_axis, columns_axis, name, sep = "|")
+  override <- view@view_matrices[[key]]
+  if (is.null(override) || identical(override$query, "=")) {
+    return(sprintf("@ %s @ %s :: %s", rows_axis, columns_axis, name))
+  }
+  override$query
+}
+
+# --- format_* dispatch --------------------------------------------------
+
+S7::method(format_has_scalar,
+           list(ViewDaf, S7::class_character)) <- function(daf, name) {
+  if (!(name %in% names(daf@view_scalars))) return(FALSE)
+  q_str <- .view_query_for_scalar(daf, name)
+  has_query(daf@base, q_str)
+}
+
+S7::method(format_get_scalar,
+           list(ViewDaf, S7::class_character)) <- function(daf, name) {
+  get_query(daf@base, .view_query_for_scalar(daf, name))
+}
+
+S7::method(format_scalars_set, ViewDaf) <- function(daf) {
+  sort(names(daf@view_scalars), method = "radix")
+}
+
+S7::method(format_has_axis,
+           list(ViewDaf, S7::class_character)) <- function(daf, axis) {
+  !is.null(daf@view_axes[[axis]])
+}
+
+S7::method(format_axes_set, ViewDaf) <- function(daf) {
+  sort(names(daf@view_axes), method = "radix")
+}
+
+S7::method(format_axis_length,
+           list(ViewDaf, S7::class_character)) <- function(daf, axis) {
+  length(format_axis_array(daf, axis))
+}
+
+S7::method(format_axis_array,
+           list(ViewDaf, S7::class_character)) <- function(daf, axis) {
+  get_query(daf@base, .view_query_for_axis(daf, axis))
+}
+
+S7::method(format_has_vector,
+           list(ViewDaf, S7::class_character, S7::class_character)) <- function(daf, axis, name) {
+  key <- paste(axis, name, sep = "|")
+  !is.null(daf@view_vectors[[key]])
+}
+
+S7::method(format_vectors_set,
+           list(ViewDaf, S7::class_character)) <- function(daf, axis) {
+  keys <- names(daf@view_vectors)
+  prefix <- paste0(axis, "|")
+  sub(prefix, "", keys[startsWith(keys, prefix)], fixed = TRUE)
+}
+
+S7::method(format_get_vector,
+           list(ViewDaf, S7::class_character, S7::class_character)) <- function(daf, axis, name) {
+  get_query(daf@base, .view_query_for_vector(daf, axis, name))
+}
+
+S7::method(format_has_matrix,
+           list(ViewDaf, S7::class_character, S7::class_character, S7::class_character)) <- function(daf, rows_axis, columns_axis, name) {
+  key <- paste(rows_axis, columns_axis, name, sep = "|")
+  !is.null(daf@view_matrices[[key]])
+}
+
+S7::method(format_matrices_set,
+           list(ViewDaf, S7::class_character, S7::class_character)) <- function(daf, rows_axis, columns_axis) {
+  keys <- names(daf@view_matrices)
+  prefix <- paste(rows_axis, columns_axis, "", sep = "|")
+  sub(prefix, "", keys[startsWith(keys, prefix)], fixed = TRUE)
+}
+
+S7::method(format_get_matrix,
+           list(ViewDaf, S7::class_character, S7::class_character, S7::class_character)) <- function(daf, rows_axis, columns_axis, name) {
+  get_query(daf@base, .view_query_for_matrix(daf, rows_axis, columns_axis, name))
+}
