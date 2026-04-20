@@ -52,6 +52,7 @@ Collate:
     'dafr-package.R'
     'format_api.R'
     'files_daf.R'
+    'files_io.R'
     'handlers.R'
     'memory_daf.R'
     'mmap.R'
