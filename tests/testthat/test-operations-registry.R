@@ -86,3 +86,24 @@ test_that("Count returns length of input", {
   expect_equal(get_reduction("Count")(c(1, 2, 3)), 3L)
   expect_equal(get_reduction("Count")(character(5)), 5L)
 })
+
+test_that("default eltwise ops are registered on load", {
+  for (op in c("Log", "Abs", "Exp", "Sqrt", "Round")) {
+    expect_true(op %in% registered_eltwise(), info = op)
+  }
+})
+
+test_that("Log applies log with eps + base", {
+  fn <- get_eltwise("Log")
+  expect_equal(fn(c(1, 10, 100)), log(c(1, 10, 100)))
+  expect_equal(fn(c(1, 10, 100), base = 10), log10(c(1, 10, 100)))
+  expect_equal(fn(c(0, 9, 99), eps = 1, base = 10), log10(c(1, 10, 100)))
+})
+
+test_that("Abs / Exp / Sqrt / Round behave as expected", {
+  expect_equal(get_eltwise("Abs")(c(-1, 2, -3)), c(1, 2, 3))
+  expect_equal(get_eltwise("Exp")(c(0, 1)), c(1, exp(1)))
+  expect_equal(get_eltwise("Sqrt")(c(0, 4, 9)), c(0, 2, 3))
+  expect_equal(get_eltwise("Round")(c(1.4, 1.5, 1.6)), c(1, 2, 2))
+  expect_equal(get_eltwise("Round")(c(1.44, 1.55), digits = 1), c(1.4, 1.6))
+})

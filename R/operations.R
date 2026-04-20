@@ -111,11 +111,24 @@ registered_eltwise <- function() sort(names(.ops_env$eltwise))
 .op_min   <- function(x, ..., na_rm = FALSE) min(x, na.rm = na_rm)
 .op_count <- function(x, ...) length(x)
 
+.op_log   <- function(x, ..., eps = 0, base = exp(1)) log(x + eps, base = base)
+.op_abs   <- function(x, ...) abs(x)
+.op_exp   <- function(x, ...) exp(x)
+.op_sqrt  <- function(x, ...) sqrt(x)
+.op_round <- function(x, ..., digits = 0) round(x, digits = digits)
+
 .register_default_ops <- function() {
   register_reduction("Sum",   .op_sum,   overwrite = TRUE)
   register_reduction("Mean",  .op_mean,  overwrite = TRUE)
   register_reduction("Max",   .op_max,   overwrite = TRUE)
   register_reduction("Min",   .op_min,   overwrite = TRUE)
   register_reduction("Count", .op_count, overwrite = TRUE)
+
+  register_eltwise("Log",   .op_log,   overwrite = TRUE)
+  register_eltwise("Abs",   .op_abs,   overwrite = TRUE)
+  register_eltwise("Exp",   .op_exp,   overwrite = TRUE)
+  register_eltwise("Sqrt",  .op_sqrt,  overwrite = TRUE)
+  register_eltwise("Round", .op_round, overwrite = TRUE)
+
   invisible(NULL)
 }
