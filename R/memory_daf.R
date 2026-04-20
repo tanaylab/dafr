@@ -45,3 +45,34 @@ MemoryDaf <- S7::new_class(
   package = "dafr",
   parent  = DafWriter
 )
+
+# ---- Axes: query methods ----------------------------------------------------
+
+S7::method(format_has_axis, list(MemoryDaf, S7::class_character)) <- function(daf, axis) {
+  exists(axis, envir = S7::prop(daf, "internal")$axes, inherits = FALSE)
+}
+
+S7::method(format_axes_set, MemoryDaf) <- function(daf) {
+  nms <- ls(S7::prop(daf, "internal")$axes, all.names = TRUE)
+  sort(nms)
+}
+
+.memory_axis <- function(daf, axis) {
+  axes <- S7::prop(daf, "internal")$axes
+  if (!exists(axis, envir = axes, inherits = FALSE)) {
+    stop(sprintf("axis %s does not exist", sQuote(axis)), call. = FALSE)
+  }
+  get(axis, envir = axes, inherits = FALSE)
+}
+
+S7::method(format_axis_length, list(MemoryDaf, S7::class_character)) <- function(daf, axis) {
+  length(.memory_axis(daf, axis)$entries)
+}
+
+S7::method(format_axis_array, list(MemoryDaf, S7::class_character)) <- function(daf, axis) {
+  .memory_axis(daf, axis)$entries
+}
+
+S7::method(format_axis_dict, list(MemoryDaf, S7::class_character)) <- function(daf, axis) {
+  .memory_axis(daf, axis)$dict
+}
