@@ -22,3 +22,32 @@ get_query <- function(daf, query_string) {
 canonical_query <- function(query_string) {
   .canonicalise_ast(parse_query(query_string))
 }
+
+#' Extract a data.frame of vectors along one axis.
+#' @param daf A DafReader.
+#' @param axis_query A query string that evaluates to an axis entry vector
+#'   (optionally filtered via mask).
+#' @param columns Optional character vector of vector names. Default: all
+#'   vectors for the axis.
+#' @return A data.frame with one column per vector, rows named by axis entries.
+#' @export
+get_frame <- function(daf, axis_query, columns = NULL) {
+  axis_ast <- parse_query(axis_query)
+  state <- list(kind = "init", value = NULL, if_missing = NULL)
+  for (node in axis_ast) state <- .apply_node(node, state, daf)
+  if (!identical(state$kind, "axis")) {
+    stop("axis_query did not resolve to an axis", call. = FALSE)
+  }
+  entries <- state$value
+  axis_name <- state$axis
+  if (is.null(columns)) columns <- format_vectors_set(daf, axis_name)
+  cols <- lapply(columns, function(nm) {
+    v <- format_get_vector(daf, axis_name, nm)
+    full_entries <- format_axis_array(daf, axis_name)
+    idx <- match(entries, full_entries)
+    v[idx]
+  })
+  names(cols) <- columns
+  as.data.frame(cols, row.names = entries,
+                stringsAsFactors = FALSE, optional = TRUE)
+}
