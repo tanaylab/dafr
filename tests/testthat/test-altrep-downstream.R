@@ -16,7 +16,6 @@ make_test_dgC_files <- function() {
 }
 
 test_that("Seurat::CreateSeuratObject accepts mmap-backed dgCMatrix", {
-  skip_on_os("windows")
   skip_if_not_installed("Seurat")
   tf <- make_test_dgC_files()
   rn <- paste0("gene", seq_len(tf$nrow))
@@ -34,7 +33,6 @@ test_that("Seurat::CreateSeuratObject accepts mmap-backed dgCMatrix", {
 })
 
 test_that("scran::quickCluster tolerates mmap-backed dgCMatrix", {
-  skip_on_os("windows")
   skip_if_not_installed("scran")
   skip_if_not_installed("SingleCellExperiment")
   tf <- make_test_dgC_files()
