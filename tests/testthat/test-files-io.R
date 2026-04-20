@@ -72,3 +72,35 @@ test_that(".write_scalar_json writes Julia-compatible format", {
   expect_match(raw, '"type":\\s*"Int32"')
   expect_match(raw, '"value":\\s*42')
 })
+
+test_that(".write_bin_dense round-trips doubles (little-endian)", {
+  tmp <- tempfile(); on.exit(unlink(tmp))
+  x <- c(1.5, 2.5, -3.25)
+  dafr:::.write_bin_dense(tmp, x, dtype = "Float64")
+  expect_equal(file.size(tmp), length(x) * 8L)
+  out <- dafr:::.read_bin_dense(tmp, n = length(x), dtype = "Float64")
+  expect_equal(out, x)
+})
+
+test_that(".write_bin_dense round-trips int32", {
+  tmp <- tempfile(); on.exit(unlink(tmp))
+  x <- c(1L, -2L, 3L)
+  dafr:::.write_bin_dense(tmp, x, dtype = "Int32")
+  expect_equal(file.size(tmp), length(x) * 4L)
+  out <- dafr:::.read_bin_dense(tmp, n = length(x), dtype = "Int32")
+  expect_equal(out, x)
+})
+
+test_that(".write_bin_dense for logicals writes one byte per element", {
+  tmp <- tempfile(); on.exit(unlink(tmp))
+  x <- c(TRUE, FALSE, TRUE)
+  dafr:::.write_bin_dense(tmp, x, dtype = "Bool")
+  expect_equal(file.size(tmp), length(x))
+  out <- dafr:::.read_bin_dense(tmp, n = length(x), dtype = "Bool")
+  expect_equal(out, x)
+})
+
+test_that(".indtype_for_size picks UInt32 vs UInt64", {
+  expect_equal(dafr:::.indtype_for_size(2^30L), "UInt32")
+  expect_equal(dafr:::.indtype_for_size(2^32),  "UInt64")
+})

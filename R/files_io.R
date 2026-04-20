@@ -123,3 +123,64 @@
     stop(sprintf("files_daf: unsupported scalar type %s", t))
   )
 }
+
+# ---- binary I/O ----
+.write_bin_dense <- function(path, value, dtype) {
+  dtype <- .dtype_canonical(dtype)
+  con <- file(path, open = "wb")
+  on.exit(close(con), add = TRUE)
+  switch(dtype,
+    Bool    = writeBin(as.raw(as.integer(value)), con),
+    Int8    = writeBin(as.integer(value), con, size = 1L, endian = "little"),
+    Int16   = writeBin(as.integer(value), con, size = 2L, endian = "little"),
+    Int32   = writeBin(as.integer(value), con, size = 4L, endian = "little"),
+    Int64   = writeBin(unclass(bit64::as.integer64(value)), con, size = 8L, endian = "little"),
+    UInt8   = writeBin(as.integer(value), con, size = 1L, endian = "little"),
+    UInt16  = writeBin(as.integer(value), con, size = 2L, endian = "little"),
+    UInt32  = writeBin(as.integer(value), con, size = 4L, endian = "little"),
+    UInt64  = writeBin(unclass(bit64::as.integer64(value)), con, size = 8L, endian = "little"),
+    Float32 = writeBin(as.double(value),  con, size = 4L, endian = "little"),
+    Float64 = writeBin(as.double(value),  con, size = 8L, endian = "little"),
+    stop(sprintf("files_daf: unsupported dtype %s for dense write", dtype))
+  )
+  invisible()
+}
+
+.read_bin_dense <- function(path, n, dtype) {
+  dtype <- .dtype_canonical(dtype)
+  con <- file(path, open = "rb")
+  on.exit(close(con), add = TRUE)
+  switch(dtype,
+    Bool    = as.logical(readBin(con, what = "integer", n = n, size = 1L,
+                                 signed = FALSE, endian = "little")),
+    Int8    = readBin(con, what = "integer", n = n, size = 1L, signed = TRUE,
+                      endian = "little"),
+    Int16   = readBin(con, what = "integer", n = n, size = 2L, signed = TRUE,
+                      endian = "little"),
+    Int32   = readBin(con, what = "integer", n = n, size = 4L, signed = TRUE,
+                      endian = "little"),
+    Int64   = {
+      raw64 <- readBin(con, what = "integer", n = n, size = 8L, endian = "little")
+      bit64::as.integer64(raw64)
+    },
+    UInt8   = readBin(con, what = "integer", n = n, size = 1L, signed = FALSE,
+                      endian = "little"),
+    UInt16  = readBin(con, what = "integer", n = n, size = 2L, signed = FALSE,
+                      endian = "little"),
+    UInt32  = readBin(con, what = "integer", n = n, size = 4L, signed = TRUE,
+                      endian = "little"),
+    UInt64  = {
+      raw64 <- readBin(con, what = "integer", n = n, size = 8L, endian = "little")
+      bit64::as.integer64(raw64)
+    },
+    Float32 = readBin(con, what = "double",  n = n, size = 4L, endian = "little"),
+    Float64 = readBin(con, what = "double",  n = n, size = 8L, endian = "little"),
+    stop(sprintf("files_daf: unsupported dtype %s for dense read", dtype))
+  )
+}
+
+.indtype_for_size <- function(size) {
+  # R int32 caps at 2^31-1 = .Machine$integer.max. We conservatively pick
+  # UInt32 only when the axis fits R's native int.
+  if (size <= .Machine$integer.max) "UInt32" else "UInt64"
+}
