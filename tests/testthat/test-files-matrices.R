@@ -115,3 +115,23 @@ test_that("set_matrix dense String", {
   d2 <- files_daf(dir, mode = "r")
   expect_equal(unname(get_matrix(d2, "cell", "gene", "ms")), m)
 })
+
+test_that("delete_matrix removes all payload + descriptor", {
+  dir <- new_tempdir()
+  d <- files_daf(dir, mode = "w+")
+  add_axis(d, "cell", c("A","B"))
+  add_axis(d, "gene", c("X","Y"))
+  set_matrix(d, "cell", "gene", "m", matrix(1:4, 2))
+  delete_matrix(d, "cell", "gene", "m")
+  expect_false(file.exists(file.path(dir, "matrices","cell","gene","m.json")))
+  expect_false(file.exists(file.path(dir, "matrices","cell","gene","m.data")))
+})
+
+test_that("delete_matrix must_exist semantics", {
+  dir <- new_tempdir()
+  d <- files_daf(dir, mode = "w+")
+  add_axis(d, "cell", "A")
+  add_axis(d, "gene", "X")
+  expect_silent(delete_matrix(d, "cell", "gene", "nope", must_exist = FALSE))
+  expect_error(delete_matrix(d, "cell", "gene", "nope"), "does not exist")
+})

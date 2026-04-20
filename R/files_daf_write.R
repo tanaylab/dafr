@@ -274,3 +274,22 @@ S7::method(format_set_matrix,
   bump_matrix_counter(daf, rows_axis, columns_axis, name)
   invisible()
 }
+
+S7::method(format_delete_matrix,
+           list(FilesDaf, S7::class_character, S7::class_character,
+                S7::class_character, S7::class_logical)) <- function(daf, rows_axis, columns_axis, name, must_exist) {
+  mdir <- .path_matrix_dir(.files_root(daf), rows_axis, columns_axis)
+  desc_path <- file.path(mdir, paste0(name, ".json"))
+  if (!file.exists(desc_path)) {
+    if (must_exist) {
+      stop(sprintf("matrix %s does not exist on axes (%s, %s)",
+                   sQuote(name), sQuote(rows_axis), sQuote(columns_axis)),
+           call. = FALSE)
+    }
+    return(invisible())
+  }
+  unlink(desc_path, force = TRUE)
+  .files_matrix_unlink_payload(mdir, name)
+  bump_matrix_counter(daf, rows_axis, columns_axis, name)
+  invisible()
+}
