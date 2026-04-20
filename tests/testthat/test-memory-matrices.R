@@ -271,3 +271,48 @@ test_that("relayout_matrix makes the flipped layout physical", {
   relayout_matrix(d, "cell", "gene", "UMIs")
   expect_true(has_matrix(d, "gene", "cell", "UMIs"))
 })
+
+test_that("get_matrix default accepts a numeric scalar and adds dimnames", {
+  d <- memory_daf()
+  add_axis(d, "cell", c("A", "B"))
+  add_axis(d, "gene", c("X", "Y", "Z"))
+  m <- get_matrix(d, "cell", "gene", "UMIs", default = 1)
+  expect_equal(dim(m), c(2L, 3L))
+  expect_equal(rownames(m), c("A", "B"))
+  expect_equal(colnames(m), c("X", "Y", "Z"))
+  expect_true(all(m == 1))
+})
+
+test_that("get_matrix default accepts a matrix value and adds dimnames", {
+  d <- memory_daf()
+  add_axis(d, "cell", c("A", "B"))
+  add_axis(d, "gene", c("X", "Y", "Z"))
+  custom <- matrix(c(1, 3, 5, 2, 4, 6), nrow = 2, ncol = 3)
+  m <- get_matrix(d, "cell", "gene", "UMIs", default = custom)
+  expect_equal(m, custom, ignore_attr = TRUE)
+  expect_equal(rownames(m), c("A", "B"))
+  expect_equal(colnames(m), c("X", "Y", "Z"))
+})
+
+test_that("set_matrix / get_matrix round-trip a sparseMatrix preserving explicit zeros", {
+  d <- memory_daf()
+  add_axis(d, "cell", c("A", "B"))
+  add_axis(d, "gene", c("X", "Y", "Z"))
+  sm <- Matrix::sparseMatrix(
+    i = c(1, 1, 1, 2, 2),
+    j = c(1, 2, 3, 1, 2),
+    x = c(0, 1, 2, 3, 4),
+    dims = c(2, 3)
+  )
+  expect_equal(length(matrices_set(d, "cell", "gene")), 0)
+  expect_false(has_matrix(d, "cell", "gene", "UMIs"))
+  set_matrix(d, "cell", "gene", "UMIs", sm)
+  expect_true(has_matrix(d, "cell", "gene", "UMIs"))
+  expect_equal(matrices_set(d, "cell", "gene"), "UMIs")
+  got <- get_matrix(d, "cell", "gene", "UMIs")
+  expect_s4_class(got, "dgCMatrix")
+  expect_equal(as.matrix(got), as.matrix(sm), ignore_attr = TRUE)
+  expect_equal(got@x, sm@x)
+  expect_equal(rownames(got), c("A", "B"))
+  expect_equal(colnames(got), c("X", "Y", "Z"))
+})

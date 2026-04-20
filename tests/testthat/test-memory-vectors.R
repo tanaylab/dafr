@@ -228,3 +228,24 @@ test_that("named bit64 vector reorders to axis order", {
   got <- get_vector(d, "cell", "big")
   expect_equal(as.numeric(unname(got)), c(1e10, 2e10))
 })
+
+test_that("get_vector default recycles a numeric scalar across the axis", {
+  d <- memory_daf()
+  add_axis(d, "cell", c("A", "B"))
+  got <- get_vector(d, "cell", "missing", default = 1)
+  expect_equal(got, c(A = 1, B = 1))
+})
+
+test_that("set_vector / get_vector round-trip a named string vector", {
+  d <- memory_daf()
+  add_axis(d, "cell", c("A", "B"))
+  expect_equal(vectors_set(d, "cell"), character(0L))
+  expect_false(has_vector(d, "cell", "kind"))
+  set_vector(d, "cell", "kind", c(A = "X", B = "Y"))
+  expect_true(has_vector(d, "cell", "kind"))
+  expect_equal(vectors_set(d, "cell"), "kind")
+  expect_equal(get_vector(d, "cell", "kind"), c(A = "X", B = "Y"))
+  delete_vector(d, "cell", "kind")
+  expect_equal(vectors_set(d, "cell"), character(0L))
+  expect_false(has_vector(d, "cell", "kind"))
+})
