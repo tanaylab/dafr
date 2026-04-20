@@ -265,7 +265,27 @@ NULL
   else as.character(value_string)
 }
 .apply_square_slice <- function(node, state, daf) {
-  stop("not yet implemented: square slice", call. = FALSE)
+  if (!identical(state$kind, "matrix")) {
+    stop("square slice requires a matrix in scope", call. = FALSE)
+  }
+  m <- state$value
+  if (identical(node$op, "SquareRowIs")) {
+    rows <- format_axis_array(daf, state$rows_axis)
+    idx <- match(node$value, rows)
+    if (is.na(idx)) stop(sprintf("no row %s", sQuote(node$value)), call. = FALSE)
+    cols <- format_axis_array(daf, state$cols_axis)
+    return(list(kind = "vector",
+                axis  = state$cols_axis,
+                value = setNames(as.numeric(m[idx, ]), cols)))
+  }
+  # SquareColumnIs
+  cols <- format_axis_array(daf, state$cols_axis)
+  idx <- match(node$value, cols)
+  if (is.na(idx)) stop(sprintf("no column %s", sQuote(node$value)), call. = FALSE)
+  rows <- format_axis_array(daf, state$rows_axis)
+  list(kind = "vector",
+       axis  = state$rows_axis,
+       value = setNames(as.numeric(m[, idx]), rows))
 }
 .apply_reduction <- function(node, state, daf) {
   stop("not yet implemented: reduction", call. = FALSE)
