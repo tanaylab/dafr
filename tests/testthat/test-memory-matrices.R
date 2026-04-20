@@ -328,3 +328,18 @@ test_that("user-facing matrix wrappers accept columns_axis = by name", {
   expect_equal(dim(get_matrix(d, rows_axis = "cell",
                               columns_axis = "gene", "n")), c(2L, 2L))
 })
+
+test_that("set_matrix validation failure leaves no phantom matrix bucket", {
+  d <- memory_daf()
+  add_axis(d, "cell", c("A", "B"))
+  add_axis(d, "gene", c("X", "Y"))
+  # Wrong shape
+  bad <- matrix(1:6, nrow = 3, ncol = 2)
+  expect_error(set_matrix(d, "cell", "gene", "n", bad),
+               "has dim 3 x 2")
+  # matrices_set on (cell, gene) should still return empty
+  expect_equal(matrices_set(d, "cell", "gene"), character(0L))
+  # Internal env should not have leaked bucket.
+  internal <- S7::prop(d, "internal")
+  expect_false(exists("cell", envir = internal$matrices, inherits = FALSE))
+})
