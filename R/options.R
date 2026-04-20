@@ -4,7 +4,8 @@
   dafr.cache.stats     = FALSE,
   dafr.mmap            = TRUE,
   dafr.omp_threshold   = 10000L,
-  dafr.inefficient     = "warn"  # one of "ignore", "warn", "error"
+  dafr.inefficient     = "warn",  # one of "ignore", "warn", "error"
+  dafr.verbose         = FALSE
 )
 
 set_default_options <- function() {

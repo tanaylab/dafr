@@ -8,6 +8,8 @@
 add_axis <- function(daf, axis, entries) {
   .assert_name(axis, "axis")
   stopifnot(is.character(entries))
+  .cli_verbose("add_axis %s (%d entries) on %s",
+               axis, length(entries), S7::prop(daf, "name"))
   format_add_axis(daf, axis, entries)
   invisible(daf)
 }

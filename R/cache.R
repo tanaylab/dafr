@@ -8,6 +8,14 @@
 # Full LRU + heap-cap + version-stamp invalidation lands in Slice 1/4.
 # Slice 0 ships the storage layout and the simple operations.
 
+# ---- Verbose user-facing messages (gated on dafr.verbose) ----
+.cli_verbose <- function(msg, ...) {
+  if (isTRUE(dafr_opt("dafr.verbose"))) {
+    cli::cli_inform(c("i" = sprintf(msg, ...)))
+  }
+  invisible()
+}
+
 # ---- Key formatters (canonical cache-key string builders) ----
 cache_key_scalar <- function(name)      paste0("scalar:", name)
 cache_key_axis   <- function(axis)      paste0("axis:", axis)
@@ -67,6 +75,10 @@ empty_cache <- function(daf,
             else if (!is.null(keep)) setdiff(all_tiers, .canonical_tier(keep))
             else all_tiers
   chosen <- .canonical_tier(chosen)
+
+  .cli_verbose("empty_cache on %s tier(s): %s",
+               S7::prop(daf, "name"),
+               paste(chosen, collapse = ", "))
 
   cache_env <- S7::prop(daf, "cache")
   for (tier in chosen) {

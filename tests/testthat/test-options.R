@@ -13,3 +13,20 @@ test_that("overridden options flow through dafr_opt", {
 test_that("dafr_opt rejects unknown names", {
   expect_error(dafr_opt("dafr.bogus"), "name %in% names")
 })
+
+test_that("empty_cache emits a cli message when dafr.verbose = TRUE", {
+  d <- memory_daf(name = "t")
+  withr::with_options(list(dafr.verbose = TRUE), {
+    expect_message(empty_cache(d), "empty_cache")
+  })
+  withr::with_options(list(dafr.verbose = FALSE), {
+    expect_no_message(empty_cache(d))
+  })
+})
+
+test_that("add_axis emits a cli message when dafr.verbose = TRUE", {
+  d <- memory_daf(name = "t")
+  withr::with_options(list(dafr.verbose = TRUE), {
+    expect_message(add_axis(d, "cell", c("A", "B")), "add_axis")
+  })
+})
