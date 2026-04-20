@@ -98,3 +98,42 @@ test_that("bump_vector_counter / bump_matrix_counter use composite keys", {
   expect_equal(vc[["gene:n_counts"]], 1L)
   expect_equal(vc[["cell:n_counts"]], 1L)  # unchanged
 })
+
+test_that("cache_lookup returns NULL and evicts when stamps differ", {
+  ce <- new_cache_env()
+  cache_store(ce, "memory", "v:x", "v1", stamp = c(1L, 1L), size_bytes = 100)
+  expect_equal(cache_lookup(ce, "memory", "v:x", c(1L, 1L)), "v1")
+  expect_null( cache_lookup(ce, "memory", "v:x", c(1L, 2L)))
+  expect_false(exists("v:x", envir = ce$memory, inherits = FALSE))
+})
+
+test_that("cache_lookup returns NULL for missing key", {
+  ce <- new_cache_env()
+  expect_null(cache_lookup(ce, "memory", "v:missing", c(0L, 0L)))
+})
+
+test_that("cache_store persists stamp + size alongside value", {
+  ce <- new_cache_env()
+  cache_store(ce, "memory", "k", 42L, c(3L, 4L), size_bytes = 8)
+  entry <- get("k", envir = ce$memory, inherits = FALSE)
+  expect_equal(entry$value, 42L)
+  expect_equal(entry$stamp, c(3L, 4L))
+  expect_equal(entry$size,  8)
+})
+
+test_that("axis_stamp / vector_stamp / matrix_stamp mirror counter state", {
+  d <- memory_daf()
+  add_axis(d, "cell", c("A", "B"))
+  # axis_stamp: scalar
+  expect_equal(axis_stamp(d, "cell"), 1L)   # bumped by add_axis
+  expect_equal(axis_stamp(d, "gene"), 0L)   # missing axis -> 0
+  # vector_stamp: c(axis_stamp, vector_counter)
+  expect_equal(vector_stamp(d, "cell", "v"), c(1L, 0L))
+  bump_vector_counter(d, "cell", "v")
+  expect_equal(vector_stamp(d, "cell", "v"), c(1L, 1L))
+  # matrix_stamp: c(rows_axis_stamp, cols_axis_stamp, matrix_counter)
+  add_axis(d, "gene", "X")
+  expect_equal(matrix_stamp(d, "cell", "gene", "m"), c(1L, 1L, 0L))
+  bump_matrix_counter(d, "cell", "gene", "m")
+  expect_equal(matrix_stamp(d, "cell", "gene", "m"), c(1L, 1L, 1L))
+})
