@@ -102,6 +102,15 @@ static void *mmap_real_dataptr(SEXP x, Rboolean writeable) {
     }
     SEXP region_xptr = R_altrep_data1(x);
     auto region = unwrap_region(region_xptr);
+    // SAFETY: writeable=FALSE branch. The mmap is PROT_READ, so the backing
+    // pages are OS-enforced read-only. The const_cast here exists *only* to
+    // satisfy the ALTREP Dataptr signature (void*), not to grant write
+    // access. Per the ALTREP convention (R-ints §1.14.4), callers invoking
+    // Dataptr with writeable=FALSE promise not to write through the returned
+    // pointer — doing so would segfault (SIGBUS on PROT_READ) and is
+    // undefined behavior at the C++ level. Callers needing a writeable
+    // buffer must pass writeable=TRUE, which materializes a private copy
+    // above.
     return const_cast<void*>(region->data());
 }
 
@@ -194,6 +203,15 @@ static void *mmap_int_dataptr(SEXP x, Rboolean writeable) {
     }
     SEXP rx = R_altrep_data1(x);
     auto region = unwrap_region(rx);
+    // SAFETY: writeable=FALSE branch. The mmap is PROT_READ, so the backing
+    // pages are OS-enforced read-only. The const_cast here exists *only* to
+    // satisfy the ALTREP Dataptr signature (void*), not to grant write
+    // access. Per the ALTREP convention (R-ints §1.14.4), callers invoking
+    // Dataptr with writeable=FALSE promise not to write through the returned
+    // pointer — doing so would segfault (SIGBUS on PROT_READ) and is
+    // undefined behavior at the C++ level. Callers needing a writeable
+    // buffer must pass writeable=TRUE, which materializes a private copy
+    // above.
     return const_cast<void*>(region->data());
 }
 static const void *mmap_int_dataptr_or_null(SEXP x) {
@@ -269,6 +287,15 @@ static void *mmap_lgl_dataptr(SEXP x, Rboolean writeable) {
     }
     SEXP rx = R_altrep_data1(x);
     auto region = unwrap_region(rx);
+    // SAFETY: writeable=FALSE branch. The mmap is PROT_READ, so the backing
+    // pages are OS-enforced read-only. The const_cast here exists *only* to
+    // satisfy the ALTREP Dataptr signature (void*), not to grant write
+    // access. Per the ALTREP convention (R-ints §1.14.4), callers invoking
+    // Dataptr with writeable=FALSE promise not to write through the returned
+    // pointer — doing so would segfault (SIGBUS on PROT_READ) and is
+    // undefined behavior at the C++ level. Callers needing a writeable
+    // buffer must pass writeable=TRUE, which materializes a private copy
+    // above.
     return const_cast<void*>(region->data());
 }
 static const void *mmap_lgl_dataptr_or_null(SEXP x) {
