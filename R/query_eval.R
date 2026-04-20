@@ -287,11 +287,44 @@ NULL
        axis  = state$rows_axis,
        value = setNames(as.numeric(m[, idx]), rows))
 }
-.apply_reduction <- function(node, state, daf) {
-  stop("not yet implemented: reduction", call. = FALSE)
-}
 .apply_eltwise <- function(node, state, daf) {
-  stop("not yet implemented: eltwise", call. = FALSE)
+  if (!state$kind %in% c("vector", "matrix")) {
+    stop("'%' eltwise requires vector or matrix in scope", call. = FALSE)
+  }
+  fn <- get_eltwise(node$name)
+  params <- .coerce_params(node$params)
+  state$value <- do.call(fn, c(list(state$value), params))
+  state
+}
+
+.apply_reduction <- function(node, state, daf) {
+  if (!identical(state$kind, "matrix")) {
+    stop(sprintf("%s requires a matrix in scope", node$op), call. = FALSE)
+  }
+  fn <- get_reduction(node$reduction)
+  params <- .coerce_params(node$params)
+  m <- state$value
+  if (identical(node$op, "ReduceToColumn")) {
+    # ReduceToColumn = one reduction per column, result indexed by cols_axis
+    col_names <- colnames(m)
+    if (is.null(col_names)) col_names <- format_axis_array(daf, state$cols_axis)
+    vals <- apply(m, 2L, function(col) do.call(fn, c(list(col), params)))
+    return(list(kind = "vector", axis = state$cols_axis,
+                value = setNames(vals, col_names)))
+  }
+  row_names <- rownames(m)
+  if (is.null(row_names)) row_names <- format_axis_array(daf, state$rows_axis)
+  vals <- apply(m, 1L, function(row) do.call(fn, c(list(row), params)))
+  list(kind = "vector", axis = state$rows_axis,
+       value = setNames(vals, row_names))
+}
+
+.coerce_params <- function(params) {
+  # try numeric coercion for each value; fall back to string
+  lapply(params, function(v) {
+    n <- suppressWarnings(as.numeric(v))
+    if (!is.na(n)) n else v
+  })
 }
 .apply_groupby <- function(node, state, daf) {
   stop("not yet implemented: groupby", call. = FALSE)
