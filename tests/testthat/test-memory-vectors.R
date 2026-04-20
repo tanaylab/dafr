@@ -103,3 +103,44 @@ test_that("format_delete_vector removes + respects must_exist", {
   expect_error (format_delete_vector(d, "cell", "v", must_exist = TRUE),  "does not exist")
   expect_silent(format_delete_vector(d, "cell", "v", must_exist = FALSE))
 })
+
+test_that("get_vector returns axis-named vector", {
+  d <- memory_daf()
+  add_axis(d, "cell", c("A", "B"))
+  format_set_vector(d, "cell", "v", c(10.0, 20.0), overwrite = FALSE)
+  got <- get_vector(d, "cell", "v")
+  expect_equal(names(got), c("A", "B"))
+  expect_equal(unname(got), c(10.0, 20.0))
+})
+
+test_that("get_vector default recycles a scalar across the axis", {
+  d <- memory_daf()
+  add_axis(d, "cell", c("A", "B"))
+  expect_error(get_vector(d, "cell", "missing"), "does not exist")
+  na_vec <- get_vector(d, "cell", "missing", default = NA)
+  expect_equal(names(na_vec), c("A", "B"))
+  expect_true(all(is.na(na_vec)))
+  str_vec <- get_vector(d, "cell", "missing", default = "savta")
+  expect_equal(str_vec, c(A = "savta", B = "savta"))
+})
+
+test_that("get_vector hits the memory-tier cache on repeated reads", {
+  d <- memory_daf()
+  add_axis(d, "cell", c("A", "B"))
+  format_set_vector(d, "cell", "v", c(1.0, 2.0), overwrite = FALSE)
+  first  <- get_vector(d, "cell", "v")
+  second <- get_vector(d, "cell", "v")
+  expect_identical(first, second)
+  cache_env <- S7::prop(d, "cache")
+  expect_true(exists(cache_key_vector("cell", "v"),
+                     envir = cache_env$memory, inherits = FALSE))
+})
+
+test_that("get_vector cache invalidates after overwrite", {
+  d <- memory_daf()
+  add_axis(d, "cell", c("A", "B"))
+  format_set_vector(d, "cell", "v", c(1.0, 2.0), overwrite = FALSE)
+  expect_equal(unname(get_vector(d, "cell", "v")), c(1.0, 2.0))
+  format_set_vector(d, "cell", "v", c(10.0, 20.0), overwrite = TRUE)
+  expect_equal(unname(get_vector(d, "cell", "v")), c(10.0, 20.0))
+})

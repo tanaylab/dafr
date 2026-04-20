@@ -77,3 +77,42 @@ bump_matrix_counter <- function(daf, rows_axis, cols_axis, name) {
   counters[[key]] <- (counters[[key]] %||% 0L) + 1L
   invisible()
 }
+
+# ---- Version stamps (computed from counters) --------------------------------
+
+axis_stamp <- function(daf, axis) {
+  S7::prop(daf, "axis_version_counter")[[axis]] %||% 0L
+}
+
+vector_stamp <- function(daf, axis, name) {
+  vc <- S7::prop(daf, "vector_version_counter")
+  c(axis_stamp(daf, axis),
+    vc[[paste0(axis, ":", name)]] %||% 0L)
+}
+
+matrix_stamp <- function(daf, rows_axis, cols_axis, name) {
+  mc <- S7::prop(daf, "matrix_version_counter")
+  c(axis_stamp(daf, rows_axis),
+    axis_stamp(daf, cols_axis),
+    mc[[paste0(rows_axis, ":", cols_axis, ":", name)]] %||% 0L)
+}
+
+# ---- Cache entries with version stamps --------------------------------------
+
+cache_lookup <- function(cache_env, tier, key, expected_stamp) {
+  bucket <- cache_env[[tier]]
+  if (!exists(key, envir = bucket, inherits = FALSE)) return(NULL)
+  entry <- get(key, envir = bucket, inherits = FALSE)
+  if (!identical(entry$stamp, expected_stamp)) {
+    rm(list = key, envir = bucket)
+    return(NULL)
+  }
+  entry$value
+}
+
+cache_store <- function(cache_env, tier, key, value, stamp, size_bytes = 0L) {
+  bucket <- cache_env[[tier]]
+  assign(key, list(value = value, stamp = stamp, size = as.numeric(size_bytes)),
+         envir = bucket)
+  invisible()
+}

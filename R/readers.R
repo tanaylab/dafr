@@ -128,3 +128,42 @@ get_scalar <- function(daf, name, default) {
   if (!missing(default)) return(default)
   stop(sprintf("scalar %s does not exist", sQuote(name)), call. = FALSE)
 }
+
+#' Get a vector, returning it as an axis-named R vector.
+#'
+#' @param daf A `DafReader`.
+#' @param axis Axis name.
+#' @param name Vector name.
+#' @param default If supplied and the vector is absent, return a
+#'   constant-valued named vector of length `axis_length(daf, axis)`
+#'   with the axis entries as names.
+#' @return Named atomic vector.
+#' @export
+get_vector <- function(daf, axis, name, default) {
+  .assert_name(axis, "axis")
+  .assert_name(name, "name")
+  if (!format_has_axis(daf, axis)) {
+    stop(sprintf("axis %s does not exist", sQuote(axis)), call. = FALSE)
+  }
+  entries <- format_axis_array(daf, axis)
+  if (!format_has_vector(daf, axis, name)) {
+    if (missing(default)) {
+      stop(sprintf("vector %s does not exist on axis %s",
+                   sQuote(name), sQuote(axis)), call. = FALSE)
+    }
+    out <- rep(default, length(entries))
+    names(out) <- entries
+    return(out)
+  }
+  cache_key <- cache_key_vector(axis, name)
+  cache_env <- S7::prop(daf, "cache")
+  stamp_now <- vector_stamp(daf, axis, name)
+  hit <- cache_lookup(cache_env, "memory", cache_key, stamp_now)
+  if (!is.null(hit)) return(hit)
+  raw <- format_get_vector(daf, axis, name)
+  out <- raw
+  if (is.null(names(out))) names(out) <- entries
+  cache_store(cache_env, "memory", cache_key, out, stamp_now,
+              size_bytes = object.size(out))
+  out
+}
