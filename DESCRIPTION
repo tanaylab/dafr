@@ -55,6 +55,7 @@ Collate:
     'files_io.R'
     'files_daf_read.R'
     'utils.R'
+    'operations.R'
     'files_daf_write.R'
     'handlers.R'
     'memory_daf.R'
