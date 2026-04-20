@@ -71,3 +71,9 @@ test_that("set_scalar rejects NA (per Julia DAF rules)", {
   d <- memory_daf()
   expect_error(set_scalar(d, "foo", NA))
 })
+
+test_that("get_scalar(default = NULL) is distinct from omitting the default", {
+  d <- memory_daf()
+  expect_error(get_scalar(d, "missing"), "does not exist")
+  expect_null(get_scalar(d, "missing", default = NULL))
+})
