@@ -76,3 +76,55 @@ S7::method(format_axis_array, list(MemoryDaf, S7::class_character)) <- function(
 S7::method(format_axis_dict, list(MemoryDaf, S7::class_character)) <- function(daf, axis) {
   .memory_axis(daf, axis)$dict
 }
+
+# ---- Axes: mutation ---------------------------------------------------------
+
+S7::method(format_add_axis,
+           list(MemoryDaf, S7::class_character, S7::class_character)) <- function(daf, axis, entries) {
+  if (anyNA(entries)) {
+    stop(sprintf("axis %s entries contain NA", sQuote(axis)), call. = FALSE)
+  }
+  if (any(!nzchar(entries))) {
+    stop(sprintf("axis %s entries contain empty strings", sQuote(axis)), call. = FALSE)
+  }
+  if (anyDuplicated(entries)) {
+    dup <- entries[duplicated(entries)][1L]
+    stop(sprintf("axis %s has duplicate entry %s", sQuote(axis), sQuote(dup)), call. = FALSE)
+  }
+  axes <- S7::prop(daf, "internal")$axes
+  if (exists(axis, envir = axes, inherits = FALSE)) {
+    stop(sprintf("axis %s already exists", sQuote(axis)), call. = FALSE)
+  }
+  dict <- new.env(parent = emptyenv(), size = length(entries))
+  for (i in seq_along(entries)) assign(entries[[i]], i, envir = dict)
+  assign(axis, list(entries = entries, dict = dict), envir = axes)
+  bump_axis_counter(daf, axis)
+  invisible()
+}
+
+S7::method(format_delete_axis,
+           list(MemoryDaf, S7::class_character, S7::class_logical)) <- function(daf, axis, must_exist) {
+  internal <- S7::prop(daf, "internal")
+  if (!exists(axis, envir = internal$axes, inherits = FALSE)) {
+    if (must_exist) {
+      stop(sprintf("axis %s does not exist", sQuote(axis)), call. = FALSE)
+    }
+    return(invisible())
+  }
+  # Drop axis + its dependent vectors + matrix rows + matrix cols
+  rm(list = axis, envir = internal$axes)
+  if (exists(axis, envir = internal$vectors, inherits = FALSE)) {
+    rm(list = axis, envir = internal$vectors)
+  }
+  if (exists(axis, envir = internal$matrices, inherits = FALSE)) {
+    rm(list = axis, envir = internal$matrices)
+  }
+  for (rows in ls(internal$matrices, all.names = TRUE)) {
+    cols_env <- get(rows, envir = internal$matrices, inherits = FALSE)
+    if (exists(axis, envir = cols_env, inherits = FALSE)) {
+      rm(list = axis, envir = cols_env)
+    }
+  }
+  bump_axis_counter(daf, axis)
+  invisible()
+}
