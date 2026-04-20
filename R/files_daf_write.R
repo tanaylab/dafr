@@ -61,6 +61,20 @@ S7::method(format_add_axis,
     stop(sprintf("axis %s already exists", sQuote(axis)), call. = FALSE)
   }
   .write_axis_file(p, entries)
+  # Match Julia FilesDaf layout: eagerly create vectors/<axis> and the
+  # matrices/<axis>/<other> + matrices/<other>/<axis> bucket dirs so that
+  # a Julia reader scanning the store does not trip on missing directories.
+  dir.create(.path_vector_dir(root, axis), recursive = TRUE,
+             showWarnings = FALSE)
+  mroot <- file.path(root, "matrices")
+  dir.create(file.path(mroot, axis), recursive = TRUE, showWarnings = FALSE)
+  existing_axes <- list.files(mroot, full.names = FALSE)
+  for (other in existing_axes) {
+    if (other == axis) next
+    dir.create(file.path(mroot, axis, other), showWarnings = FALSE)
+    dir.create(file.path(mroot, other, axis), showWarnings = FALSE)
+  }
+  dir.create(file.path(mroot, axis, axis), showWarnings = FALSE)
   dict <- new.env(parent = emptyenv(), size = length(entries))
   for (i in seq_along(entries)) assign(entries[[i]], i, envir = dict)
   assign(axis, list(entries = entries, dict = dict),
