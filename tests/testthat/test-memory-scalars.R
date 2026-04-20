@@ -12,3 +12,35 @@ test_that("format_get_scalar errors on unknown name", {
   d <- memory_daf()
   expect_error(format_get_scalar(d, "pi"), "does not exist")
 })
+
+test_that("format_set_scalar stores new scalars and respects overwrite=FALSE", {
+  d <- memory_daf()
+  format_set_scalar(d, "foo", "bar", overwrite = FALSE)
+  expect_equal(format_get_scalar(d, "foo"), "bar")
+  expect_error(format_set_scalar(d, "foo", "baz", overwrite = FALSE), "already exists")
+  expect_equal(format_get_scalar(d, "foo"), "bar")
+})
+
+test_that("format_set_scalar with overwrite=TRUE replaces value", {
+  d <- memory_daf()
+  format_set_scalar(d, "foo", "bar", overwrite = FALSE)
+  format_set_scalar(d, "foo", "baz", overwrite = TRUE)
+  expect_equal(format_get_scalar(d, "foo"), "baz")
+})
+
+test_that("format_set_scalar rejects NA, NULL, and length != 1", {
+  d <- memory_daf()
+  expect_error(format_set_scalar(d, "foo", NA,              overwrite = FALSE), "NA")
+  expect_error(format_set_scalar(d, "foo", NULL,            overwrite = FALSE), "scalar")
+  expect_error(format_set_scalar(d, "foo", c("a", "b"),     overwrite = FALSE), "length 1")
+  expect_error(format_set_scalar(d, "foo", list(1),         overwrite = FALSE), "atomic")
+})
+
+test_that("format_delete_scalar removes + respects must_exist", {
+  d <- memory_daf()
+  format_set_scalar(d, "foo", "bar", overwrite = FALSE)
+  format_delete_scalar(d, "foo", must_exist = TRUE)
+  expect_false(format_has_scalar(d, "foo"))
+  expect_error (format_delete_scalar(d, "foo", must_exist = TRUE),  "does not exist")
+  expect_silent(format_delete_scalar(d, "foo", must_exist = FALSE))
+})
