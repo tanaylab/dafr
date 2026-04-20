@@ -60,3 +60,29 @@ test_that("register_reduction accepts overwrite = TRUE", {
   register_reduction("OverTest", function(x, ...) 0, overwrite = TRUE)
   expect_equal(get_reduction("OverTest")(c(1, 2)), 0)
 })
+
+test_that("default reductions are registered on load", {
+  for (op in c("Sum", "Mean", "Max", "Min", "Count")) {
+    expect_true(op %in% registered_reductions(), info = op)
+  }
+})
+
+test_that("Sum reduces a numeric vector", {
+  expect_equal(get_reduction("Sum")(c(1, 2, 3)), 6)
+  expect_equal(get_reduction("Sum")(c(1, NA, 3)), NA_real_)
+  expect_equal(get_reduction("Sum")(c(1, NA, 3), na_rm = TRUE), 4)
+})
+
+test_that("Mean reduces a numeric vector", {
+  expect_equal(get_reduction("Mean")(c(1, 2, 3)), 2)
+})
+
+test_that("Max/Min reduce a numeric vector", {
+  expect_equal(get_reduction("Max")(c(3, 1, 4, 1, 5)), 5)
+  expect_equal(get_reduction("Min")(c(3, 1, 4, 1, 5)), 1)
+})
+
+test_that("Count returns length of input", {
+  expect_equal(get_reduction("Count")(c(1, 2, 3)), 3L)
+  expect_equal(get_reduction("Count")(character(5)), 5L)
+})

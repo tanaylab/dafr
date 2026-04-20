@@ -104,3 +104,18 @@ registered_reductions <- function() sort(names(.ops_env$reductions))
 #' @return Sorted character vector of registered eltwise names.
 #' @export
 registered_eltwise <- function() sort(names(.ops_env$eltwise))
+
+.op_sum   <- function(x, ..., na_rm = FALSE) sum(x, na.rm = na_rm)
+.op_mean  <- function(x, ..., na_rm = FALSE) mean(x, na.rm = na_rm)
+.op_max   <- function(x, ..., na_rm = FALSE) max(x, na.rm = na_rm)
+.op_min   <- function(x, ..., na_rm = FALSE) min(x, na.rm = na_rm)
+.op_count <- function(x, ...) length(x)
+
+.register_default_ops <- function() {
+  register_reduction("Sum",   .op_sum,   overwrite = TRUE)
+  register_reduction("Mean",  .op_mean,  overwrite = TRUE)
+  register_reduction("Max",   .op_max,   overwrite = TRUE)
+  register_reduction("Min",   .op_min,   overwrite = TRUE)
+  register_reduction("Count", .op_count, overwrite = TRUE)
+  invisible(NULL)
+}
