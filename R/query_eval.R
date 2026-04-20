@@ -66,6 +66,15 @@ NULL
                  sQuote(node$axis_name),
                  sQuote(S7::prop(daf, "name"))), call. = FALSE)
   }
+  if (identical(state$kind, "axis")) {
+    # second axis -> matrix dimension in scope
+    state$kind <- "two_axes"
+    state$rows_axis <- state$axis
+    state$cols_axis <- node$axis_name
+    state$value <- NULL
+    state$axis  <- NULL
+    return(state)
+  }
   state$value <- format_axis_array(daf, node$axis_name)
   state$axis  <- node$axis_name
   state$kind  <- "axis"
@@ -95,12 +104,20 @@ NULL
   if (identical(state$kind, "scalar_names_ready")) {
     return(list(kind = "names", value = format_scalars_set(daf)))
   }
-  if (identical(state$kind, "axis")) {
-    # '@ axis : ?' case handled in Q8; for '@ ?' we return axes_set
-    return(list(kind = "names", value = format_axes_set(daf)))
+  if (identical(state$kind, "vector_names_ready")) {
+    return(list(kind = "names", value = format_vectors_set(daf, state$axis)))
   }
-  # bare `@ ?` -> axes_set (state$kind is "init" at this point because
-  # the parser emits Names as its own node when encountered)
+  if (identical(state$kind, "matrix_names_ready")) {
+    return(list(kind = "names",
+                value = format_matrices_set(daf, state$rows_axis, state$cols_axis)))
+  }
+  if (identical(state$kind, "axis")) {
+    return(list(kind = "names", value = format_vectors_set(daf, state$axis)))
+  }
+  if (identical(state$kind, "two_axes")) {
+    return(list(kind = "names",
+                value = format_matrices_set(daf, state$rows_axis, state$cols_axis)))
+  }
   list(kind = "names", value = format_axes_set(daf))
 }
 
@@ -110,10 +127,57 @@ NULL
 # can route but callers get clear feedback on what's not yet implemented.
 
 .apply_lookup_vector <- function(node, state, daf) {
-  stop("not yet implemented: LookupVector", call. = FALSE)
+  if (!identical(state$kind, "axis")) {
+    stop(sprintf("':' requires an axis in scope (got %s)", state$kind),
+         call. = FALSE)
+  }
+  axis <- state$axis
+  if (is.null(node$name)) {
+    # '@ axis : ?' -> set ready state; Names node will complete the listing
+    state$kind <- "vector_names_ready"
+    return(state)
+  }
+  if (!format_has_vector(daf, axis, node$name)) {
+    if (!is.null(state$if_missing)) {
+      return(list(kind = "vector",
+                  value = rep(state$if_missing,
+                              format_axis_length(daf, axis)),
+                  axis = axis))
+    }
+    stop(sprintf("no vector %s on axis %s",
+                 sQuote(node$name), sQuote(axis)), call. = FALSE)
+  }
+  list(kind = "vector",
+       value = format_get_vector(daf, axis, node$name),
+       axis  = axis)
 }
+
 .apply_lookup_matrix <- function(node, state, daf) {
-  stop("not yet implemented: LookupMatrix", call. = FALSE)
+  if (!identical(state$kind, "two_axes")) {
+    stop(sprintf("'::' requires two axes in scope (got %s)", state$kind),
+         call. = FALSE)
+  }
+  rows <- state$rows_axis; cols <- state$cols_axis
+  if (is.null(node$name)) {
+    # '@ rows @ cols :: ?' -> set ready state; Names node will complete
+    state$kind <- "matrix_names_ready"
+    return(state)
+  }
+  if (!format_has_matrix(daf, rows, cols, node$name)) {
+    if (!is.null(state$if_missing)) {
+      return(list(kind = "matrix",
+                  value = matrix(state$if_missing,
+                                 format_axis_length(daf, rows),
+                                 format_axis_length(daf, cols)),
+                  rows_axis = rows, cols_axis = cols))
+    }
+    stop(sprintf("no matrix %s [%s, %s]",
+                 sQuote(node$name), sQuote(rows), sQuote(cols)),
+         call. = FALSE)
+  }
+  list(kind = "matrix",
+       value = format_get_matrix(daf, rows, cols, node$name),
+       rows_axis = rows, cols_axis = cols)
 }
 .apply_if_not <- function(node, state, daf) {
   stop("not yet implemented: IfNot", call. = FALSE)
