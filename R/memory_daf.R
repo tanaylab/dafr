@@ -237,3 +237,66 @@ S7::method(format_get_vector,
   }
   get(name, envir = env, inherits = FALSE)
 }
+
+# ---- Vectors: mutation ------------------------------------------------------
+
+.validate_vector_value <- function(daf, axis, name, vec) {
+  if (is.null(vec) || !is.atomic(vec)) {
+    stop(sprintf("vector %s on axis %s must be atomic", sQuote(name), sQuote(axis)),
+         call. = FALSE)
+  }
+  n <- format_axis_length(daf, axis)
+  if (!is.null(names(vec))) {
+    entries <- format_axis_array(daf, axis)
+    missing <- setdiff(names(vec), entries)
+    if (length(missing)) {
+      stop(sprintf("vector %s has names not in axis %s: %s",
+                   sQuote(name), sQuote(axis),
+                   paste(sQuote(missing), collapse = ", ")),
+           call. = FALSE)
+    }
+    if (length(vec) != n) {
+      stop(sprintf("vector %s has length %d (expected %d) on axis %s",
+                   sQuote(name), length(vec), n, sQuote(axis)),
+           call. = FALSE)
+    }
+    # Reorder to axis order; drop names but preserve class (e.g. bit64).
+    vec <- vec[entries]
+    names(vec) <- NULL
+  } else {
+    if (length(vec) != n) {
+      stop(sprintf("vector %s has length %d (expected %d) on axis %s",
+                   sQuote(name), length(vec), n, sQuote(axis)),
+           call. = FALSE)
+    }
+  }
+  vec
+}
+
+S7::method(format_set_vector,
+           list(MemoryDaf, S7::class_character, S7::class_character, S7::class_any, S7::class_logical)) <- function(daf, axis, name, vec, overwrite) {
+  vec <- .validate_vector_value(daf, axis, name, vec)
+  env <- .memory_axis_vectors(daf, axis, create = TRUE)
+  if (exists(name, envir = env, inherits = FALSE) && !overwrite) {
+    stop(sprintf("vector %s already exists on axis %s; use overwrite = TRUE",
+                 sQuote(name), sQuote(axis)), call. = FALSE)
+  }
+  assign(name, vec, envir = env)
+  bump_vector_counter(daf, axis, name)
+  invisible()
+}
+
+S7::method(format_delete_vector,
+           list(MemoryDaf, S7::class_character, S7::class_character, S7::class_logical)) <- function(daf, axis, name, must_exist) {
+  env <- .memory_axis_vectors(daf, axis, create = FALSE)
+  if (is.null(env) || !exists(name, envir = env, inherits = FALSE)) {
+    if (must_exist) {
+      stop(sprintf("vector %s does not exist on axis %s",
+                   sQuote(name), sQuote(axis)), call. = FALSE)
+    }
+    return(invisible())
+  }
+  rm(list = name, envir = env)
+  bump_vector_counter(daf, axis, name)
+  invisible()
+}

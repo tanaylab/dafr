@@ -30,3 +30,76 @@ test_that("format_get_vector errors on unknown axis / vector", {
   add_axis(d, "cell", c("A", "B"))
   expect_error(format_get_vector(d, "cell", "score"), "vector .* does not exist")
 })
+
+test_that("format_set_vector stores dense numeric/integer/logical/character vectors", {
+  d <- memory_daf()
+  add_axis(d, "cell", c("A", "B", "C"))
+  for (v in list(c(1.0, 2.0, 3.0), c(1L, 2L, 3L), c(TRUE, FALSE, TRUE), c("x", "y", "z"))) {
+    format_set_vector(d, "cell", "v", v, overwrite = TRUE)
+    expect_identical(format_get_vector(d, "cell", "v"), v)
+  }
+})
+
+test_that("format_set_vector strips names to the axis entry order (named input)", {
+  d <- memory_daf()
+  add_axis(d, "cell", c("A", "B", "C"))
+  format_set_vector(d, "cell", "v",
+                    c(B = 20.0, A = 10.0, C = 30.0),
+                    overwrite = FALSE)
+  got <- format_get_vector(d, "cell", "v")
+  expect_equal(got, c(10.0, 20.0, 30.0), ignore_attr = TRUE)
+  expect_null(names(got))
+})
+
+test_that("format_set_vector errors on length mismatch / unknown axis / NULL", {
+  d <- memory_daf()
+  add_axis(d, "cell", c("A", "B"))
+  expect_error(format_set_vector(d, "gene", "v", c(1, 2), overwrite = FALSE),
+               "axis .* does not exist")
+  expect_error(format_set_vector(d, "cell", "v", c(1, 2, 3), overwrite = FALSE),
+               "length 3.*expected 2")
+  expect_error(format_set_vector(d, "cell", "v", NULL, overwrite = FALSE),
+               "atomic")
+})
+
+test_that("format_set_vector errors on named vector with unknown entries", {
+  d <- memory_daf()
+  add_axis(d, "cell", c("A", "B"))
+  expect_error(
+    format_set_vector(d, "cell", "v",
+                      c(A = 1.0, Z = 2.0),
+                      overwrite = FALSE),
+    "not in axis"
+  )
+})
+
+test_that("format_set_vector honours overwrite", {
+  d <- memory_daf()
+  add_axis(d, "cell", c("A", "B"))
+  format_set_vector(d, "cell", "v", c(1.0, 2.0), overwrite = FALSE)
+  expect_error(format_set_vector(d, "cell", "v", c(3.0, 4.0), overwrite = FALSE),
+               "already exists")
+  format_set_vector(d, "cell", "v", c(3.0, 4.0), overwrite = TRUE)
+  expect_equal(format_get_vector(d, "cell", "v"), c(3.0, 4.0))
+})
+
+test_that("format_set_vector bumps the vector version counter", {
+  d <- memory_daf()
+  add_axis(d, "cell", c("A", "B"))
+  vc <- S7::prop(d, "vector_version_counter")
+  expect_null(vc[["cell:v"]])
+  format_set_vector(d, "cell", "v", c(1.0, 2.0), overwrite = FALSE)
+  expect_equal(vc[["cell:v"]], 1L)
+  format_set_vector(d, "cell", "v", c(3.0, 4.0), overwrite = TRUE)
+  expect_equal(vc[["cell:v"]], 2L)
+})
+
+test_that("format_delete_vector removes + respects must_exist", {
+  d <- memory_daf()
+  add_axis(d, "cell", c("A", "B"))
+  format_set_vector(d, "cell", "v", c(1.0, 2.0), overwrite = FALSE)
+  format_delete_vector(d, "cell", "v", must_exist = TRUE)
+  expect_false(format_has_vector(d, "cell", "v"))
+  expect_error (format_delete_vector(d, "cell", "v", must_exist = TRUE),  "does not exist")
+  expect_silent(format_delete_vector(d, "cell", "v", must_exist = FALSE))
+})
