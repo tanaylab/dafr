@@ -1,0 +1,22 @@
+test_that("FilesDaf read axis entries", {
+  dir <- new_tempdir()
+  dir.create(file.path(dir, "axes"), recursive = TRUE)
+  writeLines('{"version":[1,0]}', file.path(dir, "daf.json"))
+  writeLines(c("BRCA1", "TP53", "MYC"), file.path(dir, "axes", "gene.txt"))
+  d <- files_daf(dir, mode = "r")
+  expect_true(has_axis(d, "gene"))
+  expect_equal(axis_length(d, "gene"), 3L)
+  expect_equal(axis_vector(d, "gene"), c("BRCA1", "TP53", "MYC"))
+  dict <- axis_dict(d, "gene")
+  expect_equal(dict[["TP53"]], 2L)
+  expect_equal(axes_set(d), "gene")
+})
+
+test_that("axis parsing rejects empty lines", {
+  dir <- new_tempdir()
+  dir.create(file.path(dir, "axes"), recursive = TRUE)
+  writeLines('{"version":[1,0]}', file.path(dir, "daf.json"))
+  writeLines(c("A", "", "B"), file.path(dir, "axes", "bad.txt"))
+  d <- files_daf(dir, mode = "r")
+  expect_error(axis_vector(d, "bad"), "empty")
+})

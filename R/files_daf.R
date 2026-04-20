@@ -38,6 +38,7 @@ files_daf <- function(path, mode = c("r", "r+", "w", "w+"), name = NULL) {
   internal <- new_internal_env()
   internal$path <- path
   internal$mode <- mode
+  internal$axes <- new.env(parent = emptyenv())
   ctor <- if (mode == "r") FilesDafReadOnly else FilesDaf
   ctor(
     name                   = name,
