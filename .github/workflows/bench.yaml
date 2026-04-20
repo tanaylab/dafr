@@ -21,7 +21,7 @@ jobs:
 
       - uses: r-lib/actions/setup-r-dependencies@v2
         with:
-          extra-packages: any::cpp11, any::bench, any::Matrix, any::withr
+          extra-packages: any::cpp11, any::decor, any::bench, any::Matrix, any::withr
 
       - name: Build
         run: Rscript -e 'pkgbuild::clean_dll(); pkgbuild::compile_dll(debug = FALSE)'

@@ -24,6 +24,7 @@ jobs:
         with:
           extra-packages: |
             any::cpp11
+            any::decor
             any::roxygen2
             any::devtools
             any::Matrix
