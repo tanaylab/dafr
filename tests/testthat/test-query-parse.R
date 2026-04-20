@@ -122,3 +122,31 @@ test_that("parse_query handles IfMissing / IfNot / AsAxis modifiers", {
   expect_equal(parse_query("@ cell : bar ??")[[3]]$op, "IfNot")
   expect_equal(parse_query("=@ cell")[[1]]$op, "AsAxis")
 })
+
+test_that("q() is an alias for parse_query", {
+  expect_identical(q("@ cell"), parse_query("@ cell"))
+})
+
+test_that("is_axis_query returns TRUE for axis-only query", {
+  expect_true(is_axis_query("@ cell"))
+  expect_true(is_axis_query("@ cell [ age > 60 ]"))
+  expect_false(is_axis_query("@ cell : UMIs"))
+})
+
+test_that("query_axis_name returns the last axis in scope", {
+  expect_equal(query_axis_name("@ cell"), "cell")
+  expect_equal(query_axis_name("@ cell @ gene :: UMIs"), NA_character_)
+})
+
+test_that("query_result_dimensions returns 0/1/2 for scalar/vector/matrix", {
+  expect_equal(query_result_dimensions(". organism"), 0L)
+  expect_equal(query_result_dimensions("@ cell : UMIs"), 1L)
+  expect_equal(query_result_dimensions("@ cell @ gene :: UMIs"), 2L)
+})
+
+test_that("has_query returns FALSE for missing data", {
+  d <- memory_daf(name = "t")
+  expect_false(has_query(d, ". organism"))
+  set_scalar(d, "organism", "human")
+  expect_true(has_query(d, ". organism"))
+})

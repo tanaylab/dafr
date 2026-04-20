@@ -129,6 +129,70 @@ canonical_query <- function(query_string) {
   .canonicalise_ast(parse_query(query_string))
 }
 
+#' Alias for `parse_query()`.
+#' @inheritParams parse_query
+#' @return A list of AST node records.
+#' @export
+q <- function(query_string) parse_query(query_string)
+
+#' Test whether a query yields an axis entry vector.
+#' @inheritParams get_query
+#' @return Logical scalar.
+#' @export
+is_axis_query <- function(query_string) {
+  ast <- parse_query(query_string)
+  if (length(ast) == 0L) return(FALSE)
+  last <- ast[[length(ast)]]
+  last$op %in% c("Axis", "EndMask")
+}
+
+#' Return the axis name implied by a query, if any.
+#' @inheritParams get_query
+#' @return A single axis name, or `NA_character_` if the query references
+#'   0 or 2+ axes.
+#' @export
+query_axis_name <- function(query_string) {
+  ast <- parse_query(query_string)
+  axes <- vapply(ast, function(n) {
+    if (identical(n$op, "Axis")) n$axis_name else NA_character_
+  }, character(1))
+  axes <- axes[!is.na(axes)]
+  if (length(axes) == 1L) axes else NA_character_
+}
+
+#' Return the dimensionality of a query's result.
+#' @inheritParams get_query
+#' @return 0L (scalar), 1L (vector / axis entries), 2L (matrix), or
+#'   `NA_integer_` if the query is ill-formed.
+#' @export
+query_result_dimensions <- function(query_string) {
+  ast <- parse_query(query_string)
+  for (n in rev(ast)) {
+    switch(n$op,
+      LookupScalar   = return(0L),
+      LookupVector   = return(1L),
+      LookupMatrix   = return(2L),
+      ReduceToColumn = , ReduceToRow = return(1L),
+      CountBy        = return(2L),
+      Axis           = return(1L),
+      NULL)
+  }
+  NA_integer_
+}
+
+#' Check whether a query can be evaluated against a daf without error.
+#' @inheritParams get_query
+#' @return Logical scalar. TRUE if `get_query(daf, query_string)` would
+#'   succeed with a non-empty result; FALSE otherwise.
+#' @export
+has_query <- function(daf, query_string) {
+  result <- tryCatch(get_query(daf, query_string), error = function(e) NULL)
+  if (is.null(result)) return(FALSE)
+  if (is.vector(result)) return(length(result) > 0L)
+  if (is.matrix(result)) return(nrow(result) > 0L && ncol(result) > 0L)
+  TRUE
+}
+
 #' Extract a data.frame of vectors along one axis.
 #' @param daf A DafReader.
 #' @param axis_query A query string that evaluates to an axis entry vector
