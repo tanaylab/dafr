@@ -184,3 +184,23 @@ test_that("entries larger than the cap are stored and immediately evict others",
   expect_false(exists("small", envir = ce$memory, inherits = FALSE))
   expect_true( exists("big",   envir = ce$memory, inherits = FALSE))
 })
+
+# ---- I3: Julia-style empty_cache clear/keep ---------------------------------
+
+test_that("empty_cache accepts 'clear' and 'keep' groups (Julia parity)", {
+  d <- memory_daf()
+  add_axis(d, "cell", c("A"))
+  set_vector(d, "cell", "v", 1.0)
+  get_vector(d, "cell", "v")   # populate memory tier
+  ce <- S7::prop(d, "cache")
+  expect_true(length(ls(ce$memory)) > 0L)
+
+  empty_cache(d, clear = "MappedData")
+  expect_true(length(ls(ce$memory)) > 0L)       # memory left alone
+
+  empty_cache(d, keep = "MemoryData")
+  expect_true(length(ls(ce$memory)) > 0L)       # memory preserved, others cleared
+
+  empty_cache(d)
+  expect_equal(length(ls(ce$memory)), 0L)
+})

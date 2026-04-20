@@ -42,22 +42,41 @@ cache_remove <- function(cache_env, tier, key) {
 
 #' Empty caches on a Daf object.
 #'
+#' Exactly one of `group`, `clear`, or `keep` may be supplied. Group
+#' names use the short form (`"mapped"`, `"memory"`, `"query"`) or the
+#' Julia-style capitalised form (`"MappedData"`, `"MemoryData"`,
+#' `"QueryData"`).
+#'
 #' @param daf A `DafReader`/`DafWriter` instance.
-#' @param group Character vector; any of `"mapped"`, `"memory"`, `"query"`.
-#'   Defaults to all three.
+#' @param group Character vector of tiers to clear (defaults to all).
+#' @param clear Character vector of tiers to clear (alternative to `group`).
+#' @param keep Character vector of tiers to keep; all others are cleared.
 #' @return Invisibly the input `daf`.
 #' @export
-empty_cache <- function(daf, group = c("mapped", "memory", "query")) {
-  group <- match.arg(group, choices = c("mapped", "memory", "query"), several.ok = TRUE)
+empty_cache <- function(daf,
+                        group = NULL,
+                        clear = NULL,
+                        keep  = NULL) {
+  all_tiers <- c("mapped", "memory", "query")
+  n_specified <- sum(!is.null(group), !is.null(clear), !is.null(keep))
+  if (n_specified > 1L) {
+    stop("specify at most one of `group`, `clear`, `keep`", call. = FALSE)
+  }
+  chosen <- if (!is.null(group)) group
+            else if (!is.null(clear)) clear
+            else if (!is.null(keep)) setdiff(all_tiers, .canonical_tier(keep))
+            else all_tiers
+  chosen <- .canonical_tier(chosen)
+
   cache_env <- S7::prop(daf, "cache")
-  for (tier in group) {
+  for (tier in chosen) {
     bucket <- cache_env[[tier]]
     rm(list = ls(bucket, all.names = TRUE), envir = bucket)
     if (.is_capped_tier(tier)) {
       cache_env$lru <- cache_env$lru[!startsWith(cache_env$lru, paste0(tier, ":"))]
     }
   }
-  # Recompute bytes from what's left in the capped tiers.
+  # Recompute bytes from what remains in capped tiers.
   total <- 0
   for (t in c("memory", "query")) {
     bucket <- cache_env[[t]]
@@ -67,6 +86,20 @@ empty_cache <- function(daf, group = c("mapped", "memory", "query")) {
   }
   cache_env$bytes <- total
   invisible(daf)
+}
+
+.canonical_tier <- function(x) {
+  map <- c(
+    mapped     = "mapped", memory     = "memory", query      = "query",
+    MappedData = "mapped", MemoryData = "memory", QueryData  = "query"
+  )
+  out <- map[x]
+  if (any(is.na(out))) {
+    stop(sprintf("unknown cache tier(s): %s",
+                 paste(sQuote(x[is.na(out)]), collapse = ", ")),
+         call. = FALSE)
+  }
+  unname(out)
 }
 
 # ---- Version counters (monotonic integers, bumped on mutation) ----

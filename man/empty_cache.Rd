@@ -4,17 +4,23 @@
 \alias{empty_cache}
 \title{Empty caches on a Daf object.}
 \usage{
-empty_cache(daf, group = c("mapped", "memory", "query"))
+empty_cache(daf, group = NULL, clear = NULL, keep = NULL)
 }
 \arguments{
 \item{daf}{A \code{DafReader}/\code{DafWriter} instance.}
 
-\item{group}{Character vector; any of \code{"mapped"}, \code{"memory"}, \code{"query"}.
-Defaults to all three.}
+\item{group}{Character vector of tiers to clear (defaults to all).}
+
+\item{clear}{Character vector of tiers to clear (alternative to \code{group}).}
+
+\item{keep}{Character vector of tiers to keep; all others are cleared.}
 }
 \value{
 Invisibly the input \code{daf}.
 }
 \description{
-Empty caches on a Daf object.
+Exactly one of \code{group}, \code{clear}, or \code{keep} may be supplied. Group
+names use the short form (\code{"mapped"}, \code{"memory"}, \code{"query"}) or the
+Julia-style capitalised form (\code{"MappedData"}, \code{"MemoryData"},
+\code{"QueryData"}).
 }
