@@ -21,7 +21,7 @@ add_axis <- function(daf, axis, entries) {
 #' @export
 delete_axis <- function(daf, axis, must_exist = TRUE) {
   .assert_name(axis, "axis")
-  stopifnot(is.logical(must_exist), length(must_exist) == 1L, !is.na(must_exist))
+  .assert_flag(must_exist, "must_exist")
   format_delete_axis(daf, axis, must_exist)
   invisible(daf)
 }
@@ -35,7 +35,7 @@ delete_axis <- function(daf, axis, must_exist = TRUE) {
 #' @export
 set_scalar <- function(daf, name, value, overwrite = FALSE) {
   .assert_name(name, "name")
-  stopifnot(is.logical(overwrite), length(overwrite) == 1L, !is.na(overwrite))
+  .assert_flag(overwrite, "overwrite")
   format_set_scalar(daf, name, value, overwrite)
   invisible(daf)
 }
@@ -47,7 +47,7 @@ set_scalar <- function(daf, name, value, overwrite = FALSE) {
 #' @export
 delete_scalar <- function(daf, name, must_exist = TRUE) {
   .assert_name(name, "name")
-  stopifnot(is.logical(must_exist), length(must_exist) == 1L, !is.na(must_exist))
+  .assert_flag(must_exist, "must_exist")
   format_delete_scalar(daf, name, must_exist)
   invisible(daf)
 }
@@ -64,7 +64,7 @@ delete_scalar <- function(daf, name, must_exist = TRUE) {
 set_vector <- function(daf, axis, name, vec, overwrite = FALSE) {
   .assert_name(axis, "axis")
   .assert_name(name, "name")
-  stopifnot(is.logical(overwrite), length(overwrite) == 1L, !is.na(overwrite))
+  .assert_flag(overwrite, "overwrite")
   format_set_vector(daf, axis, name, vec, overwrite)
   invisible(daf)
 }
@@ -78,7 +78,7 @@ set_vector <- function(daf, axis, name, vec, overwrite = FALSE) {
 delete_vector <- function(daf, axis, name, must_exist = TRUE) {
   .assert_name(axis, "axis")
   .assert_name(name, "name")
-  stopifnot(is.logical(must_exist), length(must_exist) == 1L, !is.na(must_exist))
+  .assert_flag(must_exist, "must_exist")
   format_delete_vector(daf, axis, name, must_exist)
   invisible(daf)
 }

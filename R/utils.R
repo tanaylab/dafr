@@ -10,3 +10,12 @@
   }
   invisible()
 }
+
+# Scalar-logical argument guard — used for overwrite / must_exist / etc.
+.assert_flag <- function(value, arg) {
+  if (!is.logical(value) || length(value) != 1L || is.na(value)) {
+    stop(sprintf("`%s` must be a non-NA logical scalar", arg),
+         call. = FALSE)
+  }
+  invisible()
+}
