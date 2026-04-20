@@ -249,3 +249,26 @@ test_that("set_vector / get_vector round-trip a named string vector", {
   expect_equal(vectors_set(d, "cell"), character(0L))
   expect_false(has_vector(d, "cell", "kind"))
 })
+
+test_that("get_vector(default = <length-N vector>) passes through", {
+  d <- memory_daf()
+  add_axis(d, "cell", c("A", "B", "C"))
+  default <- c(10.0, 20.0, 30.0)
+  out <- get_vector(d, "cell", "absent", default = default)
+  expect_equal(unname(out), default)
+  expect_equal(names(out), c("A", "B", "C"))
+})
+
+test_that("get_vector(default = <scalar>) recycles", {
+  d <- memory_daf()
+  add_axis(d, "cell", c("A", "B", "C"))
+  out <- get_vector(d, "cell", "absent", default = NA)
+  expect_equal(unname(out), rep(NA, 3L))
+})
+
+test_that("get_vector(default = <wrong-length vector>) errors", {
+  d <- memory_daf()
+  add_axis(d, "cell", c("A", "B"))
+  expect_error(get_vector(d, "cell", "absent", default = c(1, 2, 3)),
+               "default has length 3|expected 2")
+})

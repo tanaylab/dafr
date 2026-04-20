@@ -155,11 +155,13 @@ vectors_set <- function(daf, axis) {
 #' @param daf A `DafReader`.
 #' @param axis Axis name.
 #' @param name Vector name.
-#' @param default If supplied and the vector is absent, return a
-#'   constant-valued named vector of length `axis_length(daf, axis)`
-#'   with the axis entries as names. The vector's atomic type follows
-#'   `default` (e.g. `default = NA` yields `logical`, `default = "x"`
-#'   yields `character`, `default = 0.0` yields `double`).
+#' @param default If supplied and the vector is absent, return a named
+#'   vector of length `axis_length(daf, axis)` with the axis entries as
+#'   names. A length-1 `default` is recycled to every entry; a length-N
+#'   `default` (matching the axis length) is used as-is. Any other
+#'   length is an error. The vector's atomic type follows `default`
+#'   (e.g. `default = NA` yields `logical`, `default = "x"` yields
+#'   `character`, `default = 0.0` yields `double`).
 #' @return Named atomic vector.
 #' @export
 get_vector <- function(daf, axis, name, default) {
@@ -174,7 +176,15 @@ get_vector <- function(daf, axis, name, default) {
       stop(sprintf("vector %s does not exist on axis %s",
                    sQuote(name), sQuote(axis)), call. = FALSE)
     }
-    out <- rep(default, length(entries))
+    n <- length(entries)
+    if (length(default) == 1L) {
+      out <- rep(default, n)
+    } else if (length(default) == n) {
+      out <- default
+    } else {
+      stop(sprintf("default has length %d (expected 1 or %d) for axis %s",
+                   length(default), n, sQuote(axis)), call. = FALSE)
+    }
     names(out) <- entries
     return(out)
   }

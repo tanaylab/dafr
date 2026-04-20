@@ -13,11 +13,13 @@ get_vector(daf, axis, name, default)
 
 \item{name}{Vector name.}
 
-\item{default}{If supplied and the vector is absent, return a
-constant-valued named vector of length \code{axis_length(daf, axis)}
-with the axis entries as names. The vector's atomic type follows
-\code{default} (e.g. \code{default = NA} yields \code{logical}, \code{default = "x"}
-yields \code{character}, \code{default = 0.0} yields \code{double}).}
+\item{default}{If supplied and the vector is absent, return a named
+vector of length \code{axis_length(daf, axis)} with the axis entries as
+names. A length-1 \code{default} is recycled to every entry; a length-N
+\code{default} (matching the axis length) is used as-is. Any other
+length is an error. The vector's atomic type follows \code{default}
+(e.g. \code{default = NA} yields \code{logical}, \code{default = "x"} yields
+\code{character}, \code{default = 0.0} yields \code{double}).}
 }
 \value{
 Named atomic vector.
