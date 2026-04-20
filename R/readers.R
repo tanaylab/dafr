@@ -136,7 +136,9 @@ get_scalar <- function(daf, name, default) {
 #' @param name Vector name.
 #' @param default If supplied and the vector is absent, return a
 #'   constant-valued named vector of length `axis_length(daf, axis)`
-#'   with the axis entries as names.
+#'   with the axis entries as names. The vector's atomic type follows
+#'   `default` (e.g. `default = NA` yields `logical`, `default = "x"`
+#'   yields `character`, `default = 0.0` yields `double`).
 #' @return Named atomic vector.
 #' @export
 get_vector <- function(daf, axis, name, default) {

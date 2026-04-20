@@ -15,7 +15,9 @@ get_vector(daf, axis, name, default)
 
 \item{default}{If supplied and the vector is absent, return a
 constant-valued named vector of length \code{axis_length(daf, axis)}
-with the axis entries as names.}
+with the axis entries as names. The vector's atomic type follows
+\code{default} (e.g. \code{default = NA} yields \code{logical}, \code{default = "x"}
+yields \code{character}, \code{default = 0.0} yields \code{double}).}
 }
 \value{
 Named atomic vector.

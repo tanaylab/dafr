@@ -144,3 +144,21 @@ test_that("get_vector cache invalidates after overwrite", {
   format_set_vector(d, "cell", "v", c(10.0, 20.0), overwrite = TRUE)
   expect_equal(unname(get_vector(d, "cell", "v")), c(10.0, 20.0))
 })
+
+test_that("get_vector cache invalidates when the axis counter bumps", {
+  d <- memory_daf()
+  add_axis(d, "cell", c("A", "B"))
+  format_set_vector(d, "cell", "v", c(1.0, 2.0), overwrite = FALSE)
+  first <- get_vector(d, "cell", "v")
+  cache_env <- S7::prop(d, "cache")
+  key <- cache_key_vector("cell", "v")
+  stale_entry <- get(key, envir = cache_env$memory, inherits = FALSE)
+  expect_equal(stale_entry$stamp[[1L]], 1L)  # axis counter == 1 when first cached
+
+  bump_axis_counter(d, "cell")
+  # Cached entry's stamp now disagrees with current axis_stamp.
+  second <- get_vector(d, "cell", "v")
+  expect_identical(first, second)            # values unchanged (no data mutation)
+  fresh_entry <- get(key, envir = cache_env$memory, inherits = FALSE)
+  expect_equal(fresh_entry$stamp[[1L]], 2L)  # restamped to current axis counter
+})
