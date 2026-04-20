@@ -348,3 +348,57 @@ S7::method(format_get_matrix,
   }
   get(name, envir = env, inherits = FALSE)
 }
+
+# ---- Matrices: mutation -----------------------------------------------------
+
+.validate_matrix_value <- function(daf, rows_axis, cols_axis, name, mat) {
+  is_sparse <- methods::is(mat, "dgCMatrix") || methods::is(mat, "lgCMatrix")
+  is_dense  <- is.matrix(mat)
+  if (!is_sparse && !is_dense) {
+    stop(sprintf("matrix %s is not a matrix or dgCMatrix/lgCMatrix",
+                 sQuote(name)), call. = FALSE)
+  }
+  nr <- format_axis_length(daf, rows_axis)
+  nc <- format_axis_length(daf, cols_axis)
+  d  <- dim(mat)
+  if (d[[1L]] != nr || d[[2L]] != nc) {
+    stop(sprintf("matrix %s has dim %d x %d (expected %d x %d)",
+                 sQuote(name), d[[1L]], d[[2L]], nr, nc), call. = FALSE)
+  }
+  if (is_dense) {
+    dimnames(mat) <- NULL
+  } else {
+    mat@Dimnames <- list(NULL, NULL)
+  }
+  mat
+}
+
+S7::method(format_set_matrix,
+           list(MemoryDaf, S7::class_character, S7::class_character, S7::class_character, S7::class_any, S7::class_logical)) <- function(daf, rows_axis, columns_axis, name, mat, overwrite) {
+  mat <- .validate_matrix_value(daf, rows_axis, columns_axis, name, mat)
+  env <- .memory_matrix_bucket(daf, rows_axis, columns_axis, create = TRUE)
+  if (exists(name, envir = env, inherits = FALSE) && !overwrite) {
+    stop(sprintf("matrix %s already exists on axes (%s, %s); use overwrite = TRUE",
+                 sQuote(name), sQuote(rows_axis), sQuote(columns_axis)),
+         call. = FALSE)
+  }
+  assign(name, mat, envir = env)
+  bump_matrix_counter(daf, rows_axis, columns_axis, name)
+  invisible()
+}
+
+S7::method(format_delete_matrix,
+           list(MemoryDaf, S7::class_character, S7::class_character, S7::class_character, S7::class_logical)) <- function(daf, rows_axis, columns_axis, name, must_exist) {
+  env <- .memory_matrix_bucket(daf, rows_axis, columns_axis, create = FALSE)
+  if (is.null(env) || !exists(name, envir = env, inherits = FALSE)) {
+    if (must_exist) {
+      stop(sprintf("matrix %s does not exist on axes (%s, %s)",
+                   sQuote(name), sQuote(rows_axis), sQuote(columns_axis)),
+           call. = FALSE)
+    }
+    return(invisible())
+  }
+  rm(list = name, envir = env)
+  bump_matrix_counter(daf, rows_axis, columns_axis, name)
+  invisible()
+}
