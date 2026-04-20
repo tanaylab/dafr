@@ -157,3 +157,82 @@ S7::method(format_vectors_set,
            list(FilesDafReadOnly, S7::class_character)) <- function(daf, axis) {
   .files_vectors_set(daf, axis)
 }
+
+# ---- vectors: read ----
+
+.files_get_vector_dense_string <- function(daf, axis, name, n) {
+  dir <- .path_vector_dir(.files_root(daf), axis)
+  txt <- file.path(dir, paste0(name, ".txt"))
+  if (!file.exists(txt)) {
+    stop(sprintf("files_daf: missing payload %s", sQuote(txt)), call. = FALSE)
+  }
+  out <- readLines(txt, encoding = "UTF-8", warn = FALSE)
+  if (length(out) != n) {
+    stop(sprintf("files_daf: string vector %s has %d entries (expected %d)",
+                 sQuote(name), length(out), n), call. = FALSE)
+  }
+  out
+}
+
+.files_get_vector_dense <- function(daf, axis, name, desc, n) {
+  root <- .files_root(daf)
+  dir  <- .path_vector_dir(root, axis)
+  elt  <- desc$eltype
+  if (elt == "String") {
+    return(.files_get_vector_dense_string(daf, axis, name, n))
+  }
+  data_path <- file.path(dir, paste0(name, ".data"))
+  if (!file.exists(data_path)) {
+    stop(sprintf("files_daf: missing payload %s", sQuote(data_path)),
+         call. = FALSE)
+  }
+  expected <- n * .dtype_size(elt)
+  actual   <- file.size(data_path)
+  if (actual < expected) {
+    stop(sprintf("files_daf: vector %s payload truncated (%d < %d bytes)",
+                 sQuote(name), actual, expected), call. = FALSE)
+  }
+  use_mmap <- isTRUE(dafr_opt("dafr.mmap"))
+  if (use_mmap && elt == "Float64") {
+    return(mmap_real(data_path, n))
+  }
+  if (use_mmap && elt == "Int32") {
+    return(mmap_int(data_path, n))
+  }
+  # Fallback: eager read for all other types and when mmap disabled.
+  .read_bin_dense(data_path, n, elt)
+}
+
+.files_get_vector_sparse <- function(daf, axis, name, desc, n) {
+  # Implemented in Task G1.
+  stop("files_daf: sparse vector read not yet implemented (Phase G1)",
+       call. = FALSE)
+}
+
+.files_get_vector_impl <- function(daf, axis, name) {
+  root <- .files_root(daf)
+  desc_path <- .files_vector_desc_path(root, axis, name)
+  if (!file.exists(desc_path)) {
+    stop(sprintf("vector %s does not exist on axis %s",
+                 sQuote(name), sQuote(axis)), call. = FALSE)
+  }
+  desc <- .read_descriptor(desc_path)
+  n <- format_axis_length(daf, axis)
+  if (desc$format == "dense") {
+    return(.files_get_vector_dense(daf, axis, name, desc, n))
+  }
+  if (desc$format == "sparse") {
+    return(.files_get_vector_sparse(daf, axis, name, desc, n))
+  }
+  stop(sprintf("files_daf: unsupported vector format %s", desc$format),
+       call. = FALSE)
+}
+
+S7::method(format_get_vector,
+           list(FilesDaf, S7::class_character, S7::class_character)) <- function(daf, axis, name) {
+  .files_get_vector_impl(daf, axis, name)
+}
+S7::method(format_get_vector,
+           list(FilesDafReadOnly, S7::class_character, S7::class_character)) <- function(daf, axis, name) {
+  .files_get_vector_impl(daf, axis, name)
+}
