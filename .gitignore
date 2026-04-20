@@ -10,3 +10,6 @@ src/symbols.rds
 
 # dev/ has its own git repo (design docs, specs, plans, benchmarks, scripts)
 dev/
+
+# babysitter/a5c runs and state
+.a5c/

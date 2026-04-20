@@ -30,7 +30,6 @@ LinkingTo:
     cpp11
 Suggests:
     bench,
-    hedgehog,
     knitr,
     rmarkdown,
     scran,

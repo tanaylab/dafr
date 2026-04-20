@@ -5,4 +5,5 @@
 #'   class_numeric class_list class_environment new_generic
 #' @importFrom bit64 as.integer64
 #' @importFrom cli cli_inform
+#' @importFrom utils object.size
 "_PACKAGE"
