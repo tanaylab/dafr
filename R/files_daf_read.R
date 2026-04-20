@@ -122,3 +122,38 @@ S7::method(format_axis_dict,
            list(FilesDafReadOnly, S7::class_character)) <- function(daf, axis) {
   .files_axis_require(daf, axis)$dict
 }
+
+# ---- vectors: query ----
+
+.files_vector_desc_path <- function(root, axis, name) {
+  file.path(.path_vector_dir(root, axis), paste0(name, ".json"))
+}
+
+.files_has_vector <- function(daf, axis, name) {
+  if (!format_has_axis(daf, axis)) return(FALSE)
+  file.exists(.files_vector_desc_path(.files_root(daf), axis, name))
+}
+S7::method(format_has_vector,
+           list(FilesDaf, S7::class_character, S7::class_character)) <- function(daf, axis, name) {
+  .files_has_vector(daf, axis, name)
+}
+S7::method(format_has_vector,
+           list(FilesDafReadOnly, S7::class_character, S7::class_character)) <- function(daf, axis, name) {
+  .files_has_vector(daf, axis, name)
+}
+
+.files_vectors_set <- function(daf, axis) {
+  if (!format_has_axis(daf, axis)) return(character(0L))
+  dir <- .path_vector_dir(.files_root(daf), axis)
+  if (!dir.exists(dir)) return(character(0L))
+  files <- list.files(dir, pattern = "\\.json$", full.names = FALSE)
+  sort(sub("\\.json$", "", files), method = "radix")
+}
+S7::method(format_vectors_set,
+           list(FilesDaf, S7::class_character)) <- function(daf, axis) {
+  .files_vectors_set(daf, axis)
+}
+S7::method(format_vectors_set,
+           list(FilesDafReadOnly, S7::class_character)) <- function(daf, axis) {
+  .files_vectors_set(daf, axis)
+}
