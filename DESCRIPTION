@@ -61,6 +61,7 @@ Collate:
     'query_parse.R'
     'query_eval.R'
     'queries.R'
+    'view_daf.R'
     'files_daf_write.R'
     'handlers.R'
     'memory_daf.R'
