@@ -162,3 +162,46 @@ test_that("get_vector cache invalidates when the axis counter bumps", {
   fresh_entry <- get(key, envir = cache_env$memory, inherits = FALSE)
   expect_equal(fresh_entry$stamp[[1L]], 2L)  # restamped to current axis counter
 })
+
+test_that("set_vector with named input reorders by axis entries", {
+  d <- memory_daf()
+  add_axis(d, "cell", c("A", "B"))
+  set_vector(d, "cell", "v", c(B = 2.0, A = 1.0))
+  expect_equal(get_vector(d, "cell", "v"), c(A = 1.0, B = 2.0))
+})
+
+test_that("set_vector rejects length mismatch", {
+  d <- memory_daf()
+  add_axis(d, "cell", c("A", "B", "C"))
+  expect_error(set_vector(d, "cell", "v", c(1.0, 2.0)), "length 2")
+})
+
+test_that("set_vector respects overwrite = FALSE", {
+  d <- memory_daf()
+  add_axis(d, "cell", c("A"))
+  set_vector(d, "cell", "v", 1.0)
+  expect_error(set_vector(d, "cell", "v", 2.0), "already exists")
+  set_vector(d, "cell", "v", 2.0, overwrite = TRUE)
+  expect_equal(unname(get_vector(d, "cell", "v")), 2.0)
+})
+
+test_that("delete_vector invalidates cached read", {
+  d <- memory_daf()
+  add_axis(d, "cell", c("A"))
+  set_vector(d, "cell", "v", 1.0)
+  get_vector(d, "cell", "v")  # populate cache
+  delete_vector(d, "cell", "v")
+  expect_false(has_vector(d, "cell", "v"))
+  expect_error (delete_vector(d, "cell", "v"),                 "does not exist")
+  expect_silent(delete_vector(d, "cell", "v", must_exist = FALSE))
+})
+
+test_that("has_vector + vectors_set expose current state", {
+  d <- memory_daf()
+  add_axis(d, "cell", c("A", "B"))
+  expect_equal(vectors_set(d, "cell"), character(0L))
+  expect_false(has_vector(d, "cell", "v"))
+  set_vector(d, "cell", "v", c(1.0, 2.0))
+  expect_true(has_vector(d, "cell", "v"))
+  expect_equal(vectors_set(d, "cell"), "v")
+})

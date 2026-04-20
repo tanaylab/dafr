@@ -51,3 +51,34 @@ delete_scalar <- function(daf, name, must_exist = TRUE) {
   format_delete_scalar(daf, name, must_exist)
   invisible(daf)
 }
+
+#' Set a vector on an axis.
+#'
+#' @inheritParams has_vector
+#' @param vec Atomic vector of length `axis_length(daf, axis)`, or a
+#'   named vector whose names are a subset of the axis entries (reordered
+#'   into axis order at storage time).
+#' @param overwrite See `set_scalar`.
+#' @return Invisibly the input `daf`.
+#' @export
+set_vector <- function(daf, axis, name, vec, overwrite = FALSE) {
+  .assert_name(axis, "axis")
+  .assert_name(name, "name")
+  stopifnot(is.logical(overwrite), length(overwrite) == 1L, !is.na(overwrite))
+  format_set_vector(daf, axis, name, vec, overwrite)
+  invisible(daf)
+}
+
+#' Delete a vector on an axis.
+#'
+#' @inheritParams has_vector
+#' @param must_exist See `delete_axis`.
+#' @return Invisibly the input `daf`.
+#' @export
+delete_vector <- function(daf, axis, name, must_exist = TRUE) {
+  .assert_name(axis, "axis")
+  .assert_name(name, "name")
+  stopifnot(is.logical(must_exist), length(must_exist) == 1L, !is.na(must_exist))
+  format_delete_vector(daf, axis, name, must_exist)
+  invisible(daf)
+}

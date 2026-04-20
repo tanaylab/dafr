@@ -129,6 +129,27 @@ get_scalar <- function(daf, name, default) {
   stop(sprintf("scalar %s does not exist", sQuote(name)), call. = FALSE)
 }
 
+#' Test whether a vector exists on an axis.
+#' @param daf A `DafReader`.
+#' @param axis Axis name.
+#' @param name Vector name.
+#' @return Logical scalar.
+#' @export
+has_vector <- function(daf, axis, name) {
+  .assert_name(axis, "axis")
+  .assert_name(name, "name")
+  format_has_vector(daf, axis, name)
+}
+
+#' Names of vectors on an axis, sorted.
+#' @inheritParams has_vector
+#' @return Character vector.
+#' @export
+vectors_set <- function(daf, axis) {
+  .assert_name(axis, "axis")
+  format_vectors_set(daf, axis)
+}
+
 #' Get a vector, returning it as an axis-named R vector.
 #'
 #' @param daf A `DafReader`.
