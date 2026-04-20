@@ -206,7 +206,27 @@ NULL
 }
 
 .apply_logical_mask <- function(node, state, daf) {
-  stop("not yet implemented: logical mask", call. = FALSE)
+  if (!identical(state$kind, "mask")) {
+    stop("logical mask combinator outside of mask", call. = FALSE)
+  }
+  vec <- format_get_vector(daf, state$axis, node$property)
+  m   <- if (is.logical(vec)) vec else !is.na(vec) & vec != 0
+  negated <- grepl("NegatedMask$", node$op)
+  if (negated) m <- !m
+  op <- if (startsWith(node$op, "And")) "And" else
+        if (startsWith(node$op, "Or"))  "Or"  else "Xor"
+  combined <- switch(op,
+    And = state$pending_mask & m,
+    Or  = state$pending_mask | m,
+    Xor = xor(state$pending_mask, m))
+  # Save the pre-combinator mask and combinator op so a trailing
+  # comparator on this property can refine rather than overwrite.
+  state$pending_combinator_mask <- state$pending_mask
+  state$pending_combinator_op   <- op
+  state$pending_combinator_neg  <- negated
+  state$pending_mask <- combined
+  state$pending_vec  <- vec   # allow a trailing comparator on this property
+  state
 }
 
 .apply_comparator <- function(node, state, daf) {
@@ -223,6 +243,18 @@ NULL
     IsGreaterEqual = vec >= .coerce_cmp(node$value, vec),
     IsMatch        = grepl(node$pattern, as.character(vec), perl = TRUE),
     IsNotMatch     = !grepl(node$pattern, as.character(vec), perl = TRUE))
+  if (!is.null(state$pending_combinator_mask)) {
+    # A trailing comparator after a logical combinator: apply the combinator
+    # operation between the pre-combinator mask and this comparison result.
+    m <- if (isTRUE(state$pending_combinator_neg)) !test else test
+    test <- switch(state$pending_combinator_op,
+      And = state$pending_combinator_mask & m,
+      Or  = state$pending_combinator_mask | m,
+      Xor = xor(state$pending_combinator_mask, m))
+    state$pending_combinator_mask <- NULL
+    state$pending_combinator_op   <- NULL
+    state$pending_combinator_neg  <- NULL
+  }
   state$pending_mask <- test
   state
 }

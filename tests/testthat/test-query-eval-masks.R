@@ -25,3 +25,29 @@ test_that("mask with '~' regex match filters axis", {
   set_vector(d, "gene", "symbol", c("HOX1", "MYC", "HOX2"))
   expect_equal(get_query(d, "@ gene [ symbol ~ ^HOX ]"), c("HOX1", "HOX2"))
 })
+
+test_that("mask AND combines two properties", {
+  d <- memory_daf(name = "t")
+  add_axis(d, "donor", c("d1", "d2", "d3", "d4"))
+  set_vector(d, "donor", "age", c(10, 70, 70, 10))
+  set_vector(d, "donor", "sex", c("M", "M", "F", "F"))
+  expect_equal(get_query(d, "@ donor [ age > 60 & sex = M ]"), "d2")
+})
+
+test_that("mask OR combines two properties", {
+  d <- memory_daf(name = "t")
+  add_axis(d, "donor", c("d1", "d2", "d3", "d4"))
+  set_vector(d, "donor", "age", c(10, 70, 70, 10))
+  set_vector(d, "donor", "sex", c("M", "M", "F", "F"))
+  expect_setequal(get_query(d, "@ donor [ age > 60 | sex = F ]"),
+                   c("d2", "d3", "d4"))
+})
+
+test_that("mask XOR and negated variants work", {
+  d <- memory_daf(name = "t")
+  add_axis(d, "donor", c("d1", "d2", "d3", "d4"))
+  set_vector(d, "donor", "a", c(TRUE, TRUE, FALSE, FALSE))
+  set_vector(d, "donor", "b", c(TRUE, FALSE, TRUE, FALSE))
+  expect_setequal(get_query(d, "@ donor [ a ^ b ]"), c("d2", "d3"))
+  expect_setequal(get_query(d, "@ donor [ a & ! b ]"), "d2")
+})
