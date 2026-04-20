@@ -53,7 +53,19 @@ empty_cache <- function(daf, group = c("mapped", "memory", "query")) {
   for (tier in group) {
     bucket <- cache_env[[tier]]
     rm(list = ls(bucket, all.names = TRUE), envir = bucket)
+    if (.is_capped_tier(tier)) {
+      cache_env$lru <- cache_env$lru[!startsWith(cache_env$lru, paste0(tier, ":"))]
+    }
   }
+  # Recompute bytes from what's left in the capped tiers.
+  total <- 0
+  for (t in c("memory", "query")) {
+    bucket <- cache_env[[t]]
+    for (k in ls(bucket, all.names = TRUE)) {
+      total <- total + get(k, envir = bucket, inherits = FALSE)$size
+    }
+  }
+  cache_env$bytes <- total
   invisible(daf)
 }
 
@@ -97,6 +109,52 @@ matrix_stamp <- function(daf, rows_axis, cols_axis, name) {
     mc[[paste0(rows_axis, ":", cols_axis, ":", name)]] %||% 0L)
 }
 
+# ---- Cache with LRU + memory-cap (applies to memory + query tiers) ----------
+
+.cache_default_cap <- function() {
+  mb <- dafr_opt("dafr.cache.memory_mb")
+  as.numeric(mb) * 1024 * 1024
+}
+
+cache_set_cap <- function(cache_env, bytes) {
+  cache_env$cap <- as.numeric(bytes)
+  .cache_evict(cache_env)
+  invisible()
+}
+
+.is_capped_tier <- function(tier) tier %in% c("memory", "query")
+
+.lru_key <- function(tier, key) paste0(tier, ":", key)
+
+.lru_touch <- function(cache_env, tier, key) {
+  k <- .lru_key(tier, key)
+  cache_env$lru <- c(setdiff(cache_env$lru, k), k)
+}
+
+.lru_drop <- function(cache_env, tier, key) {
+  cache_env$lru <- setdiff(cache_env$lru, .lru_key(tier, key))
+}
+
+.cache_evict <- function(cache_env) {
+  # Never evict the MRU entry (tail): if a single oversized entry is all
+  # that remains, it must stay — the "oversized entries still stored" contract.
+  while (cache_env$bytes > cache_env$cap && length(cache_env$lru) > 1L) {
+    victim <- cache_env$lru[[1L]]
+    cache_env$lru <- cache_env$lru[-1L]
+    # Split "tier:key" — the tier is the literal "memory" or "query";
+    # the key itself may contain colons so we only split on the first one.
+    sep_pos <- regexpr(":", victim)
+    tier    <- substr(victim, 1L, sep_pos - 1L)
+    key     <- substr(victim, sep_pos + 1L, nchar(victim))
+    bucket  <- cache_env[[tier]]
+    if (exists(key, envir = bucket, inherits = FALSE)) {
+      entry <- get(key, envir = bucket, inherits = FALSE)
+      cache_env$bytes <- cache_env$bytes - entry$size
+      rm(list = key, envir = bucket)
+    }
+  }
+}
+
 # ---- Cache entries with version stamps --------------------------------------
 
 cache_lookup <- function(cache_env, tier, key, expected_stamp) {
@@ -104,15 +162,31 @@ cache_lookup <- function(cache_env, tier, key, expected_stamp) {
   if (!exists(key, envir = bucket, inherits = FALSE)) return(NULL)
   entry <- get(key, envir = bucket, inherits = FALSE)
   if (!identical(entry$stamp, expected_stamp)) {
+    if (.is_capped_tier(tier)) {
+      cache_env$bytes <- cache_env$bytes - entry$size
+      .lru_drop(cache_env, tier, key)
+    }
     rm(list = key, envir = bucket)
     return(NULL)
   }
+  if (.is_capped_tier(tier)) .lru_touch(cache_env, tier, key)
   entry$value
 }
 
 cache_store <- function(cache_env, tier, key, value, stamp, size_bytes = 0L) {
+  size_bytes <- as.numeric(size_bytes)
   bucket <- cache_env[[tier]]
-  assign(key, list(value = value, stamp = stamp, size = as.numeric(size_bytes)),
+  if (exists(key, envir = bucket, inherits = FALSE) && .is_capped_tier(tier)) {
+    old <- get(key, envir = bucket, inherits = FALSE)
+    cache_env$bytes <- cache_env$bytes - old$size
+  }
+  assign(key,
+         list(value = value, stamp = stamp, size = size_bytes),
          envir = bucket)
+  if (.is_capped_tier(tier)) {
+    cache_env$bytes <- cache_env$bytes + size_bytes
+    .lru_touch(cache_env, tier, key)
+    .cache_evict(cache_env)
+  }
   invisible()
 }

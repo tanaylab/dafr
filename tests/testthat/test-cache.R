@@ -137,3 +137,50 @@ test_that("axis_stamp / vector_stamp / matrix_stamp mirror counter state", {
   bump_matrix_counter(d, "cell", "gene", "m")
   expect_equal(matrix_stamp(d, "cell", "gene", "m"), c(1L, 1L, 1L))
 })
+
+# ---- I2: LRU + memory-cap eviction ------------------------------------------
+
+test_that("cache_store evicts LRU entries when memory cap is exceeded", {
+  ce <- new_cache_env()
+  cache_set_cap(ce, 1000)
+  cache_store(ce, "memory", "a", "A", c(0L), size_bytes = 400)
+  cache_store(ce, "memory", "b", "B", c(0L), size_bytes = 400)
+  cache_store(ce, "memory", "c", "C", c(0L), size_bytes = 400)
+  # "a" should have been evicted (it became LRU after b, c).
+  expect_false(exists("a", envir = ce$memory, inherits = FALSE))
+  expect_true( exists("b", envir = ce$memory, inherits = FALSE))
+  expect_true( exists("c", envir = ce$memory, inherits = FALSE))
+})
+
+test_that("cache_lookup touches LRU on hit (moves entry to MRU)", {
+  ce <- new_cache_env()
+  cache_set_cap(ce, 1000)
+  cache_store(ce, "memory", "a", "A", c(0L), size_bytes = 400)
+  cache_store(ce, "memory", "b", "B", c(0L), size_bytes = 400)
+  # Access "a" - now "b" is LRU.
+  cache_lookup(ce, "memory", "a", c(0L))
+  cache_store(ce, "memory", "c", "C", c(0L), size_bytes = 400)
+  # "b" should have been evicted, not "a".
+  expect_true( exists("a", envir = ce$memory, inherits = FALSE))
+  expect_false(exists("b", envir = ce$memory, inherits = FALSE))
+  expect_true( exists("c", envir = ce$memory, inherits = FALSE))
+})
+
+test_that("mapped tier is exempt from the memory cap", {
+  ce <- new_cache_env()
+  cache_set_cap(ce, 100)
+  cache_store(ce, "mapped", "a", "A", c(0L), size_bytes = 1e9)
+  cache_store(ce, "memory", "b", "B", c(0L), size_bytes = 50)
+  expect_true(exists("a", envir = ce$mapped, inherits = FALSE))
+  expect_true(exists("b", envir = ce$memory, inherits = FALSE))
+})
+
+test_that("entries larger than the cap are stored and immediately evict others", {
+  ce <- new_cache_env()
+  cache_set_cap(ce, 100)
+  cache_store(ce, "memory", "small", "x", c(0L), size_bytes = 50)
+  # Oversized entry: stored, others evicted; still present.
+  cache_store(ce, "memory", "big", "X", c(0L), size_bytes = 500)
+  expect_false(exists("small", envir = ce$memory, inherits = FALSE))
+  expect_true( exists("big",   envir = ce$memory, inherits = FALSE))
+})

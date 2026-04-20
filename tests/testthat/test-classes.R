@@ -22,12 +22,16 @@ test_that("new_internal_env returns a mutable env with closed=FALSE", {
   expect_false(e$closed)
 })
 
-test_that("new_cache_env has three tier sub-envs", {
+test_that("new_cache_env has three tier sub-envs + LRU bookkeeping", {
   e <- new_cache_env()
-  expect_setequal(ls(e, all.names = TRUE), c("mapped", "memory", "query"))
+  expect_setequal(ls(e, all.names = TRUE),
+                  c("mapped", "memory", "query", "lru", "bytes", "cap"))
   expect_true(is.environment(e$mapped))
   expect_true(is.environment(e$memory))
   expect_true(is.environment(e$query))
+  expect_identical(e$lru, character(0L))
+  expect_equal(e$bytes, 0)
+  expect_true(is.numeric(e$cap) && e$cap > 0)
 })
 
 test_that("new_counter_env is an empty environment", {

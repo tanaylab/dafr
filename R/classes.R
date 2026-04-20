@@ -63,6 +63,9 @@ new_cache_env <- function() {
   e$mapped <- new.env(parent = emptyenv())
   e$memory <- new.env(parent = emptyenv())
   e$query  <- new.env(parent = emptyenv())
+  e$lru    <- character(0L)   # entries "tier:key", MRU at tail
+  e$bytes  <- 0                # bytes used across memory + query
+  e$cap    <- .cache_default_cap()
   e
 }
 
