@@ -54,6 +54,14 @@ NULL
     stop(sprintf("unterminated quoted value at position %d in query %s",
                  start, sQuote(s)), call. = FALSE)
   }
+  # Decimal numeric literal (e.g. "2.0", "1.5").  Must be tried before the
+  # general value regex because '.' is otherwise treated as an operator token.
+  nm <- regmatches(substr(s, start, n),
+                   regexpr("^\\d+\\.\\d+(?:[eE][+-]?\\d+)?",
+                           substr(s, start, n), perl = TRUE))
+  if (length(nm) == 1L && nzchar(nm)) {
+    return(list(value = nm, next_pos = start + nchar(nm)))
+  }
   m <- regmatches(substr(s, start, n),
                   regexpr("^[^\\s!&*%./:<=>?@\\[\\]^\\|~\"$#`]+",
                           substr(s, start, n), perl = TRUE))

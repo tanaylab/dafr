@@ -166,16 +166,15 @@ parse_query <- function(query_string) {
   nxt <- tokens[[i + 1L]]
   params <- list()
   j <- i + 2L
-  while (j <= length(tokens) &&
-         tokens[[j]]$type == "value" &&
-         j + 1L <= length(tokens) &&
-         tokens[[j + 1L]]$type == "operator" &&
-         tokens[[j + 1L]]$value == ":") {
+  while (j + 1L <= length(tokens) && tokens[[j]]$type == "value") {
     k <- tokens[[j]]$value
-    if (j + 2L > length(tokens) || tokens[[j + 2L]]$type != "value") break
-    v <- tokens[[j + 2L]]$value
-    params[[k]] <- v
-    j <- j + 3L
+    # Optional ':' between key and value; accept both "key: value" and "key value"
+    val_idx <- if (j + 1L <= length(tokens) &&
+                   tokens[[j + 1L]]$type == "operator" &&
+                   tokens[[j + 1L]]$value == ":") j + 2L else j + 1L
+    if (val_idx > length(tokens) || tokens[[val_idx]]$type != "value") break
+    params[[k]] <- tokens[[val_idx]]$value
+    j <- val_idx + 1L
   }
   list(node = ctor(nxt$value, params = params), next_index = j)
 }
@@ -188,12 +187,15 @@ parse_query <- function(query_string) {
   nxt <- tokens[[i + 1L]]
   params <- list()
   j <- i + 2L
-  while (j + 2L <= length(tokens) &&
-         tokens[[j]]$type == "value" &&
-         tokens[[j + 1L]]$type == "operator" &&
-         tokens[[j + 1L]]$value == ":") {
-    params[[tokens[[j]]$value]] <- tokens[[j + 2L]]$value
-    j <- j + 3L
+  while (j + 1L <= length(tokens) && tokens[[j]]$type == "value") {
+    k <- tokens[[j]]$value
+    # Optional ':' between key and value; accept both "key: value" and "key value"
+    val_idx <- if (j + 1L <= length(tokens) &&
+                   tokens[[j + 1L]]$type == "operator" &&
+                   tokens[[j + 1L]]$value == ":") j + 2L else j + 1L
+    if (val_idx > length(tokens) || tokens[[val_idx]]$type != "value") break
+    params[[k]] <- tokens[[val_idx]]$value
+    j <- val_idx + 1L
   }
   list(node = .qop_eltwise(nxt$value, params = params), next_index = j)
 }
