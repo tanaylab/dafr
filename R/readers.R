@@ -283,3 +283,68 @@ get_matrix <- function(daf, rows_axis, cols_axis, name, default) {
   }
   out
 }
+
+#' Human-readable summary of a Daf store.
+#'
+#' Returns a multi-line string describing axes, scalars, vectors, and
+#' matrices. Matches the column-order rendering of Julia DAF's own
+#' `description()`.
+#'
+#' @param daf A `DafReader`.
+#' @return Character scalar.
+#' @export
+description <- function(daf) {
+  lines <- c(sprintf("name: %s", S7::prop(daf, "name")),
+             sprintf("type: %s", .daf_type_name(daf)))
+  sc <- format_scalars_set(daf)
+  if (length(sc)) {
+    lines <- c(lines, "scalars:")
+    for (nm in sc) {
+      v <- format_get_scalar(daf, nm)
+      lines <- c(lines, sprintf("  %s: %s", nm, .format_scalar_literal(v)))
+    }
+  }
+  axes <- format_axes_set(daf)
+  if (length(axes)) {
+    lines <- c(lines, "axes:")
+    for (ax in axes) {
+      lines <- c(lines, sprintf("  %s: %d entries", ax, format_axis_length(daf, ax)))
+    }
+  }
+  vec_axes <- Filter(function(ax) length(format_vectors_set(daf, ax)) > 0L, axes)
+  if (length(vec_axes)) {
+    lines <- c(lines, "vectors:")
+    for (ax in vec_axes) {
+      lines <- c(lines, sprintf("  %s:", ax))
+      for (nm in format_vectors_set(daf, ax)) {
+        lines <- c(lines, sprintf("    %s", nm))
+      }
+    }
+  }
+  mat_keys <- character(0L)
+  for (ra in axes) for (ca in axes) {
+    ms <- format_matrices_set(daf, ra, ca)
+    if (length(ms)) mat_keys <- c(mat_keys, sprintf("%s,%s", ra, ca))
+  }
+  if (length(mat_keys)) {
+    lines <- c(lines, "matrices:")
+    for (k in mat_keys) {
+      parts <- strsplit(k, ",", fixed = TRUE)[[1L]]
+      lines <- c(lines, sprintf("  %s:", k))
+      for (nm in format_matrices_set(daf, parts[[1L]], parts[[2L]])) {
+        lines <- c(lines, sprintf("    %s", nm))
+      }
+    }
+  }
+  paste0(paste(lines, collapse = "\n"), "\n")
+}
+
+.daf_type_name <- function(daf) {
+  cls <- class(daf)[[1L]]
+  sub("^dafr::", "", cls)
+}
+
+.format_scalar_literal <- function(v) {
+  if (is.character(v)) sprintf('"%s"', v)
+  else                 format(v)
+}

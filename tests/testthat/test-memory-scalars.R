@@ -77,3 +77,38 @@ test_that("get_scalar(default = NULL) is distinct from omitting the default", {
   expect_error(get_scalar(d, "missing"), "does not exist")
   expect_null(get_scalar(d, "missing", default = NULL))
 })
+
+test_that("description() empty-store is minimal", {
+  d <- memory_daf(name = "test!")
+  expect_equal(
+    description(d),
+    "name: test!\ntype: MemoryDaf\n"
+  )
+})
+
+test_that("description() reports axes, scalars, and matrix shapes", {
+  d <- memory_daf(name = "test!")
+  set_scalar(d, "foo", "bar")
+  add_axis(d, "cell", c("A", "B"))
+  add_axis(d, "gene", c("X", "Y", "Z"))
+  set_vector(d, "cell", "donor", c("d1", "d2"))
+  set_matrix(d, "cell", "gene", "UMIs", matrix(seq_len(6), 2, 3))
+  expected <- paste(
+    "name: test!",
+    "type: MemoryDaf",
+    "scalars:",
+    '  foo: "bar"',
+    "axes:",
+    "  cell: 2 entries",
+    "  gene: 3 entries",
+    "vectors:",
+    "  cell:",
+    "    donor",
+    "matrices:",
+    "  cell,gene:",
+    "    UMIs",
+    "",
+    sep = "\n"
+  )
+  expect_equal(description(d), expected)
+})
