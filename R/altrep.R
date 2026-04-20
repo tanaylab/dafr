@@ -30,9 +30,3 @@ mmap_lgl <- function(path, length) {
   stopifnot(file.exists(path), is.numeric(length), length >= 0)
   mmap_lgl_altrep_cpp(path.expand(path), as.double(length))
 }
-
-# Internal helper: TRUE iff x is backed by ALTREP. Used in tests.
-# Not exported (no @export tag).
-is_altrep <- function(x) {
-  is_altrep_cpp(x)
-}
