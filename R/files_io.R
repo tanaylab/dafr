@@ -184,3 +184,25 @@
   # UInt32 only when the axis fits R's native int.
   if (size <= .Machine$integer.max) "UInt32" else "UInt64"
 }
+
+# ---- sparsify heuristics (Julia spec §8 / §8.4) ----
+
+.should_sparsify_numeric <- function(vec, eltype, indtype) {
+  n <- length(vec)
+  if (n == 0L) return(FALSE)
+  nnz <- if (is.logical(vec)) sum(vec, na.rm = TRUE) else sum(vec != 0)
+  sparse_bytes <- nnz * (.dtype_size(eltype) + .dtype_size(indtype))
+  dense_bytes  <- n   * .dtype_size(eltype)
+  sparse_bytes <= 0.75 * dense_bytes
+}
+
+.should_sparsify_string <- function(vec, indtype) {
+  n <- length(vec)
+  if (n == 0L) return(FALSE)
+  nonempty <- nzchar(vec)
+  n_nonempty     <- sum(nonempty)
+  nonempty_bytes <- sum(nchar(vec[nonempty], type = "bytes"))
+  sparse_size <- nonempty_bytes + n_nonempty * (1L + .dtype_size(indtype))
+  dense_size  <- nonempty_bytes + n
+  sparse_size <= 0.75 * dense_size
+}

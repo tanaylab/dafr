@@ -104,3 +104,24 @@ test_that(".indtype_for_size picks UInt32 vs UInt64", {
   expect_equal(dafr:::.indtype_for_size(2^30L), "UInt32")
   expect_equal(dafr:::.indtype_for_size(2^32),  "UInt64")
 })
+
+test_that(".should_sparsify_numeric picks sparse when nnz is small enough", {
+  expect_true (dafr:::.should_sparsify_numeric(c(0,0,0,0,5),   "Float64", "UInt32"))
+  expect_false(dafr:::.should_sparsify_numeric(c(1,2,3,4,5),   "Float64", "UInt32"))
+  expect_false(dafr:::.should_sparsify_numeric(c(0,1,2,3,4,5), "Float64", "UInt32"))
+})
+
+test_that(".should_sparsify_numeric bool threshold", {
+  expect_true (dafr:::.should_sparsify_numeric(c(rep(FALSE, 90), rep(TRUE, 10)),
+                                               "Bool", "UInt32"))
+  expect_false(dafr:::.should_sparsify_numeric(c(rep(FALSE, 80), rep(TRUE, 20)),
+                                               "Bool", "UInt32"))
+})
+
+test_that(".should_sparsify_string applies Julia §8.4 formula", {
+  indtype <- "UInt32"
+  v <- c("hi", "", "hi", "", "hi")
+  expect_false(dafr:::.should_sparsify_string(v, indtype))
+  v2 <- c("hi", rep("", 20))
+  expect_true(dafr:::.should_sparsify_string(v2, indtype))
+})

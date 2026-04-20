@@ -224,39 +224,6 @@ S7::method(format_get_vector,
 
 # ---- Vectors: mutation ------------------------------------------------------
 
-.validate_vector_value <- function(daf, axis, name, vec) {
-  if (is.null(vec) || !is.atomic(vec)) {
-    stop(sprintf("vector %s on axis %s must be atomic", sQuote(name), sQuote(axis)),
-         call. = FALSE)
-  }
-  n <- format_axis_length(daf, axis)
-  if (!is.null(names(vec))) {
-    entries <- format_axis_array(daf, axis)
-    missing <- setdiff(names(vec), entries)
-    if (length(missing)) {
-      stop(sprintf("vector %s has names not in axis %s: %s",
-                   sQuote(name), sQuote(axis),
-                   paste(sQuote(missing), collapse = ", ")),
-           call. = FALSE)
-    }
-    if (length(vec) != n) {
-      stop(sprintf("vector %s has length %d (expected %d) on axis %s",
-                   sQuote(name), length(vec), n, sQuote(axis)),
-           call. = FALSE)
-    }
-    # Reorder to axis order; drop names but preserve class (e.g. bit64).
-    vec <- vec[entries]
-    names(vec) <- NULL
-  } else {
-    if (length(vec) != n) {
-      stop(sprintf("vector %s has length %d (expected %d) on axis %s",
-                   sQuote(name), length(vec), n, sQuote(axis)),
-           call. = FALSE)
-    }
-  }
-  vec
-}
-
 S7::method(format_set_vector,
            list(MemoryDaf, S7::class_character, S7::class_character, S7::class_any, S7::class_logical)) <- function(daf, axis, name, vec, overwrite) {
   vec <- .validate_vector_value(daf, axis, name, vec)

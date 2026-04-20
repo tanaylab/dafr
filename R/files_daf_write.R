@@ -98,3 +98,44 @@ S7::method(format_delete_axis,
   bump_axis_counter(daf, axis)
   invisible()
 }
+
+.files_write_vector_dense <- function(vdir, name, vec) {
+  dtype <- .dtype_for_r_vector(vec)
+  if (dtype == "String") {
+    con <- file(file.path(vdir, paste0(name, ".txt")), open = "wb",
+                encoding = "UTF-8")
+    writeLines(vec, con, useBytes = FALSE)
+    close(con)
+  } else {
+    .write_bin_dense(file.path(vdir, paste0(name, ".data")), vec, dtype)
+  }
+  .write_descriptor_dense(file.path(vdir, paste0(name, ".json")), dtype)
+  invisible()
+}
+
+.files_vector_unlink_payload <- function(vdir, name) {
+  for (ext in c(".data", ".txt", ".nzind", ".nzval", ".nztxt")) {
+    p <- file.path(vdir, paste0(name, ext))
+    if (file.exists(p)) unlink(p, force = TRUE)
+  }
+}
+
+# Dense-only writer for F3. Task F5 replaces this with a sparsity-aware
+# dispatch.
+S7::method(format_set_vector,
+           list(FilesDaf, S7::class_character, S7::class_character,
+                S7::class_any, S7::class_logical)) <- function(daf, axis, name, vec, overwrite) {
+  vec <- .validate_vector_value(daf, axis, name, vec)
+  root <- .files_root(daf)
+  vdir <- .path_vector_dir(root, axis)
+  dir.create(vdir, recursive = TRUE, showWarnings = FALSE)
+  desc_path <- file.path(vdir, paste0(name, ".json"))
+  if (file.exists(desc_path) && !overwrite) {
+    stop(sprintf("vector %s already exists on axis %s; use overwrite = TRUE",
+                 sQuote(name), sQuote(axis)), call. = FALSE)
+  }
+  .files_vector_unlink_payload(vdir, name)
+  .files_write_vector_dense(vdir, name, vec)
+  bump_vector_counter(daf, axis, name)
+  invisible()
+}
