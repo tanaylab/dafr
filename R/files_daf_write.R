@@ -120,11 +120,43 @@ S7::method(format_delete_axis,
   }
 }
 
-# Dense-only writer for F3. Task F5 replaces this with a sparsity-aware
-# dispatch.
+.files_write_vector_sparse_numeric <- function(vdir, name, nzind, nzval,
+                                               eltype, indtype) {
+  .write_bin_dense(file.path(vdir, paste0(name, ".nzind")),
+                   as.integer(nzind), indtype)
+  if (eltype == "Bool") {
+    if (!all(nzval)) {
+      .write_bin_dense(file.path(vdir, paste0(name, ".nzval")),
+                       as.logical(nzval), "Bool")
+    }
+  } else {
+    .write_bin_dense(file.path(vdir, paste0(name, ".nzval")), nzval, eltype)
+  }
+  .write_descriptor_sparse(file.path(vdir, paste0(name, ".json")),
+                           dtype = eltype, indtype = indtype)
+  invisible()
+}
+
+.files_write_vector_sparse_string <- function(vdir, name, nzind, nzval, indtype) {
+  .write_bin_dense(file.path(vdir, paste0(name, ".nzind")),
+                   as.integer(nzind), indtype)
+  con <- file(file.path(vdir, paste0(name, ".nztxt")), open = "wb",
+              encoding = "UTF-8")
+  writeLines(nzval, con, useBytes = FALSE)
+  close(con)
+  .write_descriptor_sparse(file.path(vdir, paste0(name, ".json")),
+                           dtype = "String", indtype = indtype)
+  invisible()
+}
+
+# Adaptive dispatcher: picks dense vs sparse on-disk layout based on the
+# heuristics in files_io.R. sparseVector input is always written sparse.
 S7::method(format_set_vector,
            list(FilesDaf, S7::class_character, S7::class_character,
                 S7::class_any, S7::class_logical)) <- function(daf, axis, name, vec, overwrite) {
+  if (methods::is(vec, "sparseVector")) {
+    return(.files_set_vector_sparse_input(daf, axis, name, vec, overwrite))
+  }
   vec <- .validate_vector_value(daf, axis, name, vec)
   root <- .files_root(daf)
   vdir <- .path_vector_dir(root, axis)
@@ -135,7 +167,46 @@ S7::method(format_set_vector,
                  sQuote(name), sQuote(axis)), call. = FALSE)
   }
   .files_vector_unlink_payload(vdir, name)
-  .files_write_vector_dense(vdir, name, vec)
+  eltype  <- .dtype_for_r_vector(vec)
+  n       <- length(vec)
+  indtype <- .indtype_for_size(n)
+  go_sparse <- if (eltype == "String") {
+    .should_sparsify_string(vec, indtype)
+  } else {
+    .should_sparsify_numeric(vec, eltype, indtype)
+  }
+  if (!go_sparse) {
+    .files_write_vector_dense(vdir, name, vec)
+  } else if (eltype == "String") {
+    nz <- which(nzchar(vec))
+    .files_write_vector_sparse_string(vdir, name, nz, vec[nz], indtype)
+  } else {
+    nz <- if (is.logical(vec)) which(vec) else which(vec != 0)
+    .files_write_vector_sparse_numeric(vdir, name, nz, vec[nz], eltype, indtype)
+  }
+  bump_vector_counter(daf, axis, name)
+  invisible()
+}
+
+.files_set_vector_sparse_input <- function(daf, axis, name, sv, overwrite) {
+  n <- format_axis_length(daf, axis)
+  if (sv@length != n) {
+    stop(sprintf("sparseVector %s length %d (expected %d) on axis %s",
+                 sQuote(name), sv@length, n, sQuote(axis)), call. = FALSE)
+  }
+  root <- .files_root(daf)
+  vdir <- .path_vector_dir(root, axis)
+  dir.create(vdir, recursive = TRUE, showWarnings = FALSE)
+  desc_path <- file.path(vdir, paste0(name, ".json"))
+  if (file.exists(desc_path) && !overwrite) {
+    stop(sprintf("vector %s already exists on axis %s; use overwrite = TRUE",
+                 sQuote(name), sQuote(axis)), call. = FALSE)
+  }
+  .files_vector_unlink_payload(vdir, name)
+  eltype  <- .dtype_for_r_vector(sv@x)
+  indtype <- .indtype_for_size(n)
+  .files_write_vector_sparse_numeric(vdir, name,
+                                     as.integer(sv@i), sv@x, eltype, indtype)
   bump_vector_counter(daf, axis, name)
   invisible()
 }

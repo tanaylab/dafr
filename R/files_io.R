@@ -190,7 +190,11 @@
 .should_sparsify_numeric <- function(vec, eltype, indtype) {
   n <- length(vec)
   if (n == 0L) return(FALSE)
-  nnz <- if (is.logical(vec)) sum(vec, na.rm = TRUE) else sum(vec != 0)
+  nnz <- if (is.logical(vec)) {
+    sum(vec, na.rm = TRUE)
+  } else {
+    sum(vec != 0, na.rm = TRUE)
+  }
   sparse_bytes <- nnz * (.dtype_size(eltype) + .dtype_size(indtype))
   dense_bytes  <- n   * .dtype_size(eltype)
   sparse_bytes <= 0.75 * dense_bytes
