@@ -318,3 +318,87 @@ S7::method(format_matrices_set,
            list(FilesDafReadOnly, S7::class_character, S7::class_character)) <- function(daf, rows_axis, columns_axis) {
   .files_matrices_set(daf, rows_axis, columns_axis)
 }
+
+# ---- matrices: read ----
+
+.files_get_matrix_impl <- function(daf, rows_axis, columns_axis, name) {
+  root <- .files_root(daf)
+  desc_path <- .files_matrix_desc_path(root, rows_axis, columns_axis, name)
+  if (!file.exists(desc_path)) {
+    stop(sprintf("matrix %s does not exist on axes (%s, %s)",
+                 sQuote(name), sQuote(rows_axis), sQuote(columns_axis)),
+         call. = FALSE)
+  }
+  desc <- .read_descriptor(desc_path)
+  nr <- format_axis_length(daf, rows_axis)
+  nc <- format_axis_length(daf, columns_axis)
+  if (desc$format == "dense") {
+    return(.files_get_matrix_dense(daf, rows_axis, columns_axis, name, desc, nr, nc))
+  }
+  if (desc$format == "sparse") {
+    return(.files_get_matrix_sparse(daf, rows_axis, columns_axis, name, desc, nr, nc))
+  }
+  stop(sprintf("files_daf: unsupported matrix format %s", desc$format),
+       call. = FALSE)
+}
+
+.files_get_matrix_dense <- function(daf, rows_axis, columns_axis, name,
+                                    desc, nr, nc) {
+  root <- .files_root(daf)
+  mdir <- .path_matrix_dir(root, rows_axis, columns_axis)
+  elt  <- desc$eltype
+  if (elt == "String") {
+    return(.files_get_matrix_dense_string(mdir, name, nr, nc))
+  }
+  data_path <- file.path(mdir, paste0(name, ".data"))
+  if (!file.exists(data_path)) {
+    stop(sprintf("files_daf: missing payload %s", sQuote(data_path)),
+         call. = FALSE)
+  }
+  total <- as.integer(nr) * as.integer(nc)
+  expected_bytes <- total * .dtype_size(elt)
+  if (file.size(data_path) < expected_bytes) {
+    stop(sprintf("files_daf: matrix %s payload truncated (%d < %d bytes)",
+                 sQuote(name), file.size(data_path), expected_bytes),
+         call. = FALSE)
+  }
+  use_mmap <- isTRUE(dafr_opt("dafr.mmap"))
+  v <- if (use_mmap && elt == "Float64") {
+    mmap_real(data_path, total)
+  } else if (use_mmap && elt == "Int32") {
+    mmap_int(data_path, total)
+  } else {
+    .read_bin_dense(data_path, total, elt)
+  }
+  dim(v) <- c(as.integer(nr), as.integer(nc))
+  v
+}
+
+.files_get_matrix_dense_string <- function(mdir, name, nr, nc) {
+  txt <- file.path(mdir, paste0(name, ".txt"))
+  if (!file.exists(txt)) {
+    stop(sprintf("files_daf: missing payload %s", sQuote(txt)), call. = FALSE)
+  }
+  vals <- readLines(txt, encoding = "UTF-8", warn = FALSE)
+  expected <- nr * nc
+  if (length(vals) != expected) {
+    stop(sprintf("files_daf: string matrix has %d lines (expected %d)",
+                 length(vals), expected), call. = FALSE)
+  }
+  matrix(vals, nrow = nr, ncol = nc)
+}
+
+.files_get_matrix_sparse <- function(daf, rows_axis, columns_axis, name,
+                                     desc, nr, nc) {
+  stop("files_daf: sparse matrix read not yet implemented (Phase I1)",
+       call. = FALSE)
+}
+
+S7::method(format_get_matrix,
+           list(FilesDaf, S7::class_character, S7::class_character, S7::class_character)) <- function(daf, rows_axis, columns_axis, name) {
+  .files_get_matrix_impl(daf, rows_axis, columns_axis, name)
+}
+S7::method(format_get_matrix,
+           list(FilesDafReadOnly, S7::class_character, S7::class_character, S7::class_character)) <- function(daf, rows_axis, columns_axis, name) {
+  .files_get_matrix_impl(daf, rows_axis, columns_axis, name)
+}
