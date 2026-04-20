@@ -186,16 +186,51 @@ NULL
   stop("not yet implemented: AsAxis", call. = FALSE)
 }
 .apply_begin_mask <- function(node, state, daf) {
-  stop("not yet implemented: mask", call. = FALSE)
+  if (!identical(state$kind, "axis")) {
+    stop("'[' mask requires an axis in scope", call. = FALSE)
+  }
+  vec <- format_get_vector(daf, state$axis, node$property)
+  mask <- if (is.logical(vec)) vec else !is.na(vec) & vec != 0
+  if (identical(node$op, "BeginNegatedMask")) mask <- !mask
+  state$pending_mask <- mask
+  state$pending_property <- node$property
+  state$pending_vec <- vec
+  state$kind <- "mask"
+  state
 }
+
 .apply_end_mask <- function(node, state, daf) {
-  stop("not yet implemented: mask", call. = FALSE)
+  axis <- state$axis
+  entries <- format_axis_array(daf, axis)
+  list(kind = "axis", axis = axis, value = entries[state$pending_mask])
 }
+
 .apply_logical_mask <- function(node, state, daf) {
   stop("not yet implemented: logical mask", call. = FALSE)
 }
+
 .apply_comparator <- function(node, state, daf) {
-  stop("not yet implemented: comparator", call. = FALSE)
+  if (!identical(state$kind, "mask")) {
+    stop("comparator outside of mask", call. = FALSE)
+  }
+  vec <- state$pending_vec
+  test <- switch(node$op,
+    IsLess         = vec <  .coerce_cmp(node$value, vec),
+    IsLessEqual    = vec <= .coerce_cmp(node$value, vec),
+    IsEqual        = vec == .coerce_cmp(node$value, vec),
+    IsNotEqual     = vec != .coerce_cmp(node$value, vec),
+    IsGreater      = vec >  .coerce_cmp(node$value, vec),
+    IsGreaterEqual = vec >= .coerce_cmp(node$value, vec),
+    IsMatch        = grepl(node$pattern, as.character(vec), perl = TRUE),
+    IsNotMatch     = !grepl(node$pattern, as.character(vec), perl = TRUE))
+  state$pending_mask <- test
+  state
+}
+
+.coerce_cmp <- function(value_string, ref_vec) {
+  if (is.numeric(ref_vec)) as.numeric(value_string)
+  else if (is.logical(ref_vec)) as.logical(value_string)
+  else as.character(value_string)
 }
 .apply_square_slice <- function(node, state, daf) {
   stop("not yet implemented: square slice", call. = FALSE)
