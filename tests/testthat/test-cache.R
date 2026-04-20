@@ -57,6 +57,11 @@ test_that("empty_cache with clear targets a subset", {
   expect_null( cache_lookup(ce, "query",  "c", c(0L)))
 })
 
+test_that("empty_cache errors on unknown argument `group`", {
+  expect_error(empty_cache(memory_daf(), group = "memory"),
+               "unused argument")
+})
+
 test_that("bump_axis_counter increments monotonically from 0", {
   daf <- TestDaf()
   counters <- S7::prop(daf, "axis_version_counter")

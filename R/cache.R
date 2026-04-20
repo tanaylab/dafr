@@ -29,36 +29,25 @@ cache_key_query  <- function(canon)     paste0("query:", canon)
 
 #' Empty caches on a Daf object.
 #'
-#' Exactly one of `group`, `clear`, or `keep` may be supplied. Group
-#' names use the short form (`"mapped"`, `"memory"`, `"query"`) or the
-#' Julia-style capitalised form (`"MappedData"`, `"MemoryData"`,
-#' `"QueryData"`).
+#' Specify at most one of `clear` or `keep`. Tier names use the short form
+#' (`"mapped"`, `"memory"`, `"query"`) or the Julia-style capitalised form
+#' (`"MappedData"`, `"MemoryData"`, `"QueryData"`).
 #'
 #' @param daf A `DafReader`/`DafWriter` instance.
-#' @param group Character vector of tiers to clear (defaults to all).
-#' @param clear Character vector of tiers to clear (alternative to `group`).
+#' @param clear Character vector of tiers to clear (default: all tiers).
 #' @param keep Character vector of tiers to keep; all others are cleared.
 #' @return Invisibly the input `daf`.
 #' @export
-empty_cache <- function(daf,
-                        group = NULL,
-                        clear = NULL,
-                        keep  = NULL) {
+empty_cache <- function(daf, clear = NULL, keep = NULL) {
   all_tiers <- c("mapped", "memory", "query")
-  n_specified <- sum(!is.null(group), !is.null(clear), !is.null(keep))
-  if (n_specified > 1L) {
-    stop("specify at most one of `group`, `clear`, `keep`", call. = FALSE)
+  if (!is.null(clear) && !is.null(keep)) {
+    stop("specify at most one of `clear`, `keep`", call. = FALSE)
   }
-  chosen <- if (!is.null(group)) group
-            else if (!is.null(clear)) clear
+  chosen <- if (!is.null(clear)) .canonical_tier(clear)
             else if (!is.null(keep)) setdiff(all_tiers, .canonical_tier(keep))
             else all_tiers
-  chosen <- .canonical_tier(chosen)
-
   .cli_verbose("empty_cache on %s tier(s): %s",
-               S7::prop(daf, "name"),
-               paste(chosen, collapse = ", "))
-
+               S7::prop(daf, "name"), paste(chosen, collapse = ", "))
   cache_env <- S7::prop(daf, "cache")
   for (tier in chosen) {
     bucket <- cache_env[[tier]]
@@ -67,7 +56,6 @@ empty_cache <- function(daf,
       cache_env$lru <- cache_env$lru[!startsWith(cache_env$lru, paste0(tier, ":"))]
     }
   }
-  # Recompute bytes from what remains in capped tiers.
   total <- 0
   for (t in c("memory", "query")) {
     bucket <- cache_env[[t]]
