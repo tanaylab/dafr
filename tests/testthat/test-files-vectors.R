@@ -180,3 +180,51 @@ test_that("delete_vector must_exist=FALSE is a no-op on missing", {
   expect_silent(delete_vector(d, "cell", "nope", must_exist = FALSE))
   expect_error(delete_vector(d, "cell", "nope"), "does not exist")
 })
+
+test_that("format_get_vector densifies a sparse Float64 vector written Julia-style", {
+  dir <- new_tempdir()
+  dir.create(file.path(dir, "axes"), recursive = TRUE)
+  dir.create(file.path(dir, "vectors", "cell"), recursive = TRUE)
+  writeLines('{"version":[1,0]}', file.path(dir, "daf.json"))
+  writeLines(c("A","B","C","D"), file.path(dir, "axes", "cell.txt"))
+  writeLines('{"format":"sparse","eltype":"Float64","indtype":"UInt32"}',
+             file.path(dir, "vectors", "cell", "sv.json"))
+  writeBin(c(2L, 4L), file.path(dir, "vectors", "cell", "sv.nzind"),
+           size = 4L, endian = "little")
+  writeBin(c(10.0, 30.0), file.path(dir, "vectors", "cell", "sv.nzval"),
+           size = 8L, endian = "little")
+  d <- files_daf(dir, mode = "r")
+  v <- format_get_vector(d, "cell", "sv")
+  expect_equal(v, c(0, 10, 0, 30))
+})
+
+test_that("format_get_vector sparse Bool without .nzval file synthesizes fill(TRUE, nnz)", {
+  dir <- new_tempdir()
+  dir.create(file.path(dir, "axes"), recursive = TRUE)
+  dir.create(file.path(dir, "vectors", "cell"), recursive = TRUE)
+  writeLines('{"version":[1,0]}', file.path(dir, "daf.json"))
+  writeLines(c("A","B","C"), file.path(dir, "axes", "cell.txt"))
+  writeLines('{"format":"sparse","eltype":"Bool","indtype":"UInt32"}',
+             file.path(dir, "vectors", "cell", "sb.json"))
+  writeBin(c(1L, 3L), file.path(dir, "vectors", "cell", "sb.nzind"),
+           size = 4L, endian = "little")
+  d <- files_daf(dir, mode = "r")
+  v <- format_get_vector(d, "cell", "sb")
+  expect_equal(v, c(TRUE, FALSE, TRUE))
+})
+
+test_that("format_get_vector sparse String reads .nztxt", {
+  dir <- new_tempdir()
+  dir.create(file.path(dir, "axes"), recursive = TRUE)
+  dir.create(file.path(dir, "vectors", "cell"), recursive = TRUE)
+  writeLines('{"version":[1,0]}', file.path(dir, "daf.json"))
+  writeLines(c("A","B","C","D","E"), file.path(dir, "axes", "cell.txt"))
+  writeLines('{"format":"sparse","eltype":"String","indtype":"UInt32"}',
+             file.path(dir, "vectors", "cell", "ss.json"))
+  writeBin(c(2L, 5L), file.path(dir, "vectors", "cell", "ss.nzind"),
+           size = 4L, endian = "little")
+  writeLines(c("foo", "bar"), file.path(dir, "vectors", "cell", "ss.nztxt"))
+  d <- files_daf(dir, mode = "r")
+  v <- format_get_vector(d, "cell", "ss")
+  expect_equal(v, c("", "foo", "", "", "bar"))
+})

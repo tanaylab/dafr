@@ -204,9 +204,52 @@ S7::method(format_vectors_set,
 }
 
 .files_get_vector_sparse <- function(daf, axis, name, desc, n) {
-  # Implemented in Task G1.
-  stop("files_daf: sparse vector read not yet implemented (Phase G1)",
-       call. = FALSE)
+  vdir <- .path_vector_dir(.files_root(daf), axis)
+  ind_path <- file.path(vdir, paste0(name, ".nzind"))
+  if (!file.exists(ind_path)) {
+    stop(sprintf("files_daf: sparse vector %s missing .nzind", sQuote(name)),
+         call. = FALSE)
+  }
+  indtype <- desc$indtype %||% "UInt32"
+  nnz <- file.size(ind_path) %/% .dtype_size(indtype)
+  idx <- .read_bin_dense(ind_path, nnz, indtype)
+  if (desc$eltype == "Bool") {
+    val_path <- file.path(vdir, paste0(name, ".nzval"))
+    vals <- if (file.exists(val_path)) {
+      as.logical(.read_bin_dense(val_path, nnz, "Bool"))
+    } else {
+      rep(TRUE, nnz)
+    }
+    out <- logical(n)
+    out[as.integer(idx)] <- vals
+    return(out)
+  }
+  if (desc$eltype == "String") {
+    nztxt <- file.path(vdir, paste0(name, ".nztxt"))
+    vals <- readLines(nztxt, encoding = "UTF-8", warn = FALSE)
+    if (length(vals) != nnz) {
+      stop(sprintf("files_daf: sparse string vector %s .nztxt has %d lines (expected %d)",
+                   sQuote(name), length(vals), nnz), call. = FALSE)
+    }
+    out <- rep("", n)
+    out[as.integer(idx)] <- vals
+    return(out)
+  }
+  val_path <- file.path(vdir, paste0(name, ".nzval"))
+  if (!file.exists(val_path)) {
+    stop(sprintf("files_daf: sparse vector %s missing .nzval for non-Bool eltype",
+                 sQuote(name)), call. = FALSE)
+  }
+  vals <- .read_bin_dense(val_path, nnz, desc$eltype)
+  out <- if (desc$eltype %in% c("Int8","Int16","Int32","UInt8","UInt16","UInt32")) {
+    integer(n)
+  } else if (desc$eltype %in% c("Int64","UInt64")) {
+    bit64::as.integer64(integer(n))
+  } else {
+    numeric(n)
+  }
+  out[as.integer(idx)] <- vals
+  out
 }
 
 .files_get_vector_impl <- function(daf, axis, name) {
