@@ -6,7 +6,7 @@
 #' @return Invisibly the input `daf`.
 #' @export
 add_axis <- function(daf, axis, entries) {
-  stopifnot(is.character(axis),   length(axis) == 1L, !is.na(axis))
+  .assert_name(axis, "axis")
   stopifnot(is.character(entries))
   format_add_axis(daf, axis, entries)
   invisible(daf)
@@ -20,7 +20,7 @@ add_axis <- function(daf, axis, entries) {
 #' @return Invisibly the input `daf`.
 #' @export
 delete_axis <- function(daf, axis, must_exist = TRUE) {
-  stopifnot(is.character(axis), length(axis) == 1L, !is.na(axis))
+  .assert_name(axis, "axis")
   stopifnot(is.logical(must_exist), length(must_exist) == 1L, !is.na(must_exist))
   format_delete_axis(daf, axis, must_exist)
   invisible(daf)

@@ -4,7 +4,7 @@
 #' @return Logical scalar.
 #' @export
 has_axis <- function(daf, axis) {
-  stopifnot(is.character(axis), length(axis) == 1L, !is.na(axis))
+  .assert_name(axis, "axis")
   format_has_axis(daf, axis)
 }
 
@@ -19,7 +19,7 @@ axes_set <- function(daf) format_axes_set(daf)
 #' @return Integer scalar.
 #' @export
 axis_length <- function(daf, axis) {
-  stopifnot(is.character(axis), length(axis) == 1L, !is.na(axis))
+  .assert_name(axis, "axis")
   format_axis_length(daf, axis)
 }
 
@@ -31,7 +31,7 @@ axis_length <- function(daf, axis) {
 #' @return Character vector of entry names.
 #' @export
 axis_vector <- function(daf, axis, null_if_missing = FALSE) {
-  stopifnot(is.character(axis), length(axis) == 1L, !is.na(axis))
+  .assert_name(axis, "axis")
   if (!format_has_axis(daf, axis)) {
     if (isTRUE(null_if_missing)) return(NULL)
     stop(sprintf("axis %s does not exist", sQuote(axis)), call. = FALSE)
@@ -48,8 +48,14 @@ axis_vector <- function(daf, axis, null_if_missing = FALSE) {
 axis_entries <- function(daf, axis, indices = NULL) {
   entries <- axis_vector(daf, axis)
   if (is.null(indices)) return(entries)
-  if (!is.integer(indices) && !(is.numeric(indices) && all(indices == as.integer(indices)))) {
-    stop("indices must be an integer vector", call. = FALSE)
+  if (!(is.numeric(indices) || is.integer(indices))) {
+    stop("`indices` must be an integer vector", call. = FALSE)
+  }
+  if (anyNA(indices)) {
+    stop("`indices` must not contain NA", call. = FALSE)
+  }
+  if (any(indices != as.integer(indices))) {
+    stop("`indices` must be integer-valued", call. = FALSE)
   }
   indices <- as.integer(indices)
   if (any(indices < 1L | indices > length(entries))) {
@@ -65,7 +71,9 @@ axis_entries <- function(daf, axis, indices = NULL) {
 #' @return Integer vector of 1-based positions; same length as `entries`.
 #' @export
 axis_indices <- function(daf, axis, entries) {
-  if (!is.character(entries)) stop("entries must be a character vector", call. = FALSE)
+  .assert_name(axis, "axis")
+  if (!is.character(entries)) stop("`entries` must be a character vector", call. = FALSE)
+  if (anyNA(entries))         stop("`entries` must not contain NA",        call. = FALSE)
   dict <- format_axis_dict(daf, axis)
   out <- vapply(entries, function(nm) {
     v <- dict[[nm]]
@@ -86,6 +94,6 @@ axis_indices <- function(daf, axis, entries) {
 #' @return An environment mapping entry names to integer positions.
 #' @export
 axis_dict <- function(daf, axis) {
-  stopifnot(is.character(axis), length(axis) == 1L, !is.na(axis))
+  .assert_name(axis, "axis")
   format_axis_dict(daf, axis)
 }

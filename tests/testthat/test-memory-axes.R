@@ -168,3 +168,27 @@ test_that("delete_axis composes with axes_set", {
   expect_error(delete_axis(d, "cell"),                          "does not exist")
   expect_silent(delete_axis(d, "cell", must_exist = FALSE))
 })
+
+test_that("axis_entries rejects NA in indices", {
+  d <- memory_daf()
+  add_axis(d, "cell", c("A", "B"))
+  expect_error(axis_entries(d, "cell", c(1L, NA_integer_)), "must not contain NA")
+})
+
+test_that("axis_indices rejects NA in entries", {
+  d <- memory_daf()
+  add_axis(d, "cell", c("A", "B"))
+  expect_error(axis_indices(d, "cell", c("A", NA_character_)), "must not contain NA")
+})
+
+test_that("axis_indices rejects non-scalar axis", {
+  d <- memory_daf()
+  add_axis(d, "cell", c("A"))
+  expect_error(axis_indices(d, c("cell", "gene"), "A"), "must be a non-NA character scalar")
+})
+
+test_that("axis_entries rejects non-integer-valued numeric", {
+  d <- memory_daf()
+  add_axis(d, "cell", c("A", "B"))
+  expect_error(axis_entries(d, "cell", 1.5), "integer-valued")
+})
