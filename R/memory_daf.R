@@ -300,3 +300,51 @@ S7::method(format_delete_vector,
   bump_vector_counter(daf, axis, name)
   invisible()
 }
+
+# ---- Matrices: query --------------------------------------------------------
+
+.memory_matrix_bucket <- function(daf, rows_axis, cols_axis, create = FALSE) {
+  if (!format_has_axis(daf, rows_axis)) {
+    stop(sprintf("axis %s does not exist", sQuote(rows_axis)), call. = FALSE)
+  }
+  if (!format_has_axis(daf, cols_axis)) {
+    stop(sprintf("axis %s does not exist", sQuote(cols_axis)), call. = FALSE)
+  }
+  matrices <- S7::prop(daf, "internal")$matrices
+  if (!exists(rows_axis, envir = matrices, inherits = FALSE)) {
+    if (!create) return(NULL)
+    assign(rows_axis, new.env(parent = emptyenv()), envir = matrices)
+  }
+  rows_env <- get(rows_axis, envir = matrices, inherits = FALSE)
+  if (!exists(cols_axis, envir = rows_env, inherits = FALSE)) {
+    if (!create) return(NULL)
+    assign(cols_axis, new.env(parent = emptyenv()), envir = rows_env)
+  }
+  get(cols_axis, envir = rows_env, inherits = FALSE)
+}
+
+S7::method(format_has_matrix,
+           list(MemoryDaf, S7::class_character, S7::class_character, S7::class_character)) <- function(daf, rows_axis, columns_axis, name) {
+  if (!format_has_axis(daf, rows_axis) || !format_has_axis(daf, columns_axis)) return(FALSE)
+  env <- .memory_matrix_bucket(daf, rows_axis, columns_axis, create = FALSE)
+  if (is.null(env)) return(FALSE)
+  exists(name, envir = env, inherits = FALSE)
+}
+
+S7::method(format_matrices_set,
+           list(MemoryDaf, S7::class_character, S7::class_character)) <- function(daf, rows_axis, columns_axis) {
+  env <- .memory_matrix_bucket(daf, rows_axis, columns_axis, create = FALSE)
+  if (is.null(env)) return(character(0L))
+  sort(ls(env, all.names = TRUE), method = "radix")
+}
+
+S7::method(format_get_matrix,
+           list(MemoryDaf, S7::class_character, S7::class_character, S7::class_character)) <- function(daf, rows_axis, columns_axis, name) {
+  env <- .memory_matrix_bucket(daf, rows_axis, columns_axis, create = FALSE)
+  if (is.null(env) || !exists(name, envir = env, inherits = FALSE)) {
+    stop(sprintf("matrix %s does not exist on axes (%s, %s)",
+                 sQuote(name), sQuote(rows_axis), sQuote(columns_axis)),
+         call. = FALSE)
+  }
+  get(name, envir = env, inherits = FALSE)
+}
