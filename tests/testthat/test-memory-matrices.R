@@ -237,3 +237,37 @@ test_that("get_matrix flipped + sparse preserves class and applies rotated dimna
   expect_equal(colnames(got), c("A", "B"))
   expect_equal(as.matrix(got), t(as.matrix(m)), ignore_attr = TRUE)
 })
+
+test_that("set_matrix round-trips dense + sparse + respects overwrite", {
+  d <- memory_daf()
+  add_axis(d, "cell", c("A", "B"))
+  add_axis(d, "gene", c("X", "Y", "Z"))
+  m <- matrix(seq_len(6), 2, 3)
+  set_matrix(d, "cell", "gene", "UMIs", m)
+  expect_equal(as.matrix(get_matrix(d, "cell", "gene", "UMIs")),
+               m, ignore_attr = TRUE)
+  expect_error(set_matrix(d, "cell", "gene", "UMIs", m), "already exists")
+  set_matrix(d, "cell", "gene", "UMIs", m * 10, overwrite = TRUE)
+  expect_equal(as.matrix(get_matrix(d, "cell", "gene", "UMIs")),
+               m * 10, ignore_attr = TRUE)
+})
+
+test_that("delete_matrix removes + respects must_exist", {
+  d <- memory_daf()
+  add_axis(d, "cell", "A"); add_axis(d, "gene", "X")
+  set_matrix(d, "cell", "gene", "m", matrix(1, 1, 1))
+  delete_matrix(d, "cell", "gene", "m")
+  expect_false(has_matrix(d, "cell", "gene", "m"))
+  expect_error (delete_matrix(d, "cell", "gene", "m"),                     "does not exist")
+  expect_silent(delete_matrix(d, "cell", "gene", "m", must_exist = FALSE))
+})
+
+test_that("relayout_matrix makes the flipped layout physical", {
+  d <- memory_daf()
+  add_axis(d, "cell", c("A", "B"))
+  add_axis(d, "gene", c("X", "Y", "Z"))
+  set_matrix(d, "cell", "gene", "UMIs", matrix(seq_len(6), 2, 3))
+  expect_false(has_matrix(d, "gene", "cell", "UMIs"))
+  relayout_matrix(d, "cell", "gene", "UMIs")
+  expect_true(has_matrix(d, "gene", "cell", "UMIs"))
+})
