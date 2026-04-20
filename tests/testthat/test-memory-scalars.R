@@ -72,6 +72,46 @@ test_that("set_scalar rejects NA (per Julia DAF rules)", {
   expect_error(set_scalar(d, "foo", NA))
 })
 
+# Ported from DafJuliaWrapper::test-formats.R (MemoryDaf arm of
+# "scalar operations work for different formats"): exercise round-trips
+# across the atomic R types the user-facing API accepts.
+test_that("set_scalar round-trips numeric, integer, logical, and string types", {
+  d <- memory_daf(name = "test!")
+
+  # String.
+  set_scalar(d, "foo", "1.0.1")
+  expect_true(has_scalar(d, "foo"))
+  expect_equal(get_scalar(d, "foo"), "1.0.1")
+  expect_equal(scalars_set(d), "foo")
+  delete_scalar(d, "foo")
+  expect_equal(length(scalars_set(d)), 0L)
+  expect_false(has_scalar(d, "foo"))
+
+  # Double (Float64).
+  set_scalar(d, "foo", 0.5)
+  expect_true(has_scalar(d, "foo"))
+  expect_equal(get_scalar(d, "foo"), 0.5)
+  delete_scalar(d, "foo")
+  expect_equal(length(scalars_set(d)), 0L)
+  expect_false(has_scalar(d, "foo"))
+
+  # Integer (Int64-ish).
+  set_scalar(d, "foo", 1L)
+  expect_true(has_scalar(d, "foo"))
+  expect_equal(get_scalar(d, "foo"), 1L)
+  delete_scalar(d, "foo")
+  expect_equal(length(scalars_set(d)), 0L)
+  expect_false(has_scalar(d, "foo"))
+
+  # Logical (Bool).
+  set_scalar(d, "foo", TRUE)
+  expect_true(has_scalar(d, "foo"))
+  expect_equal(get_scalar(d, "foo"), TRUE)
+  delete_scalar(d, "foo")
+  expect_equal(length(scalars_set(d)), 0L)
+  expect_false(has_scalar(d, "foo"))
+})
+
 test_that("get_scalar(default = NULL) is distinct from omitting the default", {
   d <- memory_daf()
   expect_error(get_scalar(d, "missing"), "does not exist")
