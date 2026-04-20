@@ -3,7 +3,7 @@ NULL
 
 # Public entry points: parse_query, get_query, has_query,
 # is_axis_query, query_axis_name, query_result_dimensions,
-# get_frame, q().
+# get_frame.
 
 #' Evaluate a query string against a daf reader.
 #' @param daf A `DafReader`.
@@ -128,12 +128,6 @@ get_query <- function(daf, query_string) {
 canonical_query <- function(query_string) {
   .canonicalise_ast(parse_query(query_string))
 }
-
-#' Alias for `parse_query()`.
-#' @inheritParams parse_query
-#' @return A list of AST node records.
-#' @export
-q <- function(query_string) parse_query(query_string)
 
 #' Test whether a query yields an axis entry vector.
 #' @inheritParams get_query

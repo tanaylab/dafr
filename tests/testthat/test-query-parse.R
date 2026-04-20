@@ -123,9 +123,6 @@ test_that("parse_query handles IfMissing / IfNot / AsAxis modifiers", {
   expect_equal(parse_query("=@ cell")[[1]]$op, "AsAxis")
 })
 
-test_that("q() is an alias for parse_query", {
-  expect_identical(q("@ cell"), parse_query("@ cell"))
-})
 
 test_that("is_axis_query returns TRUE for axis-only query", {
   expect_true(is_axis_query("@ cell"))
