@@ -4,14 +4,14 @@
 \alias{matrices_set}
 \title{Names of matrices for an axis pair, sorted.}
 \usage{
-matrices_set(daf, rows_axis, cols_axis)
+matrices_set(daf, rows_axis, columns_axis)
 }
 \arguments{
 \item{daf}{A \code{DafReader}.}
 
 \item{rows_axis}{Row-axis name.}
 
-\item{cols_axis}{Column-axis name.}
+\item{columns_axis}{Column-axis name.}
 }
 \value{
 Character vector.

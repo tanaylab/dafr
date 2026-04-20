@@ -4,19 +4,19 @@
 \alias{set_matrix}
 \title{Set a matrix indexed by a pair of axes.}
 \usage{
-set_matrix(daf, rows_axis, cols_axis, name, mat, overwrite = FALSE)
+set_matrix(daf, rows_axis, columns_axis, name, mat, overwrite = FALSE)
 }
 \arguments{
 \item{daf}{A \code{DafReader}.}
 
 \item{rows_axis}{Row-axis name.}
 
-\item{cols_axis}{Column-axis name.}
+\item{columns_axis}{Column-axis name.}
 
 \item{name}{Matrix name.}
 
 \item{mat}{Dense \code{matrix}, or sparse \code{dgCMatrix} / \code{lgCMatrix}, of
-shape \verb{axis_length(rows_axis) x axis_length(cols_axis)}.}
+shape \verb{axis_length(rows_axis) x axis_length(columns_axis)}.}
 
 \item{overwrite}{See \code{set_scalar}.}
 }

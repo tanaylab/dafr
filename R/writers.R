@@ -89,16 +89,16 @@ delete_vector <- function(daf, axis, name, must_exist = TRUE) {
 #'
 #' @inheritParams has_matrix
 #' @param mat Dense `matrix`, or sparse `dgCMatrix` / `lgCMatrix`, of
-#'   shape `axis_length(rows_axis) x axis_length(cols_axis)`.
+#'   shape `axis_length(rows_axis) x axis_length(columns_axis)`.
 #' @param overwrite See `set_scalar`.
 #' @return Invisibly the input `daf`.
 #' @export
-set_matrix <- function(daf, rows_axis, cols_axis, name, mat, overwrite = FALSE) {
+set_matrix <- function(daf, rows_axis, columns_axis, name, mat, overwrite = FALSE) {
   .assert_name(rows_axis, "rows_axis")
-  .assert_name(cols_axis, "cols_axis")
+  .assert_name(columns_axis, "columns_axis")
   .assert_name(name,      "name")
   .assert_flag(overwrite, "overwrite")
-  format_set_matrix(daf, rows_axis, cols_axis, name, mat, overwrite)
+  format_set_matrix(daf, rows_axis, columns_axis, name, mat, overwrite)
   invisible(daf)
 }
 
@@ -107,27 +107,27 @@ set_matrix <- function(daf, rows_axis, cols_axis, name, mat, overwrite = FALSE) 
 #' @param must_exist See `delete_axis`.
 #' @return Invisibly the input `daf`.
 #' @export
-delete_matrix <- function(daf, rows_axis, cols_axis, name, must_exist = TRUE) {
+delete_matrix <- function(daf, rows_axis, columns_axis, name, must_exist = TRUE) {
   .assert_name(rows_axis, "rows_axis")
-  .assert_name(cols_axis, "cols_axis")
+  .assert_name(columns_axis, "columns_axis")
   .assert_name(name,      "name")
   .assert_flag(must_exist, "must_exist")
-  format_delete_matrix(daf, rows_axis, cols_axis, name, must_exist)
+  format_delete_matrix(daf, rows_axis, columns_axis, name, must_exist)
   invisible(daf)
 }
 
 #' Physically store the transposed layout of a matrix.
 #'
-#' After this call, `get_matrix(cols_axis, rows_axis, name)` skips the
+#' After this call, `get_matrix(columns_axis, rows_axis, name)` skips the
 #' transpose-on-the-fly path.
 #'
 #' @inheritParams has_matrix
 #' @return Invisibly the input `daf`.
 #' @export
-relayout_matrix <- function(daf, rows_axis, cols_axis, name) {
+relayout_matrix <- function(daf, rows_axis, columns_axis, name) {
   .assert_name(rows_axis, "rows_axis")
-  .assert_name(cols_axis, "cols_axis")
+  .assert_name(columns_axis, "columns_axis")
   .assert_name(name,      "name")
-  format_relayout_matrix(daf, rows_axis, cols_axis, name)
+  format_relayout_matrix(daf, rows_axis, columns_axis, name)
   invisible(daf)
 }

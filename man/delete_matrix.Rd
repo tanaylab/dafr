@@ -4,14 +4,14 @@
 \alias{delete_matrix}
 \title{Delete a matrix.}
 \usage{
-delete_matrix(daf, rows_axis, cols_axis, name, must_exist = TRUE)
+delete_matrix(daf, rows_axis, columns_axis, name, must_exist = TRUE)
 }
 \arguments{
 \item{daf}{A \code{DafReader}.}
 
 \item{rows_axis}{Row-axis name.}
 
-\item{cols_axis}{Column-axis name.}
+\item{columns_axis}{Column-axis name.}
 
 \item{name}{Matrix name.}
 

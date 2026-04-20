@@ -4,14 +4,14 @@
 \alias{relayout_matrix}
 \title{Physically store the transposed layout of a matrix.}
 \usage{
-relayout_matrix(daf, rows_axis, cols_axis, name)
+relayout_matrix(daf, rows_axis, columns_axis, name)
 }
 \arguments{
 \item{daf}{A \code{DafReader}.}
 
 \item{rows_axis}{Row-axis name.}
 
-\item{cols_axis}{Column-axis name.}
+\item{columns_axis}{Column-axis name.}
 
 \item{name}{Matrix name.}
 }
@@ -19,6 +19,6 @@ relayout_matrix(daf, rows_axis, cols_axis, name)
 Invisibly the input \code{daf}.
 }
 \description{
-After this call, \code{get_matrix(cols_axis, rows_axis, name)} skips the
+After this call, \code{get_matrix(columns_axis, rows_axis, name)} skips the
 transpose-on-the-fly path.
 }

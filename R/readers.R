@@ -194,31 +194,31 @@ get_vector <- function(daf, axis, name, default) {
 #' Test whether a matrix exists for an axis pair.
 #' @param daf A `DafReader`.
 #' @param rows_axis Row-axis name.
-#' @param cols_axis Column-axis name.
+#' @param columns_axis Column-axis name.
 #' @param name Matrix name.
 #' @return Logical scalar.
 #' @export
-has_matrix <- function(daf, rows_axis, cols_axis, name) {
+has_matrix <- function(daf, rows_axis, columns_axis, name) {
   .assert_name(rows_axis, "rows_axis")
-  .assert_name(cols_axis, "cols_axis")
+  .assert_name(columns_axis, "columns_axis")
   .assert_name(name,      "name")
-  format_has_matrix(daf, rows_axis, cols_axis, name)
+  format_has_matrix(daf, rows_axis, columns_axis, name)
 }
 
 #' Names of matrices for an axis pair, sorted.
 #' @inheritParams has_matrix
 #' @return Character vector.
 #' @export
-matrices_set <- function(daf, rows_axis, cols_axis) {
+matrices_set <- function(daf, rows_axis, columns_axis) {
   .assert_name(rows_axis, "rows_axis")
-  .assert_name(cols_axis, "cols_axis")
-  format_matrices_set(daf, rows_axis, cols_axis)
+  .assert_name(columns_axis, "columns_axis")
+  format_matrices_set(daf, rows_axis, columns_axis)
 }
 
 #' Get a matrix, returning it with axis-entry dimnames.
 #'
 #' When the matrix is stored only at the flipped-layout axis pair
-#' `(cols_axis, rows_axis)`, this function transposes on-the-fly and
+#' `(columns_axis, rows_axis)`, this function transposes on-the-fly and
 #' returns with the requested dimnames.
 #'
 #' @inheritParams has_matrix
@@ -228,21 +228,21 @@ matrices_set <- function(daf, rows_axis, cols_axis) {
 #' @return Dense `matrix` or sparse `dgCMatrix` / `lgCMatrix` with
 #'   dimnames set.
 #' @export
-get_matrix <- function(daf, rows_axis, cols_axis, name, default) {
+get_matrix <- function(daf, rows_axis, columns_axis, name, default) {
   .assert_name(rows_axis, "rows_axis")
-  .assert_name(cols_axis, "cols_axis")
+  .assert_name(columns_axis, "columns_axis")
   .assert_name(name,      "name")
 
   rows <- format_axis_array(daf, rows_axis)
-  cols <- format_axis_array(daf, cols_axis)
+  cols <- format_axis_array(daf, columns_axis)
 
-  primary <- format_has_matrix(daf, rows_axis, cols_axis, name)
-  flipped <- !primary && format_has_matrix(daf, cols_axis, rows_axis, name)
+  primary <- format_has_matrix(daf, rows_axis, columns_axis, name)
+  flipped <- !primary && format_has_matrix(daf, columns_axis, rows_axis, name)
 
   if (!primary && !flipped) {
     if (missing(default)) {
       stop(sprintf("matrix %s does not exist on axes (%s, %s)",
-                   sQuote(name), sQuote(rows_axis), sQuote(cols_axis)),
+                   sQuote(name), sQuote(rows_axis), sQuote(columns_axis)),
            call. = FALSE)
     }
     out <- matrix(default, nrow = length(rows), ncol = length(cols),
@@ -251,9 +251,9 @@ get_matrix <- function(daf, rows_axis, cols_axis, name, default) {
   }
 
   if (primary) {
-    ra <- rows_axis; ca <- cols_axis
+    ra <- rows_axis; ca <- columns_axis
   } else {
-    ra <- cols_axis; ca <- rows_axis
+    ra <- columns_axis; ca <- rows_axis
   }
 
   cache_key <- cache_key_matrix(ra, ca, name)

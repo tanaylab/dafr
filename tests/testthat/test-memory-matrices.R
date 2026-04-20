@@ -316,3 +316,15 @@ test_that("set_matrix / get_matrix round-trip a sparseMatrix preserving explicit
   expect_equal(rownames(got), c("A", "B"))
   expect_equal(colnames(got), c("X", "Y", "Z"))
 })
+
+test_that("user-facing matrix wrappers accept columns_axis = by name", {
+  d <- memory_daf()
+  add_axis(d, "cell", c("A", "B"))
+  add_axis(d, "gene", c("X", "Y"))
+  m <- matrix(1:4, nrow = 2, ncol = 2)
+  expect_silent(set_matrix(d, rows_axis = "cell", columns_axis = "gene",
+                           name = "n", mat = m))
+  expect_true(has_matrix(d, rows_axis = "cell", columns_axis = "gene", "n"))
+  expect_equal(dim(get_matrix(d, rows_axis = "cell",
+                              columns_axis = "gene", "n")), c(2L, 2L))
+})

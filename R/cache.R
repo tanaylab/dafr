@@ -20,8 +20,8 @@
 cache_key_scalar <- function(name)      paste0("scalar:", name)
 cache_key_axis   <- function(axis)      paste0("axis:", axis)
 cache_key_vector <- function(axis, name) paste0("vector:", axis, ":", name)
-cache_key_matrix <- function(rows_axis, cols_axis, name) {
-  paste0("matrix:", rows_axis, ":", cols_axis, ":", name)
+cache_key_matrix <- function(rows_axis, columns_axis, name) {
+  paste0("matrix:", rows_axis, ":", columns_axis, ":", name)
 }
 cache_key_query  <- function(canon)     paste0("query:", canon)
 
@@ -128,9 +128,9 @@ bump_vector_counter <- function(daf, axis, name) {
   invisible()
 }
 
-bump_matrix_counter <- function(daf, rows_axis, cols_axis, name) {
+bump_matrix_counter <- function(daf, rows_axis, columns_axis, name) {
   counters <- S7::prop(daf, "matrix_version_counter")
-  key <- paste0(rows_axis, ":", cols_axis, ":", name)
+  key <- paste0(rows_axis, ":", columns_axis, ":", name)
   counters[[key]] <- (counters[[key]] %||% 0L) + 1L
   invisible()
 }
@@ -147,11 +147,11 @@ vector_stamp <- function(daf, axis, name) {
     vc[[paste0(axis, ":", name)]] %||% 0L)
 }
 
-matrix_stamp <- function(daf, rows_axis, cols_axis, name) {
+matrix_stamp <- function(daf, rows_axis, columns_axis, name) {
   mc <- S7::prop(daf, "matrix_version_counter")
   c(axis_stamp(daf, rows_axis),
-    axis_stamp(daf, cols_axis),
-    mc[[paste0(rows_axis, ":", cols_axis, ":", name)]] %||% 0L)
+    axis_stamp(daf, columns_axis),
+    mc[[paste0(rows_axis, ":", columns_axis, ":", name)]] %||% 0L)
 }
 
 # ---- Cache with LRU + memory-cap (applies to memory + query tiers) ----------

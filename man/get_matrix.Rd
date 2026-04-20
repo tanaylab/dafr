@@ -4,14 +4,14 @@
 \alias{get_matrix}
 \title{Get a matrix, returning it with axis-entry dimnames.}
 \usage{
-get_matrix(daf, rows_axis, cols_axis, name, default)
+get_matrix(daf, rows_axis, columns_axis, name, default)
 }
 \arguments{
 \item{daf}{A \code{DafReader}.}
 
 \item{rows_axis}{Row-axis name.}
 
-\item{cols_axis}{Column-axis name.}
+\item{columns_axis}{Column-axis name.}
 
 \item{name}{Matrix name.}
 
@@ -25,6 +25,6 @@ dimnames set.
 }
 \description{
 When the matrix is stored only at the flipped-layout axis pair
-\verb{(cols_axis, rows_axis)}, this function transposes on-the-fly and
+\verb{(columns_axis, rows_axis)}, this function transposes on-the-fly and
 returns with the requested dimnames.
 }

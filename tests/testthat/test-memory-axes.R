@@ -108,7 +108,7 @@ test_that("format_delete_axis also removes matrices where the axis is cols-only 
   matrices$gene <- new.env(parent = emptyenv())
   matrices$gene$cell <- new.env(parent = emptyenv())
   matrices$gene$cell$UMIs <- matrix(0, 2, 2)
-  # "cell" appears only as cols_axis under matrices$gene$cell — never as a rows_axis key.
+  # "cell" appears only as columns_axis under matrices$gene$cell — never as a rows_axis key.
   expect_false(exists("cell", envir = matrices, inherits = FALSE))
   format_delete_axis(d, "cell", must_exist = TRUE)
   expect_false(exists("cell", envir = matrices$gene, inherits = FALSE))

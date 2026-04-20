@@ -7,7 +7,7 @@
 #' - `internal$scalars`     : `env(name -> value)`
 #' - `internal$axes`        : `env(axis -> list(entries = character, dict = env))`
 #' - `internal$vectors`     : `env(axis -> env(name -> vector))`
-#' - `internal$matrices`    : `env(rows_axis -> env(cols_axis -> env(name -> matrix)))`
+#' - `internal$matrices`    : `env(rows_axis -> env(columns_axis -> env(name -> matrix)))`
 #'
 #' @param name Human-readable identifier. Defaults to `"memory"`.
 #' @return A `MemoryDaf` instance.
@@ -303,12 +303,12 @@ S7::method(format_delete_vector,
 
 # ---- Matrices: query --------------------------------------------------------
 
-.memory_matrix_bucket <- function(daf, rows_axis, cols_axis, create = FALSE) {
+.memory_matrix_bucket <- function(daf, rows_axis, columns_axis, create = FALSE) {
   if (!format_has_axis(daf, rows_axis)) {
     stop(sprintf("axis %s does not exist", sQuote(rows_axis)), call. = FALSE)
   }
-  if (!format_has_axis(daf, cols_axis)) {
-    stop(sprintf("axis %s does not exist", sQuote(cols_axis)), call. = FALSE)
+  if (!format_has_axis(daf, columns_axis)) {
+    stop(sprintf("axis %s does not exist", sQuote(columns_axis)), call. = FALSE)
   }
   matrices <- S7::prop(daf, "internal")$matrices
   if (!exists(rows_axis, envir = matrices, inherits = FALSE)) {
@@ -316,11 +316,11 @@ S7::method(format_delete_vector,
     assign(rows_axis, new.env(parent = emptyenv()), envir = matrices)
   }
   rows_env <- get(rows_axis, envir = matrices, inherits = FALSE)
-  if (!exists(cols_axis, envir = rows_env, inherits = FALSE)) {
+  if (!exists(columns_axis, envir = rows_env, inherits = FALSE)) {
     if (!create) return(NULL)
-    assign(cols_axis, new.env(parent = emptyenv()), envir = rows_env)
+    assign(columns_axis, new.env(parent = emptyenv()), envir = rows_env)
   }
-  get(cols_axis, envir = rows_env, inherits = FALSE)
+  get(columns_axis, envir = rows_env, inherits = FALSE)
 }
 
 S7::method(format_has_matrix,
@@ -351,7 +351,7 @@ S7::method(format_get_matrix,
 
 # ---- Matrices: mutation -----------------------------------------------------
 
-.validate_matrix_value <- function(daf, rows_axis, cols_axis, name, mat) {
+.validate_matrix_value <- function(daf, rows_axis, columns_axis, name, mat) {
   is_sparse <- methods::is(mat, "dgCMatrix") || methods::is(mat, "lgCMatrix")
   is_dense  <- is.matrix(mat)
   if (!is_sparse && !is_dense) {
@@ -359,7 +359,7 @@ S7::method(format_get_matrix,
                  sQuote(name)), call. = FALSE)
   }
   nr <- format_axis_length(daf, rows_axis)
-  nc <- format_axis_length(daf, cols_axis)
+  nc <- format_axis_length(daf, columns_axis)
   d  <- dim(mat)
   if (d[[1L]] != nr || d[[2L]] != nc) {
     stop(sprintf("matrix %s has dim %d x %d (expected %d x %d)",

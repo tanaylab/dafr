@@ -131,7 +131,7 @@ test_that("axis_stamp / vector_stamp / matrix_stamp mirror counter state", {
   expect_equal(vector_stamp(d, "cell", "v"), c(1L, 0L))
   bump_vector_counter(d, "cell", "v")
   expect_equal(vector_stamp(d, "cell", "v"), c(1L, 1L))
-  # matrix_stamp: c(rows_axis_stamp, cols_axis_stamp, matrix_counter)
+  # matrix_stamp: c(rows_axis_stamp, columns_axis_stamp, matrix_counter)
   add_axis(d, "gene", "X")
   expect_equal(matrix_stamp(d, "cell", "gene", "m"), c(1L, 1L, 0L))
   bump_matrix_counter(d, "cell", "gene", "m")

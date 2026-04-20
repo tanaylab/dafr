@@ -22,7 +22,7 @@ environments (hash tables) under the \code{internal} property:
 \item \code{internal$scalars}     : \code{env(name -> value)}
 \item \code{internal$axes}        : \code{env(axis -> list(entries = character, dict = env))}
 \item \code{internal$vectors}     : \code{env(axis -> env(name -> vector))}
-\item \code{internal$matrices}    : \code{env(rows_axis -> env(cols_axis -> env(name -> matrix)))}
+\item \code{internal$matrices}    : \code{env(rows_axis -> env(columns_axis -> env(name -> matrix)))}
 }
 }
 \examples{
