@@ -1,7 +1,11 @@
 #ifndef DAFR_OPENMP_SHIM_HPP
 #define DAFR_OPENMP_SHIM_HPP
 
-#if defined(DAFR_HAVE_OPENMP) && DAFR_HAVE_OPENMP
+/* _OPENMP is defined by the compiler when -fopenmp is active. R's
+   SHLIB_OPENMP_CXXFLAGS expands to -fopenmp on platforms with OpenMP
+   support and to empty on platforms without it (notably macOS with the
+   default system clang), so _OPENMP is the right cross-platform guard. */
+#if defined(_OPENMP)
   #include <omp.h>
   /* _Pragma requires a string literal; use the stringify trick so that the
      caller's expression (e.g. n >= 10000) lands in the pragma text. */

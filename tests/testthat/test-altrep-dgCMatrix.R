@@ -19,6 +19,7 @@ make_test_dgC_files <- function() {
 }
 
 test_that("mmap_dgCMatrix reconstructs slots correctly", {
+  skip_on_os("windows")
   tf <- make_test_dgC_files()
   m <- mmap_dgCMatrix(
     x_path = file.path(tf$dir, "x.bin"),
@@ -31,6 +32,7 @@ test_that("mmap_dgCMatrix reconstructs slots correctly", {
 })
 
 test_that("colSums on mmap-backed dgCMatrix matches Matrix::colSums", {
+  skip_on_os("windows")
   tf <- make_test_dgC_files()
   m <- mmap_dgCMatrix(
     x_path = file.path(tf$dir, "x.bin"),
@@ -42,6 +44,7 @@ test_that("colSums on mmap-backed dgCMatrix matches Matrix::colSums", {
 })
 
 test_that("rowSums on mmap-backed dgCMatrix matches Matrix::rowSums", {
+  skip_on_os("windows")
   tf <- make_test_dgC_files()
   m <- mmap_dgCMatrix(
     x_path = file.path(tf$dir, "x.bin"),
@@ -53,6 +56,7 @@ test_that("rowSums on mmap-backed dgCMatrix matches Matrix::rowSums", {
 })
 
 test_that("Matrix::t() round-trip yields same values", {
+  skip_on_os("windows")
   tf <- make_test_dgC_files()
   m <- mmap_dgCMatrix(
     x_path = file.path(tf$dir, "x.bin"),
@@ -65,6 +69,7 @@ test_that("Matrix::t() round-trip yields same values", {
 })
 
 test_that("element assignment triggers materialization, doesn't crash", {
+  skip_on_os("windows")
   tf <- make_test_dgC_files()
   m <- mmap_dgCMatrix(
     x_path = file.path(tf$dir, "x.bin"),
@@ -76,6 +81,7 @@ test_that("element assignment triggers materialization, doesn't crash", {
 })
 
 test_that("slots remain ALTREP after dgCMatrix construction (POC anchor)", {
+  skip_on_os("windows")
   tf <- make_test_dgC_files()
   m <- mmap_dgCMatrix(
     x_path = file.path(tf$dir, "x.bin"),
@@ -89,6 +95,7 @@ test_that("slots remain ALTREP after dgCMatrix construction (POC anchor)", {
 })
 
 test_that("slots remain ALTREP after Matrix::colSums (read-only path)", {
+  skip_on_os("windows")
   tf <- make_test_dgC_files()
   m <- mmap_dgCMatrix(
     x_path = file.path(tf$dir, "x.bin"),
@@ -103,6 +110,7 @@ test_that("slots remain ALTREP after Matrix::colSums (read-only path)", {
 })
 
 test_that("mmap_dgCMatrix accepts and preserves dimnames", {
+  skip_on_os("windows")
   tf <- make_test_dgC_files()
   rn <- paste0("r", 1:10)
   cn <- paste0("c", 1:10)
@@ -118,6 +126,7 @@ test_that("mmap_dgCMatrix accepts and preserves dimnames", {
 })
 
 test_that("mmap_dgCMatrix rejects invalid dimnames", {
+  skip_on_os("windows")
   tf <- make_test_dgC_files()
   expect_error(mmap_dgCMatrix(
     x_path = file.path(tf$dir, "x.bin"),
@@ -129,6 +138,7 @@ test_that("mmap_dgCMatrix rejects invalid dimnames", {
 })
 
 test_that("mmap_dgCMatrix rejects wrong nnz (violates p[ncol+1] == nnz)", {
+  skip_on_os("windows")
   tf <- make_test_dgC_files()
   # Pass nnz that doesn't match the CSC invariant from p
   expect_error(mmap_dgCMatrix(
