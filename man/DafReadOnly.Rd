@@ -13,6 +13,24 @@ DafReadOnly(
   matrix_version_counter = new.env(parent = emptyenv())
 )
 }
+\arguments{
+\item{name}{Human-readable identifier for the \code{Daf} store.}
+
+\item{internal}{Internal per-store environment used by format
+backends to stash backend-specific state; reserved for package use.}
+
+\item{cache}{Three-tier cache environment (mapped / memory / query).
+See \code{new_cache_env()}.}
+
+\item{axis_version_counter}{Environment tracking per-axis mutation
+counters; invalidates cached reads when an axis is modified.}
+
+\item{vector_version_counter}{Environment tracking per-vector
+mutation counters.}
+
+\item{matrix_version_counter}{Environment tracking per-matrix
+mutation counters.}
+}
 \description{
 Abstract read-only reader class.
 }
