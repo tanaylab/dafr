@@ -33,6 +33,32 @@ NULL
     LookupScalar = if (is.null(n$name)) "." else paste0(". ", .escape_value(n$name)),
     LookupVector = if (is.null(n$name)) ":" else paste0(": ", .escape_value(n$name)),
     LookupMatrix = if (is.null(n$name)) "::" else paste0(":: ", .escape_value(n$name)),
+    BeginMask         = paste0("[ ",     .escape_value(n$property)),
+    BeginNegatedMask  = paste0("[ ! ",   .escape_value(n$property)),
+    EndMask           = "]",
+    IsLess            = paste0("< ",     .escape_value(format(n$value))),
+    IsLessEqual       = paste0("<= ",    .escape_value(format(n$value))),
+    IsEqual           = paste0("= ",     .escape_value(format(n$value))),
+    IsNotEqual        = paste0("!= ",    .escape_value(format(n$value))),
+    IsGreater         = paste0("> ",     .escape_value(format(n$value))),
+    IsGreaterEqual    = paste0(">= ",    .escape_value(format(n$value))),
+    IsMatch           = paste0("~ ",     .escape_value(n$pattern)),
+    IsNotMatch        = paste0("!~ ",    .escape_value(n$pattern)),
+    AndMask           = paste0("& ",     .escape_value(n$property)),
+    AndNegatedMask    = paste0("& ! ",   .escape_value(n$property)),
+    OrMask            = paste0("| ",     .escape_value(n$property)),
+    OrNegatedMask     = paste0("| ! ",   .escape_value(n$property)),
+    XorMask           = paste0("^ ",     .escape_value(n$property)),
+    XorNegatedMask    = paste0("^ ! ",   .escape_value(n$property)),
+    SquareRowIs       = paste0("@- ",    .escape_value(format(n$value))),
+    SquareColumnIs    = paste0("@| ",    .escape_value(format(n$value))),
+    GroupBy           = paste0("/ ",     .escape_value(n$property)),
+    GroupRowsBy       = paste0("-/ ",    .escape_value(n$property)),
+    GroupColumnsBy    = paste0("|/ ",    .escape_value(n$property)),
+    CountBy           = paste0("* ",     .escape_value(n$property)),
+    ReduceToColumn    = .canonicalise_reduction(">|", n$reduction, n$params),
+    ReduceToRow       = .canonicalise_reduction(">-", n$reduction, n$params),
+    Eltwise           = .canonicalise_eltwise(n$name, n$params),
     stop(sprintf("no canonicaliser for %s", n$op), call. = FALSE))
 }
 
@@ -42,4 +68,71 @@ NULL
   } else {
     s
   }
+}
+
+.qop_begin_mask <- function(property, negated = FALSE) {
+  if (negated) .qop("BeginNegatedMask", property = property)
+  else         .qop("BeginMask",        property = property)
+}
+.qop_end_mask <- function() .qop("EndMask")
+
+.qop_is_less          <- function(value) .qop("IsLess",          value = value)
+.qop_is_less_equal    <- function(value) .qop("IsLessEqual",     value = value)
+.qop_is_equal         <- function(value) .qop("IsEqual",         value = value)
+.qop_is_not_equal     <- function(value) .qop("IsNotEqual",      value = value)
+.qop_is_greater       <- function(value) .qop("IsGreater",       value = value)
+.qop_is_greater_equal <- function(value) .qop("IsGreaterEqual",  value = value)
+.qop_is_match         <- function(pattern) .qop("IsMatch",    pattern = pattern)
+.qop_is_not_match     <- function(pattern) .qop("IsNotMatch", pattern = pattern)
+
+.qop_and_mask <- function(property, negated = FALSE) {
+  if (negated) .qop("AndNegatedMask", property = property)
+  else         .qop("AndMask",        property = property)
+}
+.qop_or_mask <- function(property, negated = FALSE) {
+  if (negated) .qop("OrNegatedMask", property = property)
+  else         .qop("OrMask",        property = property)
+}
+.qop_xor_mask <- function(property, negated = FALSE) {
+  if (negated) .qop("XorNegatedMask", property = property)
+  else         .qop("XorMask",        property = property)
+}
+
+.qop_square_row_is    <- function(value) .qop("SquareRowIs",    value = value)
+.qop_square_column_is <- function(value) .qop("SquareColumnIs", value = value)
+
+.qop_group_by         <- function(property) .qop("GroupBy",         property = property)
+.qop_group_rows_by    <- function(property) .qop("GroupRowsBy",    property = property)
+.qop_group_columns_by <- function(property) .qop("GroupColumnsBy", property = property)
+.qop_count_by         <- function(property) .qop("CountBy",         property = property)
+
+.qop_reduce_to_column <- function(reduction, params = list()) {
+  .qop("ReduceToColumn", reduction = reduction, params = params)
+}
+.qop_reduce_to_row <- function(reduction, params = list()) {
+  .qop("ReduceToRow",    reduction = reduction, params = params)
+}
+
+.qop_eltwise <- function(name, params = list()) {
+  .qop("Eltwise", name = name, params = params)
+}
+
+.canonicalise_reduction <- function(tok, reduction, params) {
+  head <- paste0(tok, " ", .escape_value(reduction))
+  if (length(params) == 0L) return(head)
+  tail <- paste(vapply(names(params), function(k)
+                        paste0(.escape_value(k), ": ",
+                               .escape_value(format(params[[k]]))),
+                      character(1)), collapse = " ")
+  paste0(head, " ", tail)
+}
+
+.canonicalise_eltwise <- function(name, params) {
+  head <- paste0("% ", .escape_value(name))
+  if (length(params) == 0L) return(head)
+  tail <- paste(vapply(names(params), function(k)
+                        paste0(.escape_value(k), ": ",
+                               .escape_value(format(params[[k]]))),
+                      character(1)), collapse = " ")
+  paste0(head, "(", tail, ")")
 }
