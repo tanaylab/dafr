@@ -44,3 +44,19 @@ Encoding: UTF-8
 Language: en-US
 Roxygen: list(markdown = TRUE)
 RoxygenNote: 7.3.3
+Collate: 
+    'altrep.R'
+    'cache.R'
+    'classes.R'
+    'cpp11.R'
+    'dafr-package.R'
+    'format_api.R'
+    'files_daf.R'
+    'handlers.R'
+    'memory_daf.R'
+    'mmap.R'
+    'options.R'
+    'readers.R'
+    'utils.R'
+    'writers.R'
+    'zzz.R'

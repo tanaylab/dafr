@@ -35,3 +35,19 @@ test_that("files_daf() default name is the basename of path", {
   d <- files_daf(dir, mode = "w+")
   expect_equal(S7::prop(d, "name"), base)
 })
+
+test_that("files_daf() rejects unknown mode", {
+  dir <- new_tempdir()
+  files_daf(dir, mode = "w+")
+  expect_error(files_daf(dir, mode = "rw"), "'arg' should be")
+})
+
+test_that("read-only FilesDaf rejects set_scalar / add_axis", {
+  dir <- new_tempdir()
+  files_daf(dir, mode = "w+")
+  d <- files_daf(dir, mode = "r")
+  expect_error(set_scalar(d, "pi", 3.14),
+               "read-only|DafReadOnly")
+  expect_error(add_axis(d, "cell", "A"),
+               "read-only|DafReadOnly")
+})

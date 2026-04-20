@@ -14,6 +14,7 @@
 #' @param name Human-readable identifier. Defaults to `basename(path)`.
 #' @return A `FilesDaf` instance (`DafWriter` under `"r+"`/`"w"`/`"w+"`,
 #'   `FilesDafReadOnly`/`DafReadOnly` under `"r"`).
+#' @include format_api.R
 #' @export
 files_daf <- function(path, mode = c("r", "r+", "w", "w+"), name = NULL) {
   stopifnot(is.character(path), length(path) == 1L, !is.na(path))
@@ -63,6 +64,48 @@ FilesDafReadOnly <- S7::new_class(
   package = "dafr",
   parent  = DafReadOnly
 )
+
+.read_only_guard <- function(verb) {
+  stop(sprintf("files_daf: store opened read-only; %s not permitted", verb),
+       call. = FALSE)
+}
+
+S7::method(format_set_scalar,
+           list(FilesDafReadOnly, S7::class_character, S7::class_any, S7::class_logical)) <- function(daf, name, value, overwrite) {
+  .read_only_guard("set_scalar")
+}
+S7::method(format_delete_scalar,
+           list(FilesDafReadOnly, S7::class_character, S7::class_logical)) <- function(daf, name, must_exist) {
+  .read_only_guard("delete_scalar")
+}
+S7::method(format_add_axis,
+           list(FilesDafReadOnly, S7::class_character, S7::class_character)) <- function(daf, axis, entries) {
+  .read_only_guard("add_axis")
+}
+S7::method(format_delete_axis,
+           list(FilesDafReadOnly, S7::class_character, S7::class_logical)) <- function(daf, axis, must_exist) {
+  .read_only_guard("delete_axis")
+}
+S7::method(format_set_vector,
+           list(FilesDafReadOnly, S7::class_character, S7::class_character, S7::class_any, S7::class_logical)) <- function(daf, axis, name, vec, overwrite) {
+  .read_only_guard("set_vector")
+}
+S7::method(format_delete_vector,
+           list(FilesDafReadOnly, S7::class_character, S7::class_character, S7::class_logical)) <- function(daf, axis, name, must_exist) {
+  .read_only_guard("delete_vector")
+}
+S7::method(format_set_matrix,
+           list(FilesDafReadOnly, S7::class_character, S7::class_character, S7::class_character, S7::class_any, S7::class_logical)) <- function(daf, rows_axis, columns_axis, name, mat, overwrite) {
+  .read_only_guard("set_matrix")
+}
+S7::method(format_delete_matrix,
+           list(FilesDafReadOnly, S7::class_character, S7::class_character, S7::class_character, S7::class_logical)) <- function(daf, rows_axis, columns_axis, name, must_exist) {
+  .read_only_guard("delete_matrix")
+}
+S7::method(format_relayout_matrix,
+           list(FilesDafReadOnly, S7::class_character, S7::class_character, S7::class_character)) <- function(daf, rows_axis, columns_axis, name) {
+  .read_only_guard("relayout_matrix")
+}
 
 .files_daf_init <- function(path, truncate) {
   if (!dir.exists(path)) {
