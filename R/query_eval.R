@@ -298,14 +298,23 @@ NULL
 }
 
 .apply_reduction <- function(node, state, daf) {
+  if (identical(state$kind, "grouped_vector")) {
+    return(.apply_reduction_grouped_vector(node, state, daf))
+  }
+  if (identical(state$kind, "grouped_matrix_rows")) {
+    return(.apply_reduction_grouped_matrix(node, state, daf, by = "rows"))
+  }
+  if (identical(state$kind, "grouped_matrix_cols")) {
+    return(.apply_reduction_grouped_matrix(node, state, daf, by = "cols"))
+  }
   if (!identical(state$kind, "matrix")) {
-    stop(sprintf("%s requires a matrix in scope", node$op), call. = FALSE)
+    stop(sprintf("%s requires a matrix or grouped scope", node$op),
+         call. = FALSE)
   }
   fn <- get_reduction(node$reduction)
   params <- .coerce_params(node$params)
   m <- state$value
   if (identical(node$op, "ReduceToColumn")) {
-    # ReduceToColumn = one reduction per column, result indexed by cols_axis
     col_names <- colnames(m)
     if (is.null(col_names)) col_names <- format_axis_array(daf, state$cols_axis)
     vals <- apply(m, 2L, function(col) do.call(fn, c(list(col), params)))
@@ -319,6 +328,56 @@ NULL
        value = setNames(vals, row_names))
 }
 
+.apply_reduction_grouped_vector <- function(node, state, daf) {
+  fn <- get_reduction(node$reduction)
+  params <- .coerce_params(node$params)
+  splitted <- split(state$value, state$pending_groups)
+  vals <- vapply(splitted, function(x) do.call(fn, c(list(x), params)),
+                 numeric(1))
+  list(kind = "vector", axis = NULL, value = vals)
+}
+
+.apply_reduction_grouped_matrix <- function(node, state, daf, by) {
+  fn <- get_reduction(node$reduction)
+  params <- .coerce_params(node$params)
+  m <- state$value
+  if (identical(by, "rows")) {
+    idx <- split(seq_len(nrow(m)), state$pending_row_groups)
+    if (identical(node$op, "ReduceToColumn")) {
+      out <- sapply(idx, function(i) {
+        sub <- m[i, , drop = FALSE]
+        apply(sub, 2L, function(col) do.call(fn, c(list(col), params)))
+      })
+      return(list(kind = "matrix", value = out,
+                  rows_axis = NULL, cols_axis = state$cols_axis))
+    }
+    # ReduceToRow on grouped rows: one value per group
+    out <- vapply(idx, function(i) {
+      sub <- m[i, , drop = FALSE]
+      reduced <- apply(sub, 1L, function(row) do.call(fn, c(list(row), params)))
+      do.call(fn, c(list(reduced), params))
+    }, numeric(1))
+    return(list(kind = "vector", axis = NULL, value = out))
+  }
+  # by cols
+  idx <- split(seq_len(ncol(m)), state$pending_col_groups)
+  if (identical(node$op, "ReduceToRow")) {
+    out <- sapply(idx, function(j) {
+      sub <- m[, j, drop = FALSE]
+      apply(sub, 1L, function(row) do.call(fn, c(list(row), params)))
+    })
+    return(list(kind = "matrix", value = out,
+                rows_axis = state$rows_axis, cols_axis = NULL))
+  }
+  # ReduceToColumn on grouped cols: one value per group
+  out <- vapply(idx, function(j) {
+    sub <- m[, j, drop = FALSE]
+    reduced <- apply(sub, 2L, function(col) do.call(fn, c(list(col), params)))
+    do.call(fn, c(list(reduced), params))
+  }, numeric(1))
+  list(kind = "vector", axis = NULL, value = out)
+}
+
 .coerce_params <- function(params) {
   # try numeric coercion for each value; fall back to string
   lapply(params, function(v) {
@@ -327,8 +386,50 @@ NULL
   })
 }
 .apply_groupby <- function(node, state, daf) {
-  stop("not yet implemented: groupby", call. = FALSE)
+  switch(node$op,
+    GroupBy        = .apply_groupby_vector(node, state, daf),
+    GroupRowsBy    = .apply_groupby_rows(node, state, daf),
+    GroupColumnsBy = .apply_groupby_columns(node, state, daf),
+    stop(sprintf("unknown grouping op: %s", node$op), call. = FALSE))
 }
+
+.apply_groupby_vector <- function(node, state, daf) {
+  if (!identical(state$kind, "vector")) {
+    stop("GroupBy requires a vector in scope", call. = FALSE)
+  }
+  grp <- format_get_vector(daf, state$axis, node$property)
+  state$pending_groups <- grp
+  state$kind <- "grouped_vector"
+  state
+}
+
+.apply_groupby_rows <- function(node, state, daf) {
+  if (!identical(state$kind, "matrix")) {
+    stop("GroupRowsBy requires a matrix in scope", call. = FALSE)
+  }
+  grp <- format_get_vector(daf, state$rows_axis, node$property)
+  state$pending_row_groups <- grp
+  state$kind <- "grouped_matrix_rows"
+  state
+}
+
+.apply_groupby_columns <- function(node, state, daf) {
+  if (!identical(state$kind, "matrix")) {
+    stop("GroupColumnsBy requires a matrix in scope", call. = FALSE)
+  }
+  grp <- format_get_vector(daf, state$cols_axis, node$property)
+  state$pending_col_groups <- grp
+  state$kind <- "grouped_matrix_cols"
+  state
+}
+
 .apply_countby <- function(node, state, daf) {
-  stop("not yet implemented: countby", call. = FALSE)
+  if (!identical(state$kind, "vector")) {
+    stop("* CountBy requires a vector in scope", call. = FALSE)
+  }
+  a <- state$value
+  b <- format_get_vector(daf, state$axis, node$property)
+  t <- table(a, b)
+  m <- as.matrix(t)
+  list(kind = "matrix", value = m, rows_axis = NULL, cols_axis = NULL)
 }
