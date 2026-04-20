@@ -77,11 +77,31 @@ viewer <- function(daf, name = NULL, axes = NULL, data = NULL) {
     return(setNames(rep(list("="), length(format_axes_set(daf))),
                      format_axes_set(daf)))
   }
-  stop("view-axes override not yet implemented (see Task V3)", call. = FALSE)
+  out <- list()
+  for (item in axes) {
+    parsed <- .parse_view_item(item)
+    name <- parsed$key; query <- parsed$value
+    # V3 scope: explicit name -> query. Wildcards ("*") handled in V4.
+    if (is.null(query)) {
+      out[[name]] <- NULL
+    } else {
+      out[[name]] <- query
+    }
+  }
+  out
 }
 
 .resolve_view_scalars <- function(daf, data) {
-  setNames(as.list(format_scalars_set(daf)), format_scalars_set(daf))
+  out <- setNames(as.list(format_scalars_set(daf)), format_scalars_set(daf))
+  if (is.null(data)) return(out)
+  for (item in .flatten_view_data(data)) {
+    parsed <- .parse_view_item(item)
+    if (is.character(parsed$key) && length(parsed$key) == 1L) {
+      if (is.null(parsed$value)) out[[parsed$key]] <- NULL
+      else                        out[[parsed$key]] <- parsed$value
+    }
+  }
+  out
 }
 
 .resolve_view_vectors <- function(daf, data) {
@@ -89,6 +109,20 @@ viewer <- function(daf, name = NULL, axes = NULL, data = NULL) {
   for (a in format_axes_set(daf)) {
     for (v in format_vectors_set(daf, a)) {
       out[[paste(a, v, sep = "|")]] <- list(axis = a, name = v, query = "=")
+    }
+  }
+  if (is.null(data)) return(out)
+  for (item in .flatten_view_data(data)) {
+    parsed <- .parse_view_item(item)
+    if (is.character(parsed$key) && length(parsed$key) == 2L) {
+      key <- paste(parsed$key, collapse = "|")
+      if (is.null(parsed$value)) {
+        out[[key]] <- NULL
+      } else {
+        out[[key]] <- list(axis = parsed$key[[1L]],
+                           name = parsed$key[[2L]],
+                           query = parsed$value)
+      }
     }
   }
   out
@@ -104,7 +138,49 @@ viewer <- function(daf, name = NULL, axes = NULL, data = NULL) {
       }
     }
   }
+  if (is.null(data)) return(out)
+  for (item in .flatten_view_data(data)) {
+    parsed <- .parse_view_item(item)
+    if (is.character(parsed$key) && length(parsed$key) == 3L) {
+      key <- paste(parsed$key, collapse = "|")
+      if (is.null(parsed$value)) {
+        out[[key]] <- NULL
+      } else {
+        out[[key]] <- list(rows = parsed$key[[1L]],
+                           cols = parsed$key[[2L]],
+                           name = parsed$key[[3L]],
+                           query = parsed$value)
+      }
+    }
+  }
   out
+}
+
+# Helpers
+
+.parse_view_item <- function(item) {
+  # Accept either list(key, value) two-element or single-named list(key = value).
+  if (is.list(item) && length(item) == 2L && is.null(names(item))) {
+    return(list(key = item[[1L]], value = item[[2L]]))
+  }
+  if (is.list(item) && length(item) == 1L && !is.null(names(item))) {
+    return(list(key = names(item), value = item[[1L]]))
+  }
+  stop("view item must be list(key, value) or list(name = value)", call. = FALSE)
+}
+
+.flatten_view_data <- function(data) {
+  flat <- list()
+  for (item in data) {
+    if (is.list(item) && length(item) > 0L &&
+        (is.list(item[[1L]]) ||
+         (!is.null(names(item[[1L]])) && length(item[[1L]]) == 1L))) {
+      flat <- c(flat, .flatten_view_data(item))
+    } else {
+      flat <- c(flat, list(item))
+    }
+  }
+  flat
 }
 
 # --- Query rewriters ----------------------------------------------------
