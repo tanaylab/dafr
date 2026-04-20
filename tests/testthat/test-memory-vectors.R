@@ -205,3 +205,26 @@ test_that("has_vector + vectors_set expose current state", {
   expect_true(has_vector(d, "cell", "v"))
   expect_equal(vectors_set(d, "cell"), "v")
 })
+
+test_that("set_vector round-trips bit64::integer64 vectors", {
+  skip_if_not_installed("bit64")
+  d <- memory_daf()
+  add_axis(d, "cell", c("A", "B", "C"))
+  big <- bit64::as.integer64(c(1e10, 2e10, 3e10))
+  set_vector(d, "cell", "big", big)
+  got <- get_vector(d, "cell", "big")
+  expect_s3_class(got, "integer64")
+  expect_equal(as.numeric(got), as.numeric(big), ignore_attr = TRUE)
+  expect_equal(names(got), c("A", "B", "C"))
+})
+
+test_that("named bit64 vector reorders to axis order", {
+  skip_if_not_installed("bit64")
+  d <- memory_daf()
+  add_axis(d, "cell", c("A", "B"))
+  v <- bit64::as.integer64(c(2e10, 1e10))
+  names(v) <- c("B", "A")
+  set_vector(d, "cell", "big", v)
+  got <- get_vector(d, "cell", "big")
+  expect_equal(as.numeric(unname(got)), c(1e10, 2e10))
+})
