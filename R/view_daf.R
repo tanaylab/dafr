@@ -19,14 +19,46 @@ ALL_MATRICES <- c("*", "*", "*")
 # Scalars/axes use a named-list form  list("*" = "=")  so parse_view_item
 # returns key = "*".  Vectors/matrices use the positional two-element form
 # list(c("*","*"), "=") / list(c("*","*","*"), "=") so the key is the vector.
+
+#' Default view spec: expose all axes as-is.
+#'
+#' A pre-built `axes` override list for `viewer()` that exposes every axis of
+#' the base daf unchanged. Equivalent to `list(list(ALL_AXES, "="))`.
+#' @seealso [viewer()], [ALL_AXES]
 #' @export
 VIEW_ALL_AXES     <- setNames(list("="), ALL_AXES)
+
+#' Default view spec: expose all scalars as-is.
+#'
+#' A pre-built `data` item for `viewer()` that exposes every scalar of the base
+#' daf unchanged. Equivalent to `list(list(ALL_SCALARS, "="))`.
+#' @seealso [viewer()], [ALL_SCALARS]
 #' @export
 VIEW_ALL_SCALARS  <- setNames(list("="), ALL_SCALARS)
+
+#' Default view spec: expose all vectors as-is.
+#'
+#' A pre-built `data` item for `viewer()` that exposes every vector of every
+#' axis of the base daf unchanged.
+#' @seealso [viewer()], [ALL_VECTORS]
 #' @export
 VIEW_ALL_VECTORS  <- list(list(ALL_VECTORS,  "="))
+
+#' Default view spec: expose all matrices as-is.
+#'
+#' A pre-built `data` item for `viewer()` that exposes every matrix of the base
+#' daf unchanged.
+#' @seealso [viewer()], [ALL_MATRICES]
 #' @export
 VIEW_ALL_MATRICES <- list(list(ALL_MATRICES, "="))
+
+#' Default view spec: expose all data (scalars + vectors + matrices) as-is.
+#'
+#' A convenience list combining [VIEW_ALL_SCALARS], [VIEW_ALL_VECTORS], and
+#' [VIEW_ALL_MATRICES]. Pass as the `data` argument to `viewer()` to expose
+#' every data item from the base daf unchanged.
+#' @seealso [viewer()], [VIEW_ALL_SCALARS], [VIEW_ALL_VECTORS],
+#'   [VIEW_ALL_MATRICES]
 #' @export
 VIEW_ALL_DATA     <- list(VIEW_ALL_SCALARS, VIEW_ALL_VECTORS, VIEW_ALL_MATRICES)
 
@@ -35,6 +67,23 @@ VIEW_ALL_DATA     <- list(VIEW_ALL_SCALARS, VIEW_ALL_VECTORS, VIEW_ALL_MATRICES)
 #' A ViewDaf carries a reference to a base `DafReader` and a dictionary of
 #' per-name query overrides (axes / scalars / vectors / matrices). Reads on
 #' the view rewrite into queries against the base; no data is copied.
+#'
+#' Users should construct `ViewDaf` objects via [viewer()] rather than calling
+#' the constructor directly.
+#'
+#' @param name Character scalar; name of the view.
+#' @param internal Internal environment (created by `new_internal_env()`).
+#' @param cache Cache environment (created by `new_cache_env()`).
+#' @param axis_version_counter Counter environment for axis version tracking.
+#' @param vector_version_counter Counter environment for vector version tracking.
+#' @param matrix_version_counter Counter environment for matrix version tracking.
+#' @param base Base `DafReader` this view wraps.
+#' @param view_axes Named list mapping view axis names to query strings.
+#' @param view_scalars Named list mapping view scalar names to query strings.
+#' @param view_vectors Named list mapping `"axis|name"` keys to override specs.
+#' @param view_matrices Named list mapping `"rows|cols|name"` keys to override
+#'   specs.
+#' @seealso [viewer()]
 #' @export
 ViewDaf <- S7::new_class(
   name = "ViewDaf",

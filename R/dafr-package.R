@@ -6,5 +6,6 @@
 #' @importFrom bit64 as.integer64
 #' @importFrom cli cli_inform
 #' @importFrom jsonlite fromJSON toJSON
+#' @importFrom stats setNames
 #' @importFrom utils object.size
 "_PACKAGE"
