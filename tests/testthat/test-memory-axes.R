@@ -61,7 +61,7 @@ test_that("format_add_axis rejects duplicate / NA / empty entries", {
   expect_error(format_add_axis(d, "cell", c("A", "A")),    "duplicate")
   expect_error(format_add_axis(d, "cell", c("A", NA)),     "NA")
   expect_error(format_add_axis(d, "cell", c("A", "")),     "empty")
-  expect_error(format_add_axis(d, "cell", integer(0)),     "character")
+  expect_error(format_add_axis(d, "cell", integer(0)),     "find method")  # S7 dispatch rejects non-character before reaching the guard
 })
 
 test_that("format_delete_axis removes axis + bumps counter", {
@@ -98,4 +98,18 @@ test_that("format_delete_axis also removes vectors/matrices on that axis", {
   format_delete_axis(d, "cell", must_exist = TRUE)
   expect_false(exists("cell", envir = vectors, inherits = FALSE))
   expect_false(exists("cell", envir = matrices, inherits = FALSE))
+})
+
+test_that("format_delete_axis also removes matrices where the axis is cols-only (never rows)", {
+  d <- memory_daf()
+  format_add_axis(d, "cell", c("A", "B"))
+  format_add_axis(d, "gene", c("X", "Y"))
+  matrices <- S7::prop(d, "internal")$matrices
+  matrices$gene <- new.env(parent = emptyenv())
+  matrices$gene$cell <- new.env(parent = emptyenv())
+  matrices$gene$cell$UMIs <- matrix(0, 2, 2)
+  # "cell" appears only as cols_axis under matrices$gene$cell — never as a rows_axis key.
+  expect_false(exists("cell", envir = matrices, inherits = FALSE))
+  format_delete_axis(d, "cell", must_exist = TRUE)
+  expect_false(exists("cell", envir = matrices$gene, inherits = FALSE))
 })

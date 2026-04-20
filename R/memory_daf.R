@@ -81,6 +81,9 @@ S7::method(format_axis_dict, list(MemoryDaf, S7::class_character)) <- function(d
 
 S7::method(format_add_axis,
            list(MemoryDaf, S7::class_character, S7::class_character)) <- function(daf, axis, entries) {
+  if (!is.character(entries)) {
+    stop(sprintf("axis %s entries must be a character vector", sQuote(axis)), call. = FALSE)
+  }
   if (anyNA(entries)) {
     stop(sprintf("axis %s entries contain NA", sQuote(axis)), call. = FALSE)
   }
