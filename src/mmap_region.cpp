@@ -6,7 +6,15 @@
 
 #if defined(DAFR_HAVE_MMAP) && DAFR_HAVE_MMAP
   #ifdef _WIN32
-    // windows.h already pulled in via the header.
+    // windows.h is confined to this translation unit so its TRUE/FALSE
+    // macros don't leak into other sources (they clash with R's Rboolean).
+    #ifndef NOMINMAX
+      #define NOMINMAX
+    #endif
+    #ifndef WIN32_LEAN_AND_MEAN
+      #define WIN32_LEAN_AND_MEAN
+    #endif
+    #include <windows.h>
   #else
     #include <fcntl.h>
     #include <sys/mman.h>
@@ -47,9 +55,10 @@ std::string win_error_message(const std::string &prefix, DWORD code) {
 } // namespace
 
 MmapRegion::MmapRegion(void *ptr, std::size_t nbytes,
-                       HANDLE file, HANDLE mapping, std::string path)
+                       void *file_handle, void *mapping_handle,
+                       std::string path)
     : ptr_(ptr), nbytes_(nbytes),
-      file_handle_(file), mapping_handle_(mapping),
+      file_handle_(file_handle), mapping_handle_(mapping_handle),
       path_(std::move(path)) {}
 
 MmapRegion::~MmapRegion() {
@@ -57,10 +66,10 @@ MmapRegion::~MmapRegion() {
         UnmapViewOfFile(ptr_);
     }
     if (mapping_handle_ != nullptr) {
-        CloseHandle(mapping_handle_);
+        CloseHandle(static_cast<HANDLE>(mapping_handle_));
     }
     if (file_handle_ != nullptr && file_handle_ != INVALID_HANDLE_VALUE) {
-        CloseHandle(file_handle_);
+        CloseHandle(static_cast<HANDLE>(file_handle_));
     }
 }
 

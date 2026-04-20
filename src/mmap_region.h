@@ -5,21 +5,16 @@
 #include <memory>
 #include <string>
 
-#ifdef _WIN32
-  #ifndef NOMINMAX
-    #define NOMINMAX
-  #endif
-  #ifndef WIN32_LEAN_AND_MEAN
-    #define WIN32_LEAN_AND_MEAN
-  #endif
-  #include <windows.h>
-#endif
-
 namespace dafr {
 
 // RAII wrapper: memory-map a file read-only. POSIX uses mmap + munmap;
 // Windows uses CreateFileMappingW + MapViewOfFile + UnmapViewOfFile.
 // Not copyable; share via std::shared_ptr from callers.
+//
+// The header intentionally does NOT include <windows.h>: that macro-
+// pollutes TRUE/FALSE and breaks Rboolean conversions in the rest of
+// the package. Windows handles (HANDLE) are just typedef'd void*, so
+// we store them as void* here and reinterpret in the implementation.
 class MmapRegion {
 public:
     // Factory. Throws std::runtime_error on open/map failure, or if the
@@ -28,7 +23,7 @@ public:
 
 #ifdef _WIN32
     MmapRegion(void *ptr, std::size_t nbytes,
-               HANDLE file, HANDLE mapping, std::string path);
+               void *file_handle, void *mapping_handle, std::string path);
 #else
     MmapRegion(void *ptr, std::size_t nbytes, int fd, std::string path);
 #endif
@@ -45,8 +40,8 @@ private:
     void *ptr_;
     std::size_t nbytes_;
 #ifdef _WIN32
-    HANDLE file_handle_;
-    HANDLE mapping_handle_;
+    void *file_handle_;     // HANDLE
+    void *mapping_handle_;  // HANDLE
 #else
     int fd_;
 #endif
