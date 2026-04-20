@@ -44,3 +44,30 @@ test_that("format_delete_scalar removes + respects must_exist", {
   expect_error (format_delete_scalar(d, "foo", must_exist = TRUE),  "does not exist")
   expect_silent(format_delete_scalar(d, "foo", must_exist = FALSE))
 })
+
+test_that("scalar user-facing round-trip with default handling", {
+  d <- memory_daf()
+  expect_false(has_scalar(d, "foo"))
+  expect_equal(length(scalars_set(d)), 0L)
+  expect_error(get_scalar(d, "foo"), "does not exist")
+  expect_equal(get_scalar(d, "foo", default = 17), 17)
+
+  set_scalar(d, "foo", "bar")
+  expect_true(has_scalar(d, "foo"))
+  expect_equal(get_scalar(d, "foo"), "bar")
+  expect_equal(scalars_set(d), "foo")
+
+  expect_error(set_scalar(d, "foo", "baz"),               "already exists")
+  set_scalar(d, "foo", "baz", overwrite = TRUE)
+  expect_equal(get_scalar(d, "foo"), "baz")
+
+  delete_scalar(d, "foo")
+  expect_false(has_scalar(d, "foo"))
+  expect_error (delete_scalar(d, "foo"),                  "does not exist")
+  expect_silent(delete_scalar(d, "foo", must_exist = FALSE))
+})
+
+test_that("set_scalar rejects NA (per Julia DAF rules)", {
+  d <- memory_daf()
+  expect_error(set_scalar(d, "foo", NA))
+})

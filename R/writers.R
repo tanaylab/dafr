@@ -25,3 +25,29 @@ delete_axis <- function(daf, axis, must_exist = TRUE) {
   format_delete_axis(daf, axis, must_exist)
   invisible(daf)
 }
+
+#' Set a scalar.
+#' @inheritParams has_scalar
+#' @param value Atomic scalar (length 1, non-NA).
+#' @param overwrite If `FALSE` (default) error when the scalar already
+#'   exists; if `TRUE` replace.
+#' @return Invisibly the input `daf`.
+#' @export
+set_scalar <- function(daf, name, value, overwrite = FALSE) {
+  .assert_name(name, "name")
+  stopifnot(is.logical(overwrite), length(overwrite) == 1L, !is.na(overwrite))
+  format_set_scalar(daf, name, value, overwrite)
+  invisible(daf)
+}
+
+#' Delete a scalar.
+#' @inheritParams has_scalar
+#' @param must_exist See `delete_axis`.
+#' @return Invisibly the input `daf`.
+#' @export
+delete_scalar <- function(daf, name, must_exist = TRUE) {
+  .assert_name(name, "name")
+  stopifnot(is.logical(must_exist), length(must_exist) == 1L, !is.na(must_exist))
+  format_delete_scalar(daf, name, must_exist)
+  invisible(daf)
+}

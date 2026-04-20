@@ -97,3 +97,34 @@ axis_dict <- function(daf, axis) {
   .assert_name(axis, "axis")
   format_axis_dict(daf, axis)
 }
+
+#' Test whether a scalar exists.
+#' @param daf A `DafReader`.
+#' @param name Scalar name.
+#' @return Logical scalar.
+#' @export
+has_scalar <- function(daf, name) {
+  .assert_name(name, "name")
+  format_has_scalar(daf, name)
+}
+
+#' Names of all scalars, sorted.
+#' @inheritParams has_scalar
+#' @return Character vector.
+#' @export
+scalars_set <- function(daf) format_scalars_set(daf)
+
+#' Get a scalar, optionally with a default when missing.
+#' @inheritParams has_scalar
+#' @param default Value to return when the scalar is absent. If missing
+#'   and the scalar is absent, an error is raised.
+#' @return The scalar value.
+#' @export
+get_scalar <- function(daf, name, default) {
+  .assert_name(name, "name")
+  if (format_has_scalar(daf, name)) {
+    return(format_get_scalar(daf, name))
+  }
+  if (!missing(default)) return(default)
+  stop(sprintf("scalar %s does not exist", sQuote(name)), call. = FALSE)
+}
