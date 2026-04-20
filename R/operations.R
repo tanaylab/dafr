@@ -6,28 +6,64 @@ NULL
 .ops_env$eltwise <- list()
 
 #' Register a reduction operation.
+#'
+#' Stores a user-defined reduction function under the given name so that it
+#' can be retrieved by [get_reduction()] and invoked during query evaluation.
+#'
 #' @param name Op name (character scalar, matches token in query strings).
-#' @param fn Function `function(x, ...)` where `x` is a numeric vector /
+#' @param fn Function `function(x, ...)` where `x` is a numeric vector or
 #'   matrix column and `...` collects named parameters.
+#' @param overwrite Logical scalar; set to `TRUE` to replace an already-
+#'   registered operation.
 #' @return Invisibly `NULL`.
 #' @export
-register_reduction <- function(name, fn) {
+register_reduction <- function(name, fn, overwrite = FALSE) {
   .assert_name(name, "reduction name")
-  stopifnot(is.function(fn))
+  if (!is.function(fn)) {
+    stop(sprintf("`fn` must be a function (for reduction %s)", sQuote(name)),
+         call. = FALSE)
+  }
+  if (!isTRUE(overwrite) && !is.null(.ops_env$reductions[[name]])) {
+    stop(sprintf("reduction operation %s already registered; use overwrite = TRUE",
+                 sQuote(name)), call. = FALSE)
+  }
   .ops_env$reductions[[name]] <- fn
   invisible(NULL)
 }
 
 #' Register an eltwise operation.
-#' @inheritParams register_reduction
+#'
+#' Stores a user-defined element-wise function under the given name so that it
+#' can be retrieved by [get_eltwise()] and invoked during query evaluation.
+#'
+#' @param name Op name (character scalar, matches token in query strings).
+#' @param fn Function `function(x, ...)` where `x` is a numeric vector or
+#'   matrix (eltwise ops preserve shape) and `...` collects named parameters.
+#' @param overwrite Logical scalar; set to `TRUE` to replace an already-
+#'   registered operation.
+#' @return Invisibly `NULL`.
 #' @export
-register_eltwise <- function(name, fn) {
+register_eltwise <- function(name, fn, overwrite = FALSE) {
   .assert_name(name, "eltwise name")
-  stopifnot(is.function(fn))
+  if (!is.function(fn)) {
+    stop(sprintf("`fn` must be a function (for eltwise %s)", sQuote(name)),
+         call. = FALSE)
+  }
+  if (!isTRUE(overwrite) && !is.null(.ops_env$eltwise[[name]])) {
+    stop(sprintf("eltwise operation %s already registered; use overwrite = TRUE",
+                 sQuote(name)), call. = FALSE)
+  }
   .ops_env$eltwise[[name]] <- fn
   invisible(NULL)
 }
 
+#' Retrieve a registered reduction operation by name.
+#'
+#' Looks up a reduction operation previously stored via
+#' [register_reduction()]. Raises if the name is not registered.
+#'
+#' @param name Op name (character scalar).
+#' @return The stored function.
 #' @export
 get_reduction <- function(name) {
   fn <- .ops_env$reductions[[name]]
@@ -37,6 +73,13 @@ get_reduction <- function(name) {
   fn
 }
 
+#' Retrieve a registered eltwise operation by name.
+#'
+#' Looks up an eltwise operation previously stored via
+#' [register_eltwise()]. Raises if the name is not registered.
+#'
+#' @param name Op name (character scalar).
+#' @return The stored function.
 #' @export
 get_eltwise <- function(name) {
   fn <- .ops_env$eltwise[[name]]
@@ -46,8 +89,18 @@ get_eltwise <- function(name) {
   fn
 }
 
+#' List registered reduction operations.
+#'
+#' Returns the names of all currently registered reduction operations.
+#'
+#' @return Sorted character vector of registered reduction names.
 #' @export
 registered_reductions <- function() sort(names(.ops_env$reductions))
 
+#' List registered eltwise operations.
+#'
+#' Returns the names of all currently registered eltwise operations.
+#'
+#' @return Sorted character vector of registered eltwise names.
 #' @export
 registered_eltwise <- function() sort(names(.ops_env$eltwise))
