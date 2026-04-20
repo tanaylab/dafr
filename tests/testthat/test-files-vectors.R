@@ -162,3 +162,21 @@ test_that("set_vector rejects wrong length / requires overwrite", {
   expect_error(set_vector(d, "cell", "x", c(3, 4)), "already exists")
   set_vector(d, "cell", "x", c(3, 4), overwrite = TRUE)
 })
+
+test_that("delete_vector removes payload + descriptor", {
+  dir <- new_tempdir()
+  d <- files_daf(dir, mode = "w+")
+  add_axis(d, "cell", c("A", "B"))
+  set_vector(d, "cell", "x", c(1, 2))
+  delete_vector(d, "cell", "x")
+  expect_false(file.exists(file.path(dir, "vectors", "cell", "x.json")))
+  expect_false(file.exists(file.path(dir, "vectors", "cell", "x.data")))
+})
+
+test_that("delete_vector must_exist=FALSE is a no-op on missing", {
+  dir <- new_tempdir()
+  d <- files_daf(dir, mode = "w+")
+  add_axis(d, "cell", "A")
+  expect_silent(delete_vector(d, "cell", "nope", must_exist = FALSE))
+  expect_error(delete_vector(d, "cell", "nope"), "does not exist")
+})

@@ -139,3 +139,20 @@ S7::method(format_set_vector,
   bump_vector_counter(daf, axis, name)
   invisible()
 }
+
+S7::method(format_delete_vector,
+           list(FilesDaf, S7::class_character, S7::class_character, S7::class_logical)) <- function(daf, axis, name, must_exist) {
+  vdir <- .path_vector_dir(.files_root(daf), axis)
+  desc_path <- file.path(vdir, paste0(name, ".json"))
+  if (!file.exists(desc_path)) {
+    if (must_exist) {
+      stop(sprintf("vector %s does not exist on axis %s",
+                   sQuote(name), sQuote(axis)), call. = FALSE)
+    }
+    return(invisible())
+  }
+  unlink(desc_path, force = TRUE)
+  .files_vector_unlink_payload(vdir, name)
+  bump_vector_counter(daf, axis, name)
+  invisible()
+}
