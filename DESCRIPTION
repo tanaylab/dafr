@@ -25,6 +25,7 @@ Imports:
     Matrix,
     cli,
     bit64,
+    jsonlite,
     methods
 LinkingTo:
     cpp11
