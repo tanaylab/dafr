@@ -190,3 +190,96 @@ get_vector <- function(daf, axis, name, default) {
               size_bytes = object.size(out))
   out
 }
+
+#' Test whether a matrix exists for an axis pair.
+#' @param daf A `DafReader`.
+#' @param rows_axis Row-axis name.
+#' @param cols_axis Column-axis name.
+#' @param name Matrix name.
+#' @return Logical scalar.
+#' @export
+has_matrix <- function(daf, rows_axis, cols_axis, name) {
+  .assert_name(rows_axis, "rows_axis")
+  .assert_name(cols_axis, "cols_axis")
+  .assert_name(name,      "name")
+  format_has_matrix(daf, rows_axis, cols_axis, name)
+}
+
+#' Names of matrices for an axis pair, sorted.
+#' @inheritParams has_matrix
+#' @return Character vector.
+#' @export
+matrices_set <- function(daf, rows_axis, cols_axis) {
+  .assert_name(rows_axis, "rows_axis")
+  .assert_name(cols_axis, "cols_axis")
+  format_matrices_set(daf, rows_axis, cols_axis)
+}
+
+#' Get a matrix, returning it with axis-entry dimnames.
+#'
+#' When the matrix is stored only at the flipped-layout axis pair
+#' `(cols_axis, rows_axis)`, this function transposes on-the-fly and
+#' returns with the requested dimnames.
+#'
+#' @inheritParams has_matrix
+#' @param default If supplied and the matrix is absent under both
+#'   layouts, return a constant-valued `nrow x ncol` matrix with axis
+#'   entries as dimnames.
+#' @return Dense `matrix` or sparse `dgCMatrix` / `lgCMatrix` with
+#'   dimnames set.
+#' @export
+get_matrix <- function(daf, rows_axis, cols_axis, name, default) {
+  .assert_name(rows_axis, "rows_axis")
+  .assert_name(cols_axis, "cols_axis")
+  .assert_name(name,      "name")
+
+  rows <- format_axis_array(daf, rows_axis)
+  cols <- format_axis_array(daf, cols_axis)
+
+  primary <- format_has_matrix(daf, rows_axis, cols_axis, name)
+  flipped <- !primary && format_has_matrix(daf, cols_axis, rows_axis, name)
+
+  if (!primary && !flipped) {
+    if (missing(default)) {
+      stop(sprintf("matrix %s does not exist on axes (%s, %s)",
+                   sQuote(name), sQuote(rows_axis), sQuote(cols_axis)),
+           call. = FALSE)
+    }
+    out <- matrix(default, nrow = length(rows), ncol = length(cols),
+                  dimnames = list(rows, cols))
+    return(out)
+  }
+
+  if (primary) {
+    ra <- rows_axis; ca <- cols_axis
+  } else {
+    ra <- cols_axis; ca <- rows_axis
+  }
+
+  cache_key <- cache_key_matrix(ra, ca, name)
+  cache_env <- S7::prop(daf, "cache")
+  stamp_now <- matrix_stamp(daf, ra, ca, name)
+  stored <- cache_lookup(cache_env, "memory", cache_key, stamp_now)
+  if (is.null(stored)) {
+    stored <- format_get_matrix(daf, ra, ca, name)
+    cache_store(cache_env, "memory", cache_key, stored, stamp_now,
+                size_bytes = object.size(stored))
+  }
+
+  out <- if (flipped) {
+    if (methods::is(stored, "dgCMatrix") || methods::is(stored, "lgCMatrix")) {
+      Matrix::t(stored)
+    } else {
+      t(stored)
+    }
+  } else {
+    stored
+  }
+
+  if (methods::is(out, "dgCMatrix") || methods::is(out, "lgCMatrix")) {
+    out@Dimnames <- list(rows, cols)
+  } else {
+    dimnames(out) <- list(rows, cols)
+  }
+  out
+}

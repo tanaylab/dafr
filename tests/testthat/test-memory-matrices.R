@@ -136,3 +136,61 @@ test_that("format_relayout_matrix errors when source matrix missing", {
   expect_error(format_relayout_matrix(d, "cell", "gene", "UMIs"),
                "does not exist")
 })
+
+test_that("get_matrix returns matrix with axis-name dimnames", {
+  d <- memory_daf()
+  add_axis(d, "cell", c("A", "B"))
+  add_axis(d, "gene", c("X", "Y", "Z"))
+  format_set_matrix(d, "cell", "gene", "UMIs", matrix(seq_len(6), 2, 3), overwrite = FALSE)
+  m <- get_matrix(d, "cell", "gene", "UMIs")
+  expect_equal(rownames(m), c("A", "B"))
+  expect_equal(colnames(m), c("X", "Y", "Z"))
+})
+
+test_that("get_matrix falls back to transposed layout when only the other is stored", {
+  d <- memory_daf()
+  add_axis(d, "cell", c("A", "B"))
+  add_axis(d, "gene", c("X", "Y", "Z"))
+  format_set_matrix(d, "cell", "gene", "UMIs", matrix(seq_len(6), 2, 3), overwrite = FALSE)
+  expect_false(has_matrix(d, "gene", "cell", "UMIs"))
+  m <- get_matrix(d, "gene", "cell", "UMIs")
+  expect_equal(dim(m), c(3L, 2L))
+  expect_equal(rownames(m), c("X", "Y", "Z"))
+  expect_equal(colnames(m), c("A", "B"))
+})
+
+test_that("get_matrix default returns a constant-valued dimnamed matrix", {
+  d <- memory_daf()
+  add_axis(d, "cell", c("A", "B"))
+  add_axis(d, "gene", c("X", "Y"))
+  expect_error(get_matrix(d, "cell", "gene", "missing"), "does not exist")
+  m <- get_matrix(d, "cell", "gene", "missing", default = NA)
+  expect_equal(dim(m), c(2L, 2L))
+  expect_equal(rownames(m), c("A", "B"))
+  expect_equal(colnames(m), c("X", "Y"))
+  expect_true(all(is.na(m)))
+})
+
+test_that("get_matrix hits the cache on repeated reads and invalidates on overwrite", {
+  d <- memory_daf()
+  add_axis(d, "cell", c("A")); add_axis(d, "gene", c("X"))
+  format_set_matrix(d, "cell", "gene", "UMIs", matrix(1, 1, 1), overwrite = FALSE)
+  first  <- get_matrix(d, "cell", "gene", "UMIs")
+  second <- get_matrix(d, "cell", "gene", "UMIs")
+  expect_identical(first, second)
+  format_set_matrix(d, "cell", "gene", "UMIs", matrix(2, 1, 1), overwrite = TRUE)
+  third <- get_matrix(d, "cell", "gene", "UMIs")
+  expect_equal(as.numeric(third), 2)
+})
+
+test_that("get_matrix with sparse input returns sparse with dimnames", {
+  d <- memory_daf()
+  add_axis(d, "cell", c("A", "B"))
+  add_axis(d, "gene", c("X", "Y", "Z"))
+  m <- Matrix::Matrix(c(0, 1, 2, 0, 0, 3), 2, 3, sparse = TRUE)
+  format_set_matrix(d, "cell", "gene", "UMIs", m, overwrite = FALSE)
+  got <- get_matrix(d, "cell", "gene", "UMIs")
+  expect_s4_class(got, "dgCMatrix")
+  expect_equal(rownames(got), c("A", "B"))
+  expect_equal(colnames(got), c("X", "Y", "Z"))
+})
