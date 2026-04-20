@@ -271,13 +271,24 @@ S7::method(format_vectors_set,
        call. = FALSE)
 }
 
+.files_get_vector_cached <- function(daf, axis, name) {
+  ce <- S7::prop(daf, "cache")
+  key <- cache_key_vector(axis, name)
+  stamp <- vector_stamp(daf, axis, name)
+  hit <- cache_lookup(ce, "mapped", key, stamp)
+  if (!is.null(hit)) return(hit)
+  v <- .files_get_vector_impl(daf, axis, name)
+  cache_store(ce, "mapped", key, v, stamp, size_bytes = 0)
+  v
+}
+
 S7::method(format_get_vector,
            list(FilesDaf, S7::class_character, S7::class_character)) <- function(daf, axis, name) {
-  .files_get_vector_impl(daf, axis, name)
+  .files_get_vector_cached(daf, axis, name)
 }
 S7::method(format_get_vector,
            list(FilesDafReadOnly, S7::class_character, S7::class_character)) <- function(daf, axis, name) {
-  .files_get_vector_impl(daf, axis, name)
+  .files_get_vector_cached(daf, axis, name)
 }
 
 # ---- matrices: query ----
@@ -436,11 +447,22 @@ S7::method(format_matrices_set,
     Dimnames = list(NULL, NULL))
 }
 
+.files_get_matrix_cached <- function(daf, rows_axis, columns_axis, name) {
+  ce <- S7::prop(daf, "cache")
+  key <- cache_key_matrix(rows_axis, columns_axis, name)
+  stamp <- matrix_stamp(daf, rows_axis, columns_axis, name)
+  hit <- cache_lookup(ce, "mapped", key, stamp)
+  if (!is.null(hit)) return(hit)
+  m <- .files_get_matrix_impl(daf, rows_axis, columns_axis, name)
+  cache_store(ce, "mapped", key, m, stamp, size_bytes = 0)
+  m
+}
+
 S7::method(format_get_matrix,
            list(FilesDaf, S7::class_character, S7::class_character, S7::class_character)) <- function(daf, rows_axis, columns_axis, name) {
-  .files_get_matrix_impl(daf, rows_axis, columns_axis, name)
+  .files_get_matrix_cached(daf, rows_axis, columns_axis, name)
 }
 S7::method(format_get_matrix,
            list(FilesDafReadOnly, S7::class_character, S7::class_character, S7::class_character)) <- function(daf, rows_axis, columns_axis, name) {
-  .files_get_matrix_impl(daf, rows_axis, columns_axis, name)
+  .files_get_matrix_cached(daf, rows_axis, columns_axis, name)
 }
