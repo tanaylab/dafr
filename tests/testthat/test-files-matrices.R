@@ -135,3 +135,52 @@ test_that("delete_matrix must_exist semantics", {
   expect_silent(delete_matrix(d, "cell", "gene", "nope", must_exist = FALSE))
   expect_error(delete_matrix(d, "cell", "gene", "nope"), "does not exist")
 })
+
+test_that("format_get_matrix densifies sparse CSC written Julia-style", {
+  dir <- new_tempdir()
+  dir.create(file.path(dir, "axes"), recursive = TRUE)
+  dir.create(file.path(dir, "matrices", "cell", "gene"), recursive = TRUE)
+  writeLines('{"version":[1,0]}', file.path(dir, "daf.json"))
+  writeLines(c("A","B","C"), file.path(dir, "axes", "cell.txt"))
+  writeLines(c("X","Y"), file.path(dir, "axes", "gene.txt"))
+  writeLines('{"format":"sparse","eltype":"Float64","indtype":"UInt32"}',
+             file.path(dir, "matrices", "cell", "gene", "sm.json"))
+  # colptr (1-based): col1 starts at 1, col2 starts at 3, end at 4 (nnz=3)
+  writeBin(c(1L, 3L, 4L),
+           file.path(dir, "matrices", "cell", "gene", "sm.colptr"),
+           size = 4L, endian = "little")
+  # rowval (1-based): col1 has rows 1 and 3; col2 has row 2
+  writeBin(c(1L, 3L, 2L),
+           file.path(dir, "matrices", "cell", "gene", "sm.rowval"),
+           size = 4L, endian = "little")
+  writeBin(c(10.0, 20.0, 30.0),
+           file.path(dir, "matrices", "cell", "gene", "sm.nzval"),
+           size = 8L, endian = "little")
+  d <- files_daf(dir, mode = "r")
+  m <- format_get_matrix(d, "cell", "gene", "sm")
+  expect_s4_class(m, "dgCMatrix")
+  expect_equal(dim(m), c(3L, 2L))
+  expect_equal(as.matrix(m), matrix(c(10, 0, 20, 0, 30, 0), nrow = 3))
+})
+
+test_that("format_get_matrix sparse Bool without nzval synthesizes TRUE", {
+  dir <- new_tempdir()
+  dir.create(file.path(dir, "axes"), recursive = TRUE)
+  dir.create(file.path(dir, "matrices", "cell", "gene"), recursive = TRUE)
+  writeLines('{"version":[1,0]}', file.path(dir, "daf.json"))
+  writeLines(c("A","B"), file.path(dir, "axes", "cell.txt"))
+  writeLines(c("X","Y"), file.path(dir, "axes", "gene.txt"))
+  writeLines('{"format":"sparse","eltype":"Bool","indtype":"UInt32"}',
+             file.path(dir, "matrices", "cell", "gene", "sb.json"))
+  writeBin(c(1L, 2L, 3L),
+           file.path(dir, "matrices", "cell", "gene", "sb.colptr"),
+           size = 4L, endian = "little")
+  writeBin(c(1L, 2L),
+           file.path(dir, "matrices", "cell", "gene", "sb.rowval"),
+           size = 4L, endian = "little")
+  d <- files_daf(dir, mode = "r")
+  m <- format_get_matrix(d, "cell", "gene", "sb")
+  expect_s4_class(m, "lgCMatrix")
+  expect_equal(dim(m), c(2L, 2L))
+  expect_equal(as.matrix(m), matrix(c(TRUE, FALSE, FALSE, TRUE), nrow = 2))
+})

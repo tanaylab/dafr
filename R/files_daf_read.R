@@ -390,8 +390,50 @@ S7::method(format_matrices_set,
 
 .files_get_matrix_sparse <- function(daf, rows_axis, columns_axis, name,
                                      desc, nr, nc) {
-  stop("files_daf: sparse matrix read not yet implemented (Phase I1)",
-       call. = FALSE)
+  mdir <- .path_matrix_dir(.files_root(daf), rows_axis, columns_axis)
+  indtype <- desc$indtype %||% "UInt32"
+  colptr_path <- file.path(mdir, paste0(name, ".colptr"))
+  rowval_path <- file.path(mdir, paste0(name, ".rowval"))
+  nzval_path  <- file.path(mdir, paste0(name, ".nzval"))
+  if (!file.exists(colptr_path) || !file.exists(rowval_path)) {
+    stop(sprintf("files_daf: sparse matrix %s missing colptr/rowval",
+                 sQuote(name)), call. = FALSE)
+  }
+  colptr <- .read_bin_dense(colptr_path, as.integer(nc) + 1L, indtype)
+  nnz <- as.integer(colptr[length(colptr)]) - 1L
+  rowval <- if (nnz > 0L) {
+    .read_bin_dense(rowval_path, nnz, indtype)
+  } else {
+    integer(0L)
+  }
+  if (desc$eltype == "Bool") {
+    vals <- if (file.exists(nzval_path)) {
+      as.logical(.read_bin_dense(nzval_path, nnz, "Bool"))
+    } else {
+      rep(TRUE, nnz)
+    }
+    return(methods::new("lgCMatrix",
+      x = vals,
+      i = as.integer(rowval) - 1L,
+      p = as.integer(colptr) - 1L,
+      Dim = c(as.integer(nr), as.integer(nc)),
+      Dimnames = list(NULL, NULL)))
+  }
+  if (!file.exists(nzval_path)) {
+    stop(sprintf("files_daf: sparse matrix %s missing .nzval for non-Bool",
+                 sQuote(name)), call. = FALSE)
+  }
+  vals <- if (nnz > 0L) {
+    .read_bin_dense(nzval_path, nnz, desc$eltype)
+  } else {
+    double(0L)
+  }
+  methods::new("dgCMatrix",
+    x = as.double(vals),
+    i = as.integer(rowval) - 1L,
+    p = as.integer(colptr) - 1L,
+    Dim = c(as.integer(nr), as.integer(nc)),
+    Dimnames = list(NULL, NULL))
 }
 
 S7::method(format_get_matrix,
