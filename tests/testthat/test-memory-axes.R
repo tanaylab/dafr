@@ -113,3 +113,58 @@ test_that("format_delete_axis also removes matrices where the axis is cols-only 
   format_delete_axis(d, "cell", must_exist = TRUE)
   expect_false(exists("cell", envir = matrices$gene, inherits = FALSE))
 })
+
+# ---- User-facing axis API ---------------------------------------------------
+
+test_that("add_axis + has_axis + axes_set compose", {
+  d <- memory_daf()
+  expect_false(has_axis(d, "cell"))
+  add_axis(d, "cell", c("A", "B"))
+  expect_true(has_axis(d, "cell"))
+  expect_equal(axes_set(d), "cell")
+})
+
+test_that("axis_length / axis_vector / axis_entries mirror Julia semantics", {
+  d <- memory_daf()
+  add_axis(d, "cell", c("A", "B", "C"))
+  expect_equal(axis_length(d, "cell"), 3L)
+  expect_equal(axis_vector(d, "cell"), c("A", "B", "C"))
+  expect_equal(axis_entries(d, "cell"), c("A", "B", "C"))
+  expect_equal(axis_entries(d, "cell", 2L), "B")
+  expect_equal(axis_entries(d, "cell", c(1L, 3L)), c("A", "C"))
+  expect_error(axis_entries(d, "cell", "A"),  "integer")
+  expect_error(axis_entries(d, "cell", 5L),   "out of range")
+  expect_error(axis_entries(d, "cell", -1L),  "out of range")
+})
+
+test_that("axis_vector default handling", {
+  d <- memory_daf()
+  expect_error(axis_vector(d, "cell"), "does not exist")
+  expect_null(axis_vector(d, "cell", null_if_missing = TRUE))
+})
+
+test_that("axis_indices maps entries to 1-based positions", {
+  d <- memory_daf()
+  add_axis(d, "cell", c("A", "B", "C"))
+  expect_equal(axis_indices(d, "cell", c("A", "C")), c(1L, 3L))
+  expect_equal(axis_indices(d, "cell", "B"),         2L)
+  expect_error(axis_indices(d, "cell", c(1L, 2L)),   "character")
+  expect_error(axis_indices(d, "cell", c("A", "Z")), "not found")
+})
+
+test_that("axis_dict is queryable by [[", {
+  d <- memory_daf()
+  add_axis(d, "cell", c("A", "B"))
+  dd <- axis_dict(d, "cell")
+  expect_equal(dd[["A"]], 1L)
+  expect_equal(dd[["B"]], 2L)
+})
+
+test_that("delete_axis composes with axes_set", {
+  d <- memory_daf()
+  add_axis(d, "cell", c("A"))
+  delete_axis(d, "cell")
+  expect_equal(length(axes_set(d)), 0L)
+  expect_error(delete_axis(d, "cell"),                          "does not exist")
+  expect_silent(delete_axis(d, "cell", must_exist = FALSE))
+})
