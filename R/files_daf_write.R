@@ -236,9 +236,27 @@ S7::method(format_delete_vector,
 }
 
 .files_write_matrix_sparse <- function(mdir, name, mat) {
-  # Replaced by Task I2.
-  stop("files_daf: sparse matrix write not yet implemented (Phase I2)",
-       call. = FALSE)
+  is_bool <- methods::is(mat, "lgCMatrix")
+  dtype <- if (is_bool) "Bool" else "Float64"
+  nr <- nrow(mat); nc <- ncol(mat)
+  nnz <- length(mat@x)
+  indtype <- .indtype_for_size(max(nr, nc, nnz))
+  .write_bin_dense(file.path(mdir, paste0(name, ".colptr")),
+                   as.integer(mat@p) + 1L, indtype)
+  .write_bin_dense(file.path(mdir, paste0(name, ".rowval")),
+                   as.integer(mat@i) + 1L, indtype)
+  if (is_bool) {
+    if (!all(mat@x)) {
+      .write_bin_dense(file.path(mdir, paste0(name, ".nzval")),
+                       as.logical(mat@x), "Bool")
+    }
+  } else {
+    .write_bin_dense(file.path(mdir, paste0(name, ".nzval")),
+                     as.double(mat@x), "Float64")
+  }
+  .write_descriptor_sparse(file.path(mdir, paste0(name, ".json")),
+                           dtype = dtype, indtype = indtype)
+  invisible()
 }
 
 S7::method(format_set_matrix,

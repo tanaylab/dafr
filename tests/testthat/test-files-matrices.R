@@ -184,3 +184,40 @@ test_that("format_get_matrix sparse Bool without nzval synthesizes TRUE", {
   expect_equal(dim(m), c(2L, 2L))
   expect_equal(as.matrix(m), matrix(c(TRUE, FALSE, FALSE, TRUE), nrow = 2))
 })
+
+test_that("set_matrix + get_matrix sparse dgCMatrix round-trip", {
+  dir <- new_tempdir()
+  d <- files_daf(dir, mode = "w+")
+  add_axis(d, "cell", c("A","B","C"))
+  add_axis(d, "gene", c("X","Y"))
+  sp <- Matrix::sparseMatrix(i = c(1,3,2), j = c(1,1,2), x = c(10,20,30),
+                             dims = c(3, 2))
+  set_matrix(d, "cell", "gene", "sm", sp)
+  cp <- readBin(file.path(dir, "matrices","cell","gene","sm.colptr"),
+                what = "integer", n = 3L, size = 4L, endian = "little")
+  expect_equal(cp, c(1L, 3L, 4L))
+  rv <- readBin(file.path(dir, "matrices","cell","gene","sm.rowval"),
+                what = "integer", n = 3L, size = 4L, endian = "little")
+  expect_equal(rv, c(1L, 3L, 2L))
+  d2 <- files_daf(dir, mode = "r")
+  m <- get_matrix(d2, "cell", "gene", "sm")
+  expect_s4_class(m, "dgCMatrix")
+  expect_equal(as.matrix(unname(m)), as.matrix(sp))
+})
+
+test_that("set_matrix sparse lgCMatrix all-TRUE omits .nzval", {
+  dir <- new_tempdir()
+  d <- files_daf(dir, mode = "w+")
+  add_axis(d, "cell", c("A","B","C"))
+  add_axis(d, "gene", c("X","Y"))
+  sp <- Matrix::sparseMatrix(i = c(1,3), j = c(1,2), x = c(TRUE,TRUE),
+                             dims = c(3,2))
+  set_matrix(d, "cell", "gene", "sb", sp)
+  expect_true( file.exists(file.path(dir, "matrices","cell","gene","sb.colptr")))
+  expect_true( file.exists(file.path(dir, "matrices","cell","gene","sb.rowval")))
+  expect_false(file.exists(file.path(dir, "matrices","cell","gene","sb.nzval")))
+  d2 <- files_daf(dir, mode = "r")
+  m <- get_matrix(d2, "cell", "gene", "sb")
+  expect_s4_class(m, "lgCMatrix")
+  expect_equal(as.matrix(unname(m)), as.matrix(sp))
+})
