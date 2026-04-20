@@ -221,3 +221,32 @@ test_that("set_matrix sparse lgCMatrix all-TRUE omits .nzval", {
   expect_s4_class(m, "lgCMatrix")
   expect_equal(as.matrix(unname(m)), as.matrix(sp))
 })
+
+test_that("relayout_matrix stores transpose at flipped axis pair", {
+  dir <- new_tempdir()
+  d <- files_daf(dir, mode = "w+")
+  add_axis(d, "cell", c("A","B","C"))
+  add_axis(d, "gene", c("X","Y"))
+  m <- matrix(c(1,2,3,4,5,6), nrow = 3, ncol = 2)
+  set_matrix(d, "cell", "gene", "m", m)
+  relayout_matrix(d, "cell", "gene", "m")
+  expect_true(file.exists(file.path(dir, "matrices", "gene", "cell", "m.json")))
+  d2 <- files_daf(dir, mode = "r")
+  m_flipped <- get_matrix(d2, "gene", "cell", "m")
+  expect_equal(unname(m_flipped), t(m))
+})
+
+test_that("relayout_matrix on sparse matrix stores transposed CSC", {
+  dir <- new_tempdir()
+  d <- files_daf(dir, mode = "w+")
+  add_axis(d, "cell", c("A","B","C"))
+  add_axis(d, "gene", c("X","Y"))
+  sp <- Matrix::sparseMatrix(i = c(1,3,2), j = c(1,1,2), x = c(10,20,30),
+                             dims = c(3, 2))
+  set_matrix(d, "cell", "gene", "sm", sp)
+  relayout_matrix(d, "cell", "gene", "sm")
+  d2 <- files_daf(dir, mode = "r")
+  m_flipped <- get_matrix(d2, "gene", "cell", "sm")
+  expect_s4_class(m_flipped, "dgCMatrix")
+  expect_equal(as.matrix(unname(m_flipped)), t(as.matrix(sp)))
+})

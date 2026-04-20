@@ -311,3 +311,16 @@ S7::method(format_delete_matrix,
   bump_matrix_counter(daf, rows_axis, columns_axis, name)
   invisible()
 }
+
+S7::method(format_relayout_matrix,
+           list(FilesDaf, S7::class_character, S7::class_character, S7::class_character)) <- function(daf, rows_axis, columns_axis, name) {
+  src <- format_get_matrix(daf, rows_axis, columns_axis, name)
+  transposed <- if (methods::is(src, "dgCMatrix") || methods::is(src, "lgCMatrix")) {
+    Matrix::t(src)
+  } else {
+    t(src)
+  }
+  format_set_matrix(daf, columns_axis, rows_axis, name, transposed,
+                    overwrite = TRUE)
+  invisible()
+}

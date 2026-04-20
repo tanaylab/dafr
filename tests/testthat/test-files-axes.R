@@ -51,3 +51,20 @@ test_that("delete_axis without dependents removes the file", {
   # must_exist = TRUE on missing axis errors:
   expect_error(delete_axis(d, "cell"), "does not exist")
 })
+
+test_that("delete_axis cascades to dependent vectors + matrices on FilesDaf", {
+  dir <- new_tempdir()
+  d <- files_daf(dir, mode = "w+")
+  add_axis(d, "cell", c("A","B"))
+  add_axis(d, "gene", c("X","Y"))
+  set_vector(d, "cell", "donor", c(1, 2))
+  set_matrix(d, "cell", "gene", "m", matrix(1:4, 2, 2))
+  set_matrix(d, "gene", "cell", "m2", matrix(1:4, 2, 2))
+  delete_axis(d, "cell")
+  expect_false(has_axis(d, "cell"))
+  expect_false(dir.exists(file.path(dir, "vectors", "cell")))
+  expect_false(dir.exists(file.path(dir, "matrices", "cell")))
+  expect_false(dir.exists(file.path(dir, "matrices", "gene", "cell")))
+  # matrices/gene/ still exists (only gene/cell subtree gone):
+  expect_true(dir.exists(file.path(dir, "matrices", "gene")))
+})
