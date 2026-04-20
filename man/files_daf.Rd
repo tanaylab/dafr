@@ -2,29 +2,9 @@
 % Please edit documentation in R/files_daf.R
 \name{files_daf}
 \alias{files_daf}
-\alias{FilesDaf}
-\alias{FilesDafReadOnly}
 \title{File-backed Daf store.}
 \usage{
 files_daf(path, mode = c("r", "r+", "w", "w+"), name = NULL)
-
-FilesDaf(
-  name = character(0),
-  internal = new.env(parent = emptyenv()),
-  cache = new.env(parent = emptyenv()),
-  axis_version_counter = new.env(parent = emptyenv()),
-  vector_version_counter = new.env(parent = emptyenv()),
-  matrix_version_counter = new.env(parent = emptyenv())
-)
-
-FilesDafReadOnly(
-  name = character(0),
-  internal = new.env(parent = emptyenv()),
-  cache = new.env(parent = emptyenv()),
-  axis_version_counter = new.env(parent = emptyenv()),
-  vector_version_counter = new.env(parent = emptyenv()),
-  matrix_version_counter = new.env(parent = emptyenv())
-)
 }
 \arguments{
 \item{path}{Directory path.}

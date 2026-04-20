@@ -50,7 +50,13 @@ files_daf <- function(path, mode = c("r", "r+", "w", "w+"), name = NULL) {
   )
 }
 
-#' @rdname files_daf
+#' File-backed Daf writer class.
+#'
+#' Concrete `DafWriter` subclass instantiated by [files_daf()] when opened
+#' for writing (modes `"r+"`, `"w"`, or `"w+"`). Use [files_daf()] to
+#' construct instances.
+#'
+#' @inheritParams DafReader
 #' @export
 FilesDaf <- S7::new_class(
   name    = "FilesDaf",
@@ -58,7 +64,13 @@ FilesDaf <- S7::new_class(
   parent  = DafWriter
 )
 
-#' @rdname files_daf
+#' File-backed read-only Daf class.
+#'
+#' Concrete `DafReadOnly` subclass instantiated by [files_daf()] when
+#' opened with mode `"r"`. All mutating `format_*` generics reject calls on
+#' this class with a clear "store opened read-only" error.
+#'
+#' @inheritParams DafReader
 #' @export
 FilesDafReadOnly <- S7::new_class(
   name    = "FilesDafReadOnly",
