@@ -194,3 +194,46 @@ test_that("get_matrix with sparse input returns sparse with dimnames", {
   expect_equal(rownames(got), c("A", "B"))
   expect_equal(colnames(got), c("X", "Y", "Z"))
 })
+
+test_that("get_matrix primary + flipped calls share one cache entry", {
+  d <- memory_daf()
+  add_axis(d, "cell", c("A", "B"))
+  add_axis(d, "gene", c("X", "Y", "Z"))
+  format_set_matrix(d, "cell", "gene", "UMIs", matrix(seq_len(6), 2, 3), overwrite = FALSE)
+  cache_env <- S7::prop(d, "cache")
+
+  expect_equal(length(ls(cache_env$memory)), 0L)
+  primary <- get_matrix(d, "cell", "gene", "UMIs")
+  keys_after_primary <- ls(cache_env$memory)
+  expect_equal(keys_after_primary, cache_key_matrix("cell", "gene", "UMIs"))
+
+  flipped <- get_matrix(d, "gene", "cell", "UMIs")
+  # Same single cache key — no second entry for the flipped view.
+  expect_equal(ls(cache_env$memory), keys_after_primary)
+
+  # Orientations disagree, dimnames disagree.
+  expect_equal(dim(primary), c(2L, 3L))
+  expect_equal(dim(flipped), c(3L, 2L))
+  expect_equal(rownames(primary), c("A", "B"))
+  expect_equal(rownames(flipped), c("X", "Y", "Z"))
+
+  # Cached entry retains its null dimnames; subsequent primary call rebuilds
+  # dimnames without polluting the stored copy.
+  stored <- get(cache_key_matrix("cell", "gene", "UMIs"),
+                envir = cache_env$memory, inherits = FALSE)$value
+  expect_null(dimnames(stored))
+})
+
+test_that("get_matrix flipped + sparse preserves class and applies rotated dimnames", {
+  d <- memory_daf()
+  add_axis(d, "cell", c("A", "B"))
+  add_axis(d, "gene", c("X", "Y", "Z"))
+  m <- Matrix::Matrix(c(0, 1, 2, 0, 0, 3), 2, 3, sparse = TRUE)
+  format_set_matrix(d, "cell", "gene", "UMIs", m, overwrite = FALSE)
+  got <- get_matrix(d, "gene", "cell", "UMIs")
+  expect_s4_class(got, "dgCMatrix")
+  expect_equal(dim(got), c(3L, 2L))
+  expect_equal(rownames(got), c("X", "Y", "Z"))
+  expect_equal(colnames(got), c("A", "B"))
+  expect_equal(as.matrix(got), t(as.matrix(m)), ignore_attr = TRUE)
+})
