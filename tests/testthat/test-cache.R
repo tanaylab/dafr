@@ -24,45 +24,37 @@ test_that("cache keys are canonical strings", {
   expect_equal(cache_key_query("/cell"), "query:/cell")
 })
 
-test_that("cache_put/get/remove round-trip through a tier", {
-  daf <- TestDaf()
-  cache_env <- S7::prop(daf, "cache")
-
-  cache_put(cache_env, "memory", "k", 42L)
-  expect_equal(cache_get(cache_env, "memory", "k"), 42L)
-  expect_null(cache_get(cache_env, "mapped", "k"))
-  expect_null(cache_get(cache_env, "query", "k"))
-
-  cache_remove(cache_env, "memory", "k")
-  expect_null(cache_get(cache_env, "memory", "k"))
-})
-
-test_that("empty_cache clears all three tiers by default", {
+test_that("cache_store + cache_lookup round-trip through a tier", {
   daf <- TestDaf()
   ce <- S7::prop(daf, "cache")
-  cache_put(ce, "mapped", "v:a:x", "mapped-value")
-  cache_put(ce, "memory", "v:a:y", "memory-value")
-  cache_put(ce, "query",  "q:1",   "query-value")
+  cache_store(ce, "memory", "k", 42L, stamp = c(0L), size_bytes = 8)
+  expect_equal(cache_lookup(ce, "memory", "k", c(0L)), 42L)
+  expect_null(cache_lookup(ce, "mapped", "k", c(0L)))
+  expect_null(cache_lookup(ce, "query",  "k", c(0L)))
+})
 
+test_that("empty_cache clears all three tiers by default (stamp-aware store)", {
+  daf <- TestDaf()
+  ce <- S7::prop(daf, "cache")
+  cache_store(ce, "mapped", "v:a:x", "mapped-value", stamp = c(0L), size_bytes = 0)
+  cache_store(ce, "memory", "v:a:y", "memory-value", stamp = c(0L), size_bytes = 20)
+  cache_store(ce, "query",  "q:1",   "query-value",  stamp = c(0L), size_bytes = 15)
   empty_cache(daf)
-
-  expect_null(cache_get(ce, "mapped", "v:a:x"))
-  expect_null(cache_get(ce, "memory", "v:a:y"))
-  expect_null(cache_get(ce, "query",  "q:1"))
+  expect_null(cache_lookup(ce, "mapped", "v:a:x", c(0L)))
+  expect_null(cache_lookup(ce, "memory", "v:a:y", c(0L)))
+  expect_null(cache_lookup(ce, "query",  "q:1",   c(0L)))
 })
 
-test_that("empty_cache with group targets a subset", {
+test_that("empty_cache with clear targets a subset", {
   daf <- TestDaf()
   ce <- S7::prop(daf, "cache")
-  cache_put(ce, "mapped", "a", 1L)
-  cache_put(ce, "memory", "b", 2L)
-  cache_put(ce, "query",  "c", 3L)
-
-  empty_cache(daf, group = c("memory", "query"))
-
-  expect_equal(cache_get(ce, "mapped", "a"), 1L)
-  expect_null(cache_get(ce, "memory", "b"))
-  expect_null(cache_get(ce, "query",  "c"))
+  cache_store(ce, "mapped", "a", 1L, stamp = c(0L), size_bytes = 0)
+  cache_store(ce, "memory", "b", 2L, stamp = c(0L), size_bytes = 8)
+  cache_store(ce, "query",  "c", 3L, stamp = c(0L), size_bytes = 8)
+  empty_cache(daf, clear = c("memory", "query"))
+  expect_equal(cache_lookup(ce, "mapped", "a", c(0L)), 1L)
+  expect_null( cache_lookup(ce, "memory", "b", c(0L)))
+  expect_null( cache_lookup(ce, "query",  "c", c(0L)))
 })
 
 test_that("bump_axis_counter increments monotonically from 0", {

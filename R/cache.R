@@ -25,28 +25,7 @@ cache_key_matrix <- function(rows_axis, columns_axis, name) {
 }
 cache_key_query  <- function(canon)     paste0("query:", canon)
 
-# ---- Low-level tier operations ----
-cache_get <- function(cache_env, tier, key) {
-  bucket <- cache_env[[tier]]
-  if (exists(key, envir = bucket, inherits = FALSE)) {
-    return(get(key, envir = bucket, inherits = FALSE))
-  }
-  NULL
-}
-
-cache_put <- function(cache_env, tier, key, value) {
-  bucket <- cache_env[[tier]]
-  assign(key, value, envir = bucket)
-  invisible()
-}
-
-cache_remove <- function(cache_env, tier, key) {
-  bucket <- cache_env[[tier]]
-  if (exists(key, envir = bucket, inherits = FALSE)) {
-    rm(list = key, envir = bucket)
-  }
-  invisible()
-}
+# Low-level tier storage is handled by `cache_store` / `cache_lookup` below.
 
 #' Empty caches on a Daf object.
 #'
