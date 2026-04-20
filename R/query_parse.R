@@ -72,6 +72,12 @@ parse_query <- function(query_string) {
 }
 
 .parse_axis <- function(tokens, i, src) {
+  # `@ ?` means "list all axis names" — emit a bare Names node
+  if (i + 1L <= length(tokens) &&
+      tokens[[i + 1L]]$type == "operator" &&
+      tokens[[i + 1L]]$value == "?") {
+    return(list(node = .qop_names(), next_index = i + 2L))
+  }
   if (i + 1L > length(tokens) || tokens[[i + 1L]]$type != "value") {
     bad_pos <- if (i + 1L <= length(tokens)) tokens[[i + 1L]]$pos
                else tokens[[i]]$pos + nchar(tokens[[i]]$value)
