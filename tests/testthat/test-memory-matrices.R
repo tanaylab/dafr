@@ -105,3 +105,34 @@ test_that("format_delete_matrix removes + respects must_exist", {
   expect_error (format_delete_matrix(d, "cell", "gene", "m", must_exist = TRUE),  "does not exist")
   expect_silent(format_delete_matrix(d, "cell", "gene", "m", must_exist = FALSE))
 })
+
+test_that("format_relayout_matrix writes the transposed layout", {
+  d <- memory_daf()
+  add_axis(d, "cell", c("A", "B"))
+  add_axis(d, "gene", c("X", "Y", "Z"))
+  m <- matrix(seq_len(6), 2, 3)
+  format_set_matrix(d, "cell", "gene", "UMIs", m, overwrite = FALSE)
+  expect_false(format_has_matrix(d, "gene", "cell", "UMIs"))
+  format_relayout_matrix(d, "cell", "gene", "UMIs")
+  expect_true(format_has_matrix(d, "gene", "cell", "UMIs"))
+  expect_equal(format_get_matrix(d, "gene", "cell", "UMIs"), t(m))
+})
+
+test_that("format_relayout_matrix works for sparse (CSC -> transposed CSC)", {
+  d <- memory_daf()
+  add_axis(d, "cell", c("A", "B"))
+  add_axis(d, "gene", c("X", "Y", "Z"))
+  m <- Matrix::Matrix(c(0, 1, 2, 0, 0, 3), 2, 3, sparse = TRUE)
+  format_set_matrix(d, "cell", "gene", "UMIs", m, overwrite = FALSE)
+  format_relayout_matrix(d, "cell", "gene", "UMIs")
+  got <- format_get_matrix(d, "gene", "cell", "UMIs")
+  expect_s4_class(got, "dgCMatrix")
+  expect_equal(as.matrix(got), as.matrix(Matrix::t(m)))
+})
+
+test_that("format_relayout_matrix errors when source matrix missing", {
+  d <- memory_daf()
+  add_axis(d, "cell", "A"); add_axis(d, "gene", "X")
+  expect_error(format_relayout_matrix(d, "cell", "gene", "UMIs"),
+               "does not exist")
+})
