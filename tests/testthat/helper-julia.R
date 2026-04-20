@@ -3,9 +3,13 @@ fixture_path <- function() {
 }
 
 .have_julia_env <- function() {
-  out <- suppressWarnings(
-    system2("conda", c("run", "-n", "dafr-mcview", "julia", "--version"),
-            stdout = TRUE, stderr = TRUE))
+  if (is.na(Sys.which("conda")) || Sys.which("conda") == "") return(FALSE)
+  out <- tryCatch(
+    suppressWarnings(
+      system2("conda", c("run", "-n", "dafr-mcview", "julia", "--version"),
+              stdout = TRUE, stderr = TRUE)),
+    error = function(e) character(0L),
+    warning = function(w) character(0L))
   length(out) > 0L && any(grepl("^julia", out))
 }
 
