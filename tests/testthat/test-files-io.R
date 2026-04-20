@@ -32,3 +32,43 @@ test_that(".path_for_* builds store paths", {
   expect_equal(dafr:::.path_matrix_dir(root, "cell", "gene"),
                "/tmp/store/matrices/cell/gene")
 })
+
+test_that(".write_descriptor_dense / .read_descriptor round-trip", {
+  tmp <- tempfile(fileext = ".json")
+  dafr:::.write_descriptor_dense(tmp, dtype = "Float64")
+  on.exit(unlink(tmp))
+  d <- dafr:::.read_descriptor(tmp)
+  expect_equal(d$format, "dense")
+  expect_equal(d$eltype, "Float64")
+})
+
+test_that(".write_descriptor_sparse / .read_descriptor round-trip", {
+  tmp <- tempfile(fileext = ".json")
+  dafr:::.write_descriptor_sparse(tmp, dtype = "Float64", indtype = "UInt32")
+  on.exit(unlink(tmp))
+  d <- dafr:::.read_descriptor(tmp)
+  expect_equal(d$format, "sparse")
+  expect_equal(d$eltype, "Float64")
+  expect_equal(d$indtype, "UInt32")
+})
+
+test_that(".read_descriptor rejects malformed JSON", {
+  tmp <- tempfile(fileext = ".json")
+  writeLines('{"nope":true}', tmp); on.exit(unlink(tmp))
+  expect_error(dafr:::.read_descriptor(tmp), "format|eltype")
+})
+
+test_that(".read_scalar_json returns typed value", {
+  tmp <- tempfile(fileext = ".json")
+  writeLines('{"type":"Float64","value":3.14}', tmp); on.exit(unlink(tmp))
+  expect_equal(dafr:::.read_scalar_json(tmp), 3.14)
+})
+
+test_that(".write_scalar_json writes Julia-compatible format", {
+  tmp <- tempfile(fileext = ".json")
+  dafr:::.write_scalar_json(tmp, 42L)
+  on.exit(unlink(tmp))
+  raw <- readLines(tmp)
+  expect_match(raw, '"type":\\s*"Int32"')
+  expect_match(raw, '"value":\\s*42')
+})

@@ -55,3 +55,71 @@
 .path_matrix_dir <- function(root, rows_axis, columns_axis) {
   file.path(root, "matrices", rows_axis, columns_axis)
 }
+
+# ---- JSON descriptors ----
+.write_descriptor_dense <- function(path, dtype) {
+  cat(sprintf('{"format":"dense","eltype":"%s"}\n', dtype), file = path)
+}
+
+.write_descriptor_sparse <- function(path, dtype, indtype) {
+  cat(sprintf('{"format":"sparse","eltype":"%s","indtype":"%s"}\n',
+              dtype, indtype), file = path)
+}
+
+.read_descriptor <- function(path) {
+  j <- jsonlite::fromJSON(path, simplifyVector = TRUE)
+  fmt <- j$format
+  elt <- j$eltype
+  if (is.null(fmt) || !(fmt %in% c("dense", "sparse"))) {
+    stop(sprintf("files_daf: %s has malformed descriptor (no format)",
+                 sQuote(path)), call. = FALSE)
+  }
+  if (is.null(elt)) {
+    stop(sprintf("files_daf: %s has malformed descriptor (no eltype)",
+                 sQuote(path)), call. = FALSE)
+  }
+  list(format = fmt, eltype = .dtype_canonical(elt),
+       indtype = if (is.null(j$indtype)) NULL else .dtype_canonical(j$indtype))
+}
+
+# ---- scalar JSON ----
+.write_scalar_json <- function(path, value) {
+  dtype <- .dtype_for_r_vector(value)
+  if (dtype == "String") {
+    obj <- list(type = jsonlite::unbox("String"),
+                value = jsonlite::unbox(value))
+  } else if (dtype == "Bool") {
+    obj <- list(type = jsonlite::unbox("Bool"),
+                value = jsonlite::unbox(as.integer(value)))
+  } else if (dtype == "Int64") {
+    cat(sprintf('{"type":"Int64","value":%s}\n',
+                format(value, scientific = FALSE)),
+        file = path)
+    return(invisible())
+  } else {
+    obj <- list(type = jsonlite::unbox(dtype),
+                value = jsonlite::unbox(value))
+  }
+  cat(jsonlite::toJSON(obj, auto_unbox = FALSE), "\n", file = path, sep = "")
+}
+
+.read_scalar_json <- function(path) {
+  j <- jsonlite::fromJSON(path, simplifyVector = TRUE)
+  t <- .dtype_canonical(j$type)
+  v <- j$value
+  switch(t,
+    Bool    = as.logical(v),
+    Int8    = ,
+    Int16   = ,
+    Int32   = as.integer(v),
+    Int64   = bit64::as.integer64(v),
+    UInt8   = ,
+    UInt16  = ,
+    UInt32  = as.integer(v),
+    UInt64  = bit64::as.integer64(v),
+    Float32 = as.double(v),
+    Float64 = as.double(v),
+    String  = as.character(v),
+    stop(sprintf("files_daf: unsupported scalar type %s", t))
+  )
+}
