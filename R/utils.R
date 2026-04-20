@@ -31,3 +31,19 @@
   }
   invisible()
 }
+
+.assert_scalar_value <- function(name, value) {
+  if (is.null(value)) {
+    stop(sprintf("scalar %s value may not be NULL", sQuote(name)), call. = FALSE)
+  }
+  if (!is.atomic(value)) {
+    stop(sprintf("scalar %s value must be an atomic scalar", sQuote(name)), call. = FALSE)
+  }
+  if (length(value) != 1L) {
+    stop(sprintf("scalar %s value must have length 1 (got %d)", sQuote(name), length(value)), call. = FALSE)
+  }
+  if (is.na(value)) {
+    stop(sprintf("scalar %s value may not be NA", sQuote(name)), call. = FALSE)
+  }
+  invisible()
+}
