@@ -279,3 +279,42 @@ S7::method(format_get_vector,
            list(FilesDafReadOnly, S7::class_character, S7::class_character)) <- function(daf, axis, name) {
   .files_get_vector_impl(daf, axis, name)
 }
+
+# ---- matrices: query ----
+
+.files_matrix_desc_path <- function(root, rows_axis, columns_axis, name) {
+  file.path(.path_matrix_dir(root, rows_axis, columns_axis),
+            paste0(name, ".json"))
+}
+
+.files_has_matrix <- function(daf, rows_axis, columns_axis, name) {
+  if (!format_has_axis(daf, rows_axis) ||
+      !format_has_axis(daf, columns_axis)) return(FALSE)
+  file.exists(.files_matrix_desc_path(.files_root(daf),
+                                      rows_axis, columns_axis, name))
+}
+S7::method(format_has_matrix,
+           list(FilesDaf, S7::class_character, S7::class_character, S7::class_character)) <- function(daf, rows_axis, columns_axis, name) {
+  .files_has_matrix(daf, rows_axis, columns_axis, name)
+}
+S7::method(format_has_matrix,
+           list(FilesDafReadOnly, S7::class_character, S7::class_character, S7::class_character)) <- function(daf, rows_axis, columns_axis, name) {
+  .files_has_matrix(daf, rows_axis, columns_axis, name)
+}
+
+.files_matrices_set <- function(daf, rows_axis, columns_axis) {
+  if (!format_has_axis(daf, rows_axis) ||
+      !format_has_axis(daf, columns_axis)) return(character(0L))
+  dir <- .path_matrix_dir(.files_root(daf), rows_axis, columns_axis)
+  if (!dir.exists(dir)) return(character(0L))
+  files <- list.files(dir, pattern = "\\.json$", full.names = FALSE)
+  sort(sub("\\.json$", "", files), method = "radix")
+}
+S7::method(format_matrices_set,
+           list(FilesDaf, S7::class_character, S7::class_character)) <- function(daf, rows_axis, columns_axis) {
+  .files_matrices_set(daf, rows_axis, columns_axis)
+}
+S7::method(format_matrices_set,
+           list(FilesDafReadOnly, S7::class_character, S7::class_character)) <- function(daf, rows_axis, columns_axis) {
+  .files_matrices_set(daf, rows_axis, columns_axis)
+}
