@@ -33,3 +33,28 @@ test_that("FilesDaf format_get_matrix caches in mapped tier", {
   expect_true(exists(cache_key_matrix("cell", "gene", "m"), envir = ce$mapped))
   expect_equal(m1, m2)
 })
+
+test_that("dafr.mmap = FALSE returns non-ALTREP vectors for dense reads", {
+  dir <- new_tempdir()
+  d <- files_daf(dir, mode = "w+")
+  add_axis(d, "cell", c("A","B"))
+  set_vector(d, "cell", "x", c(1.0, 2.0))
+  # Clear mapped cache before the fallback read so we're exercising the fallback, not a hit
+  empty_cache(d, clear = "mapped")
+  v <- withr::with_options(list(dafr.mmap = FALSE),
+                           format_get_vector(d, "cell", "x"))
+  expect_equal(unname(v), c(1.0, 2.0))
+  expect_false(is_altrep(v))
+})
+
+test_that("dafr.mmap = FALSE matrix reads also skip ALTREP", {
+  dir <- new_tempdir()
+  d <- files_daf(dir, mode = "w+")
+  add_axis(d, "cell", c("A","B"))
+  add_axis(d, "gene", c("X","Y"))
+  set_matrix(d, "cell", "gene", "m", matrix(c(1.0, 2.0, 3.0, 4.0), 2, 2))
+  empty_cache(d, clear = "mapped")
+  m <- withr::with_options(list(dafr.mmap = FALSE),
+                           format_get_matrix(d, "cell", "gene", "m"))
+  expect_false(is_altrep(m))
+})
