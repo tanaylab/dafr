@@ -227,3 +227,50 @@ S7::method(format_delete_vector,
   bump_vector_counter(daf, axis, name)
   invisible()
 }
+
+.files_matrix_unlink_payload <- function(mdir, name) {
+  for (ext in c(".data", ".txt", ".colptr", ".rowval", ".nzval", ".nztxt")) {
+    p <- file.path(mdir, paste0(name, ext))
+    if (file.exists(p)) unlink(p, force = TRUE)
+  }
+}
+
+.files_write_matrix_sparse <- function(mdir, name, mat) {
+  # Replaced by Task I2.
+  stop("files_daf: sparse matrix write not yet implemented (Phase I2)",
+       call. = FALSE)
+}
+
+S7::method(format_set_matrix,
+           list(FilesDaf, S7::class_character, S7::class_character,
+                S7::class_character, S7::class_any, S7::class_logical)) <- function(daf, rows_axis, columns_axis, name, mat, overwrite) {
+  mat <- .validate_matrix_value(daf, rows_axis, columns_axis, name, mat)
+  root <- .files_root(daf)
+  mdir <- .path_matrix_dir(root, rows_axis, columns_axis)
+  dir.create(mdir, recursive = TRUE, showWarnings = FALSE)
+  desc_path <- file.path(mdir, paste0(name, ".json"))
+  if (file.exists(desc_path) && !overwrite) {
+    stop(sprintf("matrix %s already exists on axes (%s, %s); use overwrite = TRUE",
+                 sQuote(name), sQuote(rows_axis), sQuote(columns_axis)),
+         call. = FALSE)
+  }
+  .files_matrix_unlink_payload(mdir, name)
+  if (methods::is(mat, "dgCMatrix") || methods::is(mat, "lgCMatrix")) {
+    .files_write_matrix_sparse(mdir, name, mat)
+    bump_matrix_counter(daf, rows_axis, columns_axis, name)
+    return(invisible())
+  }
+  dtype <- .dtype_for_r_vector(as.vector(mat))
+  if (dtype == "String") {
+    con <- file(file.path(mdir, paste0(name, ".txt")), open = "wb",
+                encoding = "UTF-8")
+    writeLines(as.vector(mat), con, useBytes = FALSE)
+    close(con)
+  } else {
+    .write_bin_dense(file.path(mdir, paste0(name, ".data")),
+                     as.vector(mat), dtype)
+  }
+  .write_descriptor_dense(desc_path, dtype)
+  bump_matrix_counter(daf, rows_axis, columns_axis, name)
+  invisible()
+}

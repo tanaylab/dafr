@@ -80,3 +80,38 @@ test_that("format_get_matrix dense String round-trip (column-major)", {
   expect_equal(m[1, 1], "aX")
   expect_equal(m[2, 2], "bY")
 })
+
+test_that("set_matrix + get_matrix dense Float64 round-trip", {
+  dir <- new_tempdir()
+  d <- files_daf(dir, mode = "w+")
+  add_axis(d, "cell", c("A","B","C"))
+  add_axis(d, "gene", c("X","Y"))
+  m <- matrix(c(1,2,3,4,5,6), nrow = 3, ncol = 2)
+  set_matrix(d, "cell", "gene", "m", m)
+  d2 <- files_daf(dir, mode = "r")
+  m2 <- get_matrix(d2, "cell", "gene", "m")
+  expect_equal(unname(m2), m)
+  expect_equal(dimnames(m2), list(c("A","B","C"), c("X","Y")))
+})
+
+test_that("set_matrix dense Int32", {
+  dir <- new_tempdir()
+  d <- files_daf(dir, mode = "w+")
+  add_axis(d, "cell", c("A","B"))
+  add_axis(d, "gene", c("X","Y"))
+  m <- matrix(1:4, nrow = 2)
+  set_matrix(d, "cell", "gene", "mi", m)
+  d2 <- files_daf(dir, mode = "r")
+  expect_equal(unname(get_matrix(d2, "cell", "gene", "mi")), m)
+})
+
+test_that("set_matrix dense String", {
+  dir <- new_tempdir()
+  d <- files_daf(dir, mode = "w+")
+  add_axis(d, "cell", c("A","B"))
+  add_axis(d, "gene", c("X","Y"))
+  m <- matrix(c("a","b","c","d"), nrow = 2)
+  set_matrix(d, "cell", "gene", "ms", m)
+  d2 <- files_daf(dir, mode = "r")
+  expect_equal(unname(get_matrix(d2, "cell", "gene", "ms")), m)
+})
