@@ -46,6 +46,27 @@ MemoryDaf <- S7::new_class(
   parent  = DafWriter
 )
 
+# ---- Scalars: query ---------------------------------------------------------
+
+S7::method(format_has_scalar,
+           list(MemoryDaf, S7::class_character)) <- function(daf, name) {
+  exists(name, envir = S7::prop(daf, "internal")$scalars, inherits = FALSE)
+}
+
+S7::method(format_get_scalar,
+           list(MemoryDaf, S7::class_character)) <- function(daf, name) {
+  scalars <- S7::prop(daf, "internal")$scalars
+  if (!exists(name, envir = scalars, inherits = FALSE)) {
+    stop(sprintf("scalar %s does not exist", sQuote(name)), call. = FALSE)
+  }
+  get(name, envir = scalars, inherits = FALSE)
+}
+
+S7::method(format_scalars_set, MemoryDaf) <- function(daf) {
+  sort(ls(S7::prop(daf, "internal")$scalars, all.names = TRUE),
+       method = "radix")
+}
+
 # ---- Axes: query methods ----------------------------------------------------
 
 S7::method(format_has_axis, list(MemoryDaf, S7::class_character)) <- function(daf, axis) {
