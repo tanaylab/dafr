@@ -77,3 +77,48 @@ test_that("parse_query canonical-string round-trips for masks", {
     expect_equal(.canonicalise_ast(parse_query(s)), s, info = s)
   }
 })
+
+test_that("parse_query handles square slicing", {
+  ast <- parse_query("@ cell @ gene :: UMIs @- cell1")
+  ops <- vapply(ast, `[[`, "", "op")
+  expect_equal(tail(ops, 1L), "SquareRowIs")
+})
+
+test_that("parse_query handles ReduceToColumn / ReduceToRow", {
+  ast <- parse_query("@ cell @ gene :: UMIs >| Sum")
+  expect_equal(tail(vapply(ast, `[[`, "", "op"), 1L), "ReduceToColumn")
+  ast <- parse_query("@ cell @ gene :: UMIs >- Sum")
+  expect_equal(tail(vapply(ast, `[[`, "", "op"), 1L), "ReduceToRow")
+})
+
+test_that("parse_query handles reduction with named params", {
+  ast <- parse_query("@ cell @ gene :: UMIs >| Sum type: Int64")
+  red <- tail(ast, 1L)[[1]]
+  expect_equal(red$reduction, "Sum")
+  expect_equal(red$params, list(type = "Int64"))
+})
+
+test_that("parse_query handles GroupBy / CountBy / GroupRowsBy / GroupColumnsBy", {
+  ast <- parse_query("@ cell : UMIs / donor")
+  expect_equal(tail(vapply(ast, `[[`, "", "op"), 1L), "GroupBy")
+  ast <- parse_query("@ donor : age * sex")
+  expect_equal(tail(vapply(ast, `[[`, "", "op"), 1L), "CountBy")
+  ast <- parse_query("@ cell @ gene :: UMIs -/ donor")
+  expect_equal(tail(vapply(ast, `[[`, "", "op"), 1L), "GroupRowsBy")
+  ast <- parse_query("@ cell @ gene :: UMIs |/ type")
+  expect_equal(tail(vapply(ast, `[[`, "", "op"), 1L), "GroupColumnsBy")
+})
+
+test_that("parse_query handles eltwise with params", {
+  ast <- parse_query("@ cell : UMIs % Log eps: 1 base: 2")
+  last <- tail(ast, 1L)[[1]]
+  expect_equal(last$op, "Eltwise")
+  expect_equal(last$name, "Log")
+  expect_equal(last$params, list(eps = "1", base = "2"))
+})
+
+test_that("parse_query handles IfMissing / IfNot / AsAxis modifiers", {
+  expect_equal(parse_query(". foo || 0")[[2]]$op, "IfMissing")
+  expect_equal(parse_query("@ cell : bar ??")[[3]]$op, "IfNot")
+  expect_equal(parse_query("=@ cell")[[1]]$op, "AsAxis")
+})

@@ -50,6 +50,18 @@ parse_query <- function(query_string) {
       ">=" = .parse_cmp(tokens, i, src, .qop_is_greater_equal),
       "~"  = .parse_match_cmp(tokens, i, src, .qop_is_match),
       "!~" = .parse_match_cmp(tokens, i, src, .qop_is_not_match),
+      "@-"  = .parse_cmp(tokens, i, src, .qop_square_row_is),
+      "@|"  = .parse_cmp(tokens, i, src, .qop_square_column_is),
+      ">|"  = .parse_reduction(tokens, i, src, .qop_reduce_to_column),
+      ">-"  = .parse_reduction(tokens, i, src, .qop_reduce_to_row),
+      "/"   = .parse_lookup_like(tokens, i, src, .qop_group_by),
+      "-/"  = .parse_lookup_like(tokens, i, src, .qop_group_rows_by),
+      "|/"  = .parse_lookup_like(tokens, i, src, .qop_group_columns_by),
+      "*"   = .parse_lookup_like(tokens, i, src, .qop_count_by),
+      "%"   = .parse_eltwise(tokens, i, src),
+      "||"  = .parse_if_missing(tokens, i, src),
+      "??"  = .parse_if_not(tokens, i, src),
+      "=@"  = .parse_lookup_like(tokens, i, src, .qop_as_axis),
       stop(sprintf("unexpected operator %s at position %d in query %s",
                    sQuote(tok$value), tok$pos, sQuote(src)), call. = FALSE)
     )
@@ -128,6 +140,72 @@ parse_query <- function(query_string) {
                  tokens[[i]]$pos, sQuote(src)), call. = FALSE)
   }
   list(node = ctor(tokens[[i + 1L]]$value), next_index = i + 2L)
+}
+
+.parse_lookup_like <- function(tokens, i, src, ctor) {
+  if (i + 1L > length(tokens) || tokens[[i + 1L]]$type != "value") {
+    stop(sprintf("expected name after %s at position %d in query %s",
+                 sQuote(tokens[[i]]$value), tokens[[i]]$pos,
+                 sQuote(src)), call. = FALSE)
+  }
+  list(node = ctor(tokens[[i + 1L]]$value), next_index = i + 2L)
+}
+
+.parse_reduction <- function(tokens, i, src, ctor) {
+  if (i + 1L > length(tokens) || tokens[[i + 1L]]$type != "value") {
+    stop(sprintf("expected reduction name after %s at position %d in query %s",
+                 sQuote(tokens[[i]]$value), tokens[[i]]$pos,
+                 sQuote(src)), call. = FALSE)
+  }
+  nxt <- tokens[[i + 1L]]
+  params <- list()
+  j <- i + 2L
+  while (j <= length(tokens) &&
+         tokens[[j]]$type == "value" &&
+         j + 1L <= length(tokens) &&
+         tokens[[j + 1L]]$type == "operator" &&
+         tokens[[j + 1L]]$value == ":") {
+    k <- tokens[[j]]$value
+    if (j + 2L > length(tokens) || tokens[[j + 2L]]$type != "value") break
+    v <- tokens[[j + 2L]]$value
+    params[[k]] <- v
+    j <- j + 3L
+  }
+  list(node = ctor(nxt$value, params = params), next_index = j)
+}
+
+.parse_eltwise <- function(tokens, i, src) {
+  if (i + 1L > length(tokens) || tokens[[i + 1L]]$type != "value") {
+    stop(sprintf("expected eltwise op name after '%%' at position %d in query %s",
+                 tokens[[i]]$pos, sQuote(src)), call. = FALSE)
+  }
+  nxt <- tokens[[i + 1L]]
+  params <- list()
+  j <- i + 2L
+  while (j + 2L <= length(tokens) &&
+         tokens[[j]]$type == "value" &&
+         tokens[[j + 1L]]$type == "operator" &&
+         tokens[[j + 1L]]$value == ":") {
+    params[[tokens[[j]]$value]] <- tokens[[j + 2L]]$value
+    j <- j + 3L
+  }
+  list(node = .qop_eltwise(nxt$value, params = params), next_index = j)
+}
+
+.parse_if_missing <- function(tokens, i, src) {
+  if (i + 1L <= length(tokens) && tokens[[i + 1L]]$type == "value") {
+    list(node = .qop_if_missing(tokens[[i + 1L]]$value), next_index = i + 2L)
+  } else {
+    list(node = .qop_if_missing(NULL), next_index = i + 1L)
+  }
+}
+
+.parse_if_not <- function(tokens, i, src) {
+  if (i + 1L <= length(tokens) && tokens[[i + 1L]]$type == "value") {
+    list(node = .qop_if_not(tokens[[i + 1L]]$value), next_index = i + 2L)
+  } else {
+    list(node = .qop_if_not(NULL), next_index = i + 1L)
+  }
 }
 
 # Match comparators (~, !~) take a regex pattern which may contain operator
