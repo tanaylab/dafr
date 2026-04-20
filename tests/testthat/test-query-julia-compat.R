@@ -11,17 +11,8 @@
 # so comparisons are made on the sorted set of values rather than name-keyed
 # element positions.
 #
-# Known deviations intentionally skipped:
-#
-#   Queries 15 & 16  (`>|` / `>-`):
-#     Julia's `>|` reduces across genes and returns one value per cell (856);
-#     R's `>|` reduces across cells and returns one value per gene (683).
-#     The operators have inverted axis semantics between the two
-#     implementations.  The per-cell and per-gene sum values themselves are
-#     correct in both R and Julia — they are just associated with the opposite
-#     operator symbol.  Comparing fixture[15].value against R's `>|` result
-#     would always fail due to differing lengths and axis names, so these two
-#     queries are skipped with a note rather than hard-failing the suite.
+# All 17 fixture queries are evaluated; reduction axis semantics were corrected
+# in Slice 3 so queries 15 & 16 (`>|` / `>-`) now match Julia's output.
 
 # ---------------------------------------------------------------------------
 # Helpers
@@ -119,16 +110,7 @@ test_that("every fixture query parses and evaluates in R", {
   for (idx in seq_along(fixture)) {
     rec <- fixture[[idx]]
 
-    # --- per-query skip list ------------------------------------------------
-    if (idx %in% c(15L, 16L)) {
-      # `>|` / `>-` have inverted axis semantics between Julia and R.
-      # Julia >| = reduce across genes → one value per cell (856 entries).
-      # R     >| = reduce across cells → one value per gene (683 entries).
-      # The computed values are numerically correct; only the operator-to-axis
-      # mapping is swapped.  Skipping to avoid a bogus length/name mismatch.
-      next
-    }
-    # -----------------------------------------------------------------------
+    # (no per-query skips; >| / >- axis semantics fixed in Slice 3)
 
     r_val <- tryCatch(
       get_query(daf, rec$query),

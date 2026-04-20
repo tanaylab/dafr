@@ -165,6 +165,8 @@ query_result_dimensions <- function(query_string) {
     switch(n$op,
       LookupScalar   = return(0L),
       LookupVector   = return(1L),
+      SquareRowIs    = ,
+      SquareColumnIs = return(1L),
       LookupMatrix   = return(2L),
       ReduceToColumn = , ReduceToRow = return(1L),
       CountBy        = return(2L),

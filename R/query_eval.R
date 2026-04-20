@@ -180,10 +180,13 @@ NULL
        rows_axis = rows, cols_axis = cols)
 }
 .apply_if_not <- function(node, state, daf) {
-  stop("not yet implemented: IfNot", call. = FALSE)
+  # V1: no-op. Slice 4 will implement empty-to-sentinel substitution.
+  state
 }
 .apply_as_axis <- function(node, state, daf) {
-  stop("not yet implemented: AsAxis", call. = FALSE)
+  # V1: identity. Slice 4 will implement vector-value-as-axis-entries
+  # resolution.
+  state
 }
 .apply_begin_mask <- function(node, state, daf) {
   if (!identical(state$kind, "axis")) {
@@ -315,17 +318,21 @@ NULL
   params <- .coerce_params(node$params)
   m <- state$value
   if (identical(node$op, "ReduceToColumn")) {
-    col_names <- colnames(m)
-    if (is.null(col_names)) col_names <- format_axis_array(daf, state$cols_axis)
-    vals <- apply(m, 2L, function(col) do.call(fn, c(list(col), params)))
-    return(list(kind = "vector", axis = state$cols_axis,
-                value = setNames(vals, col_names)))
+    # ReduceToColumn: collapse across columns within each row -> one value per
+    # row, result indexed by rows_axis.  margin = 1L (apply over rows).
+    row_names <- rownames(m)
+    if (is.null(row_names)) row_names <- format_axis_array(daf, state$rows_axis)
+    vals <- apply(m, 1L, function(row) do.call(fn, c(list(row), params)))
+    return(list(kind = "vector", axis = state$rows_axis,
+                value = setNames(vals, row_names)))
   }
-  row_names <- rownames(m)
-  if (is.null(row_names)) row_names <- format_axis_array(daf, state$rows_axis)
-  vals <- apply(m, 1L, function(row) do.call(fn, c(list(row), params)))
-  list(kind = "vector", axis = state$rows_axis,
-       value = setNames(vals, row_names))
+  # ReduceToRow: collapse across rows within each column -> one value per
+  # column, result indexed by cols_axis.  margin = 2L (apply over columns).
+  col_names <- colnames(m)
+  if (is.null(col_names)) col_names <- format_axis_array(daf, state$cols_axis)
+  vals <- apply(m, 2L, function(col) do.call(fn, c(list(col), params)))
+  list(kind = "vector", axis = state$cols_axis,
+       value = setNames(vals, col_names))
 }
 
 .apply_reduction_grouped_vector <- function(node, state, daf) {
@@ -342,37 +349,48 @@ NULL
   params <- .coerce_params(node$params)
   m <- state$value
   if (identical(by, "rows")) {
+    # Rows grouped: split row indices by group label.
+    # ReduceToColumn: for each row-group, reduce across columns within each
+    # surviving row (margin 1), producing a sub-matrix.  Group becomes the
+    # new row dimension; columns are preserved.
     idx <- split(seq_len(nrow(m)), state$pending_row_groups)
     if (identical(node$op, "ReduceToColumn")) {
       out <- sapply(idx, function(i) {
         sub <- m[i, , drop = FALSE]
-        apply(sub, 2L, function(col) do.call(fn, c(list(col), params)))
+        apply(sub, 1L, function(row) do.call(fn, c(list(row), params)))
       })
       return(list(kind = "matrix", value = out,
                   rows_axis = NULL, cols_axis = state$cols_axis))
     }
-    # ReduceToRow on grouped rows: one value per group
+    # ReduceToRow on grouped rows: reduce within each group across rows
+    # (margin 2 = collapse rows within group to per-column value, then
+    # reduce again across columns to get one scalar per group).
     out <- vapply(idx, function(i) {
       sub <- m[i, , drop = FALSE]
-      reduced <- apply(sub, 1L, function(row) do.call(fn, c(list(row), params)))
+      reduced <- apply(sub, 2L, function(col) do.call(fn, c(list(col), params)))
       do.call(fn, c(list(reduced), params))
     }, numeric(1))
     return(list(kind = "vector", axis = NULL, value = out))
   }
-  # by cols
+  # by cols: split column indices by group label.
+  # ReduceToRow: for each col-group, reduce across rows within each
+  # surviving column (margin 2), producing a sub-matrix.  Group becomes
+  # the new column dimension; rows are preserved.
   idx <- split(seq_len(ncol(m)), state$pending_col_groups)
   if (identical(node$op, "ReduceToRow")) {
     out <- sapply(idx, function(j) {
       sub <- m[, j, drop = FALSE]
-      apply(sub, 1L, function(row) do.call(fn, c(list(row), params)))
+      apply(sub, 2L, function(col) do.call(fn, c(list(col), params)))
     })
     return(list(kind = "matrix", value = out,
                 rows_axis = state$rows_axis, cols_axis = NULL))
   }
-  # ReduceToColumn on grouped cols: one value per group
+  # ReduceToColumn on grouped cols: reduce within each group across columns
+  # (margin 1 = collapse columns within group to per-row value, then
+  # reduce again across rows to get one scalar per group).
   out <- vapply(idx, function(j) {
     sub <- m[, j, drop = FALSE]
-    reduced <- apply(sub, 2L, function(col) do.call(fn, c(list(col), params)))
+    reduced <- apply(sub, 1L, function(row) do.call(fn, c(list(row), params)))
     do.call(fn, c(list(reduced), params))
   }, numeric(1))
   list(kind = "vector", axis = NULL, value = out)

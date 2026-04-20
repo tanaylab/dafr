@@ -141,6 +141,11 @@ test_that("query_result_dimensions returns 0/1/2 for scalar/vector/matrix", {
   expect_equal(query_result_dimensions("@ cell @ gene :: UMIs"), 2L)
 })
 
+test_that("query_result_dimensions returns 1 for square slice queries", {
+  expect_equal(query_result_dimensions("@ cell @ gene :: UMIs @- c1"), 1L)
+  expect_equal(query_result_dimensions("@ cell @ gene :: UMIs @| g1"), 1L)
+})
+
 test_that("has_query returns FALSE for missing data", {
   d <- memory_daf(name = "t")
   expect_false(has_query(d, ". organism"))
