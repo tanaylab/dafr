@@ -85,3 +85,68 @@ test_that("kernel_minmax_csc handles fully-populated columns (no implicit zero f
     expect_equal(mx, -2)   # NOT 0
     expect_equal(mn, -5)
 })
+
+# ---------------------------------------------------------------------------
+# Task 3: kernel_var_csc_cpp
+# ---------------------------------------------------------------------------
+
+test_that("kernel_var_csc matches base var (uncorrected) on random sparse input", {
+    skip_if_not_installed("Matrix")
+    set.seed(43)
+    m <- Matrix::rsparsematrix(80L, 60L, density = 0.25, rand.x = rnorm)
+    dense <- as.matrix(m)
+
+    for (axis in c(0L, 1L)) {
+        expected_var <- if (axis == 1L)
+            apply(dense, 2L, function(v) {
+                n <- length(v); mu <- mean(v); sum((v - mu)^2) / n
+            })
+        else
+            apply(dense, 1L, function(v) {
+                n <- length(v); mu <- mean(v); sum((v - mu)^2) / n
+            })
+        got <- dafr:::kernel_var_csc_cpp(
+            m@x, m@i, m@p, nrow(m), ncol(m),
+            axis = axis, variant = "Var", eps = 0, threshold = 1L)
+        expect_equal(got, expected_var, tolerance = 1e-9,
+            info = sprintf("axis=%d", axis))
+
+        got_std <- dafr:::kernel_var_csc_cpp(
+            m@x, m@i, m@p, nrow(m), ncol(m),
+            axis = axis, variant = "Std", eps = 0, threshold = 1L)
+        expect_equal(got_std, sqrt(expected_var), tolerance = 1e-9)
+    }
+})
+
+test_that("kernel_var_csc VarN and StdN match manual computation with eps", {
+    skip_if_not_installed("Matrix")
+    set.seed(44)
+    m <- Matrix::rsparsematrix(50L, 30L, density = 0.3, rand.x = function(n) runif(n, 0.5, 2))
+    dense <- as.matrix(m)
+    eps <- 1e-3
+    means_col <- colMeans(dense)
+    vars_col  <- apply(dense, 2L, function(v) {
+        n <- length(v); mu <- mean(v); sum((v - mu)^2) / n
+    })
+    expect_equal(
+        dafr:::kernel_var_csc_cpp(m@x, m@i, m@p, nrow(m), ncol(m),
+            axis = 1L, variant = "VarN", eps = eps, threshold = 1L),
+        vars_col / (means_col + eps), tolerance = 1e-9)
+    expect_equal(
+        dafr:::kernel_var_csc_cpp(m@x, m@i, m@p, nrow(m), ncol(m),
+            axis = 1L, variant = "StdN", eps = eps, threshold = 1L),
+        sqrt(vars_col) / (means_col + eps), tolerance = 1e-9)
+})
+
+test_that("sparse Var query does not densify (both ReduceToRow and ReduceToColumn)", {
+    skip_if_not_installed("Matrix")
+    m <- Matrix::rsparsematrix(40L, 40L, density = 0.2, rand.x = rnorm)
+    daf <- memory_daf("t")
+    add_axis(daf, "r", paste0("r", seq_len(40L)))
+    add_axis(daf, "c", paste0("c", seq_len(40L)))
+    set_matrix(daf, "r", "c", "x", m)
+    assert_no_densify_during(get_query(daf, "@ r @ c :: x >- Var"))
+    assert_no_densify_during(get_query(daf, "@ r @ c :: x >- Std"))
+    assert_no_densify_during(get_query(daf, "@ r @ c :: x >| Var"))
+    assert_no_densify_during(get_query(daf, "@ r @ c :: x >| Std"))
+})

@@ -540,10 +540,10 @@ NULL
     fn <- get_reduction(node$reduction)
     params <- .coerce_params(node$params)
 
-    # Fast path: bare default reduction (no params, built-in fn) -> vectorised
-    # primitive. Falls through to NULL for unhandled built-ins (e.g. Count).
-    if (isTRUE(dafr_opt("dafr.perf.fast_paths")) && length(params) == 0L) {
-        fast <- .apply_reduction_fast(node, state, fn, daf)
+    # Fast path: built-in reduction -> vectorised primitive. Falls through to
+    # NULL for unhandled built-ins (e.g. Count) or non-sparse/dense matrices.
+    if (isTRUE(dafr_opt("dafr.perf.fast_paths"))) {
+        fast <- .apply_reduction_fast(node, state, fn, params, daf)
         if (!is.null(fast)) return(fast)
     }
 
@@ -552,11 +552,19 @@ NULL
 
 .dafr_kernel_threshold <- function() dafr_opt("dafr.kernel_threshold")
 
-.apply_reduction_fast <- function(node, state, fn, daf) {
+# Extract eps parameter for VarN/StdN reductions. Defaults to 0 when omitted,
+# matching the slow-path default in .op_varn / .op_stdn.
+.param_eps <- function(params) {
+    v <- params[["eps"]] %||% if (length(params) > 0L) params[[1L]] else NULL
+    if (is.null(v)) return(0)
+    as.numeric(v)
+}
+
+.apply_reduction_fast <- function(node, state, fn, params, daf) {
     builtin <- attr(fn, ".dafr_builtin")
     if (is.null(builtin)) return(NULL)
     m <- state$value
-    # Only dgCMatrix has a numeric @x that kernel_minmax_csc_cpp accepts.
+    # Only dgCMatrix has a numeric @x that kernel_*_csc_cpp functions accept.
     # lgCMatrix has a logical @x and must fall through to the dense slow path.
     is_dg <- methods::is(m, "dgCMatrix")
     is_sparse <- is_dg || methods::is(m, "lgCMatrix")
@@ -582,6 +590,42 @@ NULL
                                               threshold = .dafr_kernel_threshold())
                     else if (is_dense) matrixStats::rowMins(m)
                     else return(NULL),
+            Var   = if (is_dg)
+                        kernel_var_csc_cpp(m@x, m@i, m@p, nrow(m), ncol(m),
+                                           axis = 0L, variant = "Var", eps = 0,
+                                           threshold = .dafr_kernel_threshold())
+                    else if (is_dense) rowMeans(m * m) - rowMeans(m)^2
+                    else return(NULL),
+            Std   = if (is_dg)
+                        kernel_var_csc_cpp(m@x, m@i, m@p, nrow(m), ncol(m),
+                                           axis = 0L, variant = "Std", eps = 0,
+                                           threshold = .dafr_kernel_threshold())
+                    else if (is_dense) sqrt(rowMeans(m * m) - rowMeans(m)^2)
+                    else return(NULL),
+            VarN  = {
+                eps <- .param_eps(params)
+                if (is_dg)
+                    kernel_var_csc_cpp(m@x, m@i, m@p, nrow(m), ncol(m),
+                                       axis = 0L, variant = "VarN", eps = eps,
+                                       threshold = .dafr_kernel_threshold())
+                else if (is_dense) {
+                    v <- rowMeans(m * m) - rowMeans(m)^2
+                    mu <- rowMeans(m)
+                    v / (mu + eps)
+                } else return(NULL)
+            },
+            StdN  = {
+                eps <- .param_eps(params)
+                if (is_dg)
+                    kernel_var_csc_cpp(m@x, m@i, m@p, nrow(m), ncol(m),
+                                       axis = 0L, variant = "StdN", eps = eps,
+                                       threshold = .dafr_kernel_threshold())
+                else if (is_dense) {
+                    mu <- rowMeans(m)
+                    s <- sqrt(rowMeans(m * m) - mu^2)
+                    s / (mu + eps)
+                } else return(NULL)
+            },
             return(NULL)
         )
         return(list(
@@ -607,6 +651,42 @@ NULL
                                           threshold = .dafr_kernel_threshold())
                 else if (is_dense) matrixStats::colMins(m)
                 else return(NULL),
+        Var   = if (is_dg)
+                    kernel_var_csc_cpp(m@x, m@i, m@p, nrow(m), ncol(m),
+                                       axis = 1L, variant = "Var", eps = 0,
+                                       threshold = .dafr_kernel_threshold())
+                else if (is_dense) colMeans(m * m) - colMeans(m)^2
+                else return(NULL),
+        Std   = if (is_dg)
+                    kernel_var_csc_cpp(m@x, m@i, m@p, nrow(m), ncol(m),
+                                       axis = 1L, variant = "Std", eps = 0,
+                                       threshold = .dafr_kernel_threshold())
+                else if (is_dense) sqrt(colMeans(m * m) - colMeans(m)^2)
+                else return(NULL),
+        VarN  = {
+            eps <- .param_eps(params)
+            if (is_dg)
+                kernel_var_csc_cpp(m@x, m@i, m@p, nrow(m), ncol(m),
+                                   axis = 1L, variant = "VarN", eps = eps,
+                                   threshold = .dafr_kernel_threshold())
+            else if (is_dense) {
+                v <- colMeans(m * m) - colMeans(m)^2
+                mu <- colMeans(m)
+                v / (mu + eps)
+            } else return(NULL)
+        },
+        StdN  = {
+            eps <- .param_eps(params)
+            if (is_dg)
+                kernel_var_csc_cpp(m@x, m@i, m@p, nrow(m), ncol(m),
+                                   axis = 1L, variant = "StdN", eps = eps,
+                                   threshold = .dafr_kernel_threshold())
+            else if (is_dense) {
+                mu <- colMeans(m)
+                s <- sqrt(colMeans(m * m) - mu^2)
+                s / (mu + eps)
+            } else return(NULL)
+        },
         return(NULL)
     )
     list(

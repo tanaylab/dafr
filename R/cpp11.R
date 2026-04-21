@@ -39,3 +39,7 @@ kernel_log_reduce_csc_cpp <- function(x, i, p, nrow, ncol, eps, base, axis, redu
 kernel_minmax_csc_cpp <- function(x, i, p, nrow, ncol, axis, variant, threshold) {
   .Call(`_dafr_kernel_minmax_csc_cpp`, x, i, p, nrow, ncol, axis, variant, threshold)
 }
+
+kernel_var_csc_cpp <- function(x, i, p, nrow, ncol, axis, variant, eps, threshold) {
+  .Call(`_dafr_kernel_var_csc_cpp`, x, i, p, nrow, ncol, axis, variant, eps, threshold)
+}

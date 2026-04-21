@@ -41,6 +41,28 @@ gates$minmax_sparse <- list(
     mem_ratio_target = 10.0
 )
 
+gates$var_sparse <- list(
+    name = "Var sparse row-reduce (10k x 10k, 5% nnz)",
+    setup = function() make_sparse(),
+    baseline = function(m) apply(m, 1L, var),
+    fast     = function(m) dafr:::kernel_var_csc_cpp(
+        m@x, m@i, m@p, nrow(m), ncol(m), axis = 0L, variant = "Var",
+        eps = 0, threshold = 1024L),
+    ratio_target = 10.0,
+    mem_ratio_target = NA
+)
+gates$var_dense <- list(
+    name = "Var dense row-reduce (5k x 5k)",
+    setup = function() make_dense(),
+    baseline = function(m) apply(m, 1L, var),
+    fast     = function(m) {
+        mu <- rowMeans(m)
+        rowMeans(m * m) - mu^2
+    },
+    ratio_target = 10.0,
+    mem_ratio_target = NA
+)
+
 # --- Runner (wired in Task 15) ---------------------------------------------
 # (Placeholder — replaced in Task 15 with a harness that evaluates every gate.)
 cat("Slice 8 benchmark skeleton.\n",
