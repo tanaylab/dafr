@@ -23,7 +23,8 @@ NULL
             next
         }
         # Lookahead 1: fused Log + Sum/Mean reduction.
-        if (i < n &&
+        if (isTRUE(dafr_opt("dafr.perf.fast_paths")) &&
+            i < n &&
             identical(node$op, "Eltwise") &&
             identical(node$name, "Log") &&
             ast[[i + 1L]]$op %in% c("ReduceToColumn", "ReduceToRow") &&
@@ -418,7 +419,8 @@ NULL
     # eps == 1 with default base (e) is the only Log parameterisation that
     # preserves sparsity; apply log1p in place to @x and keep @i / @p.
     builtin <- attr(fn, ".dafr_builtin")
-    if (identical(builtin, "Log") &&
+    if (isTRUE(dafr_opt("dafr.perf.fast_paths")) &&
+        identical(builtin, "Log") &&
         methods::is(state$value, "dgCMatrix") &&
         isTRUE(all.equal(params$eps %||% 0, 1)) &&
         (is.null(params$base) ||
@@ -453,7 +455,7 @@ NULL
 
     # Fast path: bare default reduction (no params, built-in fn) -> vectorised
     # primitive. Falls through to NULL for unhandled built-ins (e.g. Count).
-    if (length(params) == 0L) {
+    if (isTRUE(dafr_opt("dafr.perf.fast_paths")) && length(params) == 0L) {
         fast <- .apply_reduction_fast(node, state, fn, daf)
         if (!is.null(fast)) return(fast)
     }

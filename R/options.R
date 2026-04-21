@@ -5,7 +5,10 @@
     dafr.mmap            = TRUE,
     dafr.omp_threshold   = 10000L,
     dafr.inefficient     = "warn", # one of "ignore", "warn", "error"
-    dafr.verbose         = FALSE
+    dafr.verbose         = FALSE,
+    # Bench-only: setting to FALSE disables the P2/P3/P4 fast paths so the
+    # benchmark can measure the old slow path on the same build.
+    dafr.perf.fast_paths = TRUE
 )
 
 set_default_options <- function() {
