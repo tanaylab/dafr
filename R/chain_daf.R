@@ -451,6 +451,81 @@ S7::method(
     sort(unique(out), method = "radix")
 }
 
+S7::method(
+    format_add_axis,
+    list(WriteChainDaf, S7::class_character, S7::class_character)
+) <- function(daf, axis, entries) {
+    format_add_axis(.chain_writer(daf), axis, entries)
+}
+
+S7::method(
+    format_delete_axis,
+    list(WriteChainDaf, S7::class_character, S7::class_logical)
+) <- function(daf, axis, must_exist) {
+    earlier <- .chain_dafs(daf)
+    earlier <- earlier[-length(earlier)]
+    for (d in rev(earlier)) {
+        if (format_has_axis(d, axis)) {
+            stop(sprintf(
+                "failed to delete the axis: %s from the daf data: %s of the chain: %s because it exists in the earlier: %s",
+                axis, S7::prop(.chain_writer(daf), "name"),
+                S7::prop(daf, "name"), S7::prop(d, "name")
+            ), call. = FALSE)
+        }
+    }
+    format_delete_axis(.chain_writer(daf), axis, must_exist)
+}
+
+.chain_ensure_axis_on_writer <- function(daf, axis) {
+    writer <- .chain_writer(daf)
+    if (format_has_axis(writer, axis)) return(invisible())
+    earlier <- .chain_dafs(daf)
+    earlier <- earlier[-length(earlier)]
+    for (d in rev(earlier)) {
+        if (format_has_axis(d, axis)) {
+            entries <- format_axis_array(d, axis)
+            format_add_axis(writer, axis, entries)
+            return(invisible())
+        }
+    }
+    stop(sprintf("axis %s does not exist in chain", sQuote(axis)), call. = FALSE)
+}
+
+S7::method(
+    format_set_vector,
+    list(WriteChainDaf, S7::class_character, S7::class_character, S7::class_any, S7::class_logical)
+) <- function(daf, axis, name, vec, overwrite) {
+    .chain_ensure_axis_on_writer(daf, axis)
+    format_set_vector(.chain_writer(daf), axis, name, vec, overwrite)
+}
+
+S7::method(
+    format_delete_vector,
+    list(WriteChainDaf, S7::class_character, S7::class_character, S7::class_logical)
+) <- function(daf, axis, name, must_exist) {
+    earlier <- .chain_dafs(daf)
+    earlier <- earlier[-length(earlier)]
+    for (d in rev(earlier)) {
+        if (format_has_axis(d, axis) && format_has_vector(d, axis, name)) {
+            stop(sprintf(
+                "failed to delete the vector: %s of the axis: %s from the daf data: %s of the chain: %s because it exists in the earlier: %s",
+                name, axis,
+                S7::prop(.chain_writer(daf), "name"),
+                S7::prop(daf, "name"), S7::prop(d, "name")
+            ), call. = FALSE)
+        }
+    }
+    writer <- .chain_writer(daf)
+    if (format_has_axis(writer, axis) && format_has_vector(writer, axis, name)) {
+        format_delete_vector(writer, axis, name, must_exist)
+    } else if (must_exist) {
+        stop(sprintf(
+            "vector %s does not exist on axis %s",
+            sQuote(name), sQuote(axis)
+        ), call. = FALSE)
+    }
+}
+
 .validate_chain_axes <- function(dafs, chain_name) {
     seen <- list()   # axis -> list(daf_name, entries)
     for (d in dafs) {
