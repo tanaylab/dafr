@@ -16,6 +16,9 @@ NULL
 #' @param overwrite Logical scalar; set to `TRUE` to replace an already-
 #'   registered operation.
 #' @return Invisibly `NULL`.
+#' @examples
+#' register_reduction("Median", function(x, ...) median(x, ...), overwrite = TRUE)
+#' registered_reductions()
 #' @export
 register_reduction <- function(name, fn, overwrite = FALSE) {
     .assert_name(name, "reduction name")
@@ -45,6 +48,10 @@ register_reduction <- function(name, fn, overwrite = FALSE) {
 #' @param overwrite Logical scalar; set to `TRUE` to replace an already-
 #'   registered operation.
 #' @return Invisibly `NULL`.
+#' @examples
+#' register_eltwise("Clamp01", function(x, ...) pmin(pmax(x, 0), 1),
+#'                  overwrite = TRUE)
+#' registered_eltwise()
 #' @export
 register_eltwise <- function(name, fn, overwrite = FALSE) {
     .assert_name(name, "eltwise name")
@@ -70,6 +77,9 @@ register_eltwise <- function(name, fn, overwrite = FALSE) {
 #'
 #' @param name Op name (character scalar).
 #' @return The stored function.
+#' @examples
+#' fn <- get_reduction("Sum")
+#' fn(c(1, 2, 3))
 #' @export
 get_reduction <- function(name) {
     fn <- .ops_env$reductions[[name]]
@@ -86,6 +96,9 @@ get_reduction <- function(name) {
 #'
 #' @param name Op name (character scalar).
 #' @return The stored function.
+#' @examples
+#' fn <- get_eltwise("Abs")
+#' fn(c(-1, 2, -3))
 #' @export
 get_eltwise <- function(name) {
     fn <- .ops_env$eltwise[[name]]
@@ -100,6 +113,8 @@ get_eltwise <- function(name) {
 #' Returns the names of all currently registered reduction operations.
 #'
 #' @return Sorted character vector of registered reduction names.
+#' @examples
+#' registered_reductions()
 #' @export
 registered_reductions <- function() sort(names(.ops_env$reductions))
 
@@ -108,6 +123,8 @@ registered_reductions <- function() sort(names(.ops_env$reductions))
 #' Returns the names of all currently registered eltwise operations.
 #'
 #' @return Sorted character vector of registered eltwise names.
+#' @examples
+#' registered_eltwise()
 #' @export
 registered_eltwise <- function() sort(names(.ops_env$eltwise))
 

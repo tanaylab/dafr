@@ -19,3 +19,17 @@ earlier stage (upstream) and \code{right} as the later stage
 accordingly and descriptions must match for overlapping axes /
 properties.
 }
+\examples{
+upstream <- Contract(
+    axes = list(cell = list(RequiredInput, "per-cell axis")),
+    data = list(contract_vector("cell", "donor",
+        RequiredInput, "character", "donor id"))
+)
+downstream <- Contract(
+    axes = list(cell = list(RequiredInput, "per-cell axis")),
+    data = list(contract_vector("cell", "score",
+        CreatedOutput, "numeric", "computed score"))
+)
+merged <- merge_contracts(upstream, downstream)
+length(merged@data)
+}

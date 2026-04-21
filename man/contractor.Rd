@@ -28,3 +28,17 @@ or \code{options(dafr.enforce_contracts = TRUE)}), returns a
 \link{ContractDaf} that tracks access and rejects operations outside
 \code{contract}. Otherwise returns \code{daf} unchanged.
 }
+\examples{
+withr::with_options(list(dafr.enforce_contracts = TRUE), {
+    c <- Contract(
+        axes = list(cell = list(RequiredInput, "per-cell axis")),
+        data = list(contract_vector("cell", "donor",
+            RequiredInput, "character", "donor id"))
+    )
+    d <- memory_daf()
+    add_axis(d, "cell", c("c1", "c2"))
+    set_vector(d, "cell", "donor", c("d1", "d2"))
+    cd <- contractor("demo", c, d)
+    class(cd)[[1]]
+})
+}

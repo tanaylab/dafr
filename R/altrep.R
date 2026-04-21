@@ -11,6 +11,12 @@
 #' @param path Path to the binary file.
 #' @param length Number of elements to map.
 #' @return An ALTREP-backed R vector sharing the file's memory.
+#' @examples
+#' f <- tempfile(fileext = ".bin")
+#' writeBin(c(1.5, 2.5, 3.5), f)
+#' v <- mmap_real(f, 3L)
+#' v[]
+#' unlink(f)
 #' @export
 mmap_real <- function(path, length) {
     stopifnot(file.exists(path), is.numeric(length), length >= 0)

@@ -22,3 +22,19 @@ contract is verified; otherwise the call is a silent no-op.}
 \link{ContractDaf} (i.e. enforcement is disabled). \code{verify_output()}
 additionally fails on unused \code{RequiredInput} properties.
 }
+\examples{
+withr::with_options(list(dafr.enforce_contracts = TRUE), {
+    c <- Contract(
+        axes = list(cell = list(RequiredInput, "per-cell axis")),
+        data = list(contract_vector("cell", "donor",
+            RequiredInput, "character", "donor id"))
+    )
+    d <- memory_daf()
+    add_axis(d, "cell", c("c1", "c2"))
+    set_vector(d, "cell", "donor", c("d1", "d2"))
+    cd <- contractor("demo", c, d)
+    verify_input(cd)
+    get_vector(cd, "cell", "donor")
+    verify_output(cd)
+})
+}

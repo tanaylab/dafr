@@ -12,3 +12,6 @@ Sorted character vector of registered reduction names.
 \description{
 Returns the names of all currently registered reduction operations.
 }
+\examples{
+registered_reductions()
+}

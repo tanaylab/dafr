@@ -16,3 +16,7 @@ The stored function.
 Looks up an eltwise operation previously stored via
 \code{\link[=register_eltwise]{register_eltwise()}}. Raises if the name is not registered.
 }
+\examples{
+fn <- get_eltwise("Abs")
+fn(c(-1, 2, -3))
+}

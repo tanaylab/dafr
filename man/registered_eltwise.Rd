@@ -12,3 +12,6 @@ Sorted character vector of registered eltwise names.
 \description{
 Returns the names of all currently registered eltwise operations.
 }
+\examples{
+registered_eltwise()
+}

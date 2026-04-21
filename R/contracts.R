@@ -102,6 +102,10 @@ Contract <- S7::new_class(
 #' @return A list record with `$kind`, `$name`, `$expectation`, `$type`,
 #'   `$description`, and kind-specific axis fields.
 #' @name contract-entries
+#' @examples
+#' contract_scalar("organism", RequiredInput, "character", "species name")
+#' contract_vector("cell", "donor", RequiredInput, "character", "donor id")
+#' contract_matrix("cell", "gene", "UMIs", RequiredInput, "integer", "UMI counts")
 #' @export
 contract_scalar <- function(name, expectation, type, description) {
     .assert_name(name, "name")
@@ -216,6 +220,19 @@ ContractDaf <- S7::new_class(
 #' @param overwrite If `TRUE`, pre-existing `CreatedOutput` properties
 #'   are allowed.
 #' @return `daf` itself, or a [ContractDaf] wrapping it.
+#' @examples
+#' withr::with_options(list(dafr.enforce_contracts = TRUE), {
+#'     c <- Contract(
+#'         axes = list(cell = list(RequiredInput, "per-cell axis")),
+#'         data = list(contract_vector("cell", "donor",
+#'             RequiredInput, "character", "donor id"))
+#'     )
+#'     d <- memory_daf()
+#'     add_axis(d, "cell", c("c1", "c2"))
+#'     set_vector(d, "cell", "donor", c("d1", "d2"))
+#'     cd <- contractor("demo", c, d)
+#'     class(cd)[[1]]
+#' })
 #' @export
 contractor <- function(computation, contract, daf,
                        name = NULL, overwrite = FALSE) {
@@ -774,6 +791,21 @@ S7::method(
 #' @param daf A [DafReader] — if it is a [ContractDaf], the associated
 #'   contract is verified; otherwise the call is a silent no-op.
 #' @return `invisible()`.
+#' @examples
+#' withr::with_options(list(dafr.enforce_contracts = TRUE), {
+#'     c <- Contract(
+#'         axes = list(cell = list(RequiredInput, "per-cell axis")),
+#'         data = list(contract_vector("cell", "donor",
+#'             RequiredInput, "character", "donor id"))
+#'     )
+#'     d <- memory_daf()
+#'     add_axis(d, "cell", c("c1", "c2"))
+#'     set_vector(d, "cell", "donor", c("d1", "d2"))
+#'     cd <- contractor("demo", c, d)
+#'     verify_input(cd)
+#'     get_vector(cd, "cell", "donor")
+#'     verify_output(cd)
+#' })
 #' @export
 verify_input <- function(daf) {
     if (!S7::S7_inherits(daf, ContractDaf)) return(invisible())
@@ -835,6 +867,19 @@ verify_output <- function(daf) {
 #'
 #' @param left,right Two [Contract()] objects to merge.
 #' @return A new [Contract()] combining `left` and `right`.
+#' @examples
+#' upstream <- Contract(
+#'     axes = list(cell = list(RequiredInput, "per-cell axis")),
+#'     data = list(contract_vector("cell", "donor",
+#'         RequiredInput, "character", "donor id"))
+#' )
+#' downstream <- Contract(
+#'     axes = list(cell = list(RequiredInput, "per-cell axis")),
+#'     data = list(contract_vector("cell", "score",
+#'         CreatedOutput, "numeric", "computed score"))
+#' )
+#' merged <- merge_contracts(upstream, downstream)
+#' length(merged@data)
 #' @export
 merge_contracts <- function(left, right) {
     merged_name <- if (identical(left@name, "")) right@name else

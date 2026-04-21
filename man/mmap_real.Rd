@@ -30,3 +30,10 @@ bytes.
 Length is passed through as \code{double} to accommodate \code{R_xlen_t}; values
 above 2^53 lose precision. Pass only integer-valued doubles.
 }
+\examples{
+f <- tempfile(fileext = ".bin")
+writeBin(c(1.5, 2.5, 3.5), f)
+v <- mmap_real(f, 3L)
+v[]
+unlink(f)
+}

@@ -16,3 +16,7 @@ The stored function.
 Looks up a reduction operation previously stored via
 \code{\link[=register_reduction]{register_reduction()}}. Raises if the name is not registered.
 }
+\examples{
+fn <- get_reduction("Sum")
+fn(c(1, 2, 3))
+}

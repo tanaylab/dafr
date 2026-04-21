@@ -36,3 +36,8 @@ Build records describing a scalar/vector/matrix that a computation
 consumes or produces. Records are stored in the \code{data} slot of a
 \code{\link[=Contract]{Contract()}} and consumed by \code{\link[=contractor]{contractor()}}.
 }
+\examples{
+contract_scalar("organism", RequiredInput, "character", "species name")
+contract_vector("cell", "donor", RequiredInput, "character", "donor id")
+contract_matrix("cell", "gene", "UMIs", RequiredInput, "integer", "UMI counts")
+}

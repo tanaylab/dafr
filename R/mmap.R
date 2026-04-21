@@ -10,6 +10,16 @@
 #' @param dimnames Optional `list(rowname_character, colname_character)`.
 #' @importClassesFrom Matrix dgCMatrix
 #' @importFrom Matrix sparseMatrix
+#' @examples
+#' \donttest{
+#' # Build a tiny CSC matrix: 3x2, 3 non-zeros
+#' x_f <- tempfile(fileext = ".bin"); writeBin(c(1.0, 2.0, 3.0), x_f)
+#' i_f <- tempfile(fileext = ".bin"); writeBin(c(0L, 1L, 2L), i_f)
+#' p_f <- tempfile(fileext = ".bin"); writeBin(c(0L, 2L, 3L), p_f)
+#' m <- mmap_dgCMatrix(x_f, i_f, p_f, nrow = 3L, ncol = 2L, nnz = 3L)
+#' dim(m)
+#' unlink(c(x_f, i_f, p_f))
+#' }
 #' @export
 mmap_dgCMatrix <- function(x_path, i_path, p_path, nrow, ncol, nnz,
                            dimnames = NULL) {

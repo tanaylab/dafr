@@ -22,3 +22,8 @@ Invisibly \code{NULL}.
 Stores a user-defined element-wise function under the given name so that it
 can be retrieved by \code{\link[=get_eltwise]{get_eltwise()}} and invoked during query evaluation.
 }
+\examples{
+register_eltwise("Clamp01", function(x, ...) pmin(pmax(x, 0), 1),
+                 overwrite = TRUE)
+registered_eltwise()
+}
