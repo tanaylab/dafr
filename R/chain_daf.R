@@ -168,6 +168,102 @@ S7::method(format_scalars_set, WriteChainDaf) <- function(daf) {
     sort(unique(out), method = "radix")
 }
 
+S7::method(
+    format_has_axis,
+    list(ReadOnlyChainDaf, S7::class_character)
+) <- function(daf, axis) {
+    for (d in rev(.chain_dafs(daf))) {
+        if (format_has_axis(d, axis)) return(TRUE)
+    }
+    FALSE
+}
+
+S7::method(format_axes_set, ReadOnlyChainDaf) <- function(daf) {
+    out <- character(0)
+    for (d in .chain_dafs(daf)) {
+        out <- c(out, format_axes_set(d))
+    }
+    sort(unique(out), method = "radix")
+}
+
+S7::method(
+    format_axis_array,
+    list(ReadOnlyChainDaf, S7::class_character)
+) <- function(daf, axis) {
+    for (d in rev(.chain_dafs(daf))) {
+        if (format_has_axis(d, axis)) return(format_axis_array(d, axis))
+    }
+    stop(sprintf("axis %s does not exist", sQuote(axis)), call. = FALSE)
+}
+
+S7::method(
+    format_axis_length,
+    list(ReadOnlyChainDaf, S7::class_character)
+) <- function(daf, axis) {
+    for (d in rev(.chain_dafs(daf))) {
+        if (format_has_axis(d, axis)) return(format_axis_length(d, axis))
+    }
+    stop(sprintf("axis %s does not exist", sQuote(axis)), call. = FALSE)
+}
+
+S7::method(
+    format_axis_dict,
+    list(ReadOnlyChainDaf, S7::class_character)
+) <- function(daf, axis) {
+    for (d in rev(.chain_dafs(daf))) {
+        if (format_has_axis(d, axis)) return(format_axis_dict(d, axis))
+    }
+    stop(sprintf("axis %s does not exist", sQuote(axis)), call. = FALSE)
+}
+
+S7::method(
+    format_has_axis,
+    list(WriteChainDaf, S7::class_character)
+) <- function(daf, axis) {
+    for (d in rev(.chain_dafs(daf))) {
+        if (format_has_axis(d, axis)) return(TRUE)
+    }
+    FALSE
+}
+
+S7::method(format_axes_set, WriteChainDaf) <- function(daf) {
+    out <- character(0)
+    for (d in .chain_dafs(daf)) {
+        out <- c(out, format_axes_set(d))
+    }
+    sort(unique(out), method = "radix")
+}
+
+S7::method(
+    format_axis_array,
+    list(WriteChainDaf, S7::class_character)
+) <- function(daf, axis) {
+    for (d in rev(.chain_dafs(daf))) {
+        if (format_has_axis(d, axis)) return(format_axis_array(d, axis))
+    }
+    stop(sprintf("axis %s does not exist", sQuote(axis)), call. = FALSE)
+}
+
+S7::method(
+    format_axis_length,
+    list(WriteChainDaf, S7::class_character)
+) <- function(daf, axis) {
+    for (d in rev(.chain_dafs(daf))) {
+        if (format_has_axis(d, axis)) return(format_axis_length(d, axis))
+    }
+    stop(sprintf("axis %s does not exist", sQuote(axis)), call. = FALSE)
+}
+
+S7::method(
+    format_axis_dict,
+    list(WriteChainDaf, S7::class_character)
+) <- function(daf, axis) {
+    for (d in rev(.chain_dafs(daf))) {
+        if (format_has_axis(d, axis)) return(format_axis_dict(d, axis))
+    }
+    stop(sprintf("axis %s does not exist", sQuote(axis)), call. = FALSE)
+}
+
 .validate_chain_axes <- function(dafs, chain_name) {
     seen <- list()   # axis -> list(daf_name, entries)
     for (d in dafs) {

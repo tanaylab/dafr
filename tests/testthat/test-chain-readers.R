@@ -41,3 +41,34 @@ test_that("chain_reader: scalars_set is union of all dafs", {
     ch <- chain_reader(list(d1, d2), name = "chain")
     expect_setequal(scalars_set(ch), c("a", "b"))
 })
+
+test_that("chain_reader: axis union + entry agreement", {
+    d1 <- memory_daf(name = "one")
+    d2 <- memory_daf(name = "two")
+    add_axis(d1, "cell", c("A", "B"))
+    add_axis(d2, "cell", c("A", "B"))
+    ch <- chain_reader(list(d1, d2), name = "chain")
+    expect_true(has_axis(ch, "cell"))
+    expect_identical(axis_vector(ch, "cell"), c("A", "B"))
+    expect_identical(axis_length(ch, "cell"), 2L)
+})
+
+test_that("chain_reader: axis mismatch raises at construction", {
+    d1 <- memory_daf(name = "one")
+    d2 <- memory_daf(name = "two")
+    add_axis(d1, "cell", c("A", "B"))
+    add_axis(d2, "cell", c("A", "C"))
+    expect_error(chain_reader(list(d1, d2), name = "chain"),
+        "different entry#2: C"
+    )
+})
+
+test_that("chain_reader: axis length mismatch raises at construction", {
+    d1 <- memory_daf(name = "one")
+    d2 <- memory_daf(name = "two")
+    add_axis(d1, "cell", c("A", "B"))
+    add_axis(d2, "cell", c("A"))
+    expect_error(chain_reader(list(d1, d2), name = "chain"),
+        "different number of entries"
+    )
+})
