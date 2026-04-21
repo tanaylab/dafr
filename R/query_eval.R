@@ -343,7 +343,13 @@ NULL
     mode(out) <- mode(lookup_vec)
     out[!empty_mask] <- lookup_vec[indices[!empty_mask]]
 
-    base_entries <- format_axis_array(daf, base_axis)
+    # If a prior hop already dropped rows, pivot_values carries surviving names.
+    # Prefer those over re-fetching the full axis so lengths stay consistent.
+    base_entries <- if (!is.null(names(pivot_values))) {
+        names(pivot_values)
+    } else {
+        format_axis_array(daf, base_axis)
+    }
     if (isTRUE(state$if_not_present)) {
         sentinel <- state$if_not_value
         if (is.null(sentinel)) {

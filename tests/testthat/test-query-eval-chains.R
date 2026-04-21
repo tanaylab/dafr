@@ -89,6 +89,20 @@ test_that("intermediate '??' drops missing rows but does not leak to next hop", 
     )
 })
 
+test_that("'??' at hop 1 drops missing rows; survivors pass through hop 2 correctly", {
+    d <- memory_daf(name = "if-not-drop")
+    add_axis(d, "cell", c("c1", "c2", "c3"))
+    add_axis(d, "donor", c("d1", "d2"))
+    add_axis(d, "lab", c("lA", "lB"))
+    set_vector(d, "cell", "donor", c("d1", "", "d2"))
+    set_vector(d, "donor", "lab", c("lA", "lB"))
+    set_vector(d, "lab", "country", c("IL", "US"))
+
+    out <- get_query(d, "@ cell : donor ?? =@ : lab =@ : country")
+    expect_equal(unname(out), c("IL", "US"))
+    expect_equal(names(out), c("c1", "c3"))
+})
+
 test_that("hop 2 raises when the pivot property names a non-axis", {
     d <- memory_daf(name = "bad-hop")
     add_axis(d, "cell", c("c1", "c2"))
