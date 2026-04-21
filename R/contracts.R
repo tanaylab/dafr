@@ -464,3 +464,261 @@ S7::method(
     .access_matrix(daf, rows_axis, columns_axis, name, is_for_modify = FALSE)
     format_relayout_matrix(S7::prop(daf, "base"), rows_axis, columns_axis, name)
 }
+
+# -- verify_input / verify_output ---------------------------------------
+
+.is_mandatory <- function(expectation, is_for_output) {
+    (is_for_output && expectation == CreatedOutput) ||
+        (!is_for_output && expectation == RequiredInput)
+}
+
+.is_forbidden <- function(expectation, is_for_output, overwrite) {
+    !is_for_output && expectation == CreatedOutput && !overwrite
+}
+
+.direction_name <- function(is_for_output) if (is_for_output) "output" else "input"
+
+.type_ok <- function(value, type_name) {
+    switch(type_name,
+        integer   = is.integer(value),
+        numeric   = is.numeric(value),
+        double    = is.double(value),
+        character = is.character(value),
+        logical   = is.logical(value),
+        # fall back to class check for user-defined types
+        inherits(value, type_name)
+    )
+}
+
+.vector_type_ok <- function(v, type_name) {
+    switch(type_name,
+        integer   = is.integer(v),
+        numeric   = is.numeric(v),
+        double    = is.double(v),
+        character = is.character(v),
+        logical   = is.logical(v),
+        inherits(v, type_name)
+    )
+}
+
+.matrix_type_ok <- function(m, type_name) {
+    eltype_ok <- switch(type_name,
+        integer   = is.integer(m[1L]),
+        numeric   = is.numeric(m[1L]),
+        double    = is.double(m[1L]),
+        logical   = is.logical(m[1L]),
+        inherits(m, type_name)
+    )
+    eltype_ok
+}
+
+.verify_scalar_data <- function(cd, rec, is_for_output) {
+    base <- S7::prop(cd, "base")
+    comp <- S7::prop(cd, "computation")
+    dname <- S7::prop(base, "name")
+    name <- rec$name
+    exists_ <- format_has_scalar(base, name)
+    tracker <- S7::prop(cd, "data")[[.data_key(rec)]]
+    if (!exists_) {
+        if (.is_mandatory(tracker$expectation, is_for_output)) {
+            stop(sprintf(
+                "missing %s scalar: %s with type: %s for the computation: %s on the daf data: %s",
+                .direction_name(is_for_output), name, tracker$type, comp, dname
+            ), call. = FALSE)
+        }
+        return(invisible())
+    }
+    if (.is_forbidden(tracker$expectation, is_for_output, S7::prop(cd, "overwrite"))) {
+        stop(sprintf(
+            "pre-existing %s scalar: %s for the computation: %s on the daf data: %s",
+            tracker$expectation, name, comp, dname
+        ), call. = FALSE)
+    }
+    value <- format_get_scalar(base, name)
+    if (!.type_ok(value, tracker$type)) {
+        stop(sprintf(
+            "unexpected type: %s instead of type: %s for the %s scalar: %s for the computation: %s on the daf data: %s",
+            class(value)[[1L]], tracker$type,
+            .direction_name(is_for_output), name, comp, dname
+        ), call. = FALSE)
+    }
+    invisible()
+}
+
+.verify_vector_data <- function(cd, rec, is_for_output) {
+    base <- S7::prop(cd, "base")
+    comp <- S7::prop(cd, "computation")
+    dname <- S7::prop(base, "name")
+    axis <- rec$axis; name <- rec$name
+    tracker <- S7::prop(cd, "data")[[.data_key(rec)]]
+    exists_ <- format_has_axis(base, axis) && format_has_vector(base, axis, name)
+    if (!exists_) {
+        if (.is_mandatory(tracker$expectation, is_for_output)) {
+            stop(sprintf(
+                "missing %s vector: %s of the axis: %s with element type: %s for the computation: %s on the daf data: %s",
+                .direction_name(is_for_output), name, axis, tracker$type, comp, dname
+            ), call. = FALSE)
+        }
+        return(invisible())
+    }
+    if (.is_forbidden(tracker$expectation, is_for_output, S7::prop(cd, "overwrite"))) {
+        stop(sprintf(
+            "pre-existing %s vector: %s of the axis: %s for the computation: %s on the daf data: %s",
+            tracker$expectation, name, axis, comp, dname
+        ), call. = FALSE)
+    }
+    v <- format_get_vector(base, axis, name)
+    if (!.vector_type_ok(v, tracker$type)) {
+        stop(sprintf(
+            "unexpected type: %s instead of type: %s for the %s vector: %s of the axis: %s for the computation: %s on the daf data: %s",
+            class(v)[[1L]], tracker$type,
+            .direction_name(is_for_output), name, axis, comp, dname
+        ), call. = FALSE)
+    }
+    invisible()
+}
+
+.verify_matrix_data <- function(cd, rec, is_for_output) {
+    base <- S7::prop(cd, "base")
+    comp <- S7::prop(cd, "computation")
+    dname <- S7::prop(base, "name")
+    ra <- rec$rows_axis; ca <- rec$columns_axis; name <- rec$name
+    tracker <- S7::prop(cd, "data")[[.data_key(rec)]]
+    exists_ <- format_has_axis(base, ra) && format_has_axis(base, ca) &&
+        format_has_matrix(base, ra, ca, name)
+    if (!exists_) {
+        if (.is_mandatory(tracker$expectation, is_for_output)) {
+            stop(sprintf(
+                "missing %s matrix: %s of the rows axis: %s and the columns axis: %s with element type: %s for the computation: %s on the daf data: %s",
+                .direction_name(is_for_output), name, ra, ca, tracker$type, comp, dname
+            ), call. = FALSE)
+        }
+        return(invisible())
+    }
+    if (.is_forbidden(tracker$expectation, is_for_output, S7::prop(cd, "overwrite"))) {
+        stop(sprintf(
+            "pre-existing %s matrix: %s of the rows axis: %s and the columns axis: %s for the computation: %s on the daf data: %s",
+            tracker$expectation, name, ra, ca, comp, dname
+        ), call. = FALSE)
+    }
+    m <- format_get_matrix(base, ra, ca, name)
+    if (!.matrix_type_ok(m, tracker$type)) {
+        stop(sprintf(
+            "unexpected type: %s instead of type: %s for the %s matrix: %s of the rows axis: %s and the columns axis: %s for the computation: %s on the daf data: %s",
+            class(m)[[1L]], tracker$type,
+            .direction_name(is_for_output), name, ra, ca, comp, dname
+        ), call. = FALSE)
+    }
+    invisible()
+}
+
+.verify_axis_data <- function(cd, axis, is_for_output) {
+    base <- S7::prop(cd, "base")
+    comp <- S7::prop(cd, "computation")
+    dname <- S7::prop(base, "name")
+    tracker <- S7::prop(cd, "axes")[[axis]]
+    exists_ <- format_has_axis(base, axis)
+    if (!exists_) {
+        if (.is_mandatory(tracker$expectation, is_for_output)) {
+            stop(sprintf(
+                "missing %s axis: %s for the computation: %s on the daf data: %s",
+                .direction_name(is_for_output), axis, comp, dname
+            ), call. = FALSE)
+        }
+        return(invisible())
+    }
+    if (.is_forbidden(tracker$expectation, is_for_output, S7::prop(cd, "overwrite"))) {
+        stop(sprintf(
+            "pre-existing %s axis: %s for the computation: %s on the daf data: %s",
+            tracker$expectation, axis, comp, dname
+        ), call. = FALSE)
+    }
+    invisible()
+}
+
+.verify_access <- function(cd) {
+    base <- S7::prop(cd, "base")
+    comp <- S7::prop(cd, "computation")
+    dname <- S7::prop(base, "name")
+    for (ax in ls(S7::prop(cd, "axes"), all.names = TRUE)) {
+        tracker <- S7::prop(cd, "axes")[[ax]]
+        if (format_has_axis(base, ax) && !tracker$accessed &&
+            identical(tracker$expectation, RequiredInput)) {
+            stop(sprintf(
+                "unused RequiredInput axis: %s of the computation: %s on the daf data: %s",
+                ax, comp, dname
+            ), call. = FALSE)
+        }
+    }
+    for (key in ls(S7::prop(cd, "data"), all.names = TRUE)) {
+        tracker <- S7::prop(cd, "data")[[key]]
+        if (!identical(tracker$expectation, RequiredInput) || tracker$accessed) next
+        parts <- strsplit(key, ":", fixed = TRUE)[[1L]]
+        kind <- parts[[1L]]
+        if (kind == "scalar") {
+            if (format_has_scalar(base, parts[[2L]])) {
+                stop(sprintf(
+                    "unused RequiredInput scalar: %s of the computation: %s on the daf data: %s",
+                    parts[[2L]], comp, dname
+                ), call. = FALSE)
+            }
+        } else if (kind == "vector") {
+            if (format_has_axis(base, parts[[2L]]) &&
+                format_has_vector(base, parts[[2L]], parts[[3L]])) {
+                stop(sprintf(
+                    "unused RequiredInput vector: %s of the axis: %s of the computation: %s on the daf data: %s",
+                    parts[[3L]], parts[[2L]], comp, dname
+                ), call. = FALSE)
+            }
+        } else if (kind == "matrix") {
+            if (format_has_axis(base, parts[[2L]]) &&
+                format_has_axis(base, parts[[3L]]) &&
+                format_has_matrix(base, parts[[2L]], parts[[3L]], parts[[4L]])) {
+                stop(sprintf(
+                    "unused RequiredInput matrix: %s of the rows axis: %s and the columns axis: %s of the computation: %s on the daf data: %s",
+                    parts[[4L]], parts[[2L]], parts[[3L]], comp, dname
+                ), call. = FALSE)
+            }
+        }
+    }
+    invisible()
+}
+
+.verify_contract <- function(cd, is_for_output) {
+    for (ax in ls(S7::prop(cd, "axes"), all.names = TRUE)) {
+        .verify_axis_data(cd, ax, is_for_output)
+    }
+    for (key in ls(S7::prop(cd, "data"), all.names = TRUE)) {
+        # Reconstruct the original record shape for verify_* helpers.
+        parts <- strsplit(key, ":", fixed = TRUE)[[1L]]
+        tracker <- S7::prop(cd, "data")[[key]]
+        rec <- switch(parts[[1L]],
+            scalar = list(kind = "scalar", name = parts[[2L]],
+                          expectation = tracker$expectation, type = tracker$type),
+            vector = list(kind = "vector", axis = parts[[2L]], name = parts[[3L]],
+                          expectation = tracker$expectation, type = tracker$type),
+            matrix = list(kind = "matrix", rows_axis = parts[[2L]],
+                          columns_axis = parts[[3L]], name = parts[[4L]],
+                          expectation = tracker$expectation, type = tracker$type)
+        )
+        switch(rec$kind,
+            scalar = .verify_scalar_data(cd, rec, is_for_output),
+            vector = .verify_vector_data(cd, rec, is_for_output),
+            matrix = .verify_matrix_data(cd, rec, is_for_output)
+        )
+    }
+    if (is_for_output) .verify_access(cd)
+    invisible()
+}
+
+#' @export
+verify_input <- function(daf) {
+    if (!S7::S7_inherits(daf, ContractDaf)) return(invisible())
+    .verify_contract(daf, is_for_output = FALSE)
+}
+
+#' @export
+verify_output <- function(daf) {
+    if (!S7::S7_inherits(daf, ContractDaf)) return(invisible())
+    .verify_contract(daf, is_for_output = TRUE)
+}
