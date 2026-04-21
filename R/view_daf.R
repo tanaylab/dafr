@@ -81,6 +81,8 @@ VIEW_ALL_DATA <- list(VIEW_ALL_SCALARS, VIEW_ALL_VECTORS, VIEW_ALL_MATRICES)
 #' @param view_axes Named list mapping view axis names to query strings.
 #' @param view_axis_renames Named list mapping view axis names to base axis
 #'   names.
+#' @param view_axis_indices Named list mapping view axis names to 1-based integer
+#'   vectors of positions within each base axis that the view exposes.
 #' @param view_scalars Named list mapping view scalar names to query strings.
 #' @param view_vectors Named list mapping `"axis|name"` keys to override specs.
 #' @param view_matrices Named list mapping `"rows|cols|name"` keys to override
@@ -95,6 +97,7 @@ ViewDaf <- S7::new_class(
         base              = DafReader,
         view_axes         = S7::class_list,
         view_axis_renames = S7::class_list,
+        view_axis_indices = S7::class_list,
         view_scalars      = S7::class_list,
         view_vectors      = S7::class_list,
         view_matrices     = S7::class_list
@@ -114,6 +117,7 @@ viewer <- function(daf, name = NULL, axes = NULL, data = NULL) {
     if (is.null(name)) name <- paste0(S7::prop(daf, "name"), ".view")
     view_axes    <- .resolve_view_axes(daf, axes)
     view_renames <- .resolve_view_axis_renames(daf, view_axes)
+    view_indices <- .resolve_view_axis_indices(daf, view_axes, view_renames)
     ViewDaf(
         name                    = name,
         internal                = new_internal_env(),
@@ -124,6 +128,7 @@ viewer <- function(daf, name = NULL, axes = NULL, data = NULL) {
         base                    = daf,
         view_axes               = view_axes,
         view_axis_renames       = view_renames,
+        view_axis_indices       = view_indices,
         view_scalars            = .resolve_view_scalars(daf, data),
         view_vectors            = .resolve_view_vectors(daf, data, view_renames),
         view_matrices           = .resolve_view_matrices(daf, data, view_renames)
@@ -172,6 +177,31 @@ viewer <- function(daf, name = NULL, axes = NULL, data = NULL) {
                 ), call. = FALSE)
             }
             out[[view_name]] <- base_axis
+        }
+    }
+    out
+}
+
+.resolve_view_axis_indices <- function(daf, view_axes, renames) {
+    out <- list()
+    for (view_name in names(view_axes)) {
+        q <- view_axes[[view_name]]
+        base_axis <- renames[[view_name]]
+        base_entries <- format_axis_array(daf, base_axis)
+        if (identical(q, "=") || identical(q, view_name)) {
+            out[[view_name]] <- seq_along(base_entries)
+        } else {
+            view_entries <- get_query(daf, q)
+            idx <- match(view_entries, base_entries)
+            if (anyNA(idx)) {
+                stop(sprintf(
+                    "view axis %s: entry %s not in base axis %s",
+                    sQuote(view_name),
+                    sQuote(view_entries[is.na(idx)][[1L]]),
+                    sQuote(base_axis)
+                ), call. = FALSE)
+            }
+            out[[view_name]] <- idx
         }
     }
     out
@@ -430,14 +460,16 @@ S7::method(
     format_axis_length,
     list(ViewDaf, S7::class_character)
 ) <- function(daf, axis) {
-    length(format_axis_array(daf, axis))
+    length(daf@view_axis_indices[[axis]])
 }
 
 S7::method(
     format_axis_array,
     list(ViewDaf, S7::class_character)
 ) <- function(daf, axis) {
-    get_query(daf@base, .view_query_for_axis(daf, axis))
+    idx <- daf@view_axis_indices[[axis]]
+    base_axis <- daf@view_axis_renames[[axis]]
+    format_axis_array(daf@base, base_axis)[idx]
 }
 
 S7::method(
@@ -468,7 +500,9 @@ S7::method(
             sQuote(name), sQuote(axis)
         ), call. = FALSE)
     }
-    get_query(daf@base, q_str)
+    raw <- get_query(daf@base, q_str)
+    idx <- daf@view_axis_indices[[axis]]
+    raw[idx]
 }
 
 S7::method(
@@ -499,5 +533,8 @@ S7::method(
             sQuote(name), sQuote(rows_axis), sQuote(columns_axis)
         ), call. = FALSE)
     }
-    get_query(daf@base, q_str)
+    raw <- get_query(daf@base, q_str)
+    r_idx <- daf@view_axis_indices[[rows_axis]]
+    c_idx <- daf@view_axis_indices[[columns_axis]]
+    raw[r_idx, c_idx, drop = FALSE]
 }
