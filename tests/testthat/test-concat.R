@@ -98,3 +98,54 @@ test_that("concatenate: duplicate entries without prefix raise", {
     expect_error(concatenate(dest, "cell", list(a, b)),
                  "duplicate entries")
 })
+
+test_that("concatenate: merge=SkipProperty drops a non-axis property", {
+    a <- memory_daf(name = "A"); add_axis(a, "cell", c("a1"))
+    add_axis(a, "cluster", c("c1")); set_vector(a, "cluster", "size", c(5L))
+    b <- memory_daf(name = "B"); add_axis(b, "cell", c("b1"))
+    add_axis(b, "cluster", c("c1")); set_vector(b, "cluster", "size", c(7L))
+    dest <- memory_daf(name = "dest")
+    concatenate(dest, "cell", list(a, b),
+                merge = list("cluster|size" = MERGE_SKIP))
+    expect_false(has_vector(dest, "cluster", "size"))
+})
+
+test_that("concatenate: merge=LastValue scalar uses last source", {
+    a <- memory_daf(name = "A"); add_axis(a, "cell", c("a1"))
+    set_scalar(a, "organism", "mouse")
+    b <- memory_daf(name = "B"); add_axis(b, "cell", c("b1"))
+    set_scalar(b, "organism", "human")
+    dest <- memory_daf(name = "dest")
+    concatenate(dest, "cell", list(a, b),
+                merge = list("organism" = MERGE_LAST_VALUE))
+    expect_identical(get_scalar(dest, "organism"), "human")
+})
+
+test_that("concatenate: merge=CollectAxis scalar creates dataset-axis vector", {
+    a <- memory_daf(name = "A"); add_axis(a, "cell", c("a1"))
+    set_scalar(a, "version", 1L)
+    b <- memory_daf(name = "B"); add_axis(b, "cell", c("b1"))
+    set_scalar(b, "version", 2L)
+    dest <- memory_daf(name = "dest")
+    concatenate(dest, "cell", list(a, b),
+                merge = list("version" = MERGE_COLLECT_AXIS))
+    expect_identical(unname(get_vector(dest, "dataset", "version")),
+                     c(1L, 2L))
+})
+
+test_that("concatenate: merge=CollectAxis for matrix raises", {
+    a <- memory_daf(name = "A"); add_axis(a, "cell", c("a1"))
+    add_axis(a, "cluster", c("c1"))
+    set_matrix(a, "cluster", "cluster", "link",
+               matrix(1, 1, 1, dimnames = list("c1", "c1")))
+    b <- memory_daf(name = "B"); add_axis(b, "cell", c("b1"))
+    add_axis(b, "cluster", c("c1"))
+    set_matrix(b, "cluster", "cluster", "link",
+               matrix(2, 1, 1, dimnames = list("c1", "c1")))
+    dest <- memory_daf(name = "dest")
+    expect_error(
+        concatenate(dest, "cell", list(a, b),
+                    merge = list("cluster|cluster|link" = MERGE_COLLECT_AXIS)),
+        "CollectAxis for a matrix"
+    )
+})
