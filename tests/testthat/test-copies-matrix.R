@@ -57,3 +57,57 @@ test_that("copy_matrix: overwrite replaces destination matrix", {
                 overwrite = TRUE, relayout = FALSE)
     expect_equal(as.numeric(get_matrix(dest, "cell", "gene", "UMIs")), 1)
 })
+
+test_that("copy_matrix: destination rows subset — extracts rows", {
+    src <- memory_daf(name = "src")
+    add_axis(src, "cell", c("c1", "c2", "c3"))
+    add_axis(src, "gene", c("g1", "g2"))
+    set_matrix(src, "cell", "gene", "UMIs", matrix(1:6, 3, 2,
+               dimnames = list(c("c1","c2","c3"), c("g1","g2"))))
+    dest <- memory_daf(name = "dest")
+    add_axis(dest, "cell", c("c1", "c3"))
+    add_axis(dest, "gene", c("g1", "g2"))
+
+    copy_matrix(dest, src, "cell", "gene", "UMIs", relayout = FALSE)
+    expect_equal(as.matrix(get_matrix(dest, "cell", "gene", "UMIs")),
+                 matrix(c(1,3,4,6), 2, 2,
+                        dimnames = list(c("c1","c3"), c("g1","g2"))))
+})
+
+test_that("copy_matrix: source rows subset — requires empty; then fills", {
+    src <- memory_daf(name = "src")
+    add_axis(src, "cell", c("c1", "c2"))
+    add_axis(src, "gene", c("g1", "g2"))
+    set_matrix(src, "cell", "gene", "UMIs", matrix(1:4, 2, 2,
+               dimnames = list(c("c1","c2"), c("g1","g2"))))
+    dest <- memory_daf(name = "dest")
+    add_axis(dest, "cell", c("c1", "c2", "c3"))
+    add_axis(dest, "gene", c("g1", "g2"))
+
+    expect_error(
+        copy_matrix(dest, src, "cell", "gene", "UMIs", relayout = FALSE),
+        "missing entries"
+    )
+    copy_matrix(dest, src, "cell", "gene", "UMIs",
+                empty = -1, relayout = FALSE)
+    expect_equal(as.matrix(get_matrix(dest, "cell", "gene", "UMIs")),
+                 matrix(c(1,2,-1, 3,4,-1), 3, 2,
+                        dimnames = list(c("c1","c2","c3"), c("g1","g2"))))
+})
+
+test_that("copy_matrix: source cols subset — fills with empty", {
+    src <- memory_daf(name = "src")
+    add_axis(src, "cell", c("c1", "c2"))
+    add_axis(src, "gene", c("g1"))
+    set_matrix(src, "cell", "gene", "UMIs", matrix(1:2, 2, 1,
+               dimnames = list(c("c1","c2"), "g1")))
+    dest <- memory_daf(name = "dest")
+    add_axis(dest, "cell", c("c1", "c2"))
+    add_axis(dest, "gene", c("g1", "g2"))
+
+    copy_matrix(dest, src, "cell", "gene", "UMIs",
+                empty = 0, relayout = FALSE)
+    expect_equal(as.matrix(get_matrix(dest, "cell", "gene", "UMIs")),
+                 matrix(c(1,2,0,0), 2, 2,
+                        dimnames = list(c("c1","c2"), c("g1","g2"))))
+})
