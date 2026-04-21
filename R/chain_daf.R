@@ -110,6 +110,64 @@ chain_writer <- function(dafs, name = NULL) {
     )
 }
 
+.chain_dafs <- function(daf) S7::prop(daf, "dafs")
+
+S7::method(
+    format_has_scalar,
+    list(ReadOnlyChainDaf, S7::class_character)
+) <- function(daf, name) {
+    for (d in rev(.chain_dafs(daf))) {
+        if (format_has_scalar(d, name)) return(TRUE)
+    }
+    FALSE
+}
+
+S7::method(
+    format_get_scalar,
+    list(ReadOnlyChainDaf, S7::class_character)
+) <- function(daf, name) {
+    for (d in rev(.chain_dafs(daf))) {
+        if (format_has_scalar(d, name)) return(format_get_scalar(d, name))
+    }
+    stop(sprintf("scalar %s does not exist", sQuote(name)), call. = FALSE)
+}
+
+S7::method(format_scalars_set, ReadOnlyChainDaf) <- function(daf) {
+    out <- character(0)
+    for (d in .chain_dafs(daf)) {
+        out <- c(out, format_scalars_set(d))
+    }
+    sort(unique(out), method = "radix")
+}
+
+S7::method(
+    format_has_scalar,
+    list(WriteChainDaf, S7::class_character)
+) <- function(daf, name) {
+    for (d in rev(.chain_dafs(daf))) {
+        if (format_has_scalar(d, name)) return(TRUE)
+    }
+    FALSE
+}
+
+S7::method(
+    format_get_scalar,
+    list(WriteChainDaf, S7::class_character)
+) <- function(daf, name) {
+    for (d in rev(.chain_dafs(daf))) {
+        if (format_has_scalar(d, name)) return(format_get_scalar(d, name))
+    }
+    stop(sprintf("scalar %s does not exist", sQuote(name)), call. = FALSE)
+}
+
+S7::method(format_scalars_set, WriteChainDaf) <- function(daf) {
+    out <- character(0)
+    for (d in .chain_dafs(daf)) {
+        out <- c(out, format_scalars_set(d))
+    }
+    sort(unique(out), method = "radix")
+}
+
 .validate_chain_axes <- function(dafs, chain_name) {
     seen <- list()   # axis -> list(daf_name, entries)
     for (d in dafs) {
