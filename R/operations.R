@@ -266,6 +266,24 @@ registered_eltwise <- function() sort(names(.ops_env$eltwise))
     .significant_vec(x, high, low)
 }
 
+.var_uncorrected <- function(x, na_rm) {
+    if (na_rm) x <- x[!is.na(x)]
+    n <- length(x)
+    if (n == 0L) return(NA_real_)
+    if (anyNA(x)) return(NA_real_)
+    mu <- sum(x) / n
+    sum((x - mu)^2) / n
+}
+
+.op_var <- function(x, ..., na_rm = FALSE) {
+    .var_uncorrected(as.numeric(x), isTRUE(na_rm))
+}
+
+.op_std <- function(x, ..., na_rm = FALSE) {
+    v <- .var_uncorrected(as.numeric(x), isTRUE(na_rm))
+    if (is.na(v)) v else sqrt(v)
+}
+
 attr(.op_sum, ".dafr_builtin") <- "Sum"
 attr(.op_mean, ".dafr_builtin") <- "Mean"
 attr(.op_max, ".dafr_builtin") <- "Max"
@@ -280,6 +298,8 @@ attr(.op_clamp, ".dafr_builtin") <- "Clamp"
 attr(.op_convert, ".dafr_builtin") <- "Convert"
 attr(.op_fraction, ".dafr_builtin") <- "Fraction"
 attr(.op_significant, ".dafr_builtin") <- "Significant"
+attr(.op_var, ".dafr_builtin") <- "Var"
+attr(.op_std, ".dafr_builtin") <- "Std"
 
 .register_default_ops <- function() {
     register_reduction("Sum", .op_sum, overwrite = TRUE)
@@ -287,6 +307,8 @@ attr(.op_significant, ".dafr_builtin") <- "Significant"
     register_reduction("Max", .op_max, overwrite = TRUE)
     register_reduction("Min", .op_min, overwrite = TRUE)
     register_reduction("Count", .op_count, overwrite = TRUE)
+    register_reduction("Var", .op_var, overwrite = TRUE)
+    register_reduction("Std", .op_std, overwrite = TRUE)
 
     register_eltwise("Log", .op_log, overwrite = TRUE)
     register_eltwise("Abs", .op_abs, overwrite = TRUE)
