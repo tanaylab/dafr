@@ -124,6 +124,117 @@ copy_axis <- function(destination, source, axis,
     invisible(destination)
 }
 
+# Coerce a vector to a specified R storage type.
+.cast_vector_type <- function(vec, type) {
+    if (is.null(type)) return(vec)
+    switch(type,
+        logical   = as.logical(vec),
+        integer   = as.integer(vec),
+        double    = ,
+        numeric   = as.numeric(vec),
+        character = as.character(vec),
+        stop(sprintf("unsupported vector type: %s", type), call. = FALSE)
+    )
+}
+
+#' Copy a vector from one daf to another.
+#'
+#' Mirrors Julia `copy_vector!(; destination, source, axis, name, reaxis,
+#' rename, eltype, default, empty, overwrite, insist)`.
+#'
+#' @param destination A `DafWriter`.
+#' @param source A `DafReader`.
+#' @param axis Axis name in `source`.
+#' @param name Vector name in `source`.
+#' @param rename If non-NULL, store under this name in `destination`.
+#' @param reaxis If non-NULL, store on this (already-existing) destination axis.
+#' @param type If non-NULL, coerce to this storage type string.
+#' @param default If unspecified, missing source raises. If `NULL`, missing
+#'   source silently skips. Else, a scalar (filled into every entry) or
+#'   vector used when source is absent.
+#' @param empty Value filled for destination-axis entries not present in the
+#'   source axis (required when source axis is a subset of destination).
+#' @param overwrite,insist See [copy_scalar()].
+#' @return Invisibly, the destination.
+#' @export
+#' @examples
+#' src <- memory_daf(name = "src")
+#' add_axis(src, "cell", c("c1", "c2"))
+#' set_vector(src, "cell", "age", c(10L, 20L))
+#' dest <- memory_daf(name = "dest")
+#' add_axis(dest, "cell", c("c1", "c2"))
+#' copy_vector(dest, src, "cell", "age")
+copy_vector <- function(destination, source, axis, name,
+                        rename = NULL, reaxis = NULL, type = NULL,
+                        default = .DAFR_UNDEF, empty = NULL,
+                        overwrite = FALSE, insist = TRUE) {
+    .assert_name(axis, "axis")
+    .assert_name(name, "name")
+    if (!is.null(rename)) .assert_name(rename, "rename")
+    if (!is.null(reaxis)) .assert_name(reaxis, "reaxis")
+    .assert_flag(overwrite, "overwrite")
+    .assert_flag(insist, "insist")
+    final_axis <- if (is.null(reaxis)) axis else reaxis
+    final_name <- if (is.null(rename)) name else rename
+
+    if (!format_has_axis(destination, final_axis)) {
+        stop(sprintf("missing axis: %s in the destination daf data: %s",
+                     sQuote(final_axis), S7::prop(destination, "name")),
+             call. = FALSE)
+    }
+    if (format_has_vector(destination, final_axis, final_name) && !overwrite) {
+        if (insist) {
+            stop(sprintf("vector %s already exists on axis %s in destination",
+                         sQuote(final_name), sQuote(final_axis)),
+                 call. = FALSE)
+        }
+        return(invisible(destination))
+    }
+
+    # Fetch source value or resolve default.
+    if (format_has_vector(source, axis, name)) {
+        value <- format_get_vector(source, axis, name)
+    } else if (.is_undef(default)) {
+        stop(sprintf(
+            "missing vector: %s for the axis: %s in the daf data: %s",
+            sQuote(name), sQuote(axis), S7::prop(source, "name")
+        ), call. = FALSE)
+    } else if (is.null(default)) {
+        return(invisible(destination))
+    } else {
+        # Expand scalar default to the full source-axis length; vector
+        # defaults are used as-is.
+        src_len <- format_axis_length(source, axis)
+        value <- if (length(default) == 1L) rep(default, src_len) else default
+    }
+
+    relation <- .verify_axis_relation(source, axis, destination, final_axis)
+    dest_entries <- format_axis_array(destination, final_axis)
+
+    if (identical(relation, "same")) {
+        out <- value
+    } else if (identical(relation, "destination_is_subset")) {
+        src_entries <- format_axis_array(source, axis)
+        idx <- match(dest_entries, src_entries)
+        out <- value[idx]
+    } else if (identical(relation, "source_is_subset")) {
+        if (is.null(empty)) {
+            stop(sprintf(
+                "missing entries in the axis: %s of the source daf %s which are needed for copying the vector: %s; supply `empty` to fill them",
+                sQuote(axis), S7::prop(source, "name"), sQuote(name)
+            ), call. = FALSE)
+        }
+        src_entries <- format_axis_array(source, axis)
+        out <- rep(empty, length(dest_entries))
+        idx <- match(src_entries, dest_entries)
+        out[idx] <- value
+    }
+    out <- .cast_vector_type(out, type)
+    format_set_vector(destination, final_axis, final_name, out,
+                      overwrite = overwrite)
+    invisible(destination)
+}
+
 # Detect the relation between a source axis and a destination axis.
 # Returns one of: "same", "destination_is_subset", "source_is_subset".
 # Raises for disjoint / partially-overlapping (non-subset) axes.
