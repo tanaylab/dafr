@@ -111,3 +111,27 @@ test_that("copy_matrix: source cols subset — fills with empty", {
                  matrix(c(1,2,0,0), 2, 2,
                         dimnames = list(c("c1","c2"), c("g1","g2"))))
 })
+
+test_that("copy_matrix: sparse source + source-is-subset + empty=0 stays sparse", {
+    skip_if_not_installed("Matrix")
+    src <- memory_daf(name = "src")
+    add_axis(src, "cell", c("c1", "c2"))
+    add_axis(src, "gene", c("g1", "g2"))
+    m_sp <- Matrix::sparseMatrix(
+        i = c(1L, 2L), j = c(1L, 2L), x = c(10, 20),
+        dims = c(2L, 2L),
+        dimnames = list(c("c1","c2"), c("g1","g2"))
+    )
+    set_matrix(src, "cell", "gene", "UMIs", m_sp)
+
+    dest <- memory_daf(name = "dest")
+    add_axis(dest, "cell", c("c1", "c2", "c3"))
+    add_axis(dest, "gene", c("g1", "g2"))
+
+    copy_matrix(dest, src, "cell", "gene", "UMIs",
+                empty = 0, relayout = FALSE)
+    result <- format_get_matrix(dest, "cell", "gene", "UMIs")
+    expect_s4_class(result, "dgCMatrix")
+    expect_equal(unname(as.matrix(result)),
+                 matrix(c(10,0,0, 0,20,0), 3, 2))
+})
