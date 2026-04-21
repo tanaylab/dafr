@@ -52,10 +52,9 @@ test_that(".cast_matrix: values > 65535 stay double", {
     expect_type(result, "double")
 })
 
-test_that(".load_axis_file / .load_vector_file / .load_matrix_file filter by which", {
+test_that(".load_axis_file respects the cells/metacells/shared kind filter", {
     cells_daf <- memory_daf(name = "cells-filter-test")
     meta_daf <- memory_daf(name = "meta-filter-test")
-    both_daf <- memory_daf(name = "both-filter-test")
     dir <- dafr:::.example_data_dir()
 
     # mc.cell.txt should load for both "c" and "m" (mc contains both)

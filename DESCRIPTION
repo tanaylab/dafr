@@ -34,6 +34,7 @@ Suggests:
     bench,
     knitr,
     rmarkdown,
+    rprojroot,
     scran,
     Seurat,
     SingleCellExperiment,
@@ -55,12 +56,14 @@ Collate:
     'contracts.R'
     'cpp11.R'
     'dafr-package.R'
+    'writers.R'
+    'memory_daf.R'
+    'example_data.R'
     'files_daf.R'
     'files_io.R'
     'files_daf_read.R'
     'files_daf_write.R'
     'handlers.R'
-    'memory_daf.R'
     'mmap.R'
     'operations.R'
     'options.R'
@@ -71,6 +74,4 @@ Collate:
     'queries.R'
     'readers.R'
     'view_daf.R'
-    'writers.R'
-    'example_data.R'
     'zzz.R'

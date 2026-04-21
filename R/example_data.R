@@ -21,8 +21,9 @@ NULL
     if (anyNA(num)) {
         return(strs)
     }
-    if (all(num == as.integer(num)) && all(!is.na(suppressWarnings(as.integer(num))))) {
-        return(as.integer(num))
+    int_v <- suppressWarnings(as.integer(num))
+    if (all(!is.na(int_v) & num == int_v)) {
+        return(int_v)
     }
     num
 }
