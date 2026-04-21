@@ -214,6 +214,9 @@ NULL
 # can route but callers get clear feedback on what's not yet implemented.
 
 .apply_lookup_vector <- function(node, state, daf) {
+    if (identical(state$kind, "vector_axis")) {
+        return(.apply_chained_lookup_vector(node, state, daf))
+    }
     if (!identical(state$kind, "axis")) {
         stop(sprintf("':' requires an axis in scope (got %s)", state$kind),
             call. = FALSE
@@ -233,7 +236,8 @@ NULL
                     state$if_missing,
                     format_axis_length(daf, axis)
                 ),
-                axis = axis
+                axis = axis,
+                property = node$name
             ))
         }
         stop(sprintf(
@@ -244,7 +248,8 @@ NULL
     list(
         kind = "vector",
         value = format_get_vector(daf, axis, node$name),
-        axis = axis
+        axis = axis,
+        property = node$name
     )
 }
 
@@ -296,9 +301,72 @@ NULL
     state
 }
 .apply_as_axis <- function(node, state, daf) {
-    # V1: identity. Slice 4 will implement vector-value-as-axis-entries
-    # resolution.
+    if (!identical(state$kind, "vector")) {
+        stop("'=@' requires a vector in scope", call. = FALSE)
+    }
+    target_axis <- node$axis_name # NULL for bare, character scalar for explicit
+    state$chain_target_axis <- target_axis
+    state$kind <- "vector_axis"
     state
+}
+
+.apply_chained_lookup_vector <- function(node, state, daf) {
+    # state$value: vector of length = axis_length(base_axis); entries are
+    # names of chain_target_axis. Look up node$name on chain_target_axis,
+    # index by pivot_values. Missing / empty pivot values either drop
+    # rows (bare IfNot) or substitute the IfNot sentinel.
+    base_axis <- state$axis
+    pivot_values <- state$value
+    target_axis <- state$chain_target_axis
+    if (is.null(target_axis)) {
+        # Bare '=@': infer target axis from pivot vector's property name.
+        target_axis <- state$property
+        if (is.null(target_axis)) {
+            stop("bare '=@' requires a named vector lookup before it",
+                call. = FALSE
+            )
+        }
+    }
+    if (!format_has_axis(daf, target_axis)) {
+        stop(sprintf(
+            "AsAxis target axis %s does not exist",
+            sQuote(target_axis)
+        ), call. = FALSE)
+    }
+    lookup_vec <- format_get_vector(daf, target_axis, node$name)
+    target_entries <- format_axis_array(daf, target_axis)
+    indices <- match(pivot_values, target_entries)
+
+    empty_mask <- is.na(indices) |
+        (is.character(pivot_values) & !nzchar(pivot_values))
+    out <- rep(NA, length(pivot_values))
+    mode(out) <- mode(lookup_vec)
+    out[!empty_mask] <- lookup_vec[indices[!empty_mask]]
+
+    base_entries <- format_axis_array(daf, base_axis)
+    if (isTRUE(state$if_not_present)) {
+        sentinel <- state$if_not_value
+        if (is.null(sentinel)) {
+            keep <- !empty_mask
+            out <- out[keep]
+            base_entries <- base_entries[keep]
+        } else {
+            sentinel_typed <- methods::as(sentinel, class(lookup_vec)[[1L]])
+            out[empty_mask] <- sentinel_typed
+        }
+    } else {
+        if (any(empty_mask)) {
+            stop(
+                sprintf(
+                    "chain lookup on axis %s has %d empty pivot values and no '??' sentinel",
+                    sQuote(base_axis), sum(empty_mask)
+                ),
+                call. = FALSE
+            )
+        }
+    }
+    names(out) <- base_entries
+    list(kind = "vector", value = out, axis = base_axis)
 }
 .apply_begin_mask <- function(node, state, daf) {
     if (!identical(state$kind, "axis")) {

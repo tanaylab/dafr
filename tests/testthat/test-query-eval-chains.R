@@ -1,8 +1,32 @@
-test_that("IfNot stores sentinel on evaluator state for downstream chain lookup", {
-    # Parsing / canonicalisation of IfNot already worked in Slice 3; this
-    # test establishes the file that F4 will overwrite with the full
-    # IfNot+AsAxis integration tests. F3 itself only captures the
-    # sentinel on state; F4 consumes it.
-    canon <- canonical_query('@ cell : metacell ?? "UNK" =@ type')
-    expect_match(canon, "metacell \\?\\? UNK =@ type")
+test_that("AsAxis drop: @ A : v =@ : w drops empty-value rows when IfNot bare", {
+    d <- memory_daf(name = "base")
+    add_axis(d, "cell", c("C1", "C2", "C3"))
+    add_axis(d, "metacell", c("M1", "M2"))
+    set_vector(d, "cell", "metacell", c("M1", "", "M2"))
+    set_vector(d, "metacell", "type", c("T1", "T2"))
+    result <- get_query(d, "@ cell : metacell ?? =@ : type")
+    expect_identical(as.character(result), c("T1", "T2"))
+    expect_identical(names(result), c("C1", "C3"))
+})
+
+test_that("AsAxis default: @ A : v ?? X =@ : w substitutes X for empty rows", {
+    d <- memory_daf(name = "base")
+    add_axis(d, "cell", c("C1", "C2", "C3"))
+    add_axis(d, "metacell", c("M1", "M2"))
+    set_vector(d, "cell", "metacell", c("M1", "", "M2"))
+    set_vector(d, "metacell", "type", c("T1", "T2"))
+    result <- get_query(d, '@ cell : metacell ?? "UNK" =@ : type')
+    expect_identical(as.character(result), c("T1", "UNK", "T2"))
+    expect_identical(names(result), c("C1", "C2", "C3"))
+})
+
+test_that("AsAxis with explicit target: @ A : v =@ B : w", {
+    d <- memory_daf(name = "base")
+    add_axis(d, "cell", c("C1", "C2"))
+    add_axis(d, "batch", c("B1", "B2"))
+    set_vector(d, "cell", "origin", c("B1", "B2"))
+    set_vector(d, "batch", "year", c(2023L, 2024L))
+    result <- get_query(d, "@ cell : origin =@ batch : year")
+    expect_identical(as.integer(result), c(2023L, 2024L))
+    expect_identical(names(result), c("C1", "C2"))
 })

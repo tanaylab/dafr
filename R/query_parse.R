@@ -63,7 +63,7 @@ parse_query <- function(query_string) {
             "%" = .parse_eltwise(tokens, i, src),
             "||" = .parse_if_missing(tokens, i, src),
             "??" = .parse_if_not(tokens, i, src),
-            "=@" = .parse_lookup_like(tokens, i, src, .qop_as_axis),
+            "=@" = .parse_as_axis(tokens, i, src),
             stop(sprintf(
                 "unexpected operator %s at position %d in query %s",
                 sQuote(tok$value), tok$pos, sQuote(src)
@@ -190,6 +190,16 @@ parse_query <- function(query_string) {
         ), call. = FALSE)
     }
     list(node = ctor(tokens[[i + 1L]]$value), next_index = i + 2L)
+}
+
+.parse_as_axis <- function(tokens, i, src) {
+    # =@ is parsed as bare when not followed by a value token, or
+    # =@ <name> when explicit.
+    if (i + 1L <= length(tokens) && tokens[[i + 1L]]$type == "value") {
+        list(node = .qop_as_axis(tokens[[i + 1L]]$value), next_index = i + 2L)
+    } else {
+        list(node = .qop_as_axis(NULL), next_index = i + 1L)
+    }
 }
 
 .parse_reduction <- function(tokens, i, src, ctor) {

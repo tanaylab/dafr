@@ -28,7 +28,7 @@ NULL
     switch(n$op,
         Names = "?",
         Axis = paste0("@ ", .escape_value(n$axis_name)),
-        AsAxis = paste0("=@ ", .escape_value(n$axis_name)),
+        AsAxis = if (is.null(n$axis_name)) "=@" else paste0("=@ ", .escape_value(n$axis_name)),
         IfMissing = paste0("|| ", .escape_value(format(n$default))),
         IfNot = if (is.null(n$value)) "??" else paste0("?? ", .escape_value(format(n$value))),
         LookupScalar = if (is.null(n$name)) "." else paste0(". ", .escape_value(n$name)),
