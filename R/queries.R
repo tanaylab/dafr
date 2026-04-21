@@ -9,6 +9,10 @@ NULL
 #' @param daf A `DafReader`.
 #' @param query_string A query string.
 #' @return A scalar, vector, matrix, names set, or NULL if missing.
+#' @examples
+#' d <- example_cells_daf()
+#' get_query(d, ". organism")
+#' head(get_query(d, "@ cell : donor"))
 #' @export
 get_query <- function(daf, query_string) {
     ast <- parse_query(query_string)
@@ -140,6 +144,8 @@ get_query <- function(daf, query_string) {
 #' Canonicalise a query string.
 #' @inheritParams get_query
 #' @return The canonical query string (stable form; suitable for use as cache key).
+#' @examples
+#' canonical_query("@ cell : donor")
 #' @export
 canonical_query <- function(query_string) {
     .canonicalise_ast(parse_query(query_string))
@@ -148,6 +154,9 @@ canonical_query <- function(query_string) {
 #' Test whether a query yields an axis entry vector.
 #' @inheritParams get_query
 #' @return Logical scalar.
+#' @examples
+#' is_axis_query("@ cell")
+#' is_axis_query(". organism")
 #' @export
 is_axis_query <- function(query_string) {
     ast <- parse_query(query_string)
@@ -162,6 +171,9 @@ is_axis_query <- function(query_string) {
 #' @inheritParams get_query
 #' @return A single axis name, or `NA_character_` if the query references
 #'   0 or 2+ axes.
+#' @examples
+#' query_axis_name("@ cell : donor")
+#' query_axis_name(". organism")
 #' @export
 query_axis_name <- function(query_string) {
     ast <- parse_query(query_string)
@@ -176,6 +188,10 @@ query_axis_name <- function(query_string) {
 #' @inheritParams get_query
 #' @return 0L (scalar), 1L (vector / axis entries), 2L (matrix), or
 #'   `NA_integer_` if the query is ill-formed.
+#' @examples
+#' query_result_dimensions(". organism")
+#' query_result_dimensions("@ cell : donor")
+#' query_result_dimensions("@ cell @ gene :: UMIs")
 #' @export
 query_result_dimensions <- function(query_string) {
     ast <- parse_query(query_string)
@@ -200,6 +216,10 @@ query_result_dimensions <- function(query_string) {
 #' @inheritParams get_query
 #' @return Logical scalar. TRUE if `get_query(daf, query_string)` would
 #'   succeed with a non-empty result; FALSE otherwise.
+#' @examples
+#' d <- example_cells_daf()
+#' has_query(d, "@ cell : donor")
+#' has_query(d, "@ cell : nonexistent_property")
 #' @export
 has_query <- function(daf, query_string) {
     result <- tryCatch(get_query(daf, query_string), error = function(e) NULL)
@@ -222,6 +242,10 @@ has_query <- function(daf, query_string) {
 #' @param columns Optional character vector of vector names. Default: all
 #'   vectors for the axis.
 #' @return A data.frame with one column per vector, rows named by axis entries.
+#' @examples
+#' d <- example_cells_daf()
+#' df <- get_frame(d, "@ donor", columns = c("age"))
+#' head(df)
 #' @export
 get_frame <- function(daf, axis_query, columns = NULL) {
     axis_ast <- parse_query(axis_query)

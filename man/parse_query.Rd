@@ -15,3 +15,8 @@ A list of AST node records.
 \description{
 Parse a query string into an AST (list of \code{qop} nodes).
 }
+\examples{
+ast <- parse_query("@ cell : donor")
+length(ast)
+ast[[1]]$op
+}

@@ -27,3 +27,11 @@ A \code{Daf} store backed by a directory of small self-describing files,
 bidirectionally compatible with Julia's \code{DataAxesFormats.FilesDaf}.
 Writes are non-atomic; only one writer may touch a store at a time.
 }
+\examples{
+path <- tempfile("dafr-example-")
+d <- files_daf(path, mode = "w")
+add_axis(d, "cell", c("c1", "c2"))
+set_scalar(d, "organism", "human")
+rm(d)
+unlink(path, recursive = TRUE)
+}

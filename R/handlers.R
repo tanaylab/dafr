@@ -8,6 +8,9 @@
 #' @param action Either a string (`"ignore"`, `"warn"`, `"error"`) or a function
 #'   taking the message as its first argument.
 #' @return Invisibly `NULL`.
+#' @examples
+#' register_dafr_handler("inefficient", "ignore")
+#' register_dafr_handler("inefficient", "warn")
 #' @export
 register_dafr_handler <- function(category, action) {
     stopifnot(is.character(category), length(category) == 1L)

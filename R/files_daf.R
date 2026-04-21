@@ -15,6 +15,13 @@
 #' @return A `FilesDaf` instance (`DafWriter` under `"r+"`/`"w"`/`"w+"`,
 #'   `FilesDafReadOnly`/`DafReadOnly` under `"r"`).
 #' @include format_api.R
+#' @examples
+#' path <- tempfile("dafr-example-")
+#' d <- files_daf(path, mode = "w")
+#' add_axis(d, "cell", c("c1", "c2"))
+#' set_scalar(d, "organism", "human")
+#' rm(d)
+#' unlink(path, recursive = TRUE)
 #' @export
 files_daf <- function(path, mode = c("r", "r+", "w", "w+"), name = NULL) {
     stopifnot(is.character(path), length(path) == 1L, !is.na(path))

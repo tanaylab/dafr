@@ -18,3 +18,12 @@ A \code{ReadOnlyChainDaf}.
 \description{
 Create a read-only chain of DafReaders.
 }
+\examples{
+base <- memory_daf(name = "base")
+add_axis(base, "cell", c("c1", "c2"))
+set_scalar(base, "organism", "human")
+overlay <- memory_daf(name = "overlay")
+set_scalar(overlay, "reference", "GRCh38")
+ch <- chain_reader(list(base, overlay))
+scalars_set(ch)
+}

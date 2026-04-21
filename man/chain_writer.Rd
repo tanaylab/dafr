@@ -18,3 +18,11 @@ A \code{WriteChainDaf}.
 \description{
 Create a chain of DafReaders with a final DafWriter.
 }
+\examples{
+base <- memory_daf(name = "base")
+add_axis(base, "cell", c("c1", "c2"))
+writable <- memory_daf(name = "writable")
+ch <- chain_writer(list(base, writable))
+set_scalar(ch, "organism", "human")
+get_scalar(ch, "organism")
+}

@@ -18,3 +18,8 @@ succeed with a non-empty result; FALSE otherwise.
 \description{
 Check whether a query can be evaluated against a daf without error.
 }
+\examples{
+d <- example_cells_daf()
+has_query(d, "@ cell : donor")
+has_query(d, "@ cell : nonexistent_property")
+}

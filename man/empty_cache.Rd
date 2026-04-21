@@ -21,3 +21,8 @@ Specify at most one of \code{clear} or \code{keep}. Tier names use the short for
 (\code{"mapped"}, \code{"memory"}, \code{"query"}) or the Julia-style capitalised form
 (\code{"MappedData"}, \code{"MemoryData"}, \code{"QueryData"}).
 }
+\examples{
+d <- example_cells_daf()
+get_vector(d, "cell", "donor")  # populates memory cache
+empty_cache(d, clear = "memory")
+}

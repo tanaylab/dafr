@@ -17,3 +17,8 @@ A scalar, vector, matrix, names set, or NULL if missing.
 \description{
 Evaluate a query string against a daf reader.
 }
+\examples{
+d <- example_cells_daf()
+get_query(d, ". organism")
+head(get_query(d, "@ cell : donor"))
+}

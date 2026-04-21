@@ -37,6 +37,10 @@ cache_key_query <- function(canon) paste0("query:", canon)
 #' @param clear Character vector of tiers to clear (default: all tiers).
 #' @param keep Character vector of tiers to keep; all others are cleared.
 #' @return Invisibly the input `daf`.
+#' @examples
+#' d <- example_cells_daf()
+#' get_vector(d, "cell", "donor")  # populates memory cache
+#' empty_cache(d, clear = "memory")
 #' @export
 empty_cache <- function(daf, clear = NULL, keep = NULL) {
     all_tiers <- c("mapped", "memory", "query")

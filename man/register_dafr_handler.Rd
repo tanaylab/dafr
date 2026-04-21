@@ -19,3 +19,7 @@ Invisibly \code{NULL}.
 Built-in categories: \code{"inefficient"}. Action is one of \code{"ignore"}, \code{"warn"},
 \code{"error"}, or a function \verb{function(message, ...)} invoked by \code{emit_action()}.
 }
+\examples{
+register_dafr_handler("inefficient", "ignore")
+register_dafr_handler("inefficient", "warn")
+}

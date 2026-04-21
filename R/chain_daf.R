@@ -40,6 +40,14 @@ WriteChainDaf <- S7::new_class(
 #'   entries on read.
 #' @param name Optional chain name; defaults to `paste(names, collapse = ";")`.
 #' @return A `ReadOnlyChainDaf`.
+#' @examples
+#' base <- memory_daf(name = "base")
+#' add_axis(base, "cell", c("c1", "c2"))
+#' set_scalar(base, "organism", "human")
+#' overlay <- memory_daf(name = "overlay")
+#' set_scalar(overlay, "reference", "GRCh38")
+#' ch <- chain_reader(list(base, overlay))
+#' scalars_set(ch)
 #' @export
 chain_reader <- function(dafs, name = NULL) {
     if (!is.list(dafs) || length(dafs) == 0L) {
@@ -72,6 +80,13 @@ chain_reader <- function(dafs, name = NULL) {
 #' Create a chain of DafReaders with a final DafWriter.
 #' @inheritParams chain_reader
 #' @return A `WriteChainDaf`.
+#' @examples
+#' base <- memory_daf(name = "base")
+#' add_axis(base, "cell", c("c1", "c2"))
+#' writable <- memory_daf(name = "writable")
+#' ch <- chain_writer(list(base, writable))
+#' set_scalar(ch, "organism", "human")
+#' get_scalar(ch, "organism")
 #' @export
 chain_writer <- function(dafs, name = NULL) {
     if (!is.list(dafs) || length(dafs) == 0L) {

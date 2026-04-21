@@ -16,3 +16,7 @@ A single axis name, or \code{NA_character_} if the query references
 \description{
 Return the axis name implied by a query, if any.
 }
+\examples{
+query_axis_name("@ cell : donor")
+query_axis_name(". organism")
+}

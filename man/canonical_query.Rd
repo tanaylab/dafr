@@ -15,3 +15,6 @@ The canonical query string (stable form; suitable for use as cache key).
 \description{
 Canonicalise a query string.
 }
+\examples{
+canonical_query("@ cell : donor")
+}

@@ -21,3 +21,8 @@ A data.frame with one column per vector, rows named by axis entries.
 \description{
 Extract a data.frame of vectors along one axis.
 }
+\examples{
+d <- example_cells_daf()
+df <- get_frame(d, "@ donor", columns = c("age"))
+head(df)
+}

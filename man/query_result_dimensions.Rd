@@ -16,3 +16,8 @@ query_result_dimensions(query_string)
 \description{
 Return the dimensionality of a query's result.
 }
+\examples{
+query_result_dimensions(". organism")
+query_result_dimensions("@ cell : donor")
+query_result_dimensions("@ cell @ gene :: UMIs")
+}

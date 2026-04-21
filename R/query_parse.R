@@ -8,6 +8,10 @@ NULL
 #'
 #' @param query_string A character scalar.
 #' @return A list of AST node records.
+#' @examples
+#' ast <- parse_query("@ cell : donor")
+#' length(ast)
+#' ast[[1]]$op
 #' @export
 parse_query <- function(query_string) {
     stopifnot(

@@ -15,3 +15,7 @@ Logical scalar.
 \description{
 Test whether a query yields an axis entry vector.
 }
+\examples{
+is_axis_query("@ cell")
+is_axis_query(". organism")
+}
