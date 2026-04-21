@@ -31,11 +31,12 @@ test_that(".cast_vector: non-integer numeric stays double", {
     expect_identical(v, c(1.5, 2.5))
 })
 
-test_that(".cast_matrix: UInt8-range integer matrix stays integer", {
-    m <- matrix(c(0, 1, 255, 128), nrow = 2L, ncol = 2L)
-    storage.mode(m) <- "double"
-    result <- dafr:::.cast_matrix(m)
-    expect_type(result, "integer")
+test_that(".cast_matrix promotes to integer when all values fit UInt8", {
+    m <- matrix(c(0, 1, 2, 3, 4, 5), nrow = 2)
+    out <- dafr:::.cast_matrix(m)
+    expect_true(is.integer(out))
+    expect_equal(dim(out), dim(m))
+    expect_identical(out, matrix(c(0L, 1L, 2L, 3L, 4L, 5L), nrow = 2))
 })
 
 test_that(".cast_matrix: non-integer-valued matrix stays double", {
@@ -89,6 +90,10 @@ test_that("example_cells_daf returns a MemoryDaf with correct scalars and axes",
     # donor age → integer (UInt32-equivalent)
     age <- get_vector(d, "donor", "age")
     expect_type(age, "integer")
+    expect_true(is.integer(get_vector(d, "donor", "age")))
+    expect_true(is.character(get_vector(d, "donor", "sex")))
+    expect_true(is.character(get_vector(d, "cell", "donor")))
+    expect_true(is.character(get_vector(d, "cell", "experiment")))
 
     # gene is_lateral → logical (Bool)
     is_lat <- get_vector(d, "gene", "is_lateral")
@@ -115,6 +120,10 @@ test_that("example_metacells_daf returns a MemoryDaf with correct axes", {
     # gene is_marker → logical
     is_mk <- get_vector(d, "gene", "is_marker")
     expect_type(is_mk, "logical")
+    expect_true(is.logical(get_vector(d, "gene", "is_marker")))
+    expect_true(is.character(get_vector(d, "cell", "metacell")))
+    expect_true(is.character(get_vector(d, "metacell", "type")))
+    expect_true(is.character(get_vector(d, "type", "color")))
 
     # fraction matrix → double (Float32, doesn't fit UInt16)
     frac <- get_matrix(d, "gene", "metacell", "fraction")
@@ -160,7 +169,12 @@ test_that("example_chain_daf returns a WriteChainDaf with unioned axes", {
     expect_s3_class(ch, "dafr::WriteChainDaf")
     expect_identical(S7::prop(ch, "name"), "chain!")
 
-    axes <- axes_set(ch)
-    expect_true(all(c("cell", "gene", "donor", "experiment", "metacell", "type") %in% axes))
+    expect_setequal(
+        axes_set(ch),
+        c("cell", "donor", "experiment", "gene", "metacell", "type")
+    )
     expect_equal(length(axis_vector(ch, "metacell")), 7L)
+    expect_identical(get_scalar(ch, "organism"), "human")
+    expect_true(is.logical(get_vector(ch, "gene", "is_lateral")))
+    expect_true(is.logical(get_vector(ch, "gene", "is_marker")))
 })
