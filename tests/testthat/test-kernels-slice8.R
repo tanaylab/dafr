@@ -381,3 +381,74 @@ test_that("sparse Mode query does not densify", {
     assert_no_densify_during(get_query(daf, "@ r @ c :: x >- Mode"))
     assert_no_densify_during(get_query(daf, "@ r @ c :: x >| Mode"))
 })
+
+# ---------------------------------------------------------------------------
+# Task 7: dense ungrouped fast-path audit smoke test
+# ---------------------------------------------------------------------------
+# Audit matrix (confirmed by reading .apply_reduction_fast in R/query_eval.R):
+#
+# Builtin  | sparse (is_dg)           | dense (is_matrix)                 | lgCMatrix
+# ---------|--------------------------|-----------------------------------|----------
+# Sum      | Matrix::rowSums/colSums  | rowSums/colSums                   | Matrix::rowSums/colSums
+# Mean     | Matrix::rowMeans/colMeans| rowMeans/colMeans                 | Matrix::rowMeans/colMeans
+# Min      | kernel_minmax_csc_cpp    | matrixStats::rowMins/colMins      | fall-through (NULL -> slow)
+# Max      | kernel_minmax_csc_cpp    | matrixStats::rowMaxs/colMaxs      | fall-through (NULL -> slow)
+# Var      | kernel_var_csc_cpp       | rowMeans(m*m)-rowMeans(m)^2       | fall-through (NULL -> slow)
+# Std      | kernel_var_csc_cpp       | sqrt(rowMeans(m*m)-rowMeans(m)^2) | fall-through (NULL -> slow)
+# VarN     | kernel_var_csc_cpp       | v/(mu+eps)                        | fall-through (NULL -> slow)
+# StdN     | kernel_var_csc_cpp       | s/(mu+eps)                        | fall-through (NULL -> slow)
+# GeoMean  | kernel_geomean_csc_cpp   | exp(rowMeans(log(m+eps)))-eps     | fall-through (NULL -> slow)
+# Median   | kernel_quantile_csc_cpp  | matrixStats::rowMedians/colMedians| fall-through (NULL -> slow)
+# Quantile | kernel_quantile_csc_cpp  | matrixStats::rowQuantiles/colQ..  | fall-through (NULL -> slow)
+# Mode     | kernel_mode_csc_cpp      | apply(.op_mode)                   | fall-through (NULL -> slow)
+# Count    | (no fast-path case)      | (no fast-path case)               | fall-through (NULL -> slow)
+#
+# Sum and Mean are the only ops that handle all three matrix types (is_sparse
+# covers both dg and lg). All others correctly fall through for lgCMatrix.
+# Count intentionally has no fast path in either branch; slow path always runs.
+
+test_that("dense ungrouped fast paths: shape + finiteness smoke test", {
+    set.seed(71)
+    # Normal-valued dense matrix: suitable for Sum, Mean, Min, Max, Var, Std, Median, Mode.
+    # NOT suitable for GeoMean (negatives -> log(negative) = NaN).
+    m <- matrix(rnorm(60L * 40L), 60L, 40L)
+    # Strictly-positive dense matrix: required for GeoMean and *N variants
+    # (VarN/StdN use mu+eps in denominator; with rnorm mu~0 and eps=0.1 this is
+    # fine, but GeoMean calls log(m+eps) which can still be NaN if m+eps<=0).
+    mp <- matrix(runif(60L * 40L, 0.5, 2.0), 60L, 40L)
+
+    daf <- memory_daf("t")
+    add_axis(daf, "r", paste0("r", 1:60))
+    add_axis(daf, "c", paste0("c", 1:40))
+    set_matrix(daf, "r", "c", "x", m)
+    set_matrix(daf, "r", "c", "xp", mp)
+
+    # ReduceToColumn (>|): collapse cols -> per-row vector; expect length == nrow == 60
+    for (op in c("Sum", "Mean", "Min", "Max", "Var", "Std", "Median", "Mode")) {
+        out <- get_query(daf, paste("@ r @ c :: x >|", op))
+        expect_equal(length(out), 60L,
+            label = sprintf("length(ReduceToColumn %s)", op))
+        expect_true(all(is.finite(out)),
+            label = sprintf("all.finite(ReduceToColumn %s)", op))
+    }
+    # ReduceToRow (>-): collapse rows -> per-col vector; expect length == ncol == 40
+    for (op in c("Sum", "Mean", "Min", "Max", "Var", "Std", "Median", "Mode")) {
+        out <- get_query(daf, paste("@ r @ c :: x >-", op))
+        expect_equal(length(out), 40L,
+            label = sprintf("length(ReduceToRow %s)", op))
+        expect_true(all(is.finite(out)),
+            label = sprintf("all.finite(ReduceToRow %s)", op))
+    }
+    # Parametric ops using positive-valued matrix (xp) to avoid log(negative).
+    # VarN/StdN: mu+eps with eps=0.1; mp values in [0.5,2] so mu~1.25 >> eps.
+    # GeoMean eps=1.0: log(mp+1) always finite since mp>0.
+    for (op in c("VarN eps 0.1", "StdN eps 0.1", "GeoMean eps 1.0",
+                 "Quantile p 0.25", "Quantile p 0.75")) {
+        mat_name <- if (startsWith(op, "Quantile")) "x" else "xp"
+        out <- get_query(daf, paste("@ r @ c ::", mat_name, ">|", op))
+        expect_equal(length(out), 60L,
+            label = sprintf("length(ReduceToColumn %s)", op))
+        expect_true(all(is.finite(out)),
+            label = sprintf("all.finite(ReduceToColumn %s)", op))
+    }
+})

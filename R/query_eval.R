@@ -580,7 +580,14 @@ NULL
     is_dense <- is.matrix(m)
     if (!is_sparse && !is_dense) return(NULL)
 
-    # TODO(slice-8-task-7): collapse duplicated switch branches once all kernels are wired
+    # ReduceToColumn (axis=0): per-row reduction — one value per row, indexed by rows_axis.
+    # ReduceToRow (axis=1): per-col reduction — one value per col, indexed by cols_axis.
+    # Both branches share the same 12-case switch with row*/col* helpers swapped.
+    # Deduplication was evaluated for slice-8-task-7 and deferred: the two branches
+    # diverge in state key access (rows_axis vs cols_axis, row_names vs col_names) and
+    # in helper names (rowSums/colSums, rowMeans/colMeans, rowMaxs/colMaxs, etc.) such
+    # that a single dispatcher would require a lookup table or function-factory of 10+
+    # helper pairs — more infrastructure than the duplication it removes. Left as-is.
     if (identical(node$op, "ReduceToColumn")) {
         row_names <- if (is_dense) rownames(m) else m@Dimnames[[1L]]
         if (is.null(row_names)) row_names <- format_axis_array(daf, state$rows_axis)
