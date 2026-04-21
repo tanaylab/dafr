@@ -44,3 +44,17 @@ test_that("bare 2-hop '=@:x =@:y' chains through two axes", {
     expect_equal(unname(out), c("IL", "US", "IL"))
     expect_equal(names(out), c("c1", "c2", "c3"))
 })
+
+test_that("explicit-axis 2-hop '=@axis:x =@:y' chains through two axes", {
+    d <- memory_daf(name = "multi-hop-explicit")
+    add_axis(d, "cell", c("c1", "c2"))
+    add_axis(d, "donor", c("d1", "d2"))
+    add_axis(d, "lab", c("lA", "lB"))
+    set_vector(d, "cell", "d_alias", c("d1", "d2"))
+    set_vector(d, "donor", "l_alias", c("lA", "lB"))
+    set_vector(d, "lab", "country", c("IL", "US"))
+
+    out <- get_query(d, "@ cell : d_alias =@ donor : l_alias =@ lab : country")
+    expect_equal(unname(out), c("IL", "US"))
+    expect_equal(names(out), c("c1", "c2"))
+})
