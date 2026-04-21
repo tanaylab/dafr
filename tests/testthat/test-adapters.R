@@ -235,3 +235,35 @@ test_that("adapter() on example_cells_daf computes a per-cell total UMI count", 
         totals
     )
 })
+
+test_that("adapter: sparse pad-mode copy-back preserves sparsity", {
+    skip_if_not_installed("Matrix")
+    d <- memory_daf(name = "base")
+    add_axis(d, "cell", c("c1", "c2", "c3"))
+    add_axis(d, "gene", c("g1", "g2"))
+
+    result <- adapter(
+        d,
+        function(adapted) {
+            add_axis(adapted, "cell_sub", c("c1", "c2"))
+            mat <- Matrix::sparseMatrix(
+                i = c(1L, 2L), j = c(1L, 2L), x = c(10, 20),
+                dims = c(2L, 2L),
+                dimnames = list(c("c1", "c2"), c("g1", "g2"))
+            )
+            set_matrix(adapted, "cell_sub", "gene", "UMIs", mat)
+            "ok"
+        },
+        output_axes = list(
+            list("cell",     "@ cell_sub"),
+            list("cell_sub", NULL),
+            list("gene",     "@ gene")
+        ),
+        output_data = list(list(ALL_MATRICES, "=")),
+        empty = list("cell|gene|UMIs" = 0),
+        relayout = FALSE
+    )
+    expect_identical(result, "ok")
+    res <- format_get_matrix(d, "cell", "gene", "UMIs")
+    expect_s4_class(res, "dgCMatrix")
+})
