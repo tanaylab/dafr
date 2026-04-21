@@ -82,3 +82,27 @@ test_that("chain_writer: delete_vector error when vector exists in earlier", {
         "because it exists in the earlier: one"
     )
 })
+
+test_that("chain_writer: set_matrix auto-adds axes on writer", {
+    d1 <- memory_daf(name = "one")
+    d2 <- memory_daf(name = "two")
+    add_axis(d1, "cell", c("A", "B"))
+    add_axis(d1, "gene", c("X", "Y"))
+    ch <- chain_writer(list(d1, d2), name = "chain")
+    m <- matrix(1:4, nrow = 2)
+    set_matrix(ch, "cell", "gene", "UMIs", m)
+    expect_true(has_axis(d2, "cell"))
+    expect_true(has_axis(d2, "gene"))
+    expect_identical(unname(as.matrix(get_matrix(ch, "cell", "gene", "UMIs"))), m)
+})
+
+test_that("chain_writer: delete_matrix errors when it exists in earlier", {
+    d1 <- memory_daf(name = "one")
+    d2 <- memory_daf(name = "two")
+    add_axis(d1, "cell", "A"); add_axis(d1, "gene", "X")
+    set_matrix(d1, "cell", "gene", "M", matrix(1, 1, 1))
+    ch <- chain_writer(list(d1, d2), name = "chain")
+    expect_error(delete_matrix(ch, "cell", "gene", "M"),
+        "because it exists in the earlier: one"
+    )
+})

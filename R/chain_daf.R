@@ -526,6 +526,80 @@ S7::method(
     }
 }
 
+S7::method(
+    format_set_matrix,
+    list(WriteChainDaf, S7::class_character, S7::class_character, S7::class_character, S7::class_any, S7::class_logical)
+) <- function(daf, rows_axis, columns_axis, name, mat, overwrite) {
+    .chain_ensure_axis_on_writer(daf, rows_axis)
+    .chain_ensure_axis_on_writer(daf, columns_axis)
+    format_set_matrix(.chain_writer(daf), rows_axis, columns_axis, name, mat, overwrite)
+}
+
+S7::method(
+    format_delete_matrix,
+    list(WriteChainDaf, S7::class_character, S7::class_character, S7::class_character, S7::class_logical)
+) <- function(daf, rows_axis, columns_axis, name, must_exist) {
+    earlier <- .chain_dafs(daf)
+    earlier <- earlier[-length(earlier)]
+    for (d in rev(earlier)) {
+        if (format_has_axis(d, rows_axis) &&
+            format_has_axis(d, columns_axis) &&
+            format_has_matrix(d, rows_axis, columns_axis, name)) {
+            stop(sprintf(
+                "failed to delete the matrix: %s for the rows axis: %s and the columns axis: %s from the daf data: %s of the chain: %s because it exists in the earlier: %s",
+                name, rows_axis, columns_axis,
+                S7::prop(.chain_writer(daf), "name"),
+                S7::prop(daf, "name"), S7::prop(d, "name")
+            ), call. = FALSE)
+        }
+    }
+    writer <- .chain_writer(daf)
+    if (format_has_axis(writer, rows_axis) &&
+        format_has_axis(writer, columns_axis) &&
+        format_has_matrix(writer, rows_axis, columns_axis, name)) {
+        format_delete_matrix(writer, rows_axis, columns_axis, name, must_exist)
+    } else if (must_exist) {
+        stop(sprintf(
+            "matrix %s does not exist on axes (%s, %s)",
+            sQuote(name), sQuote(rows_axis), sQuote(columns_axis)
+        ), call. = FALSE)
+    }
+}
+
+S7::method(
+    format_relayout_matrix,
+    list(WriteChainDaf, S7::class_character, S7::class_character, S7::class_character)
+) <- function(daf, rows_axis, columns_axis, name) {
+    # Relayout must write back to the top writer. If the matrix lives in an
+    # earlier daf, pull it into the writer first.
+    writer <- .chain_writer(daf)
+    if (!(format_has_axis(writer, rows_axis) &&
+          format_has_axis(writer, columns_axis) &&
+          format_has_matrix(writer, rows_axis, columns_axis, name))) {
+        earlier <- .chain_dafs(daf)
+        earlier <- earlier[-length(earlier)]
+        found <- NULL
+        for (d in rev(earlier)) {
+            if (format_has_axis(d, rows_axis) &&
+                format_has_axis(d, columns_axis) &&
+                format_has_matrix(d, rows_axis, columns_axis, name)) {
+                found <- d; break
+            }
+        }
+        if (is.null(found)) {
+            stop(sprintf(
+                "matrix %s does not exist on axes (%s, %s)",
+                sQuote(name), sQuote(rows_axis), sQuote(columns_axis)
+            ), call. = FALSE)
+        }
+        .chain_ensure_axis_on_writer(daf, rows_axis)
+        .chain_ensure_axis_on_writer(daf, columns_axis)
+        m <- format_get_matrix(found, rows_axis, columns_axis, name)
+        format_set_matrix(writer, rows_axis, columns_axis, name, m, TRUE)
+    }
+    format_relayout_matrix(writer, rows_axis, columns_axis, name)
+}
+
 .validate_chain_axes <- function(dafs, chain_name) {
     seen <- list()   # axis -> list(daf_name, entries)
     for (d in dafs) {
