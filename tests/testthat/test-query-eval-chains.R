@@ -73,3 +73,18 @@ test_that("3-hop chain '=@:x =@:y =@:z' resolves", {
     out <- get_query(d, "@ cell : donor =@ : lab =@ : country =@ : language")
     expect_equal(unname(out), c("Hebrew", "English"))
 })
+
+test_that("intermediate '??' drops missing rows but does not leak to next hop", {
+    d <- memory_daf(name = "if-not-clear")
+    add_axis(d, "cell", c("c1", "c2"))
+    add_axis(d, "donor", c("d1", "d2"))
+    add_axis(d, "lab", c("lA", "lB"))
+    set_vector(d, "cell", "donor", c("d1", "d2"))
+    set_vector(d, "donor", "lab", c("lA", ""))
+    set_vector(d, "lab", "country", c("IL", "US"))
+
+    expect_error(
+        get_query(d, "@ cell : donor ?? =@ : lab =@ : country"),
+        "empty pivot values"
+    )
+})
