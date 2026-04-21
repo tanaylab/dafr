@@ -219,6 +219,53 @@ registered_eltwise <- function() sort(names(.ops_env$eltwise))
     x / total
 }
 
+.significant_vec <- function(v, high, low) {
+    if (max(abs(v)) < high) {
+        return(rep(0, length(v)))
+    }
+    v[abs(v) < low] <- 0
+    v
+}
+
+.op_significant <- function(x, ..., high, low = high) {
+    if (missing(high)) {
+        stop("Significant: 'high' parameter is required", call. = FALSE)
+    }
+    if (!is.numeric(high) || length(high) != 1L || high <= 0) {
+        stop(sprintf("Significant: 'high' must be a positive number (got %s)",
+            as.character(high)[1L]
+        ), call. = FALSE)
+    }
+    if (!is.numeric(low) || length(low) != 1L || low < 0 || low > high) {
+        stop(sprintf("Significant: 'low' must be in [0, high] (got %s; high = %g)",
+            as.character(low)[1L], high
+        ), call. = FALSE)
+    }
+    if (is.null(dim(x)) && length(x) == 1L) {
+        stop("Significant: cannot apply to a scalar", call. = FALSE)
+    }
+    if (methods::is(x, "dgCMatrix")) {
+        out <- x
+        for (j in seq_len(ncol(out))) {
+            start <- out@p[j] + 1L
+            end <- out@p[j + 1L]
+            if (start <= end) {
+                out@x[start:end] <- .significant_vec(out@x[start:end], high, low)
+            }
+        }
+        return(Matrix::drop0(out))
+    }
+    if (is.matrix(x)) {
+        out <- x
+        storage.mode(out) <- "double"
+        for (j in seq_len(ncol(out))) {
+            out[, j] <- .significant_vec(out[, j], high, low)
+        }
+        return(out)
+    }
+    .significant_vec(x, high, low)
+}
+
 attr(.op_sum, ".dafr_builtin") <- "Sum"
 attr(.op_mean, ".dafr_builtin") <- "Mean"
 attr(.op_max, ".dafr_builtin") <- "Max"
@@ -232,6 +279,7 @@ attr(.op_round, ".dafr_builtin") <- "Round"
 attr(.op_clamp, ".dafr_builtin") <- "Clamp"
 attr(.op_convert, ".dafr_builtin") <- "Convert"
 attr(.op_fraction, ".dafr_builtin") <- "Fraction"
+attr(.op_significant, ".dafr_builtin") <- "Significant"
 
 .register_default_ops <- function() {
     register_reduction("Sum", .op_sum, overwrite = TRUE)
@@ -248,6 +296,7 @@ attr(.op_fraction, ".dafr_builtin") <- "Fraction"
     register_eltwise("Clamp", .op_clamp, overwrite = TRUE)
     register_eltwise("Convert", .op_convert, overwrite = TRUE)
     register_eltwise("Fraction", .op_fraction, overwrite = TRUE)
+    register_eltwise("Significant", .op_significant, overwrite = TRUE)
 
     invisible(NULL)
 }

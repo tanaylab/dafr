@@ -119,3 +119,62 @@ test_that("Fraction on a bare scalar errors", {
 test_that("Fraction attaches .dafr_builtin", {
     expect_identical(attr(get_eltwise("Fraction"), ".dafr_builtin"), "Fraction")
 })
+
+test_that("Significant zeroes a vector whose max absolute value is below 'high'", {
+    fn <- get_eltwise("Significant")
+    expect_equal(fn(c(0.1, 0.2, 0.3), high = 1), c(0, 0, 0))
+})
+
+test_that("Significant with low == high keeps only entries >= high in abs", {
+    fn <- get_eltwise("Significant")
+    expect_equal(fn(c(0.5, 2, -3), high = 1), c(0, 2, -3))
+})
+
+test_that("Significant with low < high keeps entries >= low once any >= high exists", {
+    fn <- get_eltwise("Significant")
+    expect_equal(fn(c(0.1, 0.3, 2), high = 1, low = 0.2), c(0, 0.3, 2))
+    # 0.1 zeroed (below low); 0.3 kept (above low); 2 kept (above high)
+    # but if NO entry reaches high, whole vector is zeroed:
+    expect_equal(fn(c(0.1, 0.3, 0.9), high = 1, low = 0.2), c(0, 0, 0))
+})
+
+test_that("Significant errors on invalid thresholds", {
+    fn <- get_eltwise("Significant")
+    expect_error(fn(1:3, high = -1), "high")
+    expect_error(fn(1:3, high = 0), "high")
+    expect_error(fn(1:3, high = 1, low = -1), "low")
+    expect_error(fn(1:3, high = 1, low = 2), "low")
+})
+
+test_that("Significant on a matrix operates column-wise", {
+    fn <- get_eltwise("Significant")
+    m <- matrix(c(0.1, 0.2, 2, 3, 0.05, 0.05), nrow = 2)
+    # col 1: max |x| = 0.2 < 1 -> zero out
+    # col 2: max |x| = 3 >= 1 -> keep >= 1 in abs -> keep 2, 3
+    # col 3: max |x| = 0.05 < 1 -> zero out
+    out <- fn(m, high = 1)
+    expect_equal(out[, 1], c(0, 0))
+    expect_equal(out[, 2], c(2, 3))
+    expect_equal(out[, 3], c(0, 0))
+})
+
+test_that("Significant on sparse preserves/drops zeros", {
+    m <- Matrix::sparseMatrix(
+        i = c(1, 2, 1, 3), j = c(1, 1, 2, 2), x = c(0.1, 0.2, 2, 0.5),
+        dims = c(3, 2)
+    )
+    # col 1: max |x| = 0.2 < 1 -> zero out
+    # col 2: max |x| = 2 >= 1, low default = 1 -> keep 2, drop 0.5
+    out <- get_eltwise("Significant")(m, high = 1)
+    expect_s4_class(out, "dgCMatrix")
+    expect_equal(as.numeric(out[, 1]), c(0, 0, 0))
+    expect_equal(as.numeric(out[, 2]), c(2, 0, 0))
+})
+
+test_that("Significant on scalar errors", {
+    expect_error(get_eltwise("Significant")(5, high = 1), "scalar")
+})
+
+test_that("Significant attaches .dafr_builtin", {
+    expect_identical(attr(get_eltwise("Significant"), ".dafr_builtin"), "Significant")
+})
