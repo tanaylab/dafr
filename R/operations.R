@@ -146,6 +146,23 @@ registered_eltwise <- function() sort(names(.ops_env$eltwise))
 .op_sqrt <- function(x, ...) sqrt(x)
 .op_round <- function(x, ..., digits = 0) round(x, digits = digits)
 
+.op_clamp <- function(x, ..., min = -Inf, max = Inf) {
+    if (min >= max) {
+        stop(sprintf("Clamp: min (%g) must be strictly less than max (%g)", min, max),
+            call. = FALSE
+        )
+    }
+    if (methods::is(x, "dgCMatrix")) {
+        if (min <= 0 && 0 <= max) {
+            out <- x
+            out@x <- pmin(pmax(out@x, min), max)
+            return(out)
+        }
+        x <- as.matrix(x)
+    }
+    pmin(pmax(x, min), max)
+}
+
 attr(.op_sum, ".dafr_builtin") <- "Sum"
 attr(.op_mean, ".dafr_builtin") <- "Mean"
 attr(.op_max, ".dafr_builtin") <- "Max"
@@ -156,6 +173,7 @@ attr(.op_abs, ".dafr_builtin") <- "Abs"
 attr(.op_exp, ".dafr_builtin") <- "Exp"
 attr(.op_sqrt, ".dafr_builtin") <- "Sqrt"
 attr(.op_round, ".dafr_builtin") <- "Round"
+attr(.op_clamp, ".dafr_builtin") <- "Clamp"
 
 .register_default_ops <- function() {
     register_reduction("Sum", .op_sum, overwrite = TRUE)
@@ -169,6 +187,7 @@ attr(.op_round, ".dafr_builtin") <- "Round"
     register_eltwise("Exp", .op_exp, overwrite = TRUE)
     register_eltwise("Sqrt", .op_sqrt, overwrite = TRUE)
     register_eltwise("Round", .op_round, overwrite = TRUE)
+    register_eltwise("Clamp", .op_clamp, overwrite = TRUE)
 
     invisible(NULL)
 }
