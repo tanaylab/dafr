@@ -510,3 +510,136 @@ copy_tensor <- function(destination, source,
     }
     invisible(destination)
 }
+
+#' Copy everything from one daf to another.
+#'
+#' Mirrors Julia `copy_all!(; destination, source, empty, types, overwrite,
+#' insist, relayout)`. Copies in order: scalars, axes, vectors, matrices.
+#' Tensors are not auto-expanded here — users can call [copy_tensor()]
+#' explicitly for per-main-axis-entry matrix groups.
+#'
+#' Axes already in the destination are not overwritten (regardless of the
+#' `overwrite` flag). A destination axis must be identical to or a subset of
+#' the source axis (else `empty` is required per-vector / per-matrix to fill
+#' missing entries). Unknown-to-source destination axes are left untouched.
+#'
+#' @param destination A `DafWriter`.
+#' @param source A `DafReader`.
+#' @param empty Named list mapping flat keys to fill values:
+#'   `"axis|name" -> value` for vectors, `"rows|cols|name" -> value` for
+#'   matrices. Matrix keys accept either axis order.
+#' @param types Named list of type-coercion strings in the same flat-key form
+#'   plus `"name"` (no pipes) for scalars.
+#' @param overwrite If `TRUE`, replace pre-existing destination entries.
+#' @param insist If `TRUE` (default) raise on pre-existing conflicts when
+#'   `overwrite = FALSE`; if `FALSE` silently skip.
+#' @param relayout If `TRUE` (default), also write transposed layout for
+#'   copied matrices.
+#' @return Invisibly, the destination.
+#' @export
+#' @examples
+#' src <- memory_daf(name = "src")
+#' set_scalar(src, "organism", "human")
+#' add_axis(src, "cell", c("c1", "c2"))
+#' set_vector(src, "cell", "age", c(10L, 20L))
+#' dest <- memory_daf(name = "dest")
+#' copy_all(dest, src, relayout = FALSE)
+copy_all <- function(destination, source,
+                     empty = NULL, types = NULL,
+                     overwrite = FALSE, insist = TRUE, relayout = TRUE) {
+    .assert_flag(overwrite, "overwrite")
+    .assert_flag(insist, "insist")
+    .assert_flag(relayout, "relayout")
+    # Scalars
+    for (nm in format_scalars_set(source)) {
+        type <- if (is.null(types)) NULL else types[[nm]]
+        copy_scalar(destination, source, nm, type = type,
+                    overwrite = overwrite, insist = insist)
+    }
+    # Axes — only copy axes absent from destination.
+    for (ax in format_axes_set(source)) {
+        if (!format_has_axis(destination, ax)) {
+            copy_axis(destination, source, ax)
+        }
+    }
+    # Vectors — one call per axis x name.
+    for (ax in format_axes_set(source)) {
+        if (!format_has_axis(destination, ax)) next
+        for (vn in format_vectors_set(source, ax)) {
+            key <- paste(ax, vn, sep = "|")
+            empty_v <- if (is.null(empty)) NULL else empty[[key]]
+            type <- if (is.null(types)) NULL else types[[key]]
+            copy_vector(destination, source, ax, vn, type = type,
+                        empty = empty_v, overwrite = overwrite,
+                        insist = insist)
+        }
+    }
+    # Matrices — outer loops over axes.
+    axes <- format_axes_set(source)
+    for (ra in axes) {
+        for (ca in axes) {
+            if (!format_has_axis(destination, ra) ||
+                !format_has_axis(destination, ca)) next
+            for (mn in format_matrices_set(source, ra, ca)) {
+                key <- paste(ra, ca, mn, sep = "|")
+                alt_key <- paste(ca, ra, mn, sep = "|")
+                empty_m <- if (is.null(empty)) NULL else
+                           (empty[[key]] %||% empty[[alt_key]])
+                type <- if (is.null(types)) NULL else
+                        (types[[key]] %||% types[[alt_key]])
+                copy_matrix(destination, source, ra, ca, mn, type = type,
+                            empty = empty_m, relayout = relayout,
+                            overwrite = overwrite, insist = insist)
+            }
+        }
+    }
+    invisible(destination)
+}
+
+# Null-coalescing operator used by copy_all's empty/types key lookups.
+`%||%` <- function(a, b) if (is.null(a)) b else a
+
+#' Build a flat-keyed `empty` (or `types`) list for `copy_all()`.
+#'
+#' Users can pass a plain named list in the flat-key form directly. This
+#' helper assembles one from a more typed builder API. Use `value = ...` for
+#' `empty` specs, or `type = ...` for `types` specs.
+#'
+#' @param vectors List of `list(axis, name, value/type)` records.
+#' @param matrices List of `list(rows_axis, columns_axis, name, value/type)`.
+#' @param tensors List of `list(main_axis, rows_axis, columns_axis, name,
+#'   value/type)`.
+#' @param scalars List of `list(name, value/type)` (typically used with
+#'   `types`; scalars have no notion of `empty`).
+#' @return A named list with flat string keys.
+#' @export
+#' @examples
+#' empty_data(
+#'     vectors  = list(list(axis = "cell", name = "age", value = 0L)),
+#'     matrices = list(list(rows_axis = "cell", columns_axis = "gene",
+#'                          name = "UMIs", value = 0))
+#' )
+empty_data <- function(vectors = list(), matrices = list(),
+                       tensors = list(), scalars = list()) {
+    out <- list()
+    payload <- function(rec) {
+        if (!is.null(rec$value)) rec$value else rec$type
+    }
+    for (rec in vectors) {
+        key <- paste(rec$axis, rec$name, sep = "|")
+        out[[key]] <- payload(rec)
+    }
+    for (rec in matrices) {
+        key <- paste(rec$rows_axis, rec$columns_axis, rec$name, sep = "|")
+        out[[key]] <- payload(rec)
+    }
+    for (rec in tensors) {
+        key <- paste(rec$main_axis, rec$rows_axis,
+                     rec$columns_axis, rec$name, sep = "|")
+        out[[key]] <- payload(rec)
+    }
+    for (rec in scalars) {
+        out[[rec$name]] <- payload(rec)
+    }
+    out
+}
