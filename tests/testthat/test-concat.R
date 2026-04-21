@@ -66,3 +66,35 @@ test_that("concatenate: vector type unifies across sources", {
     concatenate(dest, "cell", list(a, b))
     expect_true(is.double(get_vector(dest, "cell", "age")))
 })
+
+test_that("concatenate: prefix=TRUE de-duplicates concat-axis entries", {
+    a <- memory_daf(name = "A"); add_axis(a, "cell", c("c1", "c2"))
+    b <- memory_daf(name = "B"); add_axis(b, "cell", c("c1", "c3"))
+    dest <- memory_daf(name = "dest")
+    concatenate(dest, "cell", list(a, b), prefix = TRUE)
+    expect_identical(axis_vector(dest, "cell"),
+                     c("A.c1", "A.c2", "B.c1", "B.c3"))
+})
+
+test_that("concatenate: prefix heuristic prefixes properties named after the axis", {
+    a <- memory_daf(name = "A")
+    add_axis(a, "cell", c("c1"))
+    add_axis(a, "cluster", c("cl1"))
+    set_vector(a, "cell", "cluster", c("cl1"))
+    b <- memory_daf(name = "B")
+    add_axis(b, "cell", c("c1"))
+    add_axis(b, "cluster", c("cl1"))
+    set_vector(b, "cell", "cluster", c("cl1"))
+    dest <- memory_daf(name = "dest")
+    concatenate(dest, c("cell", "cluster"), list(a, b), prefix = TRUE)
+    expect_identical(unname(get_vector(dest, "cell", "cluster")),
+                     c("A.cl1", "B.cl1"))
+})
+
+test_that("concatenate: duplicate entries without prefix raise", {
+    a <- memory_daf(name = "A"); add_axis(a, "cell", c("c1"))
+    b <- memory_daf(name = "B"); add_axis(b, "cell", c("c1"))
+    dest <- memory_daf(name = "dest")
+    expect_error(concatenate(dest, "cell", list(a, b)),
+                 "duplicate entries")
+})

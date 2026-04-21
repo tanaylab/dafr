@@ -115,7 +115,7 @@ concatenate <- function(destination, axis, sources,
     # Create the concatenation axes.
     for (ax in axes) {
         .concat_one_axis(destination, ax, sources, dataset_names,
-                         prefixes[[ax]], prefixed, empty, overwrite,
+                         prefixes[[ax]], prefixes, prefixed, empty, overwrite,
                          sparse_if_saves_storage_fraction)
     }
 
@@ -161,8 +161,8 @@ concatenate <- function(destination, axis, sources,
 }
 
 .concat_one_axis <- function(destination, axis, sources, dataset_names,
-                             do_prefix, prefixed, empty, overwrite,
-                             sparse_threshold) {
+                             do_prefix, all_prefixes, prefixed, empty,
+                             overwrite, sparse_threshold) {
     per_src <- lapply(seq_along(sources), function(i) {
         e <- format_axis_array(sources[[i]], axis)
         if (isTRUE(do_prefix)) paste(dataset_names[[i]], e, sep = ".") else e
@@ -180,8 +180,8 @@ concatenate <- function(destination, axis, sources,
 
     for (vn in all_vec_names) {
         .concat_axis_vector(destination, axis, vn, sources, dataset_names,
-                            do_prefix, prefixed, empty, overwrite,
-                            sparse_threshold)
+                            do_prefix, all_prefixes, prefixed, empty,
+                            overwrite, sparse_threshold)
     }
 
     # Matrices with `axis` as one side and some other-axis on the other.
@@ -202,8 +202,8 @@ concatenate <- function(destination, axis, sources,
 }
 
 .concat_axis_vector <- function(destination, axis, name, sources,
-                                dataset_names, do_prefix, prefixed,
-                                empty, overwrite, sparse_threshold) {
+                                dataset_names, do_prefix, all_prefixes,
+                                prefixed, empty, overwrite, sparse_threshold) {
     parts <- vector("list", length(sources))
     for (i in seq_along(sources)) {
         src <- sources[[i]]
@@ -221,12 +221,20 @@ concatenate <- function(destination, axis, sources,
             v <- rep(fill, format_axis_length(src, axis))
         }
         is_prefix_target <- {
-            if (!isTRUE(do_prefix)) FALSE
-            else if (!is.null(prefixed)) {
+            if (!is.null(prefixed)) {
                 vec <- if (is.list(prefixed)) prefixed[[axis]] else prefixed
-                name %in% vec
+                isTRUE(do_prefix) && name %in% vec
             } else {
-                name == axis || startsWith(name, paste0(axis, "."))
+                # Heuristic: prefix if the property name matches (or looks
+                # like a subproperty of) any concat axis that is itself
+                # prefixed. This remaps cross-axis references so that
+                # `cell|cluster` values still line up with the (prefixed)
+                # cluster axis entries.
+                prefixed_axes <- base::names(all_prefixes)[
+                    vapply(all_prefixes, isTRUE, logical(1L))]
+                any(vapply(prefixed_axes, function(ax) {
+                    name == ax || startsWith(name, paste0(ax, "."))
+                }, logical(1L)))
             }
         }
         if (is_prefix_target && is.character(v)) {
