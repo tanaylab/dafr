@@ -88,3 +88,16 @@ test_that("intermediate '??' drops missing rows but does not leak to next hop", 
         "empty pivot values"
     )
 })
+
+test_that("hop 2 raises when the pivot property names a non-axis", {
+    d <- memory_daf(name = "bad-hop")
+    add_axis(d, "cell", c("c1", "c2"))
+    add_axis(d, "donor", c("d1", "d2"))
+    set_vector(d, "cell", "donor", c("d1", "d2"))
+    set_vector(d, "donor", "not_an_axis", c("x", "y"))
+
+    expect_error(
+        get_query(d, "@ cell : donor =@ : not_an_axis =@ : anything"),
+        "AsAxis target axis"
+    )
+})
