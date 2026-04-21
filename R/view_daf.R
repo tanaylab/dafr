@@ -79,6 +79,8 @@ VIEW_ALL_DATA <- list(VIEW_ALL_SCALARS, VIEW_ALL_VECTORS, VIEW_ALL_MATRICES)
 #' @param matrix_version_counter Counter environment for matrix version tracking.
 #' @param base Base `DafReader` this view wraps.
 #' @param view_axes Named list mapping view axis names to query strings.
+#' @param view_axis_renames Named list mapping view axis names to base axis
+#'   names.
 #' @param view_scalars Named list mapping view scalar names to query strings.
 #' @param view_vectors Named list mapping `"axis|name"` keys to override specs.
 #' @param view_matrices Named list mapping `"rows|cols|name"` keys to override
@@ -90,11 +92,12 @@ ViewDaf <- S7::new_class(
     package = "dafr",
     parent = DafReadOnly,
     properties = list(
-        base          = DafReader,
-        view_axes     = S7::class_list,
-        view_scalars  = S7::class_list,
-        view_vectors  = S7::class_list,
-        view_matrices = S7::class_list
+        base              = DafReader,
+        view_axes         = S7::class_list,
+        view_axis_renames = S7::class_list,
+        view_scalars      = S7::class_list,
+        view_vectors      = S7::class_list,
+        view_matrices     = S7::class_list
     )
 )
 
@@ -109,6 +112,8 @@ ViewDaf <- S7::new_class(
 #' @export
 viewer <- function(daf, name = NULL, axes = NULL, data = NULL) {
     if (is.null(name)) name <- paste0(S7::prop(daf, "name"), ".view")
+    view_axes    <- .resolve_view_axes(daf, axes)
+    view_renames <- .resolve_view_axis_renames(daf, view_axes)
     ViewDaf(
         name                    = name,
         internal                = new_internal_env(),
@@ -117,10 +122,11 @@ viewer <- function(daf, name = NULL, axes = NULL, data = NULL) {
         vector_version_counter  = S7::prop(daf, "vector_version_counter"),
         matrix_version_counter  = S7::prop(daf, "matrix_version_counter"),
         base                    = daf,
-        view_axes               = .resolve_view_axes(daf, axes),
+        view_axes               = view_axes,
+        view_axis_renames       = view_renames,
         view_scalars            = .resolve_view_scalars(daf, data),
-        view_vectors            = .resolve_view_vectors(daf, data),
-        view_matrices           = .resolve_view_matrices(daf, data)
+        view_vectors            = .resolve_view_vectors(daf, data, view_renames),
+        view_matrices           = .resolve_view_matrices(daf, data, view_renames)
     )
 }
 
@@ -146,6 +152,26 @@ viewer <- function(daf, name = NULL, axes = NULL, data = NULL) {
             } else {
                 out[[name]] <- query
             }
+        }
+    }
+    out
+}
+
+.resolve_view_axis_renames <- function(daf, view_axes) {
+    out <- list()
+    for (view_name in names(view_axes)) {
+        q <- view_axes[[view_name]]
+        if (identical(q, "=") || identical(q, view_name)) {
+            out[[view_name]] <- view_name
+        } else {
+            base_axis <- query_axis_name(q)
+            if (is.na(base_axis)) {
+                stop(sprintf(
+                    "view axis %s: cannot infer base axis from query %s",
+                    sQuote(view_name), sQuote(q)
+                ), call. = FALSE)
+            }
+            out[[view_name]] <- base_axis
         }
     }
     out
@@ -182,11 +208,18 @@ viewer <- function(daf, name = NULL, axes = NULL, data = NULL) {
     out
 }
 
-.resolve_view_vectors <- function(daf, data) {
+.resolve_view_vectors <- function(daf, data, renames) {
     out <- list()
-    for (a in format_axes_set(daf)) {
-        for (v in format_vectors_set(daf, a)) {
-            out[[paste(a, v, sep = "|")]] <- list(axis = a, name = v, query = "=")
+    # Seed every renamed axis with every base vector visible on its base axis.
+    for (view_axis in names(renames)) {
+        base_axis <- renames[[view_axis]]
+        for (v in format_vectors_set(daf, base_axis)) {
+            out[[paste(view_axis, v, sep = "|")]] <- list(
+                view_axis = view_axis,
+                base_axis = base_axis,
+                name = v,
+                query = "="
+            )
         }
     }
     if (is.null(data)) {
@@ -198,6 +231,7 @@ viewer <- function(daf, name = NULL, axes = NULL, data = NULL) {
             a <- parsed$key[[1L]]
             v <- parsed$key[[2L]]
             q <- parsed$value
+            base_axis <- renames[[a]] %||% a
             if (identical(a, "*") && identical(v, "*")) {
                 if (is.null(q)) {
                     out <- list()
@@ -211,7 +245,12 @@ viewer <- function(daf, name = NULL, axes = NULL, data = NULL) {
                 if (is.null(q)) {
                     out[[key]] <- NULL
                 } else {
-                    out[[key]] <- list(axis = a, name = v, query = q)
+                    out[[key]] <- list(
+                        view_axis = a,
+                        base_axis = base_axis,
+                        name = v,
+                        query = q
+                    )
                 }
             }
         }
@@ -219,14 +258,20 @@ viewer <- function(daf, name = NULL, axes = NULL, data = NULL) {
     out
 }
 
-.resolve_view_matrices <- function(daf, data) {
+.resolve_view_matrices <- function(daf, data, renames) {
     out <- list()
-    for (r in format_axes_set(daf)) {
-        for (c in format_axes_set(daf)) {
-            for (m in format_matrices_set(daf, r, c)) {
-                out[[paste(r, c, m, sep = "|")]] <- list(
-                    rows = r, cols = c,
-                    name = m, query = "="
+    for (rv in names(renames)) {
+        rb <- renames[[rv]]
+        for (cv in names(renames)) {
+            cb <- renames[[cv]]
+            for (m in format_matrices_set(daf, rb, cb)) {
+                out[[paste(rv, cv, m, sep = "|")]] <- list(
+                    view_rows = rv,
+                    view_cols = cv,
+                    base_rows = rb,
+                    base_cols = cb,
+                    name = m,
+                    query = "="
                 )
             }
         }
@@ -241,6 +286,8 @@ viewer <- function(daf, name = NULL, axes = NULL, data = NULL) {
             cc <- parsed$key[[2L]]
             nn <- parsed$key[[3L]]
             q <- parsed$value
+            rb <- renames[[rr]] %||% rr
+            cb <- renames[[cc]] %||% cc
             if (rr == "*" && cc == "*" && nn == "*") {
                 if (is.null(q)) out <- list()
                 # identity "=" is default; no-op
@@ -250,8 +297,12 @@ viewer <- function(daf, name = NULL, axes = NULL, data = NULL) {
                     out[[key]] <- NULL
                 } else {
                     out[[key]] <- list(
-                        rows = rr, cols = cc,
-                        name = nn, query = q
+                        view_rows = rr,
+                        view_cols = cc,
+                        base_rows = rb,
+                        base_cols = cb,
+                        name = nn,
+                        query = q
                     )
                 }
             }
@@ -308,8 +359,11 @@ viewer <- function(daf, name = NULL, axes = NULL, data = NULL) {
 .view_query_for_vector <- function(view, axis, name) {
     key <- paste(axis, name, sep = "|")
     override <- view@view_vectors[[key]]
-    if (is.null(override) || identical(override$query, "=")) {
-        return(sprintf("@ %s : %s", axis, name))
+    if (is.null(override)) {
+        return(NULL)
+    }
+    if (identical(override$query, "=")) {
+        return(sprintf("@ %s : %s", override$base_axis, override$name))
     }
     override$query
 }
@@ -317,8 +371,14 @@ viewer <- function(daf, name = NULL, axes = NULL, data = NULL) {
 .view_query_for_matrix <- function(view, rows_axis, columns_axis, name) {
     key <- paste(rows_axis, columns_axis, name, sep = "|")
     override <- view@view_matrices[[key]]
-    if (is.null(override) || identical(override$query, "=")) {
-        return(sprintf("@ %s @ %s :: %s", rows_axis, columns_axis, name))
+    if (is.null(override)) {
+        return(NULL)
+    }
+    if (identical(override$query, "=")) {
+        return(sprintf(
+            "@ %s @ %s :: %s",
+            override$base_rows, override$base_cols, override$name
+        ))
     }
     override$query
 }
@@ -401,7 +461,14 @@ S7::method(
     format_get_vector,
     list(ViewDaf, S7::class_character, S7::class_character)
 ) <- function(daf, axis, name) {
-    get_query(daf@base, .view_query_for_vector(daf, axis, name))
+    q_str <- .view_query_for_vector(daf, axis, name)
+    if (is.null(q_str)) {
+        stop(sprintf(
+            "no vector %s on view axis %s",
+            sQuote(name), sQuote(axis)
+        ), call. = FALSE)
+    }
+    get_query(daf@base, q_str)
 }
 
 S7::method(
@@ -425,5 +492,12 @@ S7::method(
     format_get_matrix,
     list(ViewDaf, S7::class_character, S7::class_character, S7::class_character)
 ) <- function(daf, rows_axis, columns_axis, name) {
-    get_query(daf@base, .view_query_for_matrix(daf, rows_axis, columns_axis, name))
+    q_str <- .view_query_for_matrix(daf, rows_axis, columns_axis, name)
+    if (is.null(q_str)) {
+        stop(sprintf(
+            "no matrix %s on view axes (%s, %s)",
+            sQuote(name), sQuote(rows_axis), sQuote(columns_axis)
+        ), call. = FALSE)
+    }
+    get_query(daf@base, q_str)
 }
