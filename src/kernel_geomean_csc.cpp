@@ -77,6 +77,8 @@ cpp11::writable::doubles kernel_geomean_csc_cpp(
         return out;
     }
 
+    // FIXME: tsum/tnnz are O(nthreads * nrow). For scRNA-seq-scale inputs
+    // (nrow > 1e6), consider a sequential fallback.
     const int nthreads = dafr_omp_get_max_threads_capped(ncol, threshold);
     std::vector<std::vector<double>> tsum(nthreads,
         std::vector<double>(nrow, 0.0));
