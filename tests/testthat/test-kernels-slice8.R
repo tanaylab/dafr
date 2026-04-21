@@ -244,3 +244,56 @@ test_that("sparse GeoMean query does not densify (both reduce directions)", {
     # >| is ReduceToColumn (per-row): axis=0
     assert_no_densify_during(get_query(daf, "@ r @ c :: x >| GeoMean eps 1.0"))
 })
+
+# ---------------------------------------------------------------------------
+# Task 5: kernel_quantile_csc_cpp
+# ---------------------------------------------------------------------------
+
+test_that("kernel_quantile_csc matches stats::quantile type=7 on random sparse input", {
+    skip_if_not_installed("Matrix")
+    set.seed(46)
+    m <- Matrix::rsparsematrix(100L, 50L, density = 0.3, rand.x = rnorm)
+    dense <- as.matrix(m)
+    for (q in c(0.0, 0.25, 0.5, 0.75, 1.0)) {
+        # axis=1: per-column (ReduceToRow)
+        got <- dafr:::kernel_quantile_csc_cpp(
+            m@x, m@i, m@p, nrow(m), ncol(m),
+            axis = 1L, q = q, threshold = 1L)
+        expected <- apply(dense, 2L,
+            function(v) stats::quantile(v, q, type = 7L, names = FALSE))
+        expect_equal(got, unname(expected), tolerance = 1e-9,
+            info = sprintf("q=%.2f axis=col", q))
+
+        # axis=0: per-row (ReduceToColumn)
+        got_r <- dafr:::kernel_quantile_csc_cpp(
+            m@x, m@i, m@p, nrow(m), ncol(m),
+            axis = 0L, q = q, threshold = 1L)
+        expected_r <- apply(dense, 1L,
+            function(v) stats::quantile(v, q, type = 7L, names = FALSE))
+        expect_equal(got_r, unname(expected_r), tolerance = 1e-9,
+            info = sprintf("q=%.2f axis=row", q))
+    }
+})
+
+test_that("kernel_quantile_csc handles all-zero column (median is 0)", {
+    skip_if_not_installed("Matrix")
+    m <- Matrix::sparseMatrix(i = integer(), j = integer(), x = double(),
+        dims = c(10L, 5L))
+    got <- dafr:::kernel_quantile_csc_cpp(m@x, m@i, m@p, 10L, 5L,
+        axis = 1L, q = 0.5, threshold = 1L)
+    expect_equal(got, rep(0, 5L))
+})
+
+test_that("sparse Median/Quantile query does not densify", {
+    skip_if_not_installed("Matrix")
+    m <- Matrix::rsparsematrix(40L, 30L, density = 0.2, rand.x = rnorm)
+    daf <- memory_daf("t")
+    add_axis(daf, "r", paste0("r", 1:40))
+    add_axis(daf, "c", paste0("c", 1:30))
+    set_matrix(daf, "r", "c", "x", m)
+    # >- is ReduceToRow (per-col, axis=1); >| is ReduceToColumn (per-row, axis=0)
+    assert_no_densify_during(get_query(daf, "@ r @ c :: x >- Median"))
+    assert_no_densify_during(get_query(daf, "@ r @ c :: x >| Median"))
+    assert_no_densify_during(get_query(daf, "@ r @ c :: x >- Quantile p 0.25"))
+    assert_no_densify_during(get_query(daf, "@ r @ c :: x >| Quantile p 0.75"))
+})

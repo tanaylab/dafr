@@ -558,6 +558,17 @@ NULL
     as.numeric(params[["eps"]] %||% 0)
 }
 
+# Extract 'p' parameter for Quantile reductions. Validates range [0, 1].
+.param_quantile_q <- function(params) {
+    v <- params[["p"]]
+    if (is.null(v)) stop("Quantile: missing 'p' parameter", call. = FALSE)
+    q <- as.numeric(v)
+    if (is.na(q) || q < 0 || q > 1) {
+        stop(sprintf("Quantile: p must be in [0, 1] (got %g)", q), call. = FALSE)
+    }
+    q
+}
+
 .apply_reduction_fast <- function(node, state, fn, params, daf) {
     builtin <- attr(fn, ".dafr_builtin")
     if (is.null(builtin)) return(NULL)
@@ -638,6 +649,21 @@ NULL
                     }
                 } else return(NULL)
             },
+            Median = if (is_dg)
+                kernel_quantile_csc_cpp(m@x, m@i, m@p, nrow(m), ncol(m),
+                    axis = 0L, q = 0.5, threshold = .dafr_kernel_threshold())
+            else if (is_dense) matrixStats::rowMedians(m)
+            else return(NULL),
+            Quantile = {
+                q <- .param_quantile_q(params)
+                if (is_dg)
+                    kernel_quantile_csc_cpp(m@x, m@i, m@p, nrow(m), ncol(m),
+                        axis = 0L, q = q, threshold = .dafr_kernel_threshold())
+                else if (is_dense)
+                    matrixStats::rowQuantiles(m, probs = q, type = 7L,
+                        useNames = FALSE)
+                else return(NULL)
+            },
             return(NULL)
         )
         return(list(
@@ -712,6 +738,21 @@ NULL
                     exp(colMeans(log(m + eps))) - eps
                 }
             } else return(NULL)
+        },
+        Median = if (is_dg)
+            kernel_quantile_csc_cpp(m@x, m@i, m@p, nrow(m), ncol(m),
+                axis = 1L, q = 0.5, threshold = .dafr_kernel_threshold())
+        else if (is_dense) matrixStats::colMedians(m)
+        else return(NULL),
+        Quantile = {
+            q <- .param_quantile_q(params)
+            if (is_dg)
+                kernel_quantile_csc_cpp(m@x, m@i, m@p, nrow(m), ncol(m),
+                    axis = 1L, q = q, threshold = .dafr_kernel_threshold())
+            else if (is_dense)
+                matrixStats::colQuantiles(m, probs = q, type = 7L,
+                    useNames = FALSE)
+            else return(NULL)
         },
         return(NULL)
     )

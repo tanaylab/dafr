@@ -73,6 +73,17 @@ gates$geomean_sparse <- list(
     mem_ratio_target = NA
 )
 
+gates$median_sparse <- list(
+    name = "Median sparse row-reduce (10k x 10k, 5% nnz)",
+    setup = function() make_sparse(),
+    baseline = function(m) apply(m, 1L, median),
+    fast     = function(m) dafr:::kernel_quantile_csc_cpp(
+        m@x, m@i, m@p, nrow(m), ncol(m), axis = 0L, q = 0.5,
+        threshold = 1024L),
+    ratio_target = 10.0,
+    mem_ratio_target = NA
+)
+
 # --- Runner (wired in Task 15) ---------------------------------------------
 # (Placeholder — replaced in Task 15 with a harness that evaluates every gate.)
 cat("Slice 8 benchmark skeleton.\n",
