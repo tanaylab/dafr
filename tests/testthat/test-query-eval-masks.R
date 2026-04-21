@@ -53,3 +53,13 @@ test_that("mask XOR and negated variants work", {
     expect_setequal(get_query(d, "@ donor [ a ^ b ]"), c("d2", "d3"))
     expect_setequal(get_query(d, "@ donor [ a & ! b ]"), "d2")
 })
+
+test_that("NA in masked property drops entries (Julia parity)", {
+    d <- memory_daf(name = "base")
+    add_axis(d, "cell", c("A", "B", "C", "D"))
+    set_vector(d, "cell", "score", c(1.0, NA_real_, 3.0, NA_real_))
+    # '> 0' on NA returns NA; Julia drops NA mask entries silently.
+    # Expected kept entries: A, C.
+    result <- get_query(d, "@ cell [ score > 0 ]")
+    expect_identical(result, c("A", "C"))
+})

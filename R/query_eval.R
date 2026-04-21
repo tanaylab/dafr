@@ -313,7 +313,9 @@ NULL
 .apply_end_mask <- function(node, state, daf) {
     axis <- state$axis
     entries <- format_axis_array(daf, axis)
-    list(kind = "axis", axis = axis, value = entries[state$pending_mask])
+    mask <- state$pending_mask
+    keep <- !is.na(mask) & mask
+    list(kind = "axis", axis = axis, value = entries[keep])
 }
 
 .apply_logical_mask <- function(node, state, daf) {
