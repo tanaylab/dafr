@@ -78,4 +78,5 @@ Collate:
     'readers.R'
     'copies.R'
     'concat.R'
+    'complete.R'
     'zzz.R'
