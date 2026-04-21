@@ -805,71 +805,398 @@ NULL
     )
 }
 
+# --- Grouped-reduction helpers (Slice 8 Task 10) --------------------------
+#
+# Shared between .apply_reduction_grouped_vector / _matrix for builtin-fast-path
+# dispatch and type-sniffing fallback.
+
+# Returns the builtin label iff fn is one of the known grouped-capable ops
+# (Sum/Mean/Min/Max/Var/Std/VarN/StdN/GeoMean/Median/Quantile/Mode); else NA.
+.reduction_builtin_label <- function(fn) {
+    lbl <- attr(fn, ".dafr_builtin")
+    if (is.null(lbl)) return(NA_character_)
+    if (lbl %in% c("Sum", "Mean", "Min", "Max", "Var", "Std", "VarN", "StdN",
+                   "Median", "Quantile", "GeoMean", "Mode")) lbl else NA_character_
+}
+
+# Probe the output storage mode of a custom reduction by calling it once on a
+# sample slice. Used by the fallback path to size the result vector/matrix.
+.grouped_proto_storage <- function(fn, sample_arg, params) {
+    out <- do.call(fn, c(list(sample_arg), params))
+    if (length(out) != 1L) {
+        stop("grouped reduction function must return a scalar",
+            call. = FALSE)
+    }
+    storage.mode(out)
+}
+
+.grouped_allocate_output <- function(mode, n) {
+    switch(mode,
+        double    = numeric(n),
+        integer   = integer(n),
+        logical   = logical(n),
+        character = character(n),
+        stop(sprintf("unsupported grouped reduction output storage mode: %s",
+            mode), call. = FALSE)
+    )
+}
+
+# Mode on character vector: first-encountered tiebreak (matches .op_mode).
+.grouped_mode_character <- function(x, group, ngroups) {
+    out <- character(ngroups)
+    for (g_i in seq_len(ngroups)) {
+        vals <- x[group == g_i]
+        if (length(vals) == 0L) {
+            out[g_i] <- NA_character_
+            next
+        }
+        ux <- unique(vals)
+        out[g_i] <- ux[which.max(tabulate(match(vals, ux)))]
+    }
+    out
+}
+
+# G1 builtin fast-path: compute per-group reduction for a numeric vector.
+.grouped_vector_builtin <- function(x, group, ngroups, label, params) {
+    n_in_group <- as.integer(tabulate(group, ngroups))
+    if (label %in% c("Sum", "Mean", "Min", "Max", "Var", "Std",
+                     "VarN", "StdN", "GeoMean")) {
+        eps <- if (label %in% c("VarN", "StdN", "GeoMean"))
+            .param_eps(params) else 0
+        sum_x  <- as.numeric(rowsum(x, group))
+        means  <- sum_x / n_in_group
+        switch(label,
+            Sum  = sum_x,
+            Mean = means,
+            Min  = as.numeric(vapply(split(x, group), min, numeric(1))),
+            Max  = as.numeric(vapply(split(x, group), max, numeric(1))),
+            Var  = {
+                sum_x2 <- as.numeric(rowsum(x * x, group))
+                pmax(sum_x2 / n_in_group - means^2, 0)
+            },
+            Std = {
+                sum_x2 <- as.numeric(rowsum(x * x, group))
+                sqrt(pmax(sum_x2 / n_in_group - means^2, 0))
+            },
+            VarN = {
+                sum_x2 <- as.numeric(rowsum(x * x, group))
+                v <- pmax(sum_x2 / n_in_group - means^2, 0)
+                v / (means + eps)
+            },
+            StdN = {
+                sum_x2 <- as.numeric(rowsum(x * x, group))
+                v <- pmax(sum_x2 / n_in_group - means^2, 0)
+                sqrt(v) / (means + eps)
+            },
+            GeoMean = {
+                if (eps == 0) {
+                    log_sum <- as.numeric(rowsum(log(x), group))
+                    exp(log_sum / n_in_group)
+                } else {
+                    log_sum <- as.numeric(rowsum(log(x + eps), group))
+                    exp(log_sum / n_in_group) - eps
+                }
+            })
+    } else if (label == "Median" || label == "Quantile") {
+        q <- if (label == "Median") 0.5 else .param_quantile_q(params)
+        vapply(split(x, group), function(v)
+            stats::quantile(v, q, type = 7L, names = FALSE),
+            numeric(1))
+    } else if (label == "Mode") {
+        vapply(split(x, group),
+            function(v) as.numeric(.op_mode(v)), numeric(1))
+    } else {
+        stop("unreachable", call. = FALSE)
+    }
+}
+
 .apply_reduction_grouped_vector <- function(node, state, daf) {
     fn <- get_reduction(node$reduction)
     params <- .coerce_params(node$params)
-    splitted <- split(state$value, state$pending_groups)
-    vals <- vapply(
-        splitted, function(x) do.call(fn, c(list(x), params)),
-        numeric(1)
-    )
-    list(kind = "vector", axis = NULL, value = vals)
+    x <- state$value
+    g <- state$pending_groups
+    # Preserve group first-appearance order via factor levels.
+    gfac <- factor(g, levels = unique(g))
+    gi <- as.integer(gfac)
+    ngroups <- nlevels(gfac)
+    lvls <- levels(gfac)
+
+    label <- .reduction_builtin_label(fn)
+
+    # Mode-on-character dedicated R helper (no C kernel; char Mode is rare).
+    if (!is.na(label) && label == "Mode" && is.character(x)) {
+        vals <- .grouped_mode_character(x, gi, ngroups)
+        return(list(kind = "vector", axis = NULL,
+            value = stats::setNames(vals, lvls)))
+    }
+
+    # Numeric builtin fast path.
+    if (!is.na(label) && is.numeric(x)) {
+        vals <- .grouped_vector_builtin(x, gi, ngroups, label, params)
+        return(list(kind = "vector", axis = NULL,
+            value = stats::setNames(vals, lvls)))
+    }
+
+    # Fallback: type-sniffed split+loop (replaces the old vapply(..., numeric(1))).
+    idx <- split(seq_along(x), gi)
+    # idx is named by levels; reorder to match seq_len(ngroups).
+    idx <- idx[as.character(seq_len(ngroups))]
+    valid <- which(lengths(idx) > 0L)
+    if (length(valid) == 0L) {
+        return(list(kind = "vector", axis = NULL,
+            value = stats::setNames(numeric(ngroups), lvls)))
+    }
+    mode <- .grouped_proto_storage(fn, x[idx[[valid[1L]]]], params)
+    out <- .grouped_allocate_output(mode, ngroups)
+    for (g_i in seq_len(ngroups)) {
+        if (length(idx[[g_i]]) == 0L) {
+            out[g_i] <- switch(mode,
+                double = NA_real_, integer = NA_integer_,
+                logical = NA, character = NA_character_)
+            next
+        }
+        out[g_i] <- do.call(fn, c(list(x[idx[[g_i]]]), params))
+    }
+    list(kind = "vector", axis = NULL,
+        value = stats::setNames(out, lvls))
+}
+
+# G2/G3 builtin fast-path: dispatch to appropriate C++ kernel or dense fallback.
+.grouped_matrix_builtin <- function(m, gi, ngroups, n_in_group,
+                                    axis, label, params) {
+    is_dg <- methods::is(m, "dgCMatrix")
+
+    # Median/Quantile: sparse kernel, dense via matrixStats
+    if (label == "Median" || label == "Quantile") {
+        q <- if (label == "Median") 0.5 else .param_quantile_q(params)
+        if (is_dg) {
+            return(kernel_grouped_quantile_csc_cpp(
+                m@x, m@i, m@p, nrow(m), ncol(m),
+                group = gi, ngroups = ngroups,
+                n_in_group = n_in_group, axis = axis, q = q,
+                threshold = .dafr_kernel_threshold()))
+        }
+        idx <- split(seq_along(gi), gi)
+        idx <- idx[as.character(seq_len(ngroups))]
+        if (axis == 2L) {
+            out <- matrix(0, ngroups, ncol(m))
+            for (g in seq_len(ngroups)) {
+                if (length(idx[[g]]) == 0L) next
+                sub <- m[idx[[g]], , drop = FALSE]
+                out[g, ] <- matrixStats::colQuantiles(sub, probs = q,
+                    type = 7L, useNames = FALSE)
+            }
+            return(out)
+        }
+        out <- matrix(0, nrow(m), ngroups)
+        for (g in seq_len(ngroups)) {
+            if (length(idx[[g]]) == 0L) next
+            sub <- m[, idx[[g]], drop = FALSE]
+            out[, g] <- matrixStats::rowQuantiles(sub, probs = q,
+                type = 7L, useNames = FALSE)
+        }
+        return(out)
+    }
+
+    if (label == "Mode") {
+        if (is_dg) {
+            return(kernel_grouped_mode_csc_cpp(
+                m@x, m@i, m@p, nrow(m), ncol(m),
+                group = gi, ngroups = ngroups,
+                n_in_group = n_in_group, axis = axis,
+                threshold = .dafr_kernel_threshold()))
+        }
+        idx <- split(seq_along(gi), gi)
+        idx <- idx[as.character(seq_len(ngroups))]
+        if (axis == 2L) {
+            out <- matrix(0, ngroups, ncol(m))
+            for (g in seq_len(ngroups)) {
+                if (length(idx[[g]]) == 0L) next
+                sub <- m[idx[[g]], , drop = FALSE]
+                out[g, ] <- apply(sub, 2L,
+                    function(v) .op_mode(v))
+            }
+            return(out)
+        }
+        out <- matrix(0, nrow(m), ngroups)
+        for (g in seq_len(ngroups)) {
+            if (length(idx[[g]]) == 0L) next
+            sub <- m[, idx[[g]], drop = FALSE]
+            out[, g] <- apply(sub, 1L,
+                function(v) .op_mode(v))
+        }
+        return(out)
+    }
+
+    # Shared ops: Sum/Mean/Min/Max/Var/Std/VarN/StdN/GeoMean.
+    eps <- if (label %in% c("VarN", "StdN", "GeoMean"))
+        .param_eps(params) else 0
+    if (is_dg) {
+        kernel_grouped_reduce_csc_cpp(
+            m@x, m@i, m@p, nrow(m), ncol(m),
+            group = gi, ngroups = ngroups,
+            n_in_group = n_in_group, axis = axis,
+            op = label, eps = eps,
+            threshold = .dafr_kernel_threshold())
+    } else {
+        # Dense kernel expects a double matrix.
+        if (!is.double(m)) storage.mode(m) <- "double"
+        kernel_grouped_reduce_dense_cpp(
+            m, group = gi, ngroups = ngroups,
+            n_in_group = n_in_group, axis = axis,
+            op = label, eps = eps,
+            threshold = .dafr_kernel_threshold())
+    }
+}
+
+# G2/G3 fallback: type-sniffed split+apply (replaces old sapply+apply path
+# which silently produced wrong shapes on unequal group sizes).
+.apply_reduction_grouped_matrix_fallback <- function(m, gi, ngroups,
+                                                     node, fn, params,
+                                                     by, state, daf) {
+    idx <- split(seq_along(gi), gi)
+    idx <- idx[as.character(seq_len(ngroups))]
+    valid <- which(lengths(idx) > 0L)
+    if (length(valid) == 0L) {
+        stop("no valid groups in grouped-matrix fallback path",
+            call. = FALSE)
+    }
+
+    if (identical(by, "rows") && identical(node$op, "ReduceToColumn")) {
+        # G2 fallback: ngroups x ncol output.
+        sub0 <- m[idx[[valid[1L]]], , drop = FALSE]
+        sample_out <- apply(sub0, 2L,
+            function(col) do.call(fn, c(list(col), params)))
+        mode <- storage.mode(sample_out)
+        out <- matrix(.grouped_allocate_output(mode, 1L),
+            nrow = ngroups, ncol = ncol(m))
+        storage.mode(out) <- mode
+        for (g in seq_len(ngroups)) {
+            if (length(idx[[g]]) == 0L) next
+            sub <- m[idx[[g]], , drop = FALSE]
+            out[g, ] <- apply(sub, 2L,
+                function(col) do.call(fn, c(list(col), params)))
+        }
+        return(out)
+    }
+
+    # G3 fallback: by="cols", op="ReduceToRow" -> nrow x ngroups.
+    sub0 <- m[, idx[[valid[1L]]], drop = FALSE]
+    sample_out <- apply(sub0, 1L,
+        function(row) do.call(fn, c(list(row), params)))
+    mode <- storage.mode(sample_out)
+    out <- matrix(.grouped_allocate_output(mode, 1L),
+        nrow = nrow(m), ncol = ngroups)
+    storage.mode(out) <- mode
+    for (g in seq_len(ngroups)) {
+        if (length(idx[[g]]) == 0L) next
+        sub <- m[, idx[[g]], drop = FALSE]
+        out[, g] <- apply(sub, 1L,
+            function(row) do.call(fn, c(list(row), params)))
+    }
+    out
 }
 
 .apply_reduction_grouped_matrix <- function(node, state, daf, by) {
     fn <- get_reduction(node$reduction)
     params <- .coerce_params(node$params)
     m <- state$value
-    if (identical(by, "rows")) {
-        # Rows grouped: split row indices by group label.
-        # ReduceToColumn: for each row-group, reduce across columns within each
-        # surviving row (margin 1), producing a sub-matrix.  Group becomes the
-        # new row dimension; columns are preserved.
-        idx <- split(seq_len(nrow(m)), state$pending_row_groups)
-        if (identical(node$op, "ReduceToColumn")) {
-            out <- sapply(idx, function(i) {
-                sub <- m[i, , drop = FALSE]
-                apply(sub, 1L, function(row) do.call(fn, c(list(row), params)))
-            })
-            return(list(
-                kind = "matrix", value = out,
-                rows_axis = NULL, cols_axis = state$cols_axis
-            ))
+    label <- .reduction_builtin_label(fn)
+
+    is_g2 <- identical(by, "rows") && identical(node$op, "ReduceToColumn")
+    is_g3 <- identical(by, "cols") && identical(node$op, "ReduceToRow")
+    is_g4a <- identical(by, "rows") && identical(node$op, "ReduceToRow")
+    is_g4b <- identical(by, "cols") && identical(node$op, "ReduceToColumn")
+
+    if (is_g2 || is_g3) {
+        g <- if (is_g2) state$pending_row_groups else state$pending_col_groups
+        gfac <- factor(g, levels = unique(g))
+        gi <- as.integer(gfac)
+        ngroups <- nlevels(gfac)
+        lvls <- levels(gfac)
+        n_in_group <- as.integer(tabulate(gi, ngroups))
+
+        # lgCMatrix (and other non-dg sparse) cannot feed the numeric kernels;
+        # route those through the fallback.
+        is_dg <- methods::is(m, "dgCMatrix")
+        is_dense <- is.matrix(m)
+        kernel_ok <- is_dg || is_dense
+        if (!is.na(label) && kernel_ok) {
+            axis <- if (is_g2) 2L else 3L
+            out <- .grouped_matrix_builtin(m, gi, ngroups, n_in_group,
+                axis, label, params)
+        } else {
+            out <- .apply_reduction_grouped_matrix_fallback(
+                m, gi, ngroups, node, fn, params, by, state, daf)
         }
-        # ReduceToRow on grouped rows: reduce within each group across rows
-        # (margin 2 = collapse rows within group to per-column value, then
-        # reduce again across columns to get one scalar per group).
-        out <- vapply(idx, function(i) {
-            sub <- m[i, , drop = FALSE]
-            reduced <- apply(sub, 2L, function(col) do.call(fn, c(list(col), params)))
-            do.call(fn, c(list(reduced), params))
-        }, numeric(1))
-        return(list(kind = "vector", axis = NULL, value = out))
+
+        # Assign dimnames: group axis gets level labels, other axis inherits
+        # from m if named, else from the daf axis array.
+        if (is_g2) {
+            rn <- lvls
+            cn <- if (!is.null(colnames(m))) colnames(m)
+                  else format_axis_array(daf, state$cols_axis)
+            dimnames(out) <- list(rn, cn)
+            return(list(kind = "matrix", value = out,
+                rows_axis = NULL, cols_axis = state$cols_axis))
+        }
+        # G3
+        rn <- if (!is.null(rownames(m))) rownames(m)
+              else format_axis_array(daf, state$rows_axis)
+        cn <- lvls
+        dimnames(out) <- list(rn, cn)
+        return(list(kind = "matrix", value = out,
+            rows_axis = state$rows_axis, cols_axis = NULL))
     }
-    # by cols: split column indices by group label.
-    # ReduceToRow: for each col-group, reduce across rows within each
-    # surviving column (margin 2), producing a sub-matrix.  Group becomes
-    # the new column dimension; rows are preserved.
-    idx <- split(seq_len(ncol(m)), state$pending_col_groups)
-    if (identical(node$op, "ReduceToRow")) {
-        out <- sapply(idx, function(j) {
-            sub <- m[, j, drop = FALSE]
-            apply(sub, 2L, function(col) do.call(fn, c(list(col), params)))
-        })
-        return(list(
-            kind = "matrix", value = out,
-            rows_axis = state$rows_axis, cols_axis = NULL
-        ))
+
+    if (is_g4a || is_g4b) {
+        # G4: decompose as (inner G2 or G3 producing a matrix) + per-group
+        # vector reduction across the ungrouped axis. Equivalent to the old
+        # double-apply logic but sidesteps DSL recursion issues.
+        if (is_g4a) {
+            # Row-grouped + ReduceToRow: G2 gives ngroups x ncol, then reduce
+            # each row (across cols) to a scalar per group.
+            inner_by <- "rows"
+            inner_op <- "ReduceToColumn"
+            inner_state <- state
+            inner_node <- list(op = inner_op,
+                reduction = node$reduction, params = node$params)
+            inner <- .apply_reduction_grouped_matrix(inner_node, inner_state,
+                daf, by = inner_by)
+            # inner$value is ngroups x ncol with rownames = group levels.
+            mat <- inner$value
+            g <- state$pending_row_groups
+            gfac <- factor(g, levels = unique(g))
+            lvls <- levels(gfac)
+            ngroups <- nlevels(gfac)
+            out <- vapply(seq_len(ngroups),
+                function(g_i) do.call(fn,
+                    c(list(mat[g_i, ]), params)),
+                numeric(1))
+            return(list(kind = "vector", axis = NULL,
+                value = stats::setNames(out, lvls)))
+        }
+        # G4b: col-grouped + ReduceToColumn: G3 gives nrow x ngroups, then
+        # reduce each column (across rows) to a scalar per group.
+        inner_node <- list(op = "ReduceToRow",
+            reduction = node$reduction, params = node$params)
+        inner <- .apply_reduction_grouped_matrix(inner_node, state, daf,
+            by = "cols")
+        mat <- inner$value
+        g <- state$pending_col_groups
+        gfac <- factor(g, levels = unique(g))
+        lvls <- levels(gfac)
+        ngroups <- nlevels(gfac)
+        out <- vapply(seq_len(ngroups),
+            function(g_i) do.call(fn,
+                c(list(mat[, g_i]), params)),
+            numeric(1))
+        return(list(kind = "vector", axis = NULL,
+            value = stats::setNames(out, lvls)))
     }
-    # ReduceToColumn on grouped cols: reduce within each group across columns
-    # (margin 1 = collapse columns within group to per-row value, then
-    # reduce again across rows to get one scalar per group).
-    out <- vapply(idx, function(j) {
-        sub <- m[, j, drop = FALSE]
-        reduced <- apply(sub, 1L, function(row) do.call(fn, c(list(row), params)))
-        do.call(fn, c(list(reduced), params))
-    }, numeric(1))
-    list(kind = "vector", axis = NULL, value = out)
+
+    stop(sprintf("unsupported grouped matrix pattern: op=%s by=%s",
+        node$op, by), call. = FALSE)
 }
 
 .coerce_params <- function(params) {
