@@ -75,3 +75,45 @@ copy_scalar <- function(destination, source, name,
     format_set_scalar(destination, final_name, value, overwrite = overwrite)
     invisible(destination)
 }
+
+#' Copy an axis (its entries) from one daf to another.
+#'
+#' Mirrors Julia `copy_axis!(; destination, source, axis, rename, overwrite,
+#' insist)`.
+#'
+#' @param destination A `DafWriter`.
+#' @param source A `DafReader`.
+#' @param axis Axis name in `source`.
+#' @param rename If non-NULL, use this name in `destination`.
+#' @param overwrite If `TRUE`, delete any existing destination axis (and all
+#'   its properties) before recreating.
+#' @param insist If `TRUE` (default) and the destination already has the axis,
+#'   raise; if `FALSE`, silently skip.
+#' @return Invisibly, the destination.
+#' @export
+#' @examples
+#' src <- memory_daf(name = "src"); add_axis(src, "cell", c("c1", "c2"))
+#' dest <- memory_daf(name = "dest")
+#' copy_axis(dest, src, "cell")
+copy_axis <- function(destination, source, axis,
+                      rename = NULL, overwrite = FALSE, insist = TRUE) {
+    .assert_name(axis, "axis")
+    final_axis <- if (is.null(rename)) axis else rename
+    if (!format_has_axis(source, axis)) {
+        stop(sprintf("missing axis: %s in the daf data: %s",
+                     sQuote(axis), S7::prop(source, "name")),
+             call. = FALSE)
+    }
+    if (format_has_axis(destination, final_axis)) {
+        if (!overwrite) {
+            if (insist) {
+                stop(sprintf("axis %s already exists in destination",
+                             sQuote(final_axis)), call. = FALSE)
+            }
+            return(invisible(destination))
+        }
+        format_delete_axis(destination, final_axis, must_exist = TRUE)
+    }
+    format_add_axis(destination, final_axis, format_axis_array(source, axis))
+    invisible(destination)
+}
