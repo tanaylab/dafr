@@ -72,6 +72,7 @@ test_that("3-hop chain '=@:x =@:y =@:z' resolves", {
 
     out <- get_query(d, "@ cell : donor =@ : lab =@ : country =@ : language")
     expect_equal(unname(out), c("Hebrew", "English"))
+    expect_equal(names(out), c("c1", "c2"))
 })
 
 test_that("intermediate '??' drops missing rows but does not leak to next hop", {

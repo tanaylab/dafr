@@ -343,8 +343,10 @@ NULL
     mode(out) <- mode(lookup_vec)
     out[!empty_mask] <- lookup_vec[indices[!empty_mask]]
 
-    # If a prior hop already dropped rows, pivot_values carries surviving names.
-    # Prefer those over re-fetching the full axis so lengths stay consistent.
+    # Post-first-hop, pivot_values carries surviving axis names set by a prior
+    # .apply_chained_lookup_vector call; use them to preserve any '??' row drop.
+    # First-hop pivot_values comes from format_get_vector (unnamed on all current
+    # backends), so we seed from the full axis instead.
     base_entries <- if (!is.null(names(pivot_values))) {
         names(pivot_values)
     } else {
