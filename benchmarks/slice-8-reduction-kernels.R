@@ -123,6 +123,56 @@ gates$grouped_var_sparse_g3 <- list(
     mem_ratio_target = NA
 )
 
+# --- Task 9: grouped quantile / mode kernels ------------------------------
+
+gates$grouped_median_sparse_g3 <- list(
+    name = "Grouped Median G3 (100 groups, 10k x 10k, 5% nnz)",
+    setup = function() list(m = make_sparse(), g = make_groups(10000L, 100L)),
+    baseline = function(d) {
+        idx <- split(seq_len(ncol(d$m)), d$g)
+        sapply(idx, function(j) {
+            sub <- d$m[, j, drop = FALSE]
+            apply(sub, 1L, median)
+        })
+    },
+    fast = function(d) dafr:::kernel_grouped_quantile_csc_cpp(
+        d$m@x, d$m@i, d$m@p, nrow(d$m), ncol(d$m),
+        group = as.integer(d$g), ngroups = 100L,
+        n_in_group = as.integer(tabulate(d$g, 100L)),
+        axis = 3L, q = 0.5, threshold = 1024L),
+    ratio_target = 20.0,
+    mem_ratio_target = NA
+)
+
+gates$grouped_mode_sparse_g3 <- list(
+    name = "Grouped Mode G3 (100 groups, 10k x 10k, 5% nnz)",
+    setup = function() {
+        # Integer-valued positives so mode ties exist and fast path exercises
+        # the same code used in parity tests.
+        nrow <- 10000L; ncol <- 10000L; density <- 0.05
+        nnz <- as.integer(nrow * ncol * density)
+        i <- sample.int(nrow, nnz, replace = TRUE)
+        j <- sample.int(ncol, nnz, replace = TRUE)
+        x <- sample(c(1, 2, 3), nnz, replace = TRUE)
+        m <- Matrix::sparseMatrix(i = i, j = j, x = x, dims = c(nrow, ncol))
+        list(m = m, g = make_groups(ncol, 100L))
+    },
+    baseline = function(d) {
+        idx <- split(seq_len(ncol(d$m)), d$g)
+        sapply(idx, function(j) {
+            sub <- d$m[, j, drop = FALSE]
+            apply(sub, 1L, function(v) dafr:::.op_mode(v))
+        })
+    },
+    fast = function(d) dafr:::kernel_grouped_mode_csc_cpp(
+        d$m@x, d$m@i, d$m@p, nrow(d$m), ncol(d$m),
+        group = as.integer(d$g), ngroups = 100L,
+        n_in_group = as.integer(tabulate(d$g, 100L)),
+        axis = 3L, threshold = 1024L),
+    ratio_target = 20.0,
+    mem_ratio_target = NA
+)
+
 # --- Runner (wired in Task 15) ---------------------------------------------
 # (Placeholder — replaced in Task 15 with a harness that evaluates every gate.)
 cat("Slice 8 benchmark skeleton.\n",

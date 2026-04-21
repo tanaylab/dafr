@@ -603,3 +603,114 @@ test_that("kernel_grouped_reduce_csc G2 Min/Max fold in implicit zeros correctly
     expect_equal(out_min, matrix(c(-5, 0, 0, -7), 2L, 2L))
     expect_equal(out_max, matrix(c(-3, 0, 0, -1), 2L, 2L))
 })
+
+# ---------------------------------------------------------------------------
+# Task 9: kernel_grouped_quantile_csc_cpp + kernel_grouped_mode_csc_cpp
+# ---------------------------------------------------------------------------
+
+test_that("kernel_grouped_quantile_csc matches split+apply for Median/Quantile", {
+    skip_if_not_installed("Matrix")
+    set.seed(49)
+    m <- Matrix::rsparsematrix(40L, 30L, density = 0.3, rand.x = rnorm)
+    dense <- as.matrix(m)
+    row_g <- sample.int(4L, 40L, replace = TRUE)
+    col_g <- sample.int(3L, 30L, replace = TRUE)
+    for (q in c(0.0, 0.25, 0.5, 0.75, 1.0)) {
+        # G2: row-grouped, ngroups x ncol
+        fast_g2 <- dafr:::kernel_grouped_quantile_csc_cpp(
+            m@x, m@i, m@p, nrow(m), ncol(m),
+            group = as.integer(row_g), ngroups = 4L,
+            n_in_group = as.integer(tabulate(row_g, 4L)),
+            axis = 2L, q = q, threshold = 1L)
+        expected_g2 <- matrix(0, 4L, ncol(m))
+        for (g in 1:4L) for (j in 1:ncol(m)) {
+            expected_g2[g, j] <- stats::quantile(
+                dense[row_g == g, j], q, type = 7, names = FALSE)
+        }
+        expect_equal(fast_g2, expected_g2, tolerance = 1e-9,
+            info = sprintf("G2 q=%.2f", q))
+
+        # G3: col-grouped, nrow x ngroups
+        fast_g3 <- dafr:::kernel_grouped_quantile_csc_cpp(
+            m@x, m@i, m@p, nrow(m), ncol(m),
+            group = as.integer(col_g), ngroups = 3L,
+            n_in_group = as.integer(tabulate(col_g, 3L)),
+            axis = 3L, q = q, threshold = 1L)
+        expected_g3 <- matrix(0, nrow(m), 3L)
+        for (g in 1:3L) for (i in 1:nrow(m)) {
+            expected_g3[i, g] <- stats::quantile(
+                dense[i, col_g == g], q, type = 7, names = FALSE)
+        }
+        expect_equal(fast_g3, expected_g3, tolerance = 1e-9,
+            info = sprintf("G3 q=%.2f", q))
+    }
+})
+
+test_that("kernel_grouped_quantile_csc handles empty groups", {
+    skip_if_not_installed("Matrix")
+    set.seed(491)
+    m <- Matrix::rsparsematrix(20L, 12L, density = 0.3, rand.x = rnorm)
+    # row_group has groups 1..3 only; group 4 is empty.
+    row_g <- sample.int(3L, 20L, replace = TRUE)
+    n_in_rg <- as.integer(tabulate(row_g, 4L))
+    expect_equal(n_in_rg[4L], 0L)
+    got <- dafr:::kernel_grouped_quantile_csc_cpp(
+        m@x, m@i, m@p, nrow(m), ncol(m),
+        group = as.integer(row_g), ngroups = 4L,
+        n_in_group = n_in_rg, axis = 2L, q = 0.5, threshold = 1L)
+    expect_equal(got[4L, ], rep(0, ncol(m)), tolerance = 1e-12)
+})
+
+test_that("kernel_grouped_mode_csc matches .op_mode per group", {
+    skip_if_not_installed("Matrix")
+    set.seed(50)
+    # integer-valued to make ties common
+    vals <- sample(c(-1, 0, 1, 2), 800L, replace = TRUE,
+                   prob = c(0.1, 0.6, 0.2, 0.1))
+    m <- Matrix::sparseMatrix(
+        i = rep(seq_len(40L), 20L),
+        j = rep(seq_len(20L), each = 40L),
+        x = vals, dims = c(40L, 20L))
+    dense <- as.matrix(m)
+    row_g <- sample.int(3L, 40L, replace = TRUE)
+    fast <- dafr:::kernel_grouped_mode_csc_cpp(
+        m@x, m@i, m@p, nrow(m), ncol(m),
+        group = as.integer(row_g), ngroups = 3L,
+        n_in_group = as.integer(tabulate(row_g, 3L)),
+        axis = 2L, threshold = 1L)
+    expected <- matrix(0, 3L, ncol(m))
+    for (g in 1:3L) for (j in 1:ncol(m)) {
+        expected[g, j] <- dafr:::.op_mode(dense[row_g == g, j])
+    }
+    expect_equal(fast, expected,
+        info = "G2 Mode matches .op_mode per (row-group, col)")
+
+    # G3
+    col_g <- sample.int(4L, 20L, replace = TRUE)
+    fast3 <- dafr:::kernel_grouped_mode_csc_cpp(
+        m@x, m@i, m@p, nrow(m), ncol(m),
+        group = as.integer(col_g), ngroups = 4L,
+        n_in_group = as.integer(tabulate(col_g, 4L)),
+        axis = 3L, threshold = 1L)
+    expected3 <- matrix(0, nrow(m), 4L)
+    for (g in 1:4L) for (i in 1:nrow(m)) {
+        expected3[i, g] <- dafr:::.op_mode(dense[i, col_g == g])
+    }
+    expect_equal(fast3, expected3,
+        info = "G3 Mode matches .op_mode per (row, col-group)")
+})
+
+test_that("kernel_grouped_mode_csc handles empty groups", {
+    skip_if_not_installed("Matrix")
+    m <- Matrix::sparseMatrix(i = c(1L, 2L), j = c(1L, 1L), x = c(5, 5),
+        dims = c(4L, 2L))
+    row_g <- c(1L, 1L, 2L, 2L)
+    # ngroups = 3 so group 3 is empty.
+    n_in_rg <- as.integer(tabulate(row_g, 3L))
+    expect_equal(n_in_rg[3L], 0L)
+    got <- dafr:::kernel_grouped_mode_csc_cpp(
+        m@x, m@i, m@p, 4L, 2L,
+        group = as.integer(row_g), ngroups = 3L,
+        n_in_group = n_in_rg, axis = 2L, threshold = 1L)
+    expect_equal(got[3L, ], rep(0, 2L), tolerance = 1e-12)
+})
