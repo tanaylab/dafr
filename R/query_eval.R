@@ -389,6 +389,57 @@ NULL
     }
     fn <- get_reduction(node$reduction)
     params <- .coerce_params(node$params)
+
+    # Fast path: bare default reduction (no params, built-in fn) -> vectorised
+    # primitive. Falls through to NULL for unhandled built-ins (e.g. Count).
+    if (length(params) == 0L) {
+        fast <- .apply_reduction_fast(node, state, fn, daf)
+        if (!is.null(fast)) return(fast)
+    }
+
+    .apply_reduction_slow(node, state, fn, params, daf)
+}
+
+.apply_reduction_fast <- function(node, state, fn, daf) {
+    builtin <- attr(fn, ".dafr_builtin")
+    if (is.null(builtin)) return(NULL)
+    m <- state$value
+    is_sparse <- methods::is(m, "dgCMatrix") || methods::is(m, "lgCMatrix")
+    is_dense <- is.matrix(m)
+    if (!is_sparse && !is_dense) return(NULL)
+
+    if (identical(node$op, "ReduceToColumn")) {
+        row_names <- if (is_dense) rownames(m) else m@Dimnames[[1L]]
+        if (is.null(row_names)) row_names <- format_axis_array(daf, state$rows_axis)
+        vals <- switch(builtin,
+            Sum   = if (is_sparse) Matrix::rowSums(m) else rowSums(m),
+            Mean  = if (is_sparse) Matrix::rowMeans(m) else rowMeans(m),
+            Max   = if (is_sparse) matrixStats::rowMaxs(as.matrix(m)) else matrixStats::rowMaxs(m),
+            Min   = if (is_sparse) matrixStats::rowMins(as.matrix(m)) else matrixStats::rowMins(m),
+            return(NULL)
+        )
+        return(list(
+            kind = "vector", axis = state$rows_axis,
+            value = setNames(as.numeric(vals), row_names)
+        ))
+    }
+    # ReduceToRow: column-wise reduction
+    col_names <- if (is_dense) colnames(m) else m@Dimnames[[2L]]
+    if (is.null(col_names)) col_names <- format_axis_array(daf, state$cols_axis)
+    vals <- switch(builtin,
+        Sum   = if (is_sparse) Matrix::colSums(m) else colSums(m),
+        Mean  = if (is_sparse) Matrix::colMeans(m) else colMeans(m),
+        Max   = if (is_sparse) matrixStats::colMaxs(as.matrix(m)) else matrixStats::colMaxs(m),
+        Min   = if (is_sparse) matrixStats::colMins(as.matrix(m)) else matrixStats::colMins(m),
+        return(NULL)
+    )
+    list(
+        kind = "vector", axis = state$cols_axis,
+        value = setNames(as.numeric(vals), col_names)
+    )
+}
+
+.apply_reduction_slow <- function(node, state, fn, params, daf) {
     m <- state$value
     if (identical(node$op, "ReduceToColumn")) {
         # ReduceToColumn: collapse across columns within each row -> one value per
