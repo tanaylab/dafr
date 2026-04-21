@@ -1169,12 +1169,17 @@ NULL
             gfac <- factor(g, levels = unique(g))
             lvls <- levels(gfac)
             ngroups <- nlevels(gfac)
-            out <- vapply(seq_len(ngroups),
-                function(g_i) do.call(fn,
-                    c(list(mat[g_i, ]), params)),
-                numeric(1))
-            return(list(kind = "vector", axis = NULL,
-                value = stats::setNames(out, lvls)))
+            # Type-sniff on the first group's row so character/logical/integer
+            # user reductions are preserved (vapply(numeric(1)) would coerce).
+            sample_row <- mat[1L, , drop = TRUE]
+            mode <- .grouped_proto_storage(fn, sample_row, params)
+            out <- .grouped_allocate_output(mode, ngroups)
+            for (g_i in seq_len(ngroups)) {
+                out[g_i] <- do.call(fn,
+                    c(list(mat[g_i, , drop = TRUE]), params))
+            }
+            names(out) <- lvls
+            return(list(kind = "vector", axis = NULL, value = out))
         }
         # G4b: col-grouped + ReduceToColumn: G3 gives nrow x ngroups, then
         # reduce each column (across rows) to a scalar per group.
@@ -1187,12 +1192,17 @@ NULL
         gfac <- factor(g, levels = unique(g))
         lvls <- levels(gfac)
         ngroups <- nlevels(gfac)
-        out <- vapply(seq_len(ngroups),
-            function(g_i) do.call(fn,
-                c(list(mat[, g_i]), params)),
-            numeric(1))
-        return(list(kind = "vector", axis = NULL,
-            value = stats::setNames(out, lvls)))
+        # Type-sniff on the first group's column so character/logical/integer
+        # user reductions are preserved (vapply(numeric(1)) would coerce).
+        sample_col <- mat[, 1L, drop = TRUE]
+        mode <- .grouped_proto_storage(fn, sample_col, params)
+        out <- .grouped_allocate_output(mode, ngroups)
+        for (g_i in seq_len(ngroups)) {
+            out[g_i] <- do.call(fn,
+                c(list(mat[, g_i, drop = TRUE]), params))
+        }
+        names(out) <- lvls
+        return(list(kind = "vector", axis = NULL, value = out))
     }
 
     stop(sprintf("unsupported grouped matrix pattern: op=%s by=%s",

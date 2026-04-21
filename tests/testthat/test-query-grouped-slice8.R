@@ -340,3 +340,40 @@ test_that("G2 fallback with custom int-returning reduction preserves type", {
     # values within that group -> length = 3.
     expect_equal(unname(out)[1L, 1L], 3L)
 })
+
+test_that("G4 preserves integer output for user reductions", {
+    m <- matrix(1:12, 3, 4)
+    daf <- memory_daf("t")
+    add_axis(daf, "r", c("a", "b", "c"))
+    add_axis(daf, "c", c("w", "x", "y", "z"))
+    set_matrix(daf, "r", "c", "m", m)
+    set_vector(daf, "r", "rg", c("g1", "g1", "g2"))
+    register_reduction("Slice10TestG4LenInt",
+        function(v, ...) length(v), overwrite = TRUE)
+    # G4a: row-grouped, ReduceToRow (double reduction)
+    # Inner G2 gives 2 x 4 matrix; outer length() on each 4-element row -> 4L
+    out <- get_query(daf, "@ r @ c :: m -/ rg >- Slice10TestG4LenInt")
+    expect_type(out, "integer")
+    expect_equal(unname(out), c(4L, 4L))
+})
+
+test_that("G4 supports logical and character user reductions without vapply error", {
+    m <- matrix(1:12, 3, 4)
+    daf <- memory_daf("t")
+    add_axis(daf, "r", c("a", "b", "c"))
+    add_axis(daf, "c", c("w", "x", "y", "z"))
+    set_matrix(daf, "r", "c", "m", m)
+    set_vector(daf, "r", "rg", c("g1", "g1", "g2"))
+
+    register_reduction("Slice10TestG4AnyPos",
+        function(v, ...) any(v > 0), overwrite = TRUE)
+    out_log <- get_query(daf, "@ r @ c :: m -/ rg >- Slice10TestG4AnyPos")
+    expect_type(out_log, "logical")
+    expect_length(out_log, 2L)
+
+    register_reduction("Slice10TestG4FirstChar",
+        function(v, ...) as.character(v[1L]), overwrite = TRUE)
+    out_char <- get_query(daf, "@ r @ c :: m -/ rg >- Slice10TestG4FirstChar")
+    expect_type(out_char, "character")
+    expect_length(out_char, 2L)
+})
