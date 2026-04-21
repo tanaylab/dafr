@@ -2,6 +2,13 @@
 
 ## New features
 
+- **Query op surface expansion** — 12 new default ops registered at package
+  load: eltwise `Clamp`, `Convert`, `Fraction`, `Significant`; reductions
+  `Var`, `Std`, `VarN`, `StdN`, `Median`, `Quantile`, `GeoMean`, `Mode`.
+  All available from query strings (e.g. `% Clamp min: 0 max: 10`,
+  `>| Quantile p: 0.9`). Reductions use uncorrected (n-denom) variance to
+  match DAF.jl. `Mode` is numeric-only this slice; string-axis grouping
+  deferred. No new exports.
 - **Copies surface** (`copy_scalar()` / `copy_axis()` / `copy_vector()` /
   `copy_matrix()` / `copy_tensor()` / `copy_all()`): port of Julia
   `Copies.jl`. Supports `rename` / `reaxis`, type coercion, `empty` fill

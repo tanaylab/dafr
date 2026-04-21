@@ -68,7 +68,9 @@ test_that("register_reduction accepts overwrite = TRUE", {
 })
 
 test_that("default reductions are registered on load", {
-    for (op in c("Sum", "Mean", "Max", "Min", "Count")) {
+    for (op in c("Sum", "Mean", "Max", "Min", "Count",
+                 "Var", "Std", "VarN", "StdN",
+                 "Median", "Quantile", "GeoMean", "Mode")) {
         expect_true(op %in% registered_reductions(), info = op)
     }
 })
@@ -94,7 +96,8 @@ test_that("Count returns length of input", {
 })
 
 test_that("default eltwise ops are registered on load", {
-    for (op in c("Log", "Abs", "Exp", "Sqrt", "Round")) {
+    for (op in c("Log", "Abs", "Exp", "Sqrt", "Round",
+                 "Clamp", "Convert", "Fraction", "Significant")) {
         expect_true(op %in% registered_eltwise(), info = op)
     }
 })
