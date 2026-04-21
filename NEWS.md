@@ -1,3 +1,61 @@
+# dafr 0.4.0 (in development)
+
+## New features
+
+- `chain_reader()` / `chain_writer()`: federate an ordered list of
+  `DafReader`s into a single read-only (`ReadOnlyChainDaf`) or
+  read-write (`WriteChainDaf`) view. Later entries override earlier
+  entries on read; writes go to the final writer; deletes only succeed
+  when the entry exists solely in the top writer. Axis consistency
+  across overlapping axes is validated at construction. (#slice-4)
+- `Contract()`, `contractor()`, `verify_input()`, `verify_output()`:
+  typed pre/post-condition enforcement for computations consuming Daf
+  data. Guards required / optional / created / guaranteed / optional
+  outputs, tracks access to required inputs, and validates element
+  types. Enforcement is off by default; enable via
+  `DAF_ENFORCE_CONTRACTS=1` (env) or
+  `options(dafr.enforce_contracts = TRUE)`. (#slice-4)
+- `merge_contracts()`: combine two contracts (Julia's `|>` semantics),
+  resolving expectations and element types. (#slice-4)
+- `IfNot` / `AsAxis` evaluator semantics: single-hop chained lookup
+  `@ A : v ?? X =@ : w` is now evaluated end-to-end. `??` bare drops
+  empty-value entries; `?? X` substitutes `X`. (#slice-4)
+- `ViewDaf`: axis rename (`viewer(d, axes = list(list("obs", "@ cell")))`)
+  and axis filter (`viewer(d, axes = list(list("cell", "@ cell [ keep ]")))`)
+  now propagate to `get_vector()` / `get_matrix()` reads. (#slice-4)
+
+## Performance
+
+- `% Log eps: 1` on a `dgCMatrix` now preserves sparsity (in-place
+  `log1p` on the `@x` slot). Eliminates the multi-GB dense
+  intermediate the previous path produced for typical UMI matrices.
+  (#slice-4-P2)
+- Bare default reductions (`>| Sum`, `>- Mean`, `>| Max`, etc., with
+  no parameters) now route to `rowSums` / `Matrix::rowSums` /
+  `matrixStats::rowMaxs` instead of `apply()`. (#slice-4-P3)
+- `% Log eps: ε >| Sum` and the `Mean` / `>-` variants now dispatch
+  to a fused C++ kernel (`kernel_log_reduce_{dense,csc}_cpp`); the
+  CSC variant is single-pass over `nnz` with no dense intermediate.
+  (#slice-4-P4)
+- `dafr.omp_threshold` (declared in Slice 0 but orphaned) is now
+  threaded through `kernel_log_add_cpp` and `kernel_csc_colsums_cpp`,
+  and through the new fused log-reduce kernel. Defaults to 10000.
+  (#slice-4-P1)
+
+## Bug fixes
+
+- `@ A [ v cmp X ]`: NA values in the masked property no longer leak
+  into the result; they are dropped silently, matching Julia's boolean
+  indexing semantics. (#slice-4)
+
+## Internal changes
+
+- `ViewDaf` now reuses the base daf's cache environment (the
+  previously allocated but unused per-view `query` cache bucket was
+  removed). (#slice-4)
+- New Imports: `matrixStats` (used by Phase P3 fast path for
+  `rowMaxs` / `colMins` etc.).
+
 # dafr 0.3.0 (Slice 3)
 
 ## New features

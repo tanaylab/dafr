@@ -86,6 +86,22 @@ Contract <- S7::new_class(
     }
 )
 
+#' Contract entry constructors
+#'
+#' Build records describing a scalar/vector/matrix that a computation
+#' consumes or produces. Records are stored in the `data` slot of a
+#' [Contract()] and consumed by [contractor()].
+#'
+#' @param name Property name (character scalar).
+#' @param axis Axis name for a vector property.
+#' @param rows_axis,columns_axis Axis names for a matrix property.
+#' @param expectation One of the [expectation-constants] (e.g.
+#'   `RequiredInput`, `CreatedOutput`).
+#' @param type R class name (e.g. `"integer"`, `"numeric"`, `"character"`).
+#' @param description Free-text description (character scalar).
+#' @return A list record with `$kind`, `$name`, `$expectation`, `$type`,
+#'   `$description`, and kind-specific axis fields.
+#' @name contract-entries
 #' @export
 contract_scalar <- function(name, expectation, type, description) {
     .assert_name(name, "name")
@@ -97,6 +113,7 @@ contract_scalar <- function(name, expectation, type, description) {
     )
 }
 
+#' @rdname contract-entries
 #' @export
 contract_vector <- function(axis, name, expectation, type, description) {
     .assert_name(axis, "axis")
@@ -109,6 +126,7 @@ contract_vector <- function(axis, name, expectation, type, description) {
     )
 }
 
+#' @rdname contract-entries
 #' @export
 contract_matrix <- function(rows_axis, columns_axis, name, expectation, type, description) {
     .assert_name(rows_axis, "rows_axis")
@@ -123,6 +141,26 @@ contract_matrix <- function(rows_axis, columns_axis, name, expectation, type, de
     )
 }
 
+#' Contract-enforcing daf wrapper
+#'
+#' S7 class returned by [contractor()] when enforcement is enabled.
+#' Intercepts `format_*` reads/writes on an underlying [DafReader]
+#' to track access and reject operations outside the contract.
+#'
+#' @inheritParams DafReader
+#' @param computation Name of the computation being guarded.
+#' @param is_relaxed If `TRUE`, accesses to properties outside the
+#'   contract are allowed (matching `Contract(is_relaxed = TRUE)`).
+#' @param overwrite If `TRUE`, pre-existing `CreatedOutput` properties
+#'   are allowed.
+#' @param base Underlying `DafReader` / `DafWriter`.
+#' @param axes Per-axis access-tracking environment (keyed by axis
+#'   name).
+#' @param data Per-property access-tracking environment (keyed by
+#'   `<kind>:<axes>:<name>`).
+#' @return An S7 class object; users normally obtain instances via
+#'   [contractor()] rather than calling the constructor directly.
+#' @seealso [contractor()], [verify_input()], [verify_output()].
 #' @export
 ContractDaf <- S7::new_class(
     name = "ContractDaf",
@@ -163,6 +201,21 @@ ContractDaf <- S7::new_class(
     )
 }
 
+#' Wrap a daf with a contract for a computation
+#'
+#' When contract enforcement is enabled (env `DAF_ENFORCE_CONTRACTS=1`
+#' or `options(dafr.enforce_contracts = TRUE)`), returns a
+#' [ContractDaf] that tracks access and rejects operations outside
+#' `contract`. Otherwise returns `daf` unchanged.
+#'
+#' @param computation Name of the computation (character scalar).
+#' @param contract A [Contract()] describing expected inputs and outputs.
+#' @param daf The underlying [DafReader] / [DafWriter].
+#' @param name Optional name for the wrapper; defaults to
+#'   `<daf-name>.<computation>`.
+#' @param overwrite If `TRUE`, pre-existing `CreatedOutput` properties
+#'   are allowed.
+#' @return `daf` itself, or a [ContractDaf] wrapping it.
 #' @export
 contractor <- function(computation, contract, daf,
                        name = NULL, overwrite = FALSE) {
@@ -711,12 +764,23 @@ S7::method(
     invisible()
 }
 
+#' Verify contract inputs / outputs
+#'
+#' `verify_input()` should be called before running a computation and
+#' `verify_output()` after. Both are no-ops when `daf` is not a
+#' [ContractDaf] (i.e. enforcement is disabled). `verify_output()`
+#' additionally fails on unused `RequiredInput` properties.
+#'
+#' @param daf A [DafReader] — if it is a [ContractDaf], the associated
+#'   contract is verified; otherwise the call is a silent no-op.
+#' @return `invisible()`.
 #' @export
 verify_input <- function(daf) {
     if (!S7::S7_inherits(daf, ContractDaf)) return(invisible())
     .verify_contract(daf, is_for_output = FALSE)
 }
 
+#' @rdname verify_input
 #' @export
 verify_output <- function(daf) {
     if (!S7::S7_inherits(daf, ContractDaf)) return(invisible())
@@ -763,7 +827,14 @@ verify_output <- function(daf) {
 
 #' Merge two contracts.
 #'
-#' Mirrors Julia's `Contract |> Contract`.
+#' Mirrors Julia's `Contract |> Contract`. `left` is treated as the
+#' earlier stage (upstream) and `right` as the later stage
+#' (downstream); expectations and element types are resolved
+#' accordingly and descriptions must match for overlapping axes /
+#' properties.
+#'
+#' @param left,right Two [Contract()] objects to merge.
+#' @return A new [Contract()] combining `left` and `right`.
 #' @export
 merge_contracts <- function(left, right) {
     merged_name <- if (identical(left@name, "")) right@name else

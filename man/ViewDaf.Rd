@@ -13,6 +13,8 @@ ViewDaf(
   matrix_version_counter = new.env(parent = emptyenv()),
   base = DafReader(),
   view_axes = list(),
+  view_axis_renames = list(),
+  view_axis_indices = list(),
   view_scalars = list(),
   view_vectors = list(),
   view_matrices = list()
@@ -34,6 +36,12 @@ ViewDaf(
 \item{base}{Base \code{DafReader} this view wraps.}
 
 \item{view_axes}{Named list mapping view axis names to query strings.}
+
+\item{view_axis_renames}{Named list mapping view axis names to base axis
+names.}
+
+\item{view_axis_indices}{Named list mapping view axis names to 1-based integer
+vectors of positions within each base axis that the view exposes.}
 
 \item{view_scalars}{Named list mapping view scalar names to query strings.}
 
