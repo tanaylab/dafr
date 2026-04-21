@@ -352,6 +352,22 @@ NULL
     }
     fn <- get_eltwise(node$name)
     params <- .coerce_params(node$params)
+
+    # Fast path: sparsity-preserving Log on dgCMatrix. log1p(0) == 0, so
+    # eps == 1 with default base (e) is the only Log parameterisation that
+    # preserves sparsity; apply log1p in place to @x and keep @i / @p.
+    builtin <- attr(fn, ".dafr_builtin")
+    if (identical(builtin, "Log") &&
+        methods::is(state$value, "dgCMatrix") &&
+        isTRUE(all.equal(params$eps %||% 0, 1)) &&
+        (is.null(params$base) ||
+            isTRUE(all.equal(params$base, exp(1))))) {
+        out <- state$value
+        out@x <- log1p(out@x)
+        state$value <- out
+        return(state)
+    }
+
     state$value <- do.call(fn, c(list(state$value), params))
     state
 }

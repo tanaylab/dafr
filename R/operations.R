@@ -123,6 +123,17 @@ registered_eltwise <- function() sort(names(.ops_env$eltwise))
 .op_sqrt <- function(x, ...) sqrt(x)
 .op_round <- function(x, ..., digits = 0) round(x, digits = digits)
 
+attr(.op_sum, ".dafr_builtin") <- "Sum"
+attr(.op_mean, ".dafr_builtin") <- "Mean"
+attr(.op_max, ".dafr_builtin") <- "Max"
+attr(.op_min, ".dafr_builtin") <- "Min"
+attr(.op_count, ".dafr_builtin") <- "Count"
+attr(.op_log, ".dafr_builtin") <- "Log"
+attr(.op_abs, ".dafr_builtin") <- "Abs"
+attr(.op_exp, ".dafr_builtin") <- "Exp"
+attr(.op_sqrt, ".dafr_builtin") <- "Sqrt"
+attr(.op_round, ".dafr_builtin") <- "Round"
+
 .register_default_ops <- function() {
     register_reduction("Sum", .op_sum, overwrite = TRUE)
     register_reduction("Mean", .op_mean, overwrite = TRUE)
