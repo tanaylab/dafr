@@ -25,7 +25,7 @@ NULL
 #' @seealso [function_contract()], [contract_description()], [contractor()].
 #' @export
 computation <- function(name, contract, fn) {
-    stopifnot(is.character(name), length(name) == 1L, nzchar(name))
+    .assert_name(name, "name")
     if (!S7::S7_inherits(contract, Contract)) {
         stop("`contract` must be a Contract()", call. = FALSE)
     }
@@ -78,22 +78,23 @@ function_contract <- function(fn) {
 #'
 #' @param contract A `Contract`.
 #' @return A character scalar.
+#' @seealso [computation()], [Contract()].
 #' @export
 contract_description <- function(contract) {
     if (!S7::S7_inherits(contract, Contract)) {
-        stop("`contract` must be a Contract", call. = FALSE)
+        stop("`contract` must be a Contract()", call. = FALSE)
     }
     lines <- character()
-    if (length(contract@axes) > 0L) {
+    if (length(S7::prop(contract, "axes")) > 0L) {
         lines <- c(lines, "Axes:")
-        for (a in names(contract@axes)) {
-            spec <- contract@axes[[a]]
+        for (a in names(S7::prop(contract, "axes"))) {
+            spec <- S7::prop(contract, "axes")[[a]]
             lines <- c(lines, sprintf("  %s (%s): %s", a, spec[[1L]], spec[[2L]]))
         }
     }
-    scalars <- Filter(function(r) identical(r$kind, "scalar"), contract@data)
-    vectors <- Filter(function(r) identical(r$kind, "vector"), contract@data)
-    matrices <- Filter(function(r) identical(r$kind, "matrix"), contract@data)
+    scalars <- Filter(function(r) identical(r$kind, "scalar"), S7::prop(contract, "data"))
+    vectors <- Filter(function(r) identical(r$kind, "vector"), S7::prop(contract, "data"))
+    matrices <- Filter(function(r) identical(r$kind, "matrix"), S7::prop(contract, "data"))
     if (length(scalars) > 0L) {
         lines <- c(lines, "Scalars:")
         for (r in scalars) {
