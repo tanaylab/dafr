@@ -550,6 +550,10 @@ NULL
     .apply_reduction_slow(node, state, fn, params, daf)
 }
 
+.dafr_kernel_threshold <- function() {
+    getOption("dafr.kernel_threshold", 1024L)
+}
+
 .apply_reduction_fast <- function(node, state, fn, daf) {
     builtin <- attr(fn, ".dafr_builtin")
     if (is.null(builtin)) return(NULL)
@@ -564,8 +568,16 @@ NULL
         vals <- switch(builtin,
             Sum   = if (is_sparse) Matrix::rowSums(m) else rowSums(m),
             Mean  = if (is_sparse) Matrix::rowMeans(m) else rowMeans(m),
-            Max   = if (is_sparse) matrixStats::rowMaxs(as.matrix(m)) else matrixStats::rowMaxs(m),
-            Min   = if (is_sparse) matrixStats::rowMins(as.matrix(m)) else matrixStats::rowMins(m),
+            Max   = if (is_sparse)
+                        kernel_minmax_csc_cpp(m@x, m@i, m@p, nrow(m), ncol(m),
+                                              axis = 0L, variant = "Max",
+                                              threshold = .dafr_kernel_threshold())
+                    else matrixStats::rowMaxs(m),
+            Min   = if (is_sparse)
+                        kernel_minmax_csc_cpp(m@x, m@i, m@p, nrow(m), ncol(m),
+                                              axis = 0L, variant = "Min",
+                                              threshold = .dafr_kernel_threshold())
+                    else matrixStats::rowMins(m),
             return(NULL)
         )
         return(list(
@@ -579,8 +591,16 @@ NULL
     vals <- switch(builtin,
         Sum   = if (is_sparse) Matrix::colSums(m) else colSums(m),
         Mean  = if (is_sparse) Matrix::colMeans(m) else colMeans(m),
-        Max   = if (is_sparse) matrixStats::colMaxs(as.matrix(m)) else matrixStats::colMaxs(m),
-        Min   = if (is_sparse) matrixStats::colMins(as.matrix(m)) else matrixStats::colMins(m),
+        Max   = if (is_sparse)
+                    kernel_minmax_csc_cpp(m@x, m@i, m@p, nrow(m), ncol(m),
+                                          axis = 1L, variant = "Max",
+                                          threshold = .dafr_kernel_threshold())
+                else matrixStats::colMaxs(m),
+        Min   = if (is_sparse)
+                    kernel_minmax_csc_cpp(m@x, m@i, m@p, nrow(m), ncol(m),
+                                          axis = 1L, variant = "Min",
+                                          threshold = .dafr_kernel_threshold())
+                else matrixStats::colMins(m),
         return(NULL)
     )
     list(

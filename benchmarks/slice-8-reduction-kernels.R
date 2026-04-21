@@ -31,6 +31,16 @@ make_groups <- function(n, k = 100L) sample.int(k, n, replace = TRUE)
 #   list(name, baseline_expr, fast_expr, ratio_target, mem_target)
 gates <- list()
 
+gates$minmax_sparse <- list(
+    name = "Min/Max sparse row-reduce (10k x 10k, 5% nnz)",
+    setup = function() make_sparse(),
+    baseline = function(m) matrixStats::rowMaxs(as.matrix(m)),
+    fast     = function(m) dafr:::kernel_minmax_csc_cpp(
+        m@x, m@i, m@p, nrow(m), ncol(m), axis = 0L, variant = "Max", threshold = 1024L),
+    ratio_target = 5.0,
+    mem_ratio_target = 10.0
+)
+
 # --- Runner (wired in Task 15) ---------------------------------------------
 # (Placeholder — replaced in Task 15 with a harness that evaluates every gate.)
 cat("Slice 8 benchmark skeleton.\n",
