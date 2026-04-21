@@ -30,3 +30,17 @@ test_that("AsAxis with explicit target: @ A : v =@ B : w", {
     expect_identical(as.integer(result), c(2023L, 2024L))
     expect_identical(names(result), c("C1", "C2"))
 })
+
+test_that("bare 2-hop '=@:x =@:y' chains through two axes", {
+    d <- memory_daf(name = "multi-hop")
+    add_axis(d, "cell", c("c1", "c2", "c3"))
+    add_axis(d, "donor", c("d1", "d2"))
+    add_axis(d, "lab", c("lA", "lB"))
+    set_vector(d, "cell", "donor", c("d1", "d2", "d1"))
+    set_vector(d, "donor", "lab", c("lA", "lB"))
+    set_vector(d, "lab", "country", c("IL", "US"))
+
+    out <- get_query(d, "@ cell : donor =@ : lab =@ : country")
+    expect_equal(unname(out), c("IL", "US", "IL"))
+    expect_equal(names(out), c("c1", "c2", "c3"))
+})

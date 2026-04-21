@@ -366,7 +366,12 @@ NULL
         }
     }
     names(out) <- base_entries
-    list(kind = "vector", value = out, axis = base_axis)
+    list(
+        kind     = "vector",
+        value    = out,
+        axis     = base_axis,
+        property = node$name
+    )
 }
 .apply_begin_mask <- function(node, state, daf) {
     if (!identical(state$kind, "axis")) {
