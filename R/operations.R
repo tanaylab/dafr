@@ -310,6 +310,24 @@ registered_eltwise <- function() sort(names(.ops_env$eltwise))
     sqrt(v) / (mu + eps)
 }
 
+.op_median <- function(x, ..., na_rm = FALSE) {
+    stats::median(as.numeric(x), na.rm = isTRUE(na_rm))
+}
+
+.op_quantile <- function(x, ..., p, na_rm = FALSE) {
+    if (missing(p)) {
+        stop("Quantile: 'p' parameter is required (a value in [0, 1])",
+            call. = FALSE
+        )
+    }
+    if (!is.numeric(p) || length(p) != 1L || is.na(p) || p < 0 || p > 1) {
+        stop(sprintf("Quantile: 'p' must be in [0, 1] (got %s)",
+            as.character(p)[1L]
+        ), call. = FALSE)
+    }
+    unname(stats::quantile(as.numeric(x), probs = p, na.rm = isTRUE(na_rm)))
+}
+
 attr(.op_sum, ".dafr_builtin") <- "Sum"
 attr(.op_mean, ".dafr_builtin") <- "Mean"
 attr(.op_max, ".dafr_builtin") <- "Max"
@@ -328,6 +346,8 @@ attr(.op_var, ".dafr_builtin") <- "Var"
 attr(.op_std, ".dafr_builtin") <- "Std"
 attr(.op_varn, ".dafr_builtin") <- "VarN"
 attr(.op_stdn, ".dafr_builtin") <- "StdN"
+attr(.op_median, ".dafr_builtin") <- "Median"
+attr(.op_quantile, ".dafr_builtin") <- "Quantile"
 
 .register_default_ops <- function() {
     register_reduction("Sum", .op_sum, overwrite = TRUE)
@@ -339,6 +359,8 @@ attr(.op_stdn, ".dafr_builtin") <- "StdN"
     register_reduction("Std", .op_std, overwrite = TRUE)
     register_reduction("VarN", .op_varn, overwrite = TRUE)
     register_reduction("StdN", .op_stdn, overwrite = TRUE)
+    register_reduction("Median", .op_median, overwrite = TRUE)
+    register_reduction("Quantile", .op_quantile, overwrite = TRUE)
 
     register_eltwise("Log", .op_log, overwrite = TRUE)
     register_eltwise("Abs", .op_abs, overwrite = TRUE)

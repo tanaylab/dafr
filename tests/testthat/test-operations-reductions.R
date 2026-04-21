@@ -60,3 +60,37 @@ test_that("VarN / StdN attach .dafr_builtin", {
     expect_identical(attr(get_reduction("VarN"), ".dafr_builtin"), "VarN")
     expect_identical(attr(get_reduction("StdN"), ".dafr_builtin"), "StdN")
 })
+
+test_that("Median returns the median value", {
+    fn <- get_reduction("Median")
+    expect_equal(fn(c(1, 2, 3)), 2)
+    expect_equal(fn(c(1, 2, 3, 4)), 2.5)
+    expect_equal(fn(c(5, 1, 3)), 3)
+})
+
+test_that("Median handles NA via na_rm", {
+    fn <- get_reduction("Median")
+    expect_true(is.na(fn(c(1, NA, 3))))
+    expect_equal(fn(c(1, NA, 3), na_rm = TRUE), 2)
+})
+
+test_that("Quantile requires p and bounds it to [0,1]", {
+    fn <- get_reduction("Quantile")
+    expect_error(fn(1:3), "p")
+    expect_error(fn(1:3, p = -0.1), "p")
+    expect_error(fn(1:3, p = 1.1), "p")
+})
+
+test_that("Quantile returns p-th quantile (unnamed)", {
+    fn <- get_reduction("Quantile")
+    expect_equal(unname(fn(c(1, 2, 3), p = 0)), 1)
+    expect_equal(unname(fn(c(1, 2, 3), p = 0.5)), 2)
+    expect_equal(unname(fn(c(1, 2, 3), p = 1)), 3)
+    # R default type=7: Q(0.25) of 1:5 = 2
+    expect_equal(unname(fn(c(1, 2, 3, 4, 5), p = 0.25)), 2)
+})
+
+test_that("Median / Quantile attach .dafr_builtin", {
+    expect_identical(attr(get_reduction("Median"), ".dafr_builtin"), "Median")
+    expect_identical(attr(get_reduction("Quantile"), ".dafr_builtin"), "Quantile")
+})
