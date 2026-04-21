@@ -1,0 +1,143 @@
+#' @include classes.R format_api.R cache.R
+NULL
+
+#' Read-only chain of DafReaders.
+#'
+#' Produced by [chain_reader()]. Every `format_*` read falls through the
+#' chain in reverse order (last wins); writes raise.
+#' @inheritParams DafReader
+#' @param dafs Ordered list of base `DafReader`s.
+#' @export
+ReadOnlyChainDaf <- S7::new_class(
+    name = "ReadOnlyChainDaf",
+    package = "dafr",
+    parent = DafReadOnly,
+    properties = list(dafs = S7::class_list)
+)
+
+#' Write chain of DafReaders with a final DafWriter.
+#'
+#' Produced by [chain_writer()]. Reads fall through in reverse order
+#' (writer last-wins); writes go to the final writer; deletes succeed
+#' only if the entry does not exist in any earlier daf.
+#' @inheritParams DafReader
+#' @param dafs Ordered list of base `DafReader`s.
+#' @param writer The final `DafWriter` (== `dafs[[length(dafs)]]`).
+#' @export
+WriteChainDaf <- S7::new_class(
+    name = "WriteChainDaf",
+    package = "dafr",
+    parent = DafWriter,
+    properties = list(
+        dafs   = S7::class_list,
+        writer = DafWriter
+    )
+)
+
+#' Create a read-only chain of DafReaders.
+#'
+#' @param dafs Ordered list of `DafReader`s. Later entries override earlier
+#'   entries on read.
+#' @param name Optional chain name; defaults to `paste(names, collapse = ";")`.
+#' @return A `ReadOnlyChainDaf`.
+#' @export
+chain_reader <- function(dafs, name = NULL) {
+    if (!is.list(dafs) || length(dafs) == 0L) {
+        stop(sprintf("empty chain%s",
+            if (is.null(name)) "" else paste0(": ", name)
+        ), call. = FALSE)
+    }
+    for (d in dafs) {
+        if (!S7::S7_inherits(d, DafReader)) {
+            stop("chain entries must all be DafReaders", call. = FALSE)
+        }
+    }
+    if (is.null(name)) {
+        name <- paste(vapply(dafs, function(d) S7::prop(d, "name"), character(1)),
+            collapse = ";"
+        )
+    }
+    .validate_chain_axes(dafs, name)
+    ReadOnlyChainDaf(
+        name                   = name,
+        internal               = new_internal_env(),
+        cache                  = new_cache_env(),
+        axis_version_counter   = new_counter_env(),
+        vector_version_counter = new_counter_env(),
+        matrix_version_counter = new_counter_env(),
+        dafs                   = dafs
+    )
+}
+
+#' Create a chain of DafReaders with a final DafWriter.
+#' @inheritParams chain_reader
+#' @return A `WriteChainDaf`.
+#' @export
+chain_writer <- function(dafs, name = NULL) {
+    if (!is.list(dafs) || length(dafs) == 0L) {
+        stop(sprintf("empty chain%s",
+            if (is.null(name)) "" else paste0(": ", name)
+        ), call. = FALSE)
+    }
+    for (d in dafs) {
+        if (!S7::S7_inherits(d, DafReader)) {
+            stop("chain entries must all be DafReaders", call. = FALSE)
+        }
+    }
+    writer <- dafs[[length(dafs)]]
+    if (!S7::S7_inherits(writer, DafWriter)) {
+        stop(sprintf(
+            "read-only final data: %s in write chain%s",
+            S7::prop(writer, "name"),
+            if (is.null(name)) "" else paste0(": ", name)
+        ), call. = FALSE)
+    }
+    if (is.null(name)) {
+        name <- paste(vapply(dafs, function(d) S7::prop(d, "name"), character(1)),
+            collapse = ";"
+        )
+    }
+    .validate_chain_axes(dafs, name)
+    WriteChainDaf(
+        name                   = name,
+        internal               = new_internal_env(),
+        cache                  = new_cache_env(),
+        axis_version_counter   = new_counter_env(),
+        vector_version_counter = new_counter_env(),
+        matrix_version_counter = new_counter_env(),
+        dafs                   = dafs,
+        writer                 = writer
+    )
+}
+
+.validate_chain_axes <- function(dafs, chain_name) {
+    seen <- list()   # axis -> list(daf_name, entries)
+    for (d in dafs) {
+        dname <- S7::prop(d, "name")
+        for (axis in format_axes_set(d)) {
+            entries <- format_axis_array(d, axis)
+            prior <- seen[[axis]]
+            if (is.null(prior)) {
+                seen[[axis]] <- list(name = dname, entries = entries)
+                next
+            }
+            if (length(entries) != length(prior$entries)) {
+                stop(sprintf(
+                    "different number of entries: %d for the axis: %s in the daf data: %s from the number of entries: %d for the axis: %s in the daf data: %s in the chain: %s",
+                    length(entries), axis, dname,
+                    length(prior$entries), axis, prior$name, chain_name
+                ), call. = FALSE)
+            }
+            mismatch <- which(entries != prior$entries)
+            if (length(mismatch)) {
+                i <- mismatch[[1L]]
+                stop(sprintf(
+                    "different entry#%d: %s for the axis: %s in the daf data: %s from the entry#%d: %s for the axis: %s in the daf data: %s in the chain: %s",
+                    i, entries[[i]], axis, dname,
+                    i, prior$entries[[i]], axis, prior$name, chain_name
+                ), call. = FALSE)
+            }
+        }
+    }
+    invisible()
+}
