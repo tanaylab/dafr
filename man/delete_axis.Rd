@@ -20,3 +20,10 @@ Invisibly the input \code{daf}.
 \description{
 Delete an axis (and all vectors / matrices that depend on it).
 }
+\examples{
+d <- memory_daf()
+add_axis(d, "cell", c("c1", "c2"))
+add_axis(d, "gene", c("g1", "g2", "g3"))
+delete_axis(d, "gene")
+axes_set(d)
+}

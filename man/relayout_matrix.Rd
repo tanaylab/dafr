@@ -22,3 +22,12 @@ Invisibly the input \code{daf}.
 After this call, \code{get_matrix(columns_axis, rows_axis, name)} skips the
 transpose-on-the-fly path.
 }
+\examples{
+d <- memory_daf()
+add_axis(d, "cell", c("c1", "c2"))
+add_axis(d, "gene", c("g1", "g2", "g3"))
+m <- matrix(1:6, nrow = 2, ncol = 3)
+set_matrix(d, "cell", "gene", "counts", m)
+relayout_matrix(d, "cell", "gene", "counts")
+has_matrix(d, "gene", "cell", "counts")
+}

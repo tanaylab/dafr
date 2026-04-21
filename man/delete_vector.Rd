@@ -21,3 +21,10 @@ Invisibly the input \code{daf}.
 \description{
 Delete a vector on an axis.
 }
+\examples{
+d <- memory_daf()
+add_axis(d, "cell", c("c1", "c2"))
+set_vector(d, "cell", "donor", c("d1", "d2"))
+delete_vector(d, "cell", "donor")
+has_vector(d, "cell", "donor")
+}

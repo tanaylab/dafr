@@ -26,3 +26,12 @@ Invisibly the input \code{daf}.
 \description{
 Set a matrix indexed by a pair of axes.
 }
+\examples{
+d <- memory_daf()
+add_axis(d, "cell", c("c1", "c2"))
+add_axis(d, "gene", c("g1", "g2", "g3"))
+m <- matrix(1:6, nrow = 2, ncol = 3,
+    dimnames = list(c("c1", "c2"), c("g1", "g2", "g3")))
+set_matrix(d, "cell", "gene", "counts", m)
+dim(get_matrix(d, "cell", "gene", "counts"))
+}

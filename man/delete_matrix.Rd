@@ -23,3 +23,12 @@ Invisibly the input \code{daf}.
 \description{
 Delete a matrix.
 }
+\examples{
+d <- memory_daf()
+add_axis(d, "cell", c("c1", "c2"))
+add_axis(d, "gene", c("g1", "g2", "g3"))
+m <- matrix(0L, nrow = 2, ncol = 3)
+set_matrix(d, "cell", "gene", "counts", m)
+delete_matrix(d, "cell", "gene", "counts")
+has_matrix(d, "cell", "gene", "counts")
+}

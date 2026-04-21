@@ -4,6 +4,10 @@
 #' @param axis Axis name.
 #' @param entries Unique, non-NA, non-empty character vector of entry names.
 #' @return Invisibly the input `daf`.
+#' @examples
+#' d <- memory_daf()
+#' add_axis(d, "cell", c("c1", "c2", "c3"))
+#' axis_length(d, "cell")
 #' @export
 add_axis <- function(daf, axis, entries) {
     .assert_name(axis, "axis")
@@ -22,6 +26,12 @@ add_axis <- function(daf, axis, entries) {
 #' @param must_exist If `TRUE` (default) raise when the axis is absent;
 #'   if `FALSE` silently no-op.
 #' @return Invisibly the input `daf`.
+#' @examples
+#' d <- memory_daf()
+#' add_axis(d, "cell", c("c1", "c2"))
+#' add_axis(d, "gene", c("g1", "g2", "g3"))
+#' delete_axis(d, "gene")
+#' axes_set(d)
 #' @export
 delete_axis <- function(daf, axis, must_exist = TRUE) {
     .assert_name(axis, "axis")
@@ -36,6 +46,10 @@ delete_axis <- function(daf, axis, must_exist = TRUE) {
 #' @param overwrite If `FALSE` (default) error when the scalar already
 #'   exists; if `TRUE` replace.
 #' @return Invisibly the input `daf`.
+#' @examples
+#' d <- memory_daf()
+#' set_scalar(d, "organism", "human")
+#' get_scalar(d, "organism")
 #' @export
 set_scalar <- function(daf, name, value, overwrite = FALSE) {
     .assert_name(name, "name")
@@ -48,6 +62,11 @@ set_scalar <- function(daf, name, value, overwrite = FALSE) {
 #' @inheritParams has_scalar
 #' @param must_exist See `delete_axis`.
 #' @return Invisibly the input `daf`.
+#' @examples
+#' d <- memory_daf()
+#' set_scalar(d, "organism", "human")
+#' delete_scalar(d, "organism")
+#' has_scalar(d, "organism")
 #' @export
 delete_scalar <- function(daf, name, must_exist = TRUE) {
     .assert_name(name, "name")
@@ -64,6 +83,11 @@ delete_scalar <- function(daf, name, must_exist = TRUE) {
 #'   into axis order at storage time).
 #' @param overwrite See `set_scalar`.
 #' @return Invisibly the input `daf`.
+#' @examples
+#' d <- memory_daf()
+#' add_axis(d, "cell", c("c1", "c2", "c3"))
+#' set_vector(d, "cell", "donor", c("d1", "d2", "d1"))
+#' get_vector(d, "cell", "donor")
 #' @export
 set_vector <- function(daf, axis, name, vec, overwrite = FALSE) {
     .assert_name(axis, "axis")
@@ -78,6 +102,12 @@ set_vector <- function(daf, axis, name, vec, overwrite = FALSE) {
 #' @inheritParams has_vector
 #' @param must_exist See `delete_axis`.
 #' @return Invisibly the input `daf`.
+#' @examples
+#' d <- memory_daf()
+#' add_axis(d, "cell", c("c1", "c2"))
+#' set_vector(d, "cell", "donor", c("d1", "d2"))
+#' delete_vector(d, "cell", "donor")
+#' has_vector(d, "cell", "donor")
 #' @export
 delete_vector <- function(daf, axis, name, must_exist = TRUE) {
     .assert_name(axis, "axis")
@@ -94,6 +124,14 @@ delete_vector <- function(daf, axis, name, must_exist = TRUE) {
 #'   shape `axis_length(rows_axis) x axis_length(columns_axis)`.
 #' @param overwrite See `set_scalar`.
 #' @return Invisibly the input `daf`.
+#' @examples
+#' d <- memory_daf()
+#' add_axis(d, "cell", c("c1", "c2"))
+#' add_axis(d, "gene", c("g1", "g2", "g3"))
+#' m <- matrix(1:6, nrow = 2, ncol = 3,
+#'     dimnames = list(c("c1", "c2"), c("g1", "g2", "g3")))
+#' set_matrix(d, "cell", "gene", "counts", m)
+#' dim(get_matrix(d, "cell", "gene", "counts"))
 #' @export
 set_matrix <- function(daf, rows_axis, columns_axis, name, mat, overwrite = FALSE) {
     .assert_name(rows_axis, "rows_axis")
@@ -108,6 +146,14 @@ set_matrix <- function(daf, rows_axis, columns_axis, name, mat, overwrite = FALS
 #' @inheritParams has_matrix
 #' @param must_exist See `delete_axis`.
 #' @return Invisibly the input `daf`.
+#' @examples
+#' d <- memory_daf()
+#' add_axis(d, "cell", c("c1", "c2"))
+#' add_axis(d, "gene", c("g1", "g2", "g3"))
+#' m <- matrix(0L, nrow = 2, ncol = 3)
+#' set_matrix(d, "cell", "gene", "counts", m)
+#' delete_matrix(d, "cell", "gene", "counts")
+#' has_matrix(d, "cell", "gene", "counts")
 #' @export
 delete_matrix <- function(daf, rows_axis, columns_axis, name, must_exist = TRUE) {
     .assert_name(rows_axis, "rows_axis")
@@ -125,6 +171,14 @@ delete_matrix <- function(daf, rows_axis, columns_axis, name, must_exist = TRUE)
 #'
 #' @inheritParams has_matrix
 #' @return Invisibly the input `daf`.
+#' @examples
+#' d <- memory_daf()
+#' add_axis(d, "cell", c("c1", "c2"))
+#' add_axis(d, "gene", c("g1", "g2", "g3"))
+#' m <- matrix(1:6, nrow = 2, ncol = 3)
+#' set_matrix(d, "cell", "gene", "counts", m)
+#' relayout_matrix(d, "cell", "gene", "counts")
+#' has_matrix(d, "gene", "cell", "counts")
 #' @export
 relayout_matrix <- function(daf, rows_axis, columns_axis, name) {
     .assert_name(rows_axis, "rows_axis")

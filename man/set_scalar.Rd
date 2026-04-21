@@ -22,3 +22,8 @@ Invisibly the input \code{daf}.
 \description{
 Set a scalar.
 }
+\examples{
+d <- memory_daf()
+set_scalar(d, "organism", "human")
+get_scalar(d, "organism")
+}

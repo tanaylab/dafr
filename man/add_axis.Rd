@@ -19,3 +19,8 @@ Invisibly the input \code{daf}.
 \description{
 Add a new axis.
 }
+\examples{
+d <- memory_daf()
+add_axis(d, "cell", c("c1", "c2", "c3"))
+axis_length(d, "cell")
+}

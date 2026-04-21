@@ -19,3 +19,9 @@ Invisibly the input \code{daf}.
 \description{
 Delete a scalar.
 }
+\examples{
+d <- memory_daf()
+set_scalar(d, "organism", "human")
+delete_scalar(d, "organism")
+has_scalar(d, "organism")
+}
