@@ -54,6 +54,7 @@ Collate:
     'chain_daf.R'
     'utils.R'
     'contracts.R'
+    'computations.R'
     'cpp11.R'
     'dafr-package.R'
     'writers.R'
