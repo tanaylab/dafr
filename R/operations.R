@@ -284,6 +284,32 @@ registered_eltwise <- function() sort(names(.ops_env$eltwise))
     if (is.na(v)) v else sqrt(v)
 }
 
+.assert_non_negative_eps <- function(eps) {
+    if (!is.numeric(eps) || length(eps) != 1L || is.na(eps) || eps < 0) {
+        stop(sprintf("'eps' must be a non-negative number (got %s)",
+            as.character(eps)[1L]
+        ), call. = FALSE)
+    }
+}
+
+.op_varn <- function(x, ..., na_rm = FALSE, eps = 0) {
+    .assert_non_negative_eps(eps)
+    x <- as.numeric(x)
+    if (isTRUE(na_rm)) x <- x[!is.na(x)]
+    v <- .var_uncorrected(x, na_rm = FALSE)
+    mu <- if (length(x) == 0L) NA_real_ else sum(x) / length(x)
+    v / (mu + eps)
+}
+
+.op_stdn <- function(x, ..., na_rm = FALSE, eps = 0) {
+    .assert_non_negative_eps(eps)
+    x <- as.numeric(x)
+    if (isTRUE(na_rm)) x <- x[!is.na(x)]
+    v <- .var_uncorrected(x, na_rm = FALSE)
+    mu <- if (length(x) == 0L) NA_real_ else sum(x) / length(x)
+    sqrt(v) / (mu + eps)
+}
+
 attr(.op_sum, ".dafr_builtin") <- "Sum"
 attr(.op_mean, ".dafr_builtin") <- "Mean"
 attr(.op_max, ".dafr_builtin") <- "Max"
@@ -300,6 +326,8 @@ attr(.op_fraction, ".dafr_builtin") <- "Fraction"
 attr(.op_significant, ".dafr_builtin") <- "Significant"
 attr(.op_var, ".dafr_builtin") <- "Var"
 attr(.op_std, ".dafr_builtin") <- "Std"
+attr(.op_varn, ".dafr_builtin") <- "VarN"
+attr(.op_stdn, ".dafr_builtin") <- "StdN"
 
 .register_default_ops <- function() {
     register_reduction("Sum", .op_sum, overwrite = TRUE)
@@ -309,6 +337,8 @@ attr(.op_std, ".dafr_builtin") <- "Std"
     register_reduction("Count", .op_count, overwrite = TRUE)
     register_reduction("Var", .op_var, overwrite = TRUE)
     register_reduction("Std", .op_std, overwrite = TRUE)
+    register_reduction("VarN", .op_varn, overwrite = TRUE)
+    register_reduction("StdN", .op_stdn, overwrite = TRUE)
 
     register_eltwise("Log", .op_log, overwrite = TRUE)
     register_eltwise("Abs", .op_abs, overwrite = TRUE)
