@@ -65,3 +65,32 @@ test_that("copy_all: pad-mode uses empty map for missing destination entries", {
              relayout = FALSE)
     expect_identical(unname(get_vector(dest, "cell", "age")), c(10L, -1L))
 })
+
+test_that("empty_data() builds a flat-key list", {
+    e <- empty_data(
+        vectors  = list(list(axis = "cell", name = "age", value = 0L)),
+        matrices = list(list(rows_axis = "cell", columns_axis = "gene",
+                             name = "UMIs", value = 0)),
+        tensors  = list(list(main_axis = "batch", rows_axis = "gene",
+                             columns_axis = "cell", name = "counts",
+                             value = 0))
+    )
+    expect_identical(e$`cell|age`, 0L)
+    expect_identical(e$`cell|gene|UMIs`, 0)
+    expect_identical(e$`batch|gene|cell|counts`, 0)
+})
+
+test_that("empty_data() integrates with copy_all", {
+    src <- memory_daf(name = "src")
+    add_axis(src, "cell", c("c1"))
+    set_vector(src, "cell", "age", c(10L))
+    dest <- memory_daf(name = "dest")
+    add_axis(dest, "cell", c("c1", "c2"))
+
+    copy_all(dest, src,
+             empty = empty_data(
+                 vectors = list(list(axis = "cell", name = "age", value = -1L))
+             ),
+             relayout = FALSE)
+    expect_identical(unname(get_vector(dest, "cell", "age")), c(10L, -1L))
+})
