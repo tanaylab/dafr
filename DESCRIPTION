@@ -76,4 +76,5 @@ Collate:
     'mmap.R'
     'options.R'
     'readers.R'
+    'copies.R'
     'zzz.R'
