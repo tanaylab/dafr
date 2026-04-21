@@ -135,3 +135,30 @@ test_that("copy_matrix: sparse source + source-is-subset + empty=0 stays sparse"
     expect_equal(unname(as.matrix(result)),
                  matrix(c(10,0,0, 0,20,0), 3, 2))
 })
+
+test_that("copy_matrix: relayout=TRUE writes transposed layout", {
+    src <- memory_daf(name = "src")
+    add_axis(src, "cell", c("c1", "c2")); add_axis(src, "gene", c("g1"))
+    set_matrix(src, "cell", "gene", "UMIs",
+               matrix(1:2, 2, 1, dimnames = list(c("c1","c2"), "g1")))
+    dest <- memory_daf(name = "dest")
+    add_axis(dest, "cell", c("c1", "c2")); add_axis(dest, "gene", c("g1"))
+
+    copy_matrix(dest, src, "cell", "gene", "UMIs", relayout = TRUE)
+    expect_true(has_matrix(dest, "cell", "gene", "UMIs"))
+    expect_true(has_matrix(dest, "gene", "cell", "UMIs"))
+})
+
+test_that("copy_matrix validates rename / rows_reaxis / columns_reaxis / relayout / overwrite / insist", {
+    src <- memory_daf(name = "src")
+    add_axis(src, "cell", c("c1")); add_axis(src, "gene", c("g1"))
+    set_matrix(src, "cell", "gene", "UMIs", matrix(1, 1, 1, dimnames = list("c1","g1")))
+    dest <- memory_daf(name = "dest")
+    add_axis(dest, "cell", c("c1")); add_axis(dest, "gene", c("g1"))
+    expect_error(copy_matrix(dest, src, "cell", "gene", "UMIs", rename = ""), "rename")
+    expect_error(copy_matrix(dest, src, "cell", "gene", "UMIs", rows_reaxis = ""), "rows_reaxis")
+    expect_error(copy_matrix(dest, src, "cell", "gene", "UMIs", columns_reaxis = ""), "columns_reaxis")
+    expect_error(copy_matrix(dest, src, "cell", "gene", "UMIs", relayout = 1), "relayout")
+    expect_error(copy_matrix(dest, src, "cell", "gene", "UMIs", overwrite = 1), "overwrite")
+    expect_error(copy_matrix(dest, src, "cell", "gene", "UMIs", insist = NA), "insist")
+})
