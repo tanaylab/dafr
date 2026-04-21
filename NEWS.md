@@ -1,3 +1,52 @@
+# dafr 0.5.0 (in development)
+
+## New features
+
+- `computation(name, contract, fn)`: higher-order function that wraps
+  `fn` with a contract. On each call, `contractor()` wraps the first
+  argument, `verify_input()` runs before the body, `verify_output()`
+  runs after, and the result is returned. Contract enforcement gates
+  on `DAF_ENFORCE_CONTRACTS` / `options(dafr.enforce_contracts)` as in
+  Slice 4. `function_contract(fn)` retrieves the bound contract;
+  `contract_description(contract)` renders a contract as multi-line
+  text for roxygen docstrings. Single-contract only this slice; dual-
+  and triple-contract forms (Julia-UNTESTED upstream) are deferred.
+  (#slice-5)
+- `adapter(daf, fn, input_axes, input_data, output_axes, output_data,
+  capture, empty, relayout, overwrite, name)`: apply a computation to
+  a renaming view of `daf`, capturing the outputs in a fresh writable,
+  and project them back under the caller's names. Mirrors Julia
+  `adapter()`. The internal `.copy_view_to_daf()` supports pad-mode
+  for subset-axis views via `empty` (`"axis|vector"` /
+  `"rows|cols|matrix"` flat keys). (#slice-5)
+- `example_cells_daf()` / `example_metacells_daf()` /
+  `example_chain_daf()`: byte-parity versions of the Julia example
+  datasets (856 cells × 683 genes; 7 metacells × 4 types; chained
+  writer over both). Raw data files ship under
+  `inst/extdata/example_data/`; loaders replicate the
+  Bool → Int → Double → Character and UInt8 → UInt16 → Float32
+  promotion lattices. (#slice-5)
+- Multi-hop chained lookup: `@ cell : donor =@ : lab =@ : country`
+  now resolves through an arbitrary number of hops. The evaluator
+  stamps `$property` on each hop's return so the next `=@` can infer
+  its target axis, and uses the carried `names(pivot_values)` so
+  prior `??` row-drops survive subsequent hops. (#slice-5)
+
+## Documentation
+
+- `@examples` blocks added to all 60 exported functions (was: 1).
+  Query DSL, view, chain, and contract examples use
+  `example_cells_daf()` for realistic data; CRUD ops use compact
+  inline memory_daf construction. `mmap_*` examples stay in
+  `\donttest{}`. (#slice-5)
+
+## Bug fixes
+
+- `ViewDaf`'s `format_vectors_set` / `format_matrices_set` no longer
+  crash with `startsWith(NULL, prefix)` when the view carries no
+  vectors / matrices (latent Slice-3 bug, unearthed by Phase B's
+  minimal test fixtures). (#slice-5)
+
 # dafr 0.4.0 (in development)
 
 ## New features
