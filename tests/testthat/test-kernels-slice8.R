@@ -452,3 +452,154 @@ test_that("dense ungrouped fast paths: shape + finiteness smoke test", {
             label = sprintf("all.finite(ReduceToColumn %s)", op))
     }
 })
+
+# ---------------------------------------------------------------------------
+# Task 8: kernel_grouped_reduce_csc_cpp + kernel_grouped_reduce_dense_cpp
+# ---------------------------------------------------------------------------
+
+test_that("kernel_grouped_reduce_csc matches slow split+apply across all ops and axes", {
+    skip_if_not_installed("Matrix")
+    set.seed(48)
+    m <- Matrix::rsparsematrix(60L, 40L, density = 0.3,
+        rand.x = function(n) runif(n, 0.1, 3))  # positive values so GeoMean+eps=1 is finite
+    dense <- as.matrix(m)
+    row_group <- sample.int(5L, 60L, replace = TRUE)
+    col_group <- sample.int(4L, 40L, replace = TRUE)
+
+    # Expected computation per op on a slice of values (implicit zeros
+    # folded in by passing the full row/col as vals including zeros).
+    derive_expected <- function(vals, op, eps) {
+        n <- length(vals); if (n == 0L) return(0)
+        mu <- mean(vals); v <- sum((vals - mu)^2) / n
+        switch(op,
+            Sum = sum(vals),
+            Mean = mu,
+            Min = min(vals),
+            Max = max(vals),
+            Var = v,
+            Std = sqrt(v),
+            VarN = v / (mu + eps),
+            StdN = sqrt(v) / (mu + eps),
+            GeoMean = if (eps == 0) exp(mean(log(vals))) else exp(mean(log(vals + eps))) - eps
+        )
+    }
+
+    ops <- list(
+        list(op = "Sum",     eps = 0),
+        list(op = "Mean",    eps = 0),
+        list(op = "Min",     eps = 0),
+        list(op = "Max",     eps = 0),
+        list(op = "Var",     eps = 0),
+        list(op = "Std",     eps = 0),
+        list(op = "VarN",    eps = 1e-3),
+        list(op = "StdN",    eps = 1e-3),
+        list(op = "GeoMean", eps = 1.0))
+
+    for (o in ops) {
+        # G2: row-grouped -> ngroups x ncol
+        n_in_rg <- as.integer(tabulate(row_group, 5L))
+        fast_g2 <- dafr:::kernel_grouped_reduce_csc_cpp(
+            m@x, m@i, m@p, nrow(m), ncol(m),
+            group = as.integer(row_group), ngroups = 5L,
+            n_in_group = n_in_rg, axis = 2L,
+            op = o$op, eps = o$eps, threshold = 1L)
+        expected_g2 <- matrix(0, 5L, ncol(m))
+        for (g in 1:5L) for (j in 1:ncol(m)) {
+            vals <- dense[row_group == g, j]
+            expected_g2[g, j] <- derive_expected(vals, o$op, o$eps)
+        }
+        expect_equal(fast_g2, expected_g2, tolerance = 1e-9,
+            info = sprintf("csc G2 op=%s", o$op))
+
+        # G3: col-grouped -> nrow x ngroups
+        n_in_cg <- as.integer(tabulate(col_group, 4L))
+        fast_g3 <- dafr:::kernel_grouped_reduce_csc_cpp(
+            m@x, m@i, m@p, nrow(m), ncol(m),
+            group = as.integer(col_group), ngroups = 4L,
+            n_in_group = n_in_cg, axis = 3L,
+            op = o$op, eps = o$eps, threshold = 1L)
+        expected_g3 <- matrix(0, nrow(m), 4L)
+        for (g in 1:4L) for (i in 1:nrow(m)) {
+            vals <- dense[i, col_group == g]
+            expected_g3[i, g] <- derive_expected(vals, o$op, o$eps)
+        }
+        expect_equal(fast_g3, expected_g3, tolerance = 1e-9,
+            info = sprintf("csc G3 op=%s", o$op))
+
+        # Dense kernel same inputs
+        fast_g2_dense <- dafr:::kernel_grouped_reduce_dense_cpp(
+            dense, group = as.integer(row_group), ngroups = 5L,
+            n_in_group = n_in_rg, axis = 2L, op = o$op, eps = o$eps,
+            threshold = 1L)
+        expect_equal(fast_g2_dense, expected_g2, tolerance = 1e-9,
+            info = sprintf("dense G2 op=%s", o$op))
+
+        fast_g3_dense <- dafr:::kernel_grouped_reduce_dense_cpp(
+            dense, group = as.integer(col_group), ngroups = 4L,
+            n_in_group = n_in_cg, axis = 3L, op = o$op, eps = o$eps,
+            threshold = 1L)
+        expect_equal(fast_g3_dense, expected_g3, tolerance = 1e-9,
+            info = sprintf("dense G3 op=%s", o$op))
+    }
+})
+
+test_that("kernel_grouped_reduce handles empty groups (returns 0 matching slow path)", {
+    skip_if_not_installed("Matrix")
+    # Force a group with no members: ngroups=4 but only groups 1..3 used.
+    set.seed(49)
+    m <- Matrix::rsparsematrix(20L, 12L, density = 0.4,
+        rand.x = function(n) runif(n, 0.1, 2))
+    dense <- as.matrix(m)
+    row_group <- sample.int(3L, 20L, replace = TRUE)  # groups 1..3; group 4 empty
+    # Use ngroups=4 so group 4 is empty
+    n_in_rg <- as.integer(tabulate(row_group, 4L))
+    expect_equal(n_in_rg[4L], 0L)
+
+    ops <- c("Sum", "Mean", "Min", "Max", "Var", "Std", "VarN", "StdN", "GeoMean")
+    for (op in ops) {
+        eps <- if (op == "GeoMean") 1.0 else if (op %in% c("VarN", "StdN")) 1e-3 else 0
+        got <- dafr:::kernel_grouped_reduce_csc_cpp(
+            m@x, m@i, m@p, nrow(m), ncol(m),
+            group = as.integer(row_group), ngroups = 4L,
+            n_in_group = n_in_rg, axis = 2L,
+            op = op, eps = eps, threshold = 1L)
+        # Row 4 (the empty group) must be all zeros.
+        expect_equal(got[4L, ], rep(0, ncol(m)), tolerance = 1e-12,
+            info = sprintf("csc G2 empty-group op=%s", op))
+
+        got_d <- dafr:::kernel_grouped_reduce_dense_cpp(
+            dense, group = as.integer(row_group), ngroups = 4L,
+            n_in_group = n_in_rg, axis = 2L, op = op, eps = eps,
+            threshold = 1L)
+        expect_equal(got_d[4L, ], rep(0, ncol(m)), tolerance = 1e-12,
+            info = sprintf("dense G2 empty-group op=%s", op))
+    }
+})
+
+test_that("kernel_grouped_reduce_csc G2 Min/Max fold in implicit zeros correctly", {
+    skip_if_not_installed("Matrix")
+    # Sparse matrix with all-negative explicit values so implicit zeros affect min/max.
+    m <- Matrix::sparseMatrix(
+        i = c(1L, 2L, 3L, 4L),
+        j = c(1L, 1L, 2L, 2L),
+        x = c(-5, -3, -7, -1),
+        dims = c(4L, 2L))
+    # Row-group: rows 1,2 -> group 1; rows 3,4 -> group 2
+    row_group <- c(1L, 1L, 2L, 2L)
+    # Col 1: rows 1,2 have -5,-3 (explicit); group 1 has both nnz. Min=-5, Max=-3.
+    #         group 2 for col 1: no explicit values, 2 implicit zeros -> Min=0, Max=0.
+    # Col 2: rows 1,2 implicit zero (group 1) -> Min=0, Max=0.
+    #         rows 3,4 explicit -7,-1 (group 2) -> Min=-7, Max=-1.
+    out_min <- dafr:::kernel_grouped_reduce_csc_cpp(
+        m@x, m@i, m@p, 4L, 2L,
+        group = row_group, ngroups = 2L,
+        n_in_group = as.integer(tabulate(row_group, 2L)),
+        axis = 2L, op = "Min", eps = 0, threshold = 1L)
+    out_max <- dafr:::kernel_grouped_reduce_csc_cpp(
+        m@x, m@i, m@p, 4L, 2L,
+        group = row_group, ngroups = 2L,
+        n_in_group = as.integer(tabulate(row_group, 2L)),
+        axis = 2L, op = "Max", eps = 0, threshold = 1L)
+    expect_equal(out_min, matrix(c(-5, 0, 0, -7), 2L, 2L))
+    expect_equal(out_max, matrix(c(-3, 0, 0, -1), 2L, 2L))
+})

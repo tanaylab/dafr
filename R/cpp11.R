@@ -32,6 +32,14 @@ kernel_geomean_csc_cpp <- function(x, i, p, nrow, ncol, axis, eps, threshold) {
   .Call(`_dafr_kernel_geomean_csc_cpp`, x, i, p, nrow, ncol, axis, eps, threshold)
 }
 
+kernel_grouped_reduce_csc_cpp <- function(x, i, p, nrow, ncol, group, ngroups, n_in_group, axis, op, eps, threshold) {
+  .Call(`_dafr_kernel_grouped_reduce_csc_cpp`, x, i, p, nrow, ncol, group, ngroups, n_in_group, axis, op, eps, threshold)
+}
+
+kernel_grouped_reduce_dense_cpp <- function(m, group, ngroups, n_in_group, axis, op, eps, threshold) {
+  .Call(`_dafr_kernel_grouped_reduce_dense_cpp`, m, group, ngroups, n_in_group, axis, op, eps, threshold)
+}
+
 kernel_log_reduce_dense_cpp <- function(m, eps, base, axis, reducer, threshold) {
   .Call(`_dafr_kernel_log_reduce_dense_cpp`, m, eps, base, axis, reducer, threshold)
 }

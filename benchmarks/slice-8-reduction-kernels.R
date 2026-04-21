@@ -84,6 +84,45 @@ gates$median_sparse <- list(
     mem_ratio_target = NA
 )
 
+# --- Task 8: grouped reduction engine gates --------------------------------
+
+gates$grouped_sum_sparse_g3 <- list(
+    name = "Grouped Sum G3 (100 groups, 10k x 10k, 5% nnz)",
+    setup = function() list(m = make_sparse(), g = make_groups(10000L, 100L)),
+    baseline = function(d) {
+        idx <- split(seq_len(ncol(d$m)), d$g)
+        sapply(idx, function(j) Matrix::rowSums(d$m[, j, drop = FALSE]))
+    },
+    fast = function(d) dafr:::kernel_grouped_reduce_csc_cpp(
+        d$m@x, d$m@i, d$m@p, nrow(d$m), ncol(d$m),
+        group = as.integer(d$g), ngroups = 100L,
+        n_in_group = as.integer(tabulate(d$g, 100L)),
+        axis = 3L, op = "Sum", eps = 0, threshold = 1024L),
+    ratio_target = 20.0,
+    mem_ratio_target = NA
+)
+
+gates$grouped_var_sparse_g3 <- list(
+    name = "Grouped Var G3 (100 groups, 10k x 10k, 5% nnz)",
+    setup = function() list(m = make_sparse(), g = make_groups(10000L, 100L)),
+    baseline = function(d) {
+        idx <- split(seq_len(ncol(d$m)), d$g)
+        sapply(idx, function(j) {
+            sub <- d$m[, j, drop = FALSE]
+            apply(sub, 1L, function(r) {
+                n <- length(r); mu <- mean(r); sum((r - mu)^2) / n
+            })
+        })
+    },
+    fast = function(d) dafr:::kernel_grouped_reduce_csc_cpp(
+        d$m@x, d$m@i, d$m@p, nrow(d$m), ncol(d$m),
+        group = as.integer(d$g), ngroups = 100L,
+        n_in_group = as.integer(tabulate(d$g, 100L)),
+        axis = 3L, op = "Var", eps = 0, threshold = 1024L),
+    ratio_target = 20.0,
+    mem_ratio_target = NA
+)
+
 # --- Runner (wired in Task 15) ---------------------------------------------
 # (Placeholder — replaced in Task 15 with a harness that evaluates every gate.)
 cat("Slice 8 benchmark skeleton.\n",
