@@ -288,7 +288,11 @@ NULL
     )
 }
 .apply_if_not <- function(node, state, daf) {
-    # V1: no-op. Slice 4 will implement empty-to-sentinel substitution.
+    # Record the chain-final sentinel for consumption by AsAxis-driven
+    # chained lookup. An absent value (node$value == NULL) means drop
+    # empty entries; a present value is substituted for empty entries.
+    state$if_not_present <- TRUE
+    state$if_not_value <- node$value
     state
 }
 .apply_as_axis <- function(node, state, daf) {
