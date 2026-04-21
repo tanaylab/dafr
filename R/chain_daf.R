@@ -340,6 +340,90 @@ S7::method(
     sort(unique(out), method = "radix")
 }
 
+S7::method(
+    format_has_matrix,
+    list(ReadOnlyChainDaf, S7::class_character, S7::class_character, S7::class_character)
+) <- function(daf, rows_axis, columns_axis, name) {
+    for (d in rev(.chain_dafs(daf))) {
+        if (format_has_axis(d, rows_axis) &&
+            format_has_axis(d, columns_axis) &&
+            format_has_matrix(d, rows_axis, columns_axis, name)) return(TRUE)
+    }
+    FALSE
+}
+
+S7::method(
+    format_get_matrix,
+    list(ReadOnlyChainDaf, S7::class_character, S7::class_character, S7::class_character)
+) <- function(daf, rows_axis, columns_axis, name) {
+    for (d in rev(.chain_dafs(daf))) {
+        if (format_has_axis(d, rows_axis) &&
+            format_has_axis(d, columns_axis) &&
+            format_has_matrix(d, rows_axis, columns_axis, name)) {
+            return(format_get_matrix(d, rows_axis, columns_axis, name))
+        }
+    }
+    stop(sprintf(
+        "matrix %s does not exist on axes (%s, %s)",
+        sQuote(name), sQuote(rows_axis), sQuote(columns_axis)
+    ), call. = FALSE)
+}
+
+S7::method(
+    format_matrices_set,
+    list(ReadOnlyChainDaf, S7::class_character, S7::class_character)
+) <- function(daf, rows_axis, columns_axis) {
+    out <- character(0)
+    for (d in .chain_dafs(daf)) {
+        if (format_has_axis(d, rows_axis) && format_has_axis(d, columns_axis)) {
+            out <- c(out, format_matrices_set(d, rows_axis, columns_axis))
+        }
+    }
+    sort(unique(out), method = "radix")
+}
+
+S7::method(
+    format_has_matrix,
+    list(WriteChainDaf, S7::class_character, S7::class_character, S7::class_character)
+) <- function(daf, rows_axis, columns_axis, name) {
+    for (d in rev(.chain_dafs(daf))) {
+        if (format_has_axis(d, rows_axis) &&
+            format_has_axis(d, columns_axis) &&
+            format_has_matrix(d, rows_axis, columns_axis, name)) return(TRUE)
+    }
+    FALSE
+}
+
+S7::method(
+    format_get_matrix,
+    list(WriteChainDaf, S7::class_character, S7::class_character, S7::class_character)
+) <- function(daf, rows_axis, columns_axis, name) {
+    for (d in rev(.chain_dafs(daf))) {
+        if (format_has_axis(d, rows_axis) &&
+            format_has_axis(d, columns_axis) &&
+            format_has_matrix(d, rows_axis, columns_axis, name)) {
+            return(format_get_matrix(d, rows_axis, columns_axis, name))
+        }
+    }
+    stop(sprintf(
+        "matrix %s does not exist on axes (%s, %s)",
+        sQuote(name), sQuote(rows_axis), sQuote(columns_axis)
+    ), call. = FALSE)
+}
+
+S7::method(
+    format_matrices_set,
+    list(WriteChainDaf, S7::class_character, S7::class_character)
+) <- function(daf, rows_axis, columns_axis) {
+    out <- character(0)
+    for (d in .chain_dafs(daf)) {
+        if (format_has_axis(d, rows_axis) && format_has_axis(d, columns_axis)) {
+            out <- c(out, format_matrices_set(d, rows_axis, columns_axis))
+        }
+    }
+    sort(unique(out), method = "radix")
+}
+
 .validate_chain_axes <- function(dafs, chain_name) {
     seen <- list()   # axis -> list(daf_name, entries)
     for (d in dafs) {
