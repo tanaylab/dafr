@@ -185,6 +185,40 @@ registered_eltwise <- function() sort(names(.ops_env$eltwise))
     x
 }
 
+.op_fraction <- function(x, ...) {
+    if (is.null(dim(x)) && length(x) == 1L) {
+        stop("Fraction: cannot apply to a scalar", call. = FALSE)
+    }
+    if (methods::is(x, "dgCMatrix")) {
+        out <- x
+        col_sums <- Matrix::colSums(out)
+        for (j in seq_along(col_sums)) {
+            start <- out@p[j] + 1L
+            end <- out@p[j + 1L]
+            if (start <= end) {
+                if (col_sums[j] != 0) {
+                    out@x[start:end] <- out@x[start:end] / col_sums[j]
+                } else {
+                    out@x[start:end] <- 0
+                }
+            }
+        }
+        return(out)
+    }
+    if (is.matrix(x)) {
+        col_sums <- colSums(x)
+        out <- x
+        storage.mode(out) <- "double"
+        for (j in seq_len(ncol(out))) {
+            out[, j] <- if (col_sums[j] == 0) 0 else out[, j] / col_sums[j]
+        }
+        return(out)
+    }
+    total <- sum(x)
+    if (total == 0) return(rep(0, length(x)))
+    x / total
+}
+
 attr(.op_sum, ".dafr_builtin") <- "Sum"
 attr(.op_mean, ".dafr_builtin") <- "Mean"
 attr(.op_max, ".dafr_builtin") <- "Max"
@@ -197,6 +231,7 @@ attr(.op_sqrt, ".dafr_builtin") <- "Sqrt"
 attr(.op_round, ".dafr_builtin") <- "Round"
 attr(.op_clamp, ".dafr_builtin") <- "Clamp"
 attr(.op_convert, ".dafr_builtin") <- "Convert"
+attr(.op_fraction, ".dafr_builtin") <- "Fraction"
 
 .register_default_ops <- function() {
     register_reduction("Sum", .op_sum, overwrite = TRUE)
@@ -212,6 +247,7 @@ attr(.op_convert, ".dafr_builtin") <- "Convert"
     register_eltwise("Round", .op_round, overwrite = TRUE)
     register_eltwise("Clamp", .op_clamp, overwrite = TRUE)
     register_eltwise("Convert", .op_convert, overwrite = TRUE)
+    register_eltwise("Fraction", .op_fraction, overwrite = TRUE)
 
     invisible(NULL)
 }

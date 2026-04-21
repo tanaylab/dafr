@@ -70,3 +70,52 @@ test_that("Convert preserves sparsity for target 'double'", {
 test_that("Convert attaches .dafr_builtin", {
     expect_identical(attr(get_eltwise("Convert"), ".dafr_builtin"), "Convert")
 })
+
+test_that("Fraction normalises a numeric vector to sum 1", {
+    fn <- get_eltwise("Fraction")
+    expect_equal(fn(c(1, 1, 2)), c(0.25, 0.25, 0.5))
+    expect_equal(fn(c(1, 2, 3)), c(1 / 6, 2 / 6, 3 / 6))
+})
+
+test_that("Fraction returns zeros when the vector total is 0", {
+    fn <- get_eltwise("Fraction")
+    expect_equal(fn(c(0, 0, 0)), c(0, 0, 0))
+    expect_equal(fn(c(1, -1, 0)), c(0, 0, 0))  # sum == 0 -> zeros
+})
+
+test_that("Fraction normalises each matrix column independently", {
+    fn <- get_eltwise("Fraction")
+    m <- matrix(c(1, 1, 2, 4), nrow = 2, ncol = 2)  # col sums: 2, 6
+    expect_equal(fn(m), matrix(c(0.5, 0.5, 2 / 6, 4 / 6), nrow = 2))
+})
+
+test_that("Fraction preserves sparsity on a dgCMatrix", {
+    m <- Matrix::sparseMatrix(
+        i = c(1, 2, 1, 3), j = c(1, 1, 2, 2), x = c(1, 1, 2, 4),
+        dims = c(3, 2)
+    )
+    out <- get_eltwise("Fraction")(m)
+    expect_s4_class(out, "dgCMatrix")
+    expect_equal(as.numeric(Matrix::colSums(out)), c(1, 1))
+    expect_equal(out[1, 1], 0.5)
+    expect_equal(out[3, 2], 4 / 6)
+})
+
+test_that("Fraction on a sparse column with sum 0 yields that column all-zero", {
+    m <- Matrix::sparseMatrix(
+        i = c(1, 2, 1), j = c(1, 1, 2), x = c(1, -1, 5),
+        dims = c(3, 2)
+    )  # col 1 sum == 0; col 2 sum == 5
+    out <- get_eltwise("Fraction")(m)
+    expect_s4_class(out, "dgCMatrix")
+    expect_equal(as.numeric(Matrix::colSums(out)[1]), 0)
+    expect_equal(as.numeric(Matrix::colSums(out)[2]), 1)
+})
+
+test_that("Fraction on a bare scalar errors", {
+    expect_error(get_eltwise("Fraction")(5), "scalar")
+})
+
+test_that("Fraction attaches .dafr_builtin", {
+    expect_identical(attr(get_eltwise("Fraction"), ".dafr_builtin"), "Fraction")
+})
