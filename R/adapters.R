@@ -1,4 +1,4 @@
-#' @include classes.R view_daf.R chain_daf.R memory_daf.R writers.R format_api.R
+#' @include classes.R chain_daf.R view_daf.R format_api.R
 NULL
 
 #' Apply a computation to a renaming view of a DafWriter.
