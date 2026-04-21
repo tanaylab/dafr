@@ -43,3 +43,14 @@ test_that("copy_axis overwrite=TRUE deletes and recreates destination axis", {
     expect_identical(axis_vector(dest, "cell"), c("c1"))
     expect_false(has_vector(dest, "cell", "tag"))
 })
+
+test_that("copy_axis validates rename / overwrite / insist", {
+    src <- memory_daf(name = "src"); add_axis(src, "cell", c("c1"))
+    dest <- memory_daf(name = "dest")
+    expect_error(copy_axis(dest, src, "cell", rename = ""),
+                 "rename")
+    expect_error(copy_axis(dest, src, "cell", overwrite = 1),
+                 "overwrite")
+    expect_error(copy_axis(dest, src, "cell", insist = NA),
+                 "insist")
+})

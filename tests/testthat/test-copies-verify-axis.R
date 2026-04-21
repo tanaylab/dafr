@@ -30,3 +30,18 @@ test_that(".verify_axis_relation detects same/subset/superset/disjoint", {
         "disjoint"
     )
 })
+
+test_that(".verify_axis_relation treats permuted-same axes as destination_is_subset", {
+    src <- memory_daf(name = "src")
+    dest <- memory_daf(name = "dest")
+    add_axis(src, "cell", c("c1", "c2", "c3"))
+    add_axis(dest, "cell", c("c3", "c1", "c2"))  # same set, reordered
+    # Both `all(a %in% b)` and `all(b %in% a)` are TRUE; the function
+    # returns the first match, "destination_is_subset". Downstream
+    # copy_vector / copy_matrix use match()-based reordering, so the
+    # observable result is correct regardless.
+    expect_identical(
+        dafr:::.verify_axis_relation(src, "cell", dest, "cell"),
+        "destination_is_subset"
+    )
+})

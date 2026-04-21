@@ -52,6 +52,9 @@ copy_scalar <- function(destination, source, name,
                         default = .DAFR_UNDEF,
                         overwrite = FALSE, insist = TRUE) {
     .assert_name(name, "name")
+    if (!is.null(rename)) .assert_name(rename, "rename")
+    .assert_flag(overwrite, "overwrite")
+    .assert_flag(insist, "insist")
     final_name <- if (is.null(rename)) name else rename
     if (format_has_scalar(destination, final_name) && !overwrite) {
         if (insist) {
@@ -98,6 +101,9 @@ copy_scalar <- function(destination, source, name,
 copy_axis <- function(destination, source, axis,
                       rename = NULL, overwrite = FALSE, insist = TRUE) {
     .assert_name(axis, "axis")
+    if (!is.null(rename)) .assert_name(rename, "rename")
+    .assert_flag(overwrite, "overwrite")
+    .assert_flag(insist, "insist")
     final_axis <- if (is.null(rename)) axis else rename
     if (!format_has_axis(source, axis)) {
         stop(sprintf("missing axis: %s in the daf data: %s",

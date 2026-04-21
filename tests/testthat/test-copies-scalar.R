@@ -64,3 +64,14 @@ test_that("copy_scalar with overwrite=TRUE replaces destination value", {
     copy_scalar(dest, src, "x", overwrite = TRUE)
     expect_identical(get_scalar(dest, "x"), 1L)
 })
+
+test_that("copy_scalar validates rename / overwrite / insist", {
+    src <- memory_daf(name = "src"); set_scalar(src, "x", 1L)
+    dest <- memory_daf(name = "dest")
+    expect_error(copy_scalar(dest, src, "x", rename = ""),
+                 "rename")
+    expect_error(copy_scalar(dest, src, "x", overwrite = 1),
+                 "overwrite")
+    expect_error(copy_scalar(dest, src, "x", insist = NA),
+                 "insist")
+})
