@@ -149,3 +149,25 @@ test_that("concatenate: merge=CollectAxis for matrix raises", {
         "CollectAxis for a matrix"
     )
 })
+
+test_that("concatenate: two concat axes simultaneously", {
+    a <- memory_daf(name = "A")
+    add_axis(a, "cell", c("a1")); add_axis(a, "gene", c("ga1"))
+    b <- memory_daf(name = "B")
+    add_axis(b, "cell", c("b1")); add_axis(b, "gene", c("gb1"))
+    dest <- memory_daf(name = "dest")
+    concatenate(dest, c("cell", "gene"), list(a, b))
+    expect_identical(axis_vector(dest, "cell"), c("a1", "b1"))
+    expect_identical(axis_vector(dest, "gene"), c("ga1", "gb1"))
+})
+
+test_that("concatenate: rejects matrix with both axes in concat set", {
+    a <- memory_daf(name = "A")
+    add_axis(a, "cell", c("a1"))
+    set_matrix(a, "cell", "cell", "link",
+               matrix(1, 1, 1, dimnames = list("a1", "a1")))
+    b <- memory_daf(name = "B"); add_axis(b, "cell", c("b1"))
+    dest <- memory_daf(name = "dest")
+    expect_error(concatenate(dest, "cell", list(a, b)),
+                 "both axes in the concat set")
+})
