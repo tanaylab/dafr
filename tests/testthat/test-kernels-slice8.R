@@ -168,3 +168,79 @@ test_that("sparse Var query does not densify (both ReduceToRow and ReduceToColum
     assert_no_densify_during(get_query(daf, "@ r @ c :: x >| VarN eps 0.1"))
     assert_no_densify_during(get_query(daf, "@ r @ c :: x >| StdN eps 0.1"))
 })
+
+# ---------------------------------------------------------------------------
+# Task 4: kernel_geomean_csc_cpp
+# ---------------------------------------------------------------------------
+
+test_that("kernel_geomean_csc matches .op_geomean slow path", {
+    skip_if_not_installed("Matrix")
+    set.seed(45)
+    m <- Matrix::rsparsematrix(50L, 40L, density = 0.2,
+        rand.x = function(n) runif(n, 0, 5))
+    dense <- as.matrix(m)
+    eps <- 1.0
+    for (axis in c(0L, 1L)) {
+        expected <- if (axis == 1L)
+            apply(dense, 2L, function(v) dafr:::.op_geomean(v, eps = eps))
+        else
+            apply(dense, 1L, function(v) dafr:::.op_geomean(v, eps = eps))
+        got <- dafr:::kernel_geomean_csc_cpp(
+            m@x, m@i, m@p, nrow(m), ncol(m),
+            axis = axis, eps = eps, threshold = 1L)
+        expect_equal(got, expected, tolerance = 1e-9,
+            info = sprintf("axis=%d", axis))
+    }
+})
+
+test_that("kernel_geomean_csc eps=0 branch matches .op_geomean (no implicit zeros)", {
+    # With eps=0 the kernel should only handle fully-populated columns/rows without
+    # implicit zeros (implicit zeros would produce -Inf). Use a fully dense sparse
+    # matrix so every entry is stored explicitly.
+    skip_if_not_installed("Matrix")
+    # Build a small fully-populated dgCMatrix (all positive)
+    set.seed(46)
+    d <- matrix(runif(12L, 1, 5), 4L, 3L)
+    m <- Matrix::Matrix(d, sparse = TRUE)  # dgCMatrix with no structural zeros
+    eps <- 0.0
+    for (axis in c(0L, 1L)) {
+        expected <- if (axis == 1L)
+            apply(d, 2L, function(v) dafr:::.op_geomean(v, eps = eps))
+        else
+            apply(d, 1L, function(v) dafr:::.op_geomean(v, eps = eps))
+        got <- dafr:::kernel_geomean_csc_cpp(
+            m@x, m@i, m@p, nrow(m), ncol(m),
+            axis = axis, eps = eps, threshold = 1L)
+        expect_equal(got, expected, tolerance = 1e-9,
+            info = sprintf("axis=%d eps=0", axis))
+    }
+})
+
+test_that("kernel_geomean_csc all-zero column produces correct result", {
+    # All-zero column with eps=1: exp(nrow * log(0+1) / nrow) - 1 = exp(0) - 1 = 0
+    m <- Matrix::sparseMatrix(
+        i = c(1L), j = c(1L), x = c(3.0),
+        dims = c(3L, 2L))
+    # col 1 has one nnz=3, col 2 is all-zero
+    got <- dafr:::kernel_geomean_csc_cpp(
+        m@x, m@i, m@p, 3L, 2L, axis = 1L, eps = 1.0, threshold = 1L)
+    # col 2: exp(3*log(1)/3) - 1 = exp(0) - 1 = 0
+    expect_equal(got[2L], 0.0, tolerance = 1e-12)
+    # col 1: exp((log(4) + 2*log(1))/3) - 1
+    expected_col1 <- exp((log(4) + 2 * log(1)) / 3) - 1
+    expect_equal(got[1L], expected_col1, tolerance = 1e-12)
+})
+
+test_that("sparse GeoMean query does not densify (both reduce directions)", {
+    skip_if_not_installed("Matrix")
+    m <- Matrix::rsparsematrix(30L, 30L, density = 0.3,
+        rand.x = function(n) runif(n, 0, 3))
+    daf <- memory_daf("t")
+    add_axis(daf, "r", paste0("r", seq_len(30L)))
+    add_axis(daf, "c", paste0("c", seq_len(30L)))
+    set_matrix(daf, "r", "c", "x", m)
+    # >- is ReduceToRow (per-column): axis=1
+    assert_no_densify_during(get_query(daf, "@ r @ c :: x >- GeoMean eps 1.0"))
+    # >| is ReduceToColumn (per-row): axis=0
+    assert_no_densify_during(get_query(daf, "@ r @ c :: x >| GeoMean eps 1.0"))
+})

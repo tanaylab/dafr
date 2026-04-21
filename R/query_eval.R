@@ -624,6 +624,20 @@ NULL
                     s / (mu + eps)
                 } else return(NULL)
             },
+            GeoMean = {
+                eps <- .param_eps(params)
+                if (is_dg)
+                    kernel_geomean_csc_cpp(m@x, m@i, m@p, nrow(m), ncol(m),
+                                           axis = 0L, eps = eps,
+                                           threshold = .dafr_kernel_threshold())
+                else if (is_dense) {
+                    if (eps == 0) {
+                        exp(rowMeans(log(m)))
+                    } else {
+                        exp(rowMeans(log(m + eps))) - eps
+                    }
+                } else return(NULL)
+            },
             return(NULL)
         )
         return(list(
@@ -683,6 +697,20 @@ NULL
                 mu <- colMeans(m)
                 s <- sqrt(colMeans(m * m) - mu^2)
                 s / (mu + eps)
+            } else return(NULL)
+        },
+        GeoMean = {
+            eps <- .param_eps(params)
+            if (is_dg)
+                kernel_geomean_csc_cpp(m@x, m@i, m@p, nrow(m), ncol(m),
+                                       axis = 1L, eps = eps,
+                                       threshold = .dafr_kernel_threshold())
+            else if (is_dense) {
+                if (eps == 0) {
+                    exp(colMeans(log(m)))
+                } else {
+                    exp(colMeans(log(m + eps))) - eps
+                }
             } else return(NULL)
         },
         return(NULL)

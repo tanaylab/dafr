@@ -28,6 +28,10 @@ kernel_log_add_cpp <- function(x, y, threshold) {
   .Call(`_dafr_kernel_log_add_cpp`, x, y, threshold)
 }
 
+kernel_geomean_csc_cpp <- function(x, i, p, nrow, ncol, axis, eps, threshold) {
+  .Call(`_dafr_kernel_geomean_csc_cpp`, x, i, p, nrow, ncol, axis, eps, threshold)
+}
+
 kernel_log_reduce_dense_cpp <- function(m, eps, base, axis, reducer, threshold) {
   .Call(`_dafr_kernel_log_reduce_dense_cpp`, m, eps, base, axis, reducer, threshold)
 }

@@ -63,6 +63,16 @@ gates$var_dense <- list(
     mem_ratio_target = NA
 )
 
+gates$geomean_sparse <- list(
+    name = "GeoMean sparse row-reduce (10k x 10k, 5% nnz)",
+    setup = function() make_sparse(),
+    baseline = function(m) apply(m, 1L, function(v) dafr:::.op_geomean(v, eps = 1.0)),
+    fast     = function(m) dafr:::kernel_geomean_csc_cpp(
+        m@x, m@i, m@p, nrow(m), ncol(m), axis = 0L, eps = 1.0, threshold = 1024L),
+    ratio_target = 10.0,
+    mem_ratio_target = NA
+)
+
 # --- Runner (wired in Task 15) ---------------------------------------------
 # (Placeholder — replaced in Task 15 with a harness that evaluates every gate.)
 cat("Slice 8 benchmark skeleton.\n",
