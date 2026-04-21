@@ -199,3 +199,268 @@ contractor <- function(computation, contract, daf,
         data = data_env
     )
 }
+
+# -- Access tracking helpers --------------------------------------------
+
+.access_key_scalar <- function(name) sprintf("scalar:%s", name)
+.access_key_vector <- function(axis, name) sprintf("vector:%s:%s", axis, name)
+.access_key_matrix <- function(ra, ca, name) sprintf("matrix:%s:%s:%s", ra, ca, name)
+
+.IMMUTABLE_EXPECTATIONS <- c(RequiredInput, OptionalInput)
+
+.is_immutable <- function(expectation, is_for_modify) {
+    is_for_modify && expectation %in% .IMMUTABLE_EXPECTATIONS
+}
+
+.access_scalar <- function(cd, name, is_for_modify) {
+    key <- .access_key_scalar(name)
+    tracker <- S7::prop(cd, "data")[[key]]
+    if (is.null(tracker)) {
+        if (isTRUE(S7::prop(cd, "is_relaxed"))) return(invisible())
+        stop(sprintf(
+            "accessing non-contract scalar: %s for the computation: %s on the daf data: %s",
+            name, S7::prop(cd, "computation"), S7::prop(S7::prop(cd, "base"), "name")
+        ), call. = FALSE)
+    }
+    if (.is_immutable(tracker$expectation, is_for_modify)) {
+        stop(sprintf(
+            "modifying %s scalar: %s for the computation: %s on the daf data: %s",
+            tracker$expectation, name, S7::prop(cd, "computation"),
+            S7::prop(S7::prop(cd, "base"), "name")
+        ), call. = FALSE)
+    }
+    tracker$accessed <- TRUE
+    invisible()
+}
+
+.access_axis <- function(cd, axis, is_for_modify) {
+    tracker <- S7::prop(cd, "axes")[[axis]]
+    if (is.null(tracker)) {
+        if (isTRUE(S7::prop(cd, "is_relaxed"))) return(invisible())
+        stop(sprintf(
+            "accessing non-contract axis: %s for the computation: %s on the daf data: %s",
+            axis, S7::prop(cd, "computation"), S7::prop(S7::prop(cd, "base"), "name")
+        ), call. = FALSE)
+    }
+    if (.is_immutable(tracker$expectation, is_for_modify)) {
+        stop(sprintf(
+            "modifying %s axis: %s for the computation: %s on the daf data: %s",
+            tracker$expectation, axis, S7::prop(cd, "computation"),
+            S7::prop(S7::prop(cd, "base"), "name")
+        ), call. = FALSE)
+    }
+    tracker$accessed <- TRUE
+    invisible()
+}
+
+.access_vector <- function(cd, axis, name, is_for_modify) {
+    # Axis access is non-modifying even on a vector write (Julia semantics).
+    .access_axis(cd, axis, FALSE)
+    key <- .access_key_vector(axis, name)
+    tracker <- S7::prop(cd, "data")[[key]]
+    if (is.null(tracker)) {
+        if (isTRUE(S7::prop(cd, "is_relaxed")) || name %in% c("name", "index")) {
+            return(invisible())
+        }
+        stop(sprintf(
+            "accessing non-contract vector: %s of the axis: %s for the computation: %s on the daf data: %s",
+            name, axis, S7::prop(cd, "computation"),
+            S7::prop(S7::prop(cd, "base"), "name")
+        ), call. = FALSE)
+    }
+    if (.is_immutable(tracker$expectation, is_for_modify)) {
+        stop(sprintf(
+            "modifying %s vector: %s of the axis: %s for the computation: %s on the daf data: %s",
+            tracker$expectation, name, axis, S7::prop(cd, "computation"),
+            S7::prop(S7::prop(cd, "base"), "name")
+        ), call. = FALSE)
+    }
+    tracker$accessed <- TRUE
+    invisible()
+}
+
+.access_matrix <- function(cd, ra, ca, name, is_for_modify) {
+    .access_axis(cd, ra, FALSE)
+    .access_axis(cd, ca, FALSE)
+    key <- .access_key_matrix(ra, ca, name)
+    tracker <- S7::prop(cd, "data")[[key]]
+    if (is.null(tracker)) {
+        # Try flipped
+        tracker <- S7::prop(cd, "data")[[.access_key_matrix(ca, ra, name)]]
+    }
+    if (is.null(tracker)) {
+        if (isTRUE(S7::prop(cd, "is_relaxed"))) return(invisible())
+        stop(sprintf(
+            "accessing non-contract matrix: %s of the rows axis: %s and the columns axis: %s for the computation: %s on the daf data: %s",
+            name, ra, ca, S7::prop(cd, "computation"),
+            S7::prop(S7::prop(cd, "base"), "name")
+        ), call. = FALSE)
+    }
+    if (.is_immutable(tracker$expectation, is_for_modify)) {
+        stop(sprintf(
+            "modifying %s matrix: %s of the rows_axis: %s and the columns_axis: %s for the computation: %s on the daf data: %s",
+            tracker$expectation, name, ra, ca, S7::prop(cd, "computation"),
+            S7::prop(S7::prop(cd, "base"), "name")
+        ), call. = FALSE)
+    }
+    tracker$accessed <- TRUE
+    invisible()
+}
+
+# -- format_* dispatch --------------------------------------------------
+
+S7::method(
+    format_has_scalar,
+    list(ContractDaf, S7::class_character)
+) <- function(daf, name) format_has_scalar(S7::prop(daf, "base"), name)
+
+S7::method(
+    format_get_scalar,
+    list(ContractDaf, S7::class_character)
+) <- function(daf, name) {
+    .access_scalar(daf, name, is_for_modify = FALSE)
+    format_get_scalar(S7::prop(daf, "base"), name)
+}
+
+S7::method(format_scalars_set, ContractDaf) <- function(daf) {
+    format_scalars_set(S7::prop(daf, "base"))
+}
+
+S7::method(
+    format_set_scalar,
+    list(ContractDaf, S7::class_character, S7::class_any, S7::class_logical)
+) <- function(daf, name, value, overwrite) {
+    .access_scalar(daf, name, is_for_modify = TRUE)
+    format_set_scalar(S7::prop(daf, "base"), name, value, overwrite)
+}
+
+S7::method(
+    format_delete_scalar,
+    list(ContractDaf, S7::class_character, S7::class_logical)
+) <- function(daf, name, must_exist) {
+    .access_scalar(daf, name, is_for_modify = TRUE)
+    format_delete_scalar(S7::prop(daf, "base"), name, must_exist)
+}
+
+S7::method(
+    format_has_axis,
+    list(ContractDaf, S7::class_character)
+) <- function(daf, axis) format_has_axis(S7::prop(daf, "base"), axis)
+
+S7::method(format_axes_set, ContractDaf) <- function(daf) {
+    format_axes_set(S7::prop(daf, "base"))
+}
+
+S7::method(
+    format_axis_array,
+    list(ContractDaf, S7::class_character)
+) <- function(daf, axis) {
+    .access_axis(daf, axis, is_for_modify = FALSE)
+    format_axis_array(S7::prop(daf, "base"), axis)
+}
+
+S7::method(
+    format_axis_length,
+    list(ContractDaf, S7::class_character)
+) <- function(daf, axis) format_axis_length(S7::prop(daf, "base"), axis)
+
+S7::method(
+    format_axis_dict,
+    list(ContractDaf, S7::class_character)
+) <- function(daf, axis) format_axis_dict(S7::prop(daf, "base"), axis)
+
+S7::method(
+    format_add_axis,
+    list(ContractDaf, S7::class_character, S7::class_character)
+) <- function(daf, axis, entries) {
+    .access_axis(daf, axis, is_for_modify = TRUE)
+    format_add_axis(S7::prop(daf, "base"), axis, entries)
+}
+
+S7::method(
+    format_delete_axis,
+    list(ContractDaf, S7::class_character, S7::class_logical)
+) <- function(daf, axis, must_exist) {
+    .access_axis(daf, axis, is_for_modify = TRUE)
+    format_delete_axis(S7::prop(daf, "base"), axis, must_exist)
+}
+
+S7::method(
+    format_has_vector,
+    list(ContractDaf, S7::class_character, S7::class_character)
+) <- function(daf, axis, name) format_has_vector(S7::prop(daf, "base"), axis, name)
+
+S7::method(
+    format_get_vector,
+    list(ContractDaf, S7::class_character, S7::class_character)
+) <- function(daf, axis, name) {
+    .access_vector(daf, axis, name, is_for_modify = FALSE)
+    format_get_vector(S7::prop(daf, "base"), axis, name)
+}
+
+S7::method(
+    format_vectors_set,
+    list(ContractDaf, S7::class_character)
+) <- function(daf, axis) format_vectors_set(S7::prop(daf, "base"), axis)
+
+S7::method(
+    format_set_vector,
+    list(ContractDaf, S7::class_character, S7::class_character, S7::class_any, S7::class_logical)
+) <- function(daf, axis, name, vec, overwrite) {
+    .access_vector(daf, axis, name, is_for_modify = TRUE)
+    format_set_vector(S7::prop(daf, "base"), axis, name, vec, overwrite)
+}
+
+S7::method(
+    format_delete_vector,
+    list(ContractDaf, S7::class_character, S7::class_character, S7::class_logical)
+) <- function(daf, axis, name, must_exist) {
+    .access_vector(daf, axis, name, is_for_modify = TRUE)
+    format_delete_vector(S7::prop(daf, "base"), axis, name, must_exist)
+}
+
+S7::method(
+    format_has_matrix,
+    list(ContractDaf, S7::class_character, S7::class_character, S7::class_character)
+) <- function(daf, rows_axis, columns_axis, name) {
+    format_has_matrix(S7::prop(daf, "base"), rows_axis, columns_axis, name)
+}
+
+S7::method(
+    format_get_matrix,
+    list(ContractDaf, S7::class_character, S7::class_character, S7::class_character)
+) <- function(daf, rows_axis, columns_axis, name) {
+    .access_matrix(daf, rows_axis, columns_axis, name, is_for_modify = FALSE)
+    format_get_matrix(S7::prop(daf, "base"), rows_axis, columns_axis, name)
+}
+
+S7::method(
+    format_matrices_set,
+    list(ContractDaf, S7::class_character, S7::class_character)
+) <- function(daf, rows_axis, columns_axis) {
+    format_matrices_set(S7::prop(daf, "base"), rows_axis, columns_axis)
+}
+
+S7::method(
+    format_set_matrix,
+    list(ContractDaf, S7::class_character, S7::class_character, S7::class_character, S7::class_any, S7::class_logical)
+) <- function(daf, rows_axis, columns_axis, name, mat, overwrite) {
+    .access_matrix(daf, rows_axis, columns_axis, name, is_for_modify = TRUE)
+    format_set_matrix(S7::prop(daf, "base"), rows_axis, columns_axis, name, mat, overwrite)
+}
+
+S7::method(
+    format_delete_matrix,
+    list(ContractDaf, S7::class_character, S7::class_character, S7::class_character, S7::class_logical)
+) <- function(daf, rows_axis, columns_axis, name, must_exist) {
+    .access_matrix(daf, rows_axis, columns_axis, name, is_for_modify = TRUE)
+    format_delete_matrix(S7::prop(daf, "base"), rows_axis, columns_axis, name, must_exist)
+}
+
+S7::method(
+    format_relayout_matrix,
+    list(ContractDaf, S7::class_character, S7::class_character, S7::class_character)
+) <- function(daf, rows_axis, columns_axis, name) {
+    .access_matrix(daf, rows_axis, columns_axis, name, is_for_modify = FALSE)
+    format_relayout_matrix(S7::prop(daf, "base"), rows_axis, columns_axis, name)
+}
