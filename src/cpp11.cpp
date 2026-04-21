@@ -54,16 +54,32 @@ extern "C" SEXP _dafr_kernel_log_add_cpp(SEXP x, SEXP y, SEXP threshold) {
     return cpp11::as_sexp(kernel_log_add_cpp(cpp11::as_cpp<cpp11::decay_t<cpp11::doubles>>(x), cpp11::as_cpp<cpp11::decay_t<cpp11::doubles>>(y), cpp11::as_cpp<cpp11::decay_t<int>>(threshold)));
   END_CPP11
 }
+// kernel_log_reduce.cpp
+cpp11::writable::doubles kernel_log_reduce_dense_cpp(cpp11::doubles_matrix<> m, double eps, double base, int axis, std::string reducer, int threshold);
+extern "C" SEXP _dafr_kernel_log_reduce_dense_cpp(SEXP m, SEXP eps, SEXP base, SEXP axis, SEXP reducer, SEXP threshold) {
+  BEGIN_CPP11
+    return cpp11::as_sexp(kernel_log_reduce_dense_cpp(cpp11::as_cpp<cpp11::decay_t<cpp11::doubles_matrix<>>>(m), cpp11::as_cpp<cpp11::decay_t<double>>(eps), cpp11::as_cpp<cpp11::decay_t<double>>(base), cpp11::as_cpp<cpp11::decay_t<int>>(axis), cpp11::as_cpp<cpp11::decay_t<std::string>>(reducer), cpp11::as_cpp<cpp11::decay_t<int>>(threshold)));
+  END_CPP11
+}
+// kernel_log_reduce.cpp
+cpp11::writable::doubles kernel_log_reduce_csc_cpp(cpp11::doubles x, cpp11::integers i, cpp11::integers p, int nrow, int ncol, double eps, double base, int axis, std::string reducer, int threshold);
+extern "C" SEXP _dafr_kernel_log_reduce_csc_cpp(SEXP x, SEXP i, SEXP p, SEXP nrow, SEXP ncol, SEXP eps, SEXP base, SEXP axis, SEXP reducer, SEXP threshold) {
+  BEGIN_CPP11
+    return cpp11::as_sexp(kernel_log_reduce_csc_cpp(cpp11::as_cpp<cpp11::decay_t<cpp11::doubles>>(x), cpp11::as_cpp<cpp11::decay_t<cpp11::integers>>(i), cpp11::as_cpp<cpp11::decay_t<cpp11::integers>>(p), cpp11::as_cpp<cpp11::decay_t<int>>(nrow), cpp11::as_cpp<cpp11::decay_t<int>>(ncol), cpp11::as_cpp<cpp11::decay_t<double>>(eps), cpp11::as_cpp<cpp11::decay_t<double>>(base), cpp11::as_cpp<cpp11::decay_t<int>>(axis), cpp11::as_cpp<cpp11::decay_t<std::string>>(reducer), cpp11::as_cpp<cpp11::decay_t<int>>(threshold)));
+  END_CPP11
+}
 
 extern "C" {
 static const R_CallMethodDef CallEntries[] = {
-    {"_dafr_is_altrep_cpp",          (DL_FUNC) &_dafr_is_altrep_cpp,          1},
-    {"_dafr_kernel_csc_colsums_cpp", (DL_FUNC) &_dafr_kernel_csc_colsums_cpp, 4},
-    {"_dafr_kernel_csc_to_csr_cpp",  (DL_FUNC) &_dafr_kernel_csc_to_csr_cpp,  5},
-    {"_dafr_kernel_log_add_cpp",     (DL_FUNC) &_dafr_kernel_log_add_cpp,     3},
-    {"_dafr_mmap_int_altrep_cpp",    (DL_FUNC) &_dafr_mmap_int_altrep_cpp,    2},
-    {"_dafr_mmap_lgl_altrep_cpp",    (DL_FUNC) &_dafr_mmap_lgl_altrep_cpp,    2},
-    {"_dafr_mmap_real_altrep_cpp",   (DL_FUNC) &_dafr_mmap_real_altrep_cpp,   2},
+    {"_dafr_is_altrep_cpp",               (DL_FUNC) &_dafr_is_altrep_cpp,                1},
+    {"_dafr_kernel_csc_colsums_cpp",      (DL_FUNC) &_dafr_kernel_csc_colsums_cpp,       4},
+    {"_dafr_kernel_csc_to_csr_cpp",       (DL_FUNC) &_dafr_kernel_csc_to_csr_cpp,        5},
+    {"_dafr_kernel_log_add_cpp",          (DL_FUNC) &_dafr_kernel_log_add_cpp,           3},
+    {"_dafr_kernel_log_reduce_csc_cpp",   (DL_FUNC) &_dafr_kernel_log_reduce_csc_cpp,   10},
+    {"_dafr_kernel_log_reduce_dense_cpp", (DL_FUNC) &_dafr_kernel_log_reduce_dense_cpp,  6},
+    {"_dafr_mmap_int_altrep_cpp",         (DL_FUNC) &_dafr_mmap_int_altrep_cpp,          2},
+    {"_dafr_mmap_lgl_altrep_cpp",         (DL_FUNC) &_dafr_mmap_lgl_altrep_cpp,          2},
+    {"_dafr_mmap_real_altrep_cpp",        (DL_FUNC) &_dafr_mmap_real_altrep_cpp,         2},
     {NULL, NULL, 0}
 };
 }

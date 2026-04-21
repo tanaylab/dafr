@@ -22,10 +22,70 @@ NULL
             i <- i + 2L
             next
         }
+        # Lookahead 1: fused Log + Sum/Mean reduction.
+        if (i < n &&
+            identical(node$op, "Eltwise") &&
+            identical(node$name, "Log") &&
+            ast[[i + 1L]]$op %in% c("ReduceToColumn", "ReduceToRow") &&
+            ast[[i + 1L]]$reduction %in% c("Sum", "Mean") &&
+            length(ast[[i + 1L]]$params) == 0L &&
+            identical(state$kind, "matrix")) {
+            fused <- .try_fused_log_reduce(node, ast[[i + 1L]], state, daf)
+            if (!is.null(fused)) {
+                state <- fused
+                i <- i + 2L
+                next
+            }
+        }
         state <- .apply_node(node, state, daf)
         i <- i + 1L
     }
     state$value
+}
+
+.try_fused_log_reduce <- function(log_node, red_node, state, daf) {
+    fn <- get_eltwise(log_node$name)
+    if (!identical(attr(fn, ".dafr_builtin"), "Log")) return(NULL)
+    params <- .coerce_params(log_node$params)
+    eps <- params$eps %||% 0
+    base <- params$base %||% exp(1)
+    threshold <- as.integer(dafr_opt("dafr.omp_threshold"))
+    axis <- if (identical(red_node$op, "ReduceToColumn")) 0L else 1L
+    reducer <- red_node$reduction
+    m <- state$value
+
+    if (methods::is(m, "dgCMatrix")) {
+        # CSC: implicit zeros are NOT in @x. The kernel accounts for them
+        # by adding (n_zeros * log(eps)/log(base)) per row/column. With eps
+        # <= 0 that contribution is -Inf or NaN and silently poisons every
+        # row/col that has any implicit zero (essentially all of them for
+        # typical UMI matrices). Bail so the unfused path runs and the user
+        # sees the -Inf/NaN they asked for.
+        if (eps <= 0) return(NULL)
+        out <- kernel_log_reduce_csc_cpp(
+            m@x, m@i, m@p,
+            nrow(m), ncol(m),
+            eps, base, axis, reducer, threshold
+        )
+        target_axis <- if (axis == 0L) state$rows_axis else state$cols_axis
+        names(out) <- format_axis_array(daf, target_axis)
+        return(list(kind = "vector", axis = target_axis, value = out))
+    }
+    if (is.matrix(m)) {
+        # Dense: every cell is materialised, so eps == 0 on actual zero entries
+        # produces -Inf in those cells and the per-row sum becomes -Inf. The
+        # user can see this. Only bail if eps < 0 (always nonsense) OR if
+        # eps == 0 and there's a zero in the matrix.
+        if (eps < 0) return(NULL)
+        if (eps == 0 && any(m == 0, na.rm = TRUE)) return(NULL)
+        out <- kernel_log_reduce_dense_cpp(
+            m, eps, base, axis, reducer, threshold
+        )
+        target_axis <- if (axis == 0L) state$rows_axis else state$cols_axis
+        names(out) <- format_axis_array(daf, target_axis)
+        return(list(kind = "vector", axis = target_axis, value = out))
+    }
+    NULL
 }
 
 .apply_node <- function(node, state, daf) {
