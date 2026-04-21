@@ -555,9 +555,7 @@ NULL
 # Extract eps parameter for VarN/StdN reductions. Defaults to 0 when omitted,
 # matching the slow-path default in .op_varn / .op_stdn.
 .param_eps <- function(params) {
-    v <- params[["eps"]] %||% if (length(params) > 0L) params[[1L]] else NULL
-    if (is.null(v)) return(0)
-    as.numeric(v)
+    as.numeric(params[["eps"]] %||% 0)
 }
 
 .apply_reduction_fast <- function(node, state, fn, params, daf) {

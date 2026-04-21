@@ -124,6 +124,7 @@ test_that("kernel_var_csc VarN and StdN match manual computation with eps", {
     m <- Matrix::rsparsematrix(50L, 30L, density = 0.3, rand.x = function(n) runif(n, 0.5, 2))
     dense <- as.matrix(m)
     eps <- 1e-3
+    # axis=1: per-col (ReduceToRow equivalent)
     means_col <- colMeans(dense)
     vars_col  <- apply(dense, 2L, function(v) {
         n <- length(v); mu <- mean(v); sum((v - mu)^2) / n
@@ -136,6 +137,19 @@ test_that("kernel_var_csc VarN and StdN match manual computation with eps", {
         dafr:::kernel_var_csc_cpp(m@x, m@i, m@p, nrow(m), ncol(m),
             axis = 1L, variant = "StdN", eps = eps, threshold = 1L),
         sqrt(vars_col) / (means_col + eps), tolerance = 1e-9)
+    # axis=0: per-row (ReduceToColumn equivalent) — exercises thread-bucket path
+    means_row <- rowMeans(dense)
+    vars_row  <- apply(dense, 1L, function(v) {
+        n <- length(v); mu <- mean(v); sum((v - mu)^2) / n
+    })
+    expect_equal(
+        dafr:::kernel_var_csc_cpp(m@x, m@i, m@p, nrow(m), ncol(m),
+            axis = 0L, variant = "VarN", eps = eps, threshold = 1L),
+        vars_row / (means_row + eps), tolerance = 1e-9)
+    expect_equal(
+        dafr:::kernel_var_csc_cpp(m@x, m@i, m@p, nrow(m), ncol(m),
+            axis = 0L, variant = "StdN", eps = eps, threshold = 1L),
+        sqrt(vars_row) / (means_row + eps), tolerance = 1e-9)
 })
 
 test_that("sparse Var query does not densify (both ReduceToRow and ReduceToColumn)", {
@@ -149,4 +163,8 @@ test_that("sparse Var query does not densify (both ReduceToRow and ReduceToColum
     assert_no_densify_during(get_query(daf, "@ r @ c :: x >- Std"))
     assert_no_densify_during(get_query(daf, "@ r @ c :: x >| Var"))
     assert_no_densify_during(get_query(daf, "@ r @ c :: x >| Std"))
+    assert_no_densify_during(get_query(daf, "@ r @ c :: x >- VarN eps 0.1"))
+    assert_no_densify_during(get_query(daf, "@ r @ c :: x >- StdN eps 0.1"))
+    assert_no_densify_during(get_query(daf, "@ r @ c :: x >| VarN eps 0.1"))
+    assert_no_densify_during(get_query(daf, "@ r @ c :: x >| StdN eps 0.1"))
 })
