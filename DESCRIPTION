@@ -72,4 +72,5 @@ Collate:
     'readers.R'
     'view_daf.R'
     'writers.R'
+    'example_data.R'
     'zzz.R'
