@@ -72,3 +72,36 @@ test_that("chain_reader: axis length mismatch raises at construction", {
         "different number of entries"
     )
 })
+
+test_that("chain_reader: vector falls through in reverse order (last wins)", {
+    d1 <- memory_daf(name = "one")
+    d2 <- memory_daf(name = "two")
+    add_axis(d1, "cell", c("A", "B"))
+    add_axis(d2, "cell", c("A", "B"))
+    set_vector(d1, "cell", "age", c(1L, 2L))
+    set_vector(d2, "cell", "age", c(3L, 4L))
+    ch <- chain_reader(list(d1, d2), name = "chain")
+    expect_identical(unname(get_vector(ch, "cell", "age")), c(3L, 4L))
+})
+
+test_that("chain_reader: vector from only-first daf is visible", {
+    d1 <- memory_daf(name = "one")
+    d2 <- memory_daf(name = "two")
+    add_axis(d1, "cell", c("A", "B"))
+    add_axis(d2, "cell", c("A", "B"))
+    set_vector(d1, "cell", "age", c(1L, 2L))
+    ch <- chain_reader(list(d1, d2), name = "chain")
+    expect_true(has_vector(ch, "cell", "age"))
+    expect_identical(unname(get_vector(ch, "cell", "age")), c(1L, 2L))
+})
+
+test_that("chain_reader: vectors_set is union across all dafs that have the axis", {
+    d1 <- memory_daf(name = "one")
+    d2 <- memory_daf(name = "two")
+    add_axis(d1, "cell", c("A", "B"))
+    add_axis(d2, "cell", c("A", "B"))
+    set_vector(d1, "cell", "age", c(1L, 2L))
+    set_vector(d2, "cell", "donor", c("x", "y"))
+    ch <- chain_reader(list(d1, d2), name = "chain")
+    expect_setequal(vectors_set(ch, "cell"), c("age", "donor"))
+})
