@@ -1,0 +1,17 @@
+{
+  "chain_name": "chain",
+  "daf_names": ["first", "second"],
+  "scalars": {
+    "version": {"value": 2, "type": "integer"},
+    "owner": {"value": "me", "type": "character"}
+  },
+  "axes": {
+    "cell": ["A", "B", "C"]
+  },
+  "vectors": {
+    "cell": {
+      "age": [100, 200, 300],
+      "donor": ["d1", "d2", "d1"]
+    }
+  }
+}
