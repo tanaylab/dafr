@@ -78,6 +78,7 @@ NULL
         # eps == 0 and there's a zero in the matrix.
         if (eps < 0) return(NULL)
         if (eps == 0 && any(m == 0, na.rm = TRUE)) return(NULL)
+        if (!is.double(m)) storage.mode(m) <- "double"
         out <- kernel_log_reduce_dense_cpp(
             m, eps, base, axis, reducer, threshold
         )
