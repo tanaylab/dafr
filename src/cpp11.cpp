@@ -69,10 +69,10 @@ extern "C" SEXP _dafr_kernel_log_reduce_csc_cpp(SEXP x, SEXP i, SEXP p, SEXP nro
   END_CPP11
 }
 // kernel_minmax_csc.cpp
-cpp11::writable::doubles kernel_minmax_csc_cpp(cpp11::doubles  x, cpp11::integers i, cpp11::integers p, int nrow, int ncol, int axis, std::string variant, int threshold);
+cpp11::writable::doubles kernel_minmax_csc_cpp(cpp11::doubles x, cpp11::integers i, cpp11::integers p, int nrow, int ncol, int axis, std::string variant, int threshold);
 extern "C" SEXP _dafr_kernel_minmax_csc_cpp(SEXP x, SEXP i, SEXP p, SEXP nrow, SEXP ncol, SEXP axis, SEXP variant, SEXP threshold) {
   BEGIN_CPP11
-    return cpp11::as_sexp(kernel_minmax_csc_cpp(cpp11::as_cpp<cpp11::decay_t<cpp11::doubles >>(x), cpp11::as_cpp<cpp11::decay_t<cpp11::integers>>(i), cpp11::as_cpp<cpp11::decay_t<cpp11::integers>>(p), cpp11::as_cpp<cpp11::decay_t<int>>(nrow), cpp11::as_cpp<cpp11::decay_t<int>>(ncol), cpp11::as_cpp<cpp11::decay_t<int>>(axis), cpp11::as_cpp<cpp11::decay_t<std::string>>(variant), cpp11::as_cpp<cpp11::decay_t<int>>(threshold)));
+    return cpp11::as_sexp(kernel_minmax_csc_cpp(cpp11::as_cpp<cpp11::decay_t<cpp11::doubles>>(x), cpp11::as_cpp<cpp11::decay_t<cpp11::integers>>(i), cpp11::as_cpp<cpp11::decay_t<cpp11::integers>>(p), cpp11::as_cpp<cpp11::decay_t<int>>(nrow), cpp11::as_cpp<cpp11::decay_t<int>>(ncol), cpp11::as_cpp<cpp11::decay_t<int>>(axis), cpp11::as_cpp<cpp11::decay_t<std::string>>(variant), cpp11::as_cpp<cpp11::decay_t<int>>(threshold)));
   END_CPP11
 }
 

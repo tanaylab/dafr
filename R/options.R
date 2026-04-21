@@ -8,7 +8,8 @@
     dafr.verbose         = FALSE,
     # Bench-only: setting to FALSE disables the P2/P3/P4 fast paths so the
     # benchmark can measure the old slow path on the same build.
-    dafr.perf.fast_paths = TRUE
+    dafr.perf.fast_paths = TRUE,
+    dafr.kernel_threshold = 1024L
 )
 
 set_default_options <- function() {

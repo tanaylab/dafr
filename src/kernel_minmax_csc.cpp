@@ -10,7 +10,7 @@
 
 [[cpp11::register]]
 cpp11::writable::doubles kernel_minmax_csc_cpp(
-    cpp11::doubles  x,
+    cpp11::doubles x,
     cpp11::integers i,
     cpp11::integers p,
     int nrow,
@@ -36,8 +36,10 @@ cpp11::writable::doubles kernel_minmax_csc_cpp(
             const int nnz_j = pp[j + 1] - pp[j];
             double v = sentinel;
             for (int k = pp[j]; k < pp[j + 1]; ++k) v = fold(v, px[k]);
+            // Fold in implicit zero only when there are implicit zeros
+            // (nnz_j < nrow). When nrow == 0 this guard never fires and the
+            // sentinel is returned, matching matrixStats::colMaxs/colMins.
             if (nnz_j < nrow) v = fold(v, 0.0);
-            if (nnz_j == 0 && nrow == 0) v = 0.0;   // empty column edge case
             pout[j] = v;
         }
         return out;
@@ -51,6 +53,9 @@ cpp11::writable::doubles kernel_minmax_csc_cpp(
     std::vector<int> nnz_per_row(nrow, 0);
 
     const int nthreads = dafr_omp_get_max_threads_capped(ncol, threshold);
+    // FIXME: tbuf is O(nthreads × nrow) memory; at scRNA scale (nrow > 1e6)
+    // with many threads this may pressure RAM. Consider a sequential fallback
+    // for very large nrow.
     std::vector<std::vector<double>> tbuf(nthreads,
         std::vector<double>(nrow, sentinel));
     std::vector<std::vector<int>> tnnz(nthreads, std::vector<int>(nrow, 0));

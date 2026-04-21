@@ -550,34 +550,38 @@ NULL
     .apply_reduction_slow(node, state, fn, params, daf)
 }
 
-.dafr_kernel_threshold <- function() {
-    getOption("dafr.kernel_threshold", 1024L)
-}
+.dafr_kernel_threshold <- function() dafr_opt("dafr.kernel_threshold")
 
 .apply_reduction_fast <- function(node, state, fn, daf) {
     builtin <- attr(fn, ".dafr_builtin")
     if (is.null(builtin)) return(NULL)
     m <- state$value
-    is_sparse <- methods::is(m, "dgCMatrix") || methods::is(m, "lgCMatrix")
+    # Only dgCMatrix has a numeric @x that kernel_minmax_csc_cpp accepts.
+    # lgCMatrix has a logical @x and must fall through to the dense slow path.
+    is_dg <- methods::is(m, "dgCMatrix")
+    is_sparse <- is_dg || methods::is(m, "lgCMatrix")
     is_dense <- is.matrix(m)
     if (!is_sparse && !is_dense) return(NULL)
 
+    # TODO(slice-8-task-7): collapse duplicated switch branches once all kernels are wired
     if (identical(node$op, "ReduceToColumn")) {
         row_names <- if (is_dense) rownames(m) else m@Dimnames[[1L]]
         if (is.null(row_names)) row_names <- format_axis_array(daf, state$rows_axis)
         vals <- switch(builtin,
             Sum   = if (is_sparse) Matrix::rowSums(m) else rowSums(m),
             Mean  = if (is_sparse) Matrix::rowMeans(m) else rowMeans(m),
-            Max   = if (is_sparse)
+            Max   = if (is_dg)
                         kernel_minmax_csc_cpp(m@x, m@i, m@p, nrow(m), ncol(m),
                                               axis = 0L, variant = "Max",
                                               threshold = .dafr_kernel_threshold())
-                    else matrixStats::rowMaxs(m),
-            Min   = if (is_sparse)
+                    else if (is_dense) matrixStats::rowMaxs(m)
+                    else return(NULL),
+            Min   = if (is_dg)
                         kernel_minmax_csc_cpp(m@x, m@i, m@p, nrow(m), ncol(m),
                                               axis = 0L, variant = "Min",
                                               threshold = .dafr_kernel_threshold())
-                    else matrixStats::rowMins(m),
+                    else if (is_dense) matrixStats::rowMins(m)
+                    else return(NULL),
             return(NULL)
         )
         return(list(
@@ -591,16 +595,18 @@ NULL
     vals <- switch(builtin,
         Sum   = if (is_sparse) Matrix::colSums(m) else colSums(m),
         Mean  = if (is_sparse) Matrix::colMeans(m) else colMeans(m),
-        Max   = if (is_sparse)
+        Max   = if (is_dg)
                     kernel_minmax_csc_cpp(m@x, m@i, m@p, nrow(m), ncol(m),
                                           axis = 1L, variant = "Max",
                                           threshold = .dafr_kernel_threshold())
-                else matrixStats::colMaxs(m),
-        Min   = if (is_sparse)
+                else if (is_dense) matrixStats::colMaxs(m)
+                else return(NULL),
+        Min   = if (is_dg)
                     kernel_minmax_csc_cpp(m@x, m@i, m@p, nrow(m), ncol(m),
                                           axis = 1L, variant = "Min",
                                           threshold = .dafr_kernel_threshold())
-                else matrixStats::colMins(m),
+                else if (is_dense) matrixStats::colMins(m)
+                else return(NULL),
         return(NULL)
     )
     list(
