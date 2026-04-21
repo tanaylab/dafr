@@ -44,3 +44,31 @@ test_that("contractor() wraps daf when enforcement is on", {
     expect_s3_class(result, "dafr::DafWriter")
     expect_identical(S7::prop(result, "computation"), "comp")
 })
+
+test_that("merge_contracts: left-wins for RequiredInput axis", {
+    left <- Contract(axes = list(cell = list(RequiredInput, "d")))
+    right <- Contract(axes = list(cell = list(OptionalInput, "d")))
+    merged <- merge_contracts(left, right)
+    expect_identical(
+        S7::prop(merged, "axes")$cell[[1L]],
+        RequiredInput
+    )
+})
+
+test_that("merge_contracts: incompatible output-output raises", {
+    left <- Contract(axes = list(cell = list(OptionalOutput, "d")))
+    right <- Contract(axes = list(cell = list(OptionalOutput, "d")))
+    expect_error(merge_contracts(left, right), "incompatible expectation")
+})
+
+test_that("merge_contracts: type compatibility (Int narrower wins)", {
+    left <- Contract(data = list(
+        contract_vector("cell", "age", RequiredInput, "integer", "d")
+    ))
+    right <- Contract(data = list(
+        contract_vector("cell", "age", RequiredInput, "numeric", "d")
+    ))
+    merged <- merge_contracts(left, right)
+    age <- merged@data[[1L]]
+    expect_identical(age$type, "integer")
+})

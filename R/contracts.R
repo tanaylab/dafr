@@ -722,3 +722,102 @@ verify_output <- function(daf) {
     if (!S7::S7_inherits(daf, ContractDaf)) return(invisible())
     .verify_contract(daf, is_for_output = TRUE)
 }
+
+.merge_expectations <- function(what, key, left, right) {
+    if (identical(left, RequiredInput) && right %in% c(RequiredInput, OptionalInput)) {
+        return(RequiredInput)
+    }
+    if (identical(left, OptionalInput) && right %in% c(RequiredInput, OptionalInput)) {
+        return(right)
+    }
+    if (identical(left, CreatedOutput) && right %in% c(RequiredInput, OptionalInput)) {
+        return(CreatedOutput)
+    }
+    if (identical(left, GuaranteedOutput) && right %in% c(RequiredInput, OptionalInput)) {
+        return(GuaranteedOutput)
+    }
+    if (identical(left, OptionalOutput) && identical(right, OptionalInput)) {
+        return(OptionalOutput)
+    }
+    stop(sprintf(
+        "incompatible expectation: %s and expectation: %s for the contracts %s: %s",
+        left, right, what, key
+    ), call. = FALSE)
+}
+
+.TYPE_WIDTH_ORDER <- c("logical", "integer", "double", "numeric", "character")
+
+.merge_types <- function(key, left, right) {
+    if (identical(left, right)) return(left)
+    li <- match(left,  .TYPE_WIDTH_ORDER, nomatch = NA_integer_)
+    ri <- match(right, .TYPE_WIDTH_ORDER, nomatch = NA_integer_)
+    if (is.na(li) || is.na(ri)) {
+        stop(sprintf(
+            "incompatible type: %s and type: %s for the contracts data: %s",
+            left, right, key
+        ), call. = FALSE)
+    }
+    # Prefer the narrower type (smaller index).
+    .TYPE_WIDTH_ORDER[[min(li, ri)]]
+}
+
+#' Merge two contracts.
+#'
+#' Mirrors Julia's `Contract |> Contract`.
+#' @export
+merge_contracts <- function(left, right) {
+    merged_name <- if (identical(left@name, "")) right@name else
+        if (identical(right@name, "")) left@name else
+            paste0(left@name, "_", right@name)
+    merged_axes <- left@axes
+    for (a in names(right@axes)) {
+        spec_r <- right@axes[[a]]
+        spec_l <- merged_axes[[a]]
+        if (is.null(spec_l)) {
+            merged_axes[[a]] <- spec_r
+        } else {
+            if (!identical(spec_l[[2L]], spec_r[[2L]])) {
+                stop(sprintf("different description for the axis: %s", a), call. = FALSE)
+            }
+            merged_axes[[a]] <- list(
+                .merge_expectations("axis", a, spec_l[[1L]], spec_r[[1L]]),
+                spec_l[[2L]]
+            )
+        }
+    }
+    # Data: match by .data_key()
+    merged_data <- list()
+    keys_l <- vapply(left@data, .data_key, character(1))
+    keys_r <- vapply(right@data, .data_key, character(1))
+    for (i in seq_along(left@data)) {
+        rec_l <- left@data[[i]]
+        j <- match(keys_l[[i]], keys_r)
+        if (is.na(j)) {
+            merged_data <- c(merged_data, list(rec_l))
+        } else {
+            rec_r <- right@data[[j]]
+            if (!identical(rec_l$description, rec_r$description)) {
+                stop(sprintf("different description for the data: %s",
+                    keys_l[[i]]
+                ), call. = FALSE)
+            }
+            merged <- rec_l
+            merged$expectation <- .merge_expectations(
+                "data", keys_l[[i]], rec_l$expectation, rec_r$expectation
+            )
+            merged$type <- .merge_types(keys_l[[i]], rec_l$type, rec_r$type)
+            merged_data <- c(merged_data, list(merged))
+        }
+    }
+    for (j in seq_along(right@data)) {
+        if (!(keys_r[[j]] %in% keys_l)) {
+            merged_data <- c(merged_data, list(right@data[[j]]))
+        }
+    }
+    Contract(
+        name = merged_name,
+        is_relaxed = left@is_relaxed || right@is_relaxed,
+        axes = merged_axes,
+        data = merged_data
+    )
+}
