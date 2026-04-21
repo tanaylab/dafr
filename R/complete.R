@@ -91,10 +91,10 @@ complete_chain <- function(base_daf, new_daf, name = NULL,
 .complete_path <- function(daf) {
     internal <- tryCatch(S7::prop(daf, "internal"),
         error = function(e) stop(
-            "daf has no filesystem path — only FilesDaf supported by complete_*",
+            "daf has no filesystem path -- only FilesDaf supported by complete_*",
             call. = FALSE))
     if (is.null(internal$path)) {
-        stop("daf has no filesystem path — only FilesDaf supported by complete_*",
+        stop("daf has no filesystem path -- only FilesDaf supported by complete_*",
              call. = FALSE)
     }
     internal$path

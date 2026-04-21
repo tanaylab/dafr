@@ -429,7 +429,7 @@ copy_matrix <- function(destination, source,
 
     if (inherits(value, "dgCMatrix") && isTRUE(empty == 0)) {
         v_sub <- value[keep_r, keep_c, drop = FALSE]
-        tri <- Matrix::summary(as(v_sub, "TsparseMatrix"))
+        tri <- Matrix::summary(methods::as(v_sub, "TsparseMatrix"))
         return(Matrix::sparseMatrix(
             i = r_map[tri$i], j = c_map[tri$j], x = tri$x,
             dims = c(n_dr, n_dc),
