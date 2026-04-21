@@ -16,7 +16,8 @@ A list of AST node records.
 Parse a query string into an AST (list of \code{qop} nodes).
 }
 \examples{
+# Most users call get_query() directly; parse_query() returns the AST.
 ast <- parse_query("@ cell : donor")
-length(ast)
-ast[[1]]$op
+is_axis_query("@ cell : donor")
+get_query(example_cells_daf(), "@ cell : donor") |> head()
 }

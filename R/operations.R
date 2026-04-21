@@ -78,6 +78,7 @@ register_eltwise <- function(name, fn, overwrite = FALSE) {
 #' @param name Op name (character scalar).
 #' @return The stored function.
 #' @examples
+#' registered_reductions()   # "Sum" is among the built-ins
 #' fn <- get_reduction("Sum")
 #' fn(c(1, 2, 3))
 #' @export
@@ -97,6 +98,7 @@ get_reduction <- function(name) {
 #' @param name Op name (character scalar).
 #' @return The stored function.
 #' @examples
+#' registered_eltwise()      # "Abs" is among the built-ins
 #' fn <- get_eltwise("Abs")
 #' fn(c(-1, 2, -3))
 #' @export
@@ -114,7 +116,9 @@ get_eltwise <- function(name) {
 #'
 #' @return Sorted character vector of registered reduction names.
 #' @examples
-#' registered_reductions()
+#' head(registered_reductions())
+#' register_reduction("Median", function(x, ...) median(x), overwrite = TRUE)
+#' "Median" %in% registered_reductions()
 #' @export
 registered_reductions <- function() sort(names(.ops_env$reductions))
 
@@ -124,7 +128,9 @@ registered_reductions <- function() sort(names(.ops_env$reductions))
 #'
 #' @return Sorted character vector of registered eltwise names.
 #' @examples
-#' registered_eltwise()
+#' head(registered_eltwise())
+#' register_eltwise("Negate", function(x, ...) -x, overwrite = TRUE)
+#' "Negate" %in% registered_eltwise()
 #' @export
 registered_eltwise <- function() sort(names(.ops_env$eltwise))
 

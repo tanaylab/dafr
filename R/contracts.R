@@ -103,9 +103,16 @@ Contract <- S7::new_class(
 #'   `$description`, and kind-specific axis fields.
 #' @name contract-entries
 #' @examples
-#' contract_scalar("organism", RequiredInput, "character", "species name")
-#' contract_vector("cell", "donor", RequiredInput, "character", "donor id")
-#' contract_matrix("cell", "gene", "UMIs", RequiredInput, "integer", "UMI counts")
+#' s <- contract_scalar("organism", RequiredInput, "character", "species name")
+#' v <- contract_vector("cell", "donor", RequiredInput, "character", "donor id")
+#' m <- contract_matrix("cell", "gene", "UMIs", RequiredInput, "integer", "UMI counts")
+#' # These records go into Contract(data = ...):
+#' c <- Contract(
+#'     axes = list(cell = list(RequiredInput, "per-cell axis"),
+#'                 gene = list(RequiredInput, "per-gene axis")),
+#'     data = list(s, v, m)
+#' )
+#' length(c@data)
 #' @export
 contract_scalar <- function(name, expectation, type, description) {
     .assert_name(name, "name")

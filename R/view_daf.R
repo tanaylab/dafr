@@ -114,8 +114,10 @@ ViewDaf <- S7::new_class(
 #' @return A `ViewDaf`.
 #' @examples
 #' d <- example_cells_daf()
+#' # NULL query drops an axis from the view:
 #' v <- viewer(d, axes = list(list(ALL_AXES, "="), list("gene", NULL)))
 #' axes_set(v)
+#' vectors_set(v, "cell")
 #' @export
 viewer <- function(daf, name = NULL, axes = NULL, data = NULL) {
     if (is.null(name)) name <- paste0(S7::prop(daf, "name"), ".view")

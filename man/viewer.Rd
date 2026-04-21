@@ -25,6 +25,8 @@ Construct a ViewDaf over a base daf.
 }
 \examples{
 d <- example_cells_daf()
+# NULL query drops an axis from the view:
 v <- viewer(d, axes = list(list(ALL_AXES, "="), list("gene", NULL)))
 axes_set(v)
+vectors_set(v, "cell")
 }

@@ -13,5 +13,7 @@ Sorted character vector of registered reduction names.
 Returns the names of all currently registered reduction operations.
 }
 \examples{
-registered_reductions()
+head(registered_reductions())
+register_reduction("Median", function(x, ...) median(x), overwrite = TRUE)
+"Median" \%in\% registered_reductions()
 }

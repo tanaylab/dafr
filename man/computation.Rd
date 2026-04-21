@@ -34,10 +34,19 @@ supported in this slice; pass a single \code{Contract} or use a merged one via
 \code{merge_contracts}.
 }
 \examples{
-c <- Contract()
-noop <- computation("noop", c, function(daf) daf)
-d <- memory_daf(name = "ex")
-noop(d)
+withr::with_options(list(dafr.enforce_contracts = TRUE), {
+    c <- Contract(
+        axes = list(cell = list(RequiredInput, "per-cell axis")),
+        data = list(contract_vector("cell", "donor",
+            RequiredInput, "character", "donor id"))
+    )
+    read_donors <- computation("read_donors", c,
+        function(daf) get_vector(daf, "cell", "donor"))
+    d <- memory_daf()
+    add_axis(d, "cell", c("c1", "c2"))
+    set_vector(d, "cell", "donor", c("d1", "d2"))
+    read_donors(d)
+})
 }
 \seealso{
 \code{\link[=function_contract]{function_contract()}}, \code{\link[=contract_description]{contract_description()}}, \code{\link[=contractor]{contractor()}}.

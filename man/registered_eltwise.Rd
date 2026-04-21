@@ -13,5 +13,7 @@ Sorted character vector of registered eltwise names.
 Returns the names of all currently registered eltwise operations.
 }
 \examples{
-registered_eltwise()
+head(registered_eltwise())
+register_eltwise("Negate", function(x, ...) -x, overwrite = TRUE)
+"Negate" \%in\% registered_eltwise()
 }

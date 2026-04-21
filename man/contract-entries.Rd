@@ -37,7 +37,14 @@ consumes or produces. Records are stored in the \code{data} slot of a
 \code{\link[=Contract]{Contract()}} and consumed by \code{\link[=contractor]{contractor()}}.
 }
 \examples{
-contract_scalar("organism", RequiredInput, "character", "species name")
-contract_vector("cell", "donor", RequiredInput, "character", "donor id")
-contract_matrix("cell", "gene", "UMIs", RequiredInput, "integer", "UMI counts")
+s <- contract_scalar("organism", RequiredInput, "character", "species name")
+v <- contract_vector("cell", "donor", RequiredInput, "character", "donor id")
+m <- contract_matrix("cell", "gene", "UMIs", RequiredInput, "integer", "UMI counts")
+# These records go into Contract(data = ...):
+c <- Contract(
+    axes = list(cell = list(RequiredInput, "per-cell axis"),
+                gene = list(RequiredInput, "per-gene axis")),
+    data = list(s, v, m)
+)
+length(c@data)
 }

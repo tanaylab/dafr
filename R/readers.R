@@ -229,6 +229,8 @@ vectors_set <- function(daf, axis) {
 #' d <- example_cells_daf()
 #' donor <- get_vector(d, "cell", "donor")
 #' head(donor)
+#' # default value for a missing vector (recycled to axis length):
+#' head(get_vector(d, "cell", "missing_vec", default = NA_character_))
 #' @export
 get_vector <- function(daf, axis, name, default) {
     .assert_name(axis, "axis")

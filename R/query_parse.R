@@ -9,9 +9,10 @@ NULL
 #' @param query_string A character scalar.
 #' @return A list of AST node records.
 #' @examples
+#' # Most users call get_query() directly; parse_query() returns the AST.
 #' ast <- parse_query("@ cell : donor")
-#' length(ast)
-#' ast[[1]]$op
+#' is_axis_query("@ cell : donor")
+#' get_query(example_cells_daf(), "@ cell : donor") |> head()
 #' @export
 parse_query <- function(query_string) {
     stopifnot(

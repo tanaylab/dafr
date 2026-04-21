@@ -17,6 +17,7 @@ Looks up an eltwise operation previously stored via
 \code{\link[=register_eltwise]{register_eltwise()}}. Raises if the name is not registered.
 }
 \examples{
+registered_eltwise()      # "Abs" is among the built-ins
 fn <- get_eltwise("Abs")
 fn(c(-1, 2, -3))
 }

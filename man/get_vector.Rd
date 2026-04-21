@@ -31,4 +31,6 @@ Get a vector, returning it as an axis-named R vector.
 d <- example_cells_daf()
 donor <- get_vector(d, "cell", "donor")
 head(donor)
+# default value for a missing vector (recycled to axis length):
+head(get_vector(d, "cell", "missing_vec", default = NA_character_))
 }

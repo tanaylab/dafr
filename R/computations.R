@@ -24,10 +24,19 @@ NULL
 #'   and `name` are attached as attributes (`dafr_contract`, `dafr_computation_name`).
 #' @seealso [function_contract()], [contract_description()], [contractor()].
 #' @examples
-#' c <- Contract()
-#' noop <- computation("noop", c, function(daf) daf)
-#' d <- memory_daf(name = "ex")
-#' noop(d)
+#' withr::with_options(list(dafr.enforce_contracts = TRUE), {
+#'     c <- Contract(
+#'         axes = list(cell = list(RequiredInput, "per-cell axis")),
+#'         data = list(contract_vector("cell", "donor",
+#'             RequiredInput, "character", "donor id"))
+#'     )
+#'     read_donors <- computation("read_donors", c,
+#'         function(daf) get_vector(daf, "cell", "donor"))
+#'     d <- memory_daf()
+#'     add_axis(d, "cell", c("c1", "c2"))
+#'     set_vector(d, "cell", "donor", c("d1", "d2"))
+#'     read_donors(d)
+#' })
 #' @export
 computation <- function(name, contract, fn) {
     .assert_name(name, "name")
