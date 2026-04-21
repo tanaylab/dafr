@@ -41,6 +41,21 @@ NULL
 #'   `".adapter"`.
 #' @return The return value of `fn(adapted)`.
 #' @seealso [viewer()], [chain_writer()], [computation()].
+#' @examples
+#' d <- memory_daf(name = "base")
+#' add_axis(d, "cell", c("c1", "c2", "c3"))
+#' set_vector(d, "cell", "donor", c("d1", "d2", "d1"))
+#' adapter(d,
+#'     function(adapted) {
+#'         entries <- axis_vector(adapted, "obs")
+#'         set_vector(adapted, "obs", "rank", seq_along(entries))
+#'     },
+#'     input_axes  = list(list("obs", "@ cell"), list("cell", NULL)),
+#'     input_data  = VIEW_ALL_VECTORS,
+#'     output_axes = list(list("cell", "@ obs"), list("obs", NULL)),
+#'     output_data = list(list(ALL_VECTORS, NULL), list(c("cell", "rank"), "="))
+#' )
+#' get_vector(d, "cell", "rank")
 #' @export
 adapter <- function(daf, fn,
                     input_axes = NULL, input_data = NULL,

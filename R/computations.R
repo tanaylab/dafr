@@ -23,6 +23,11 @@ NULL
 #' @return A function with the same signature as `fn`. The bound `contract`
 #'   and `name` are attached as attributes (`dafr_contract`, `dafr_computation_name`).
 #' @seealso [function_contract()], [contract_description()], [contractor()].
+#' @examples
+#' c <- Contract()
+#' noop <- computation("noop", c, function(daf) daf)
+#' d <- memory_daf(name = "ex")
+#' noop(d)
 #' @export
 computation <- function(name, contract, fn) {
     .assert_name(name, "name")
@@ -61,6 +66,10 @@ computation <- function(name, contract, fn) {
 #' @param fn A function returned by `computation()`.
 #' @return A `Contract`.
 #' @seealso [computation()].
+#' @examples
+#' c <- Contract()
+#' w <- computation("demo", c, function(daf) daf)
+#' identical(function_contract(w), c)
 #' @export
 function_contract <- function(fn) {
     contract <- attr(fn, "dafr_contract")
@@ -79,6 +88,13 @@ function_contract <- function(fn) {
 #' @param contract A `Contract`.
 #' @return A character scalar.
 #' @seealso [computation()], [Contract()].
+#' @examples
+#' c <- Contract(
+#'     axes = list(cell = list(RequiredInput, "per-cell axis")),
+#'     data = list(contract_vector("cell", "donor",
+#'         RequiredInput, "character", "donor id"))
+#' )
+#' cat(contract_description(c))
 #' @export
 contract_description <- function(contract) {
     if (!S7::S7_inherits(contract, Contract)) {
