@@ -163,6 +163,28 @@ registered_eltwise <- function() sort(names(.ops_env$eltwise))
     pmin(pmax(x, min), max)
 }
 
+.op_convert <- function(x, ..., type) {
+    if (missing(type)) {
+        stop("Convert: 'type' parameter is required (one of 'double', 'integer', 'logical')",
+            call. = FALSE
+        )
+    }
+    if (!is.character(type) || length(type) != 1L || !type %in% c("double", "integer", "logical")) {
+        stop(sprintf(
+            "Convert: 'type' must be one of 'double', 'integer', 'logical' (got %s)",
+            sQuote(as.character(type)[1L])
+        ), call. = FALSE)
+    }
+    if (methods::is(x, "dgCMatrix") && type == "double") {
+        return(x)
+    }
+    if (methods::is(x, "dgCMatrix")) {
+        x <- as.matrix(x)
+    }
+    storage.mode(x) <- type
+    x
+}
+
 attr(.op_sum, ".dafr_builtin") <- "Sum"
 attr(.op_mean, ".dafr_builtin") <- "Mean"
 attr(.op_max, ".dafr_builtin") <- "Max"
@@ -174,6 +196,7 @@ attr(.op_exp, ".dafr_builtin") <- "Exp"
 attr(.op_sqrt, ".dafr_builtin") <- "Sqrt"
 attr(.op_round, ".dafr_builtin") <- "Round"
 attr(.op_clamp, ".dafr_builtin") <- "Clamp"
+attr(.op_convert, ".dafr_builtin") <- "Convert"
 
 .register_default_ops <- function() {
     register_reduction("Sum", .op_sum, overwrite = TRUE)
@@ -188,6 +211,7 @@ attr(.op_clamp, ".dafr_builtin") <- "Clamp"
     register_eltwise("Sqrt", .op_sqrt, overwrite = TRUE)
     register_eltwise("Round", .op_round, overwrite = TRUE)
     register_eltwise("Clamp", .op_clamp, overwrite = TRUE)
+    register_eltwise("Convert", .op_convert, overwrite = TRUE)
 
     invisible(NULL)
 }
