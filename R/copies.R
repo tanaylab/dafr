@@ -596,9 +596,6 @@ copy_all <- function(destination, source,
     invisible(destination)
 }
 
-# Null-coalescing operator used by copy_all's empty/types key lookups.
-`%||%` <- function(a, b) if (is.null(a)) b else a
-
 #' Build a flat-keyed `empty` (or `types`) list for `copy_all()`.
 #'
 #' Users can pass a plain named list in the flat-key form directly. This
