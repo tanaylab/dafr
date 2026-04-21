@@ -1,3 +1,38 @@
+# dafr 0.6.0 (in development)
+
+## New features
+
+- **Copies surface** (`copy_scalar()` / `copy_axis()` / `copy_vector()` /
+  `copy_matrix()` / `copy_tensor()` / `copy_all()`): port of Julia
+  `Copies.jl`. Supports `rename` / `reaxis`, type coercion, `empty` fill
+  for source-is-subset axes, `overwrite` and `insist` semantics matching
+  Julia. Sparse matrix pad-mode preserves sparsity via
+  `Matrix::sparseMatrix` embedding — fixes the Slice-5 dense-coercion
+  mine. (#slice-6)
+- `empty_data()` helper builds flat-keyed empty / types specs from a
+  typed-list builder API. (#slice-6)
+- `concatenate()`: stitches N dafs along one or more axes, creates a
+  per-source `dataset` axis, supports prefix de-duplication with the
+  "property-matches-any-concat-axis" heuristic (widened from the plan's
+  original draft for Julia parity), fills missing per-source properties
+  from an `empty` map, and applies per-property `merge` actions
+  (`SkipProperty`, `LastValue`, `CollectAxis`). (#slice-6)
+- `complete_chain()` / `complete_daf()` / `open_daf()`: persistent chain
+  metadata. `complete_chain` stores a `base_daf_repository` pointer
+  scalar; `complete_daf` walks the pointer chain back and returns a
+  `chain_reader` or `chain_writer`. `open_daf` dispatches FilesDaf
+  (directory) paths; H5df is deferred. (#slice-6)
+- `reconstruct_axis()`: promotes an implicit property to an explicit
+  axis, migrating consistently-mapped properties. Returns a per-property
+  dict of values associated with empty-implicit entries. Core behaviors
+  only; pre-existing target axis merge is Slice 7. (#slice-6)
+
+## Refactor
+
+- `adapter()` internal `.copy_view_to_daf()` removed; adapter now calls
+  `copy_all()` with `insist = FALSE`. Same user-facing surface; sparse
+  pad-mode is now sparse-preserving. (#slice-6)
+
 # dafr 0.5.0 (in development)
 
 ## New features
