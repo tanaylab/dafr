@@ -38,3 +38,31 @@ test_that("concatenate: explicit names override source .name", {
     concatenate(dest, "cell", list(a, b), names = c("left", "right"))
     expect_identical(axis_vector(dest, "dataset"), c("left", "right"))
 })
+
+test_that("concatenate: missing property requires empty", {
+    a <- memory_daf(name = "A")
+    add_axis(a, "cell", c("a1"))
+    set_vector(a, "cell", "age", c(10L))
+
+    b <- memory_daf(name = "B")
+    add_axis(b, "cell", c("b1"))
+
+    dest <- memory_daf(name = "dest")
+    expect_error(concatenate(dest, "cell", list(a, b)), "no empty value")
+
+    dest2 <- memory_daf(name = "dest2")
+    concatenate(dest2, "cell", list(a, b),
+                empty = list("cell|age" = -1L))
+    expect_identical(unname(get_vector(dest2, "cell", "age")),
+                     c(10L, -1L))
+})
+
+test_that("concatenate: vector type unifies across sources", {
+    a <- memory_daf(name = "A"); add_axis(a, "cell", c("a1"))
+    set_vector(a, "cell", "age", c(10L))
+    b <- memory_daf(name = "B"); add_axis(b, "cell", c("b1"))
+    set_vector(b, "cell", "age", c(2.5))
+    dest <- memory_daf(name = "dest")
+    concatenate(dest, "cell", list(a, b))
+    expect_true(is.double(get_vector(dest, "cell", "age")))
+})
