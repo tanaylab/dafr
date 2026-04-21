@@ -5,58 +5,58 @@ test_that("adapter() requires a DafWriter and rejects no-op invocations", {
     expect_error(adapter(memory_daf(), function(d) d), "no-op adapter")
 })
 
-## ---- B2: .copy_view_to_daf — scalars ----
+## ---- B2: copy_all — scalars ----
 
-test_that(".copy_view_to_daf copies scalars from a view into dest", {
+test_that("copy_all copies scalars from a view into dest", {
     src <- memory_daf(name = "src")
     set_scalar(src, "alpha", 1L)
     set_scalar(src, "beta", "b")
     v <- viewer(src)
     dest <- memory_daf(name = "dest")
 
-    dafr:::.copy_view_to_daf(source_view = v, dest = dest,
-                             empty = NULL, relayout = FALSE, overwrite = FALSE)
+    copy_all(destination = dest, source = v,
+             empty = NULL, relayout = FALSE, overwrite = FALSE)
     expect_identical(get_scalar(dest, "alpha"), 1L)
     expect_identical(get_scalar(dest, "beta"), "b")
 })
 
-test_that(".copy_view_to_daf errors on pre-existing scalars unless overwrite", {
+test_that("copy_all errors on pre-existing scalars unless overwrite", {
     src <- memory_daf(name = "s")
     set_scalar(src, "x", 1L)
     dest <- memory_daf(name = "d")
     set_scalar(dest, "x", 2L)
 
     expect_error(
-        dafr:::.copy_view_to_daf(viewer(src), dest, NULL, FALSE, FALSE),
+        copy_all(dest, viewer(src), relayout = FALSE, overwrite = FALSE),
         "already exists"
     )
-    dafr:::.copy_view_to_daf(viewer(src), dest, NULL, FALSE, TRUE)
+    copy_all(dest, viewer(src), relayout = FALSE, overwrite = TRUE)
     expect_identical(get_scalar(dest, "x"), 1L)
 })
 
-## ---- B3: .copy_view_to_daf — axes and vectors ----
+## ---- B3: copy_all — axes and vectors ----
 
-test_that(".copy_view_to_daf copies axes + vectors (view axis names preserved)", {
+test_that("copy_all copies axes + vectors (view axis names preserved)", {
     src <- memory_daf(name = "s")
     add_axis(src, "cell", c("c1", "c2", "c3"))
     set_vector(src, "cell", "donor", c("d1", "d2", "d3"))
     v <- viewer(src)
     dest <- memory_daf(name = "d")
 
-    dafr:::.copy_view_to_daf(v, dest, NULL, FALSE, FALSE)
+    copy_all(dest, v, relayout = FALSE)
     expect_identical(axis_vector(dest, "cell"), c("c1", "c2", "c3"))
     expect_identical(unname(get_vector(dest, "cell", "donor")),
                      c("d1", "d2", "d3"))
 })
 
-test_that(".copy_view_to_daf copies renamed axes under their view name", {
+test_that("copy_all copies renamed axes under their view name", {
     src <- memory_daf(name = "s")
     add_axis(src, "cell", c("c1", "c2"))
     set_vector(src, "cell", "donor", c("d1", "d2"))
     v <- viewer(src, axes = list(list("obs", "@ cell"), list("cell", NULL)))
     dest <- memory_daf(name = "d")
 
-    dafr:::.copy_view_to_daf(v, dest, NULL, FALSE, FALSE)
+    copy_all(dest, v, relayout = FALSE)
     expect_true(has_axis(dest, "obs"))
     expect_false(has_axis(dest, "cell"))
     expect_identical(axis_vector(dest, "obs"), c("c1", "c2"))
@@ -64,21 +64,22 @@ test_that(".copy_view_to_daf copies renamed axes under their view name", {
                      c("d1", "d2"))
 })
 
-test_that(".copy_view_to_daf errors on axis collision unless overwrite", {
+test_that("copy_all: pre-existing axis with disjoint entries errors on vector copy", {
     src <- memory_daf(name = "s")
     add_axis(src, "cell", c("c1", "c2"))
+    set_vector(src, "cell", "donor", c("d1", "d2"))
     dest <- memory_daf(name = "d")
-    add_axis(dest, "cell", c("x1", "x2"))   # different entries → true collision
+    add_axis(dest, "cell", c("x1", "x2"))   # different entries → disjoint
 
     expect_error(
-        dafr:::.copy_view_to_daf(viewer(src), dest, NULL, FALSE, FALSE),
-        "already exists"
+        copy_all(dest, viewer(src), relayout = FALSE),
+        "disjoint"
     )
 })
 
-## ---- B4: .copy_view_to_daf — matrices + relayout ----
+## ---- B4: copy_all — matrices + relayout ----
 
-test_that(".copy_view_to_daf copies matrices + relayouts when asked", {
+test_that("copy_all copies matrices + relayouts when asked", {
     src <- memory_daf(name = "s")
     add_axis(src, "cell", c("c1", "c2"))
     add_axis(src, "gene", c("g1", "g2", "g3"))
@@ -87,13 +88,13 @@ test_that(".copy_view_to_daf copies matrices + relayouts when asked", {
     v <- viewer(src)
     dest <- memory_daf(name = "d")
 
-    dafr:::.copy_view_to_daf(v, dest, NULL, relayout = TRUE, overwrite = FALSE)
+    copy_all(dest, v, relayout = TRUE)
     got <- get_matrix(dest, "cell", "gene", "UMIs")
     expect_equal(unname(got), unname(m))
     expect_true(format_has_matrix(dest, "gene", "cell", "UMIs"))
 })
 
-test_that(".copy_view_to_daf matrix without relayout skips transpose store", {
+test_that("copy_all matrix without relayout skips transpose store", {
     src <- memory_daf(name = "s")
     add_axis(src, "cell", c("c1"))
     add_axis(src, "gene", c("g1", "g2"))
@@ -103,13 +104,13 @@ test_that(".copy_view_to_daf matrix without relayout skips transpose store", {
     v <- viewer(src)
     dest <- memory_daf(name = "d")
 
-    dafr:::.copy_view_to_daf(v, dest, NULL, relayout = FALSE, overwrite = FALSE)
+    copy_all(dest, v, relayout = FALSE)
     expect_true(format_has_matrix(dest, "cell", "gene", "UMIs"))
 })
 
-## ---- B5: .copy_view_to_daf — empty pad mode ----
+## ---- B5: copy_all — empty pad mode ----
 
-test_that(".copy_view_to_daf honors `empty` for a subset-axis vector", {
+test_that("copy_all honors `empty` for a subset-axis vector", {
     src <- memory_daf(name = "src-subset")
     add_axis(src, "cell", c("c1", "c3"))
     set_vector(src, "cell", "donor", c("d1", "d3"))
@@ -117,9 +118,9 @@ test_that(".copy_view_to_daf honors `empty` for a subset-axis vector", {
     dest <- memory_daf(name = "dest-full")
     add_axis(dest, "cell", c("c1", "c2", "c3"))
 
-    dafr:::.copy_view_to_daf(viewer(src), dest,
+    copy_all(dest, viewer(src),
         empty = list("cell|donor" = "MISSING"),
-        relayout = FALSE, overwrite = FALSE
+        relayout = FALSE
     )
     expect_identical(
         unname(get_vector(dest, "cell", "donor")),
