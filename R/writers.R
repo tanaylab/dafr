@@ -6,12 +6,14 @@
 #' @return Invisibly the input `daf`.
 #' @export
 add_axis <- function(daf, axis, entries) {
-  .assert_name(axis, "axis")
-  stopifnot(is.character(entries))
-  .cli_verbose("add_axis %s (%d entries) on %s",
-               axis, length(entries), S7::prop(daf, "name"))
-  format_add_axis(daf, axis, entries)
-  invisible(daf)
+    .assert_name(axis, "axis")
+    stopifnot(is.character(entries))
+    .cli_verbose(
+        "add_axis %s (%d entries) on %s",
+        axis, length(entries), S7::prop(daf, "name")
+    )
+    format_add_axis(daf, axis, entries)
+    invisible(daf)
 }
 
 #' Delete an axis (and all vectors / matrices that depend on it).
@@ -22,10 +24,10 @@ add_axis <- function(daf, axis, entries) {
 #' @return Invisibly the input `daf`.
 #' @export
 delete_axis <- function(daf, axis, must_exist = TRUE) {
-  .assert_name(axis, "axis")
-  .assert_flag(must_exist, "must_exist")
-  format_delete_axis(daf, axis, must_exist)
-  invisible(daf)
+    .assert_name(axis, "axis")
+    .assert_flag(must_exist, "must_exist")
+    format_delete_axis(daf, axis, must_exist)
+    invisible(daf)
 }
 
 #' Set a scalar.
@@ -36,10 +38,10 @@ delete_axis <- function(daf, axis, must_exist = TRUE) {
 #' @return Invisibly the input `daf`.
 #' @export
 set_scalar <- function(daf, name, value, overwrite = FALSE) {
-  .assert_name(name, "name")
-  .assert_flag(overwrite, "overwrite")
-  format_set_scalar(daf, name, value, overwrite)
-  invisible(daf)
+    .assert_name(name, "name")
+    .assert_flag(overwrite, "overwrite")
+    format_set_scalar(daf, name, value, overwrite)
+    invisible(daf)
 }
 
 #' Delete a scalar.
@@ -48,10 +50,10 @@ set_scalar <- function(daf, name, value, overwrite = FALSE) {
 #' @return Invisibly the input `daf`.
 #' @export
 delete_scalar <- function(daf, name, must_exist = TRUE) {
-  .assert_name(name, "name")
-  .assert_flag(must_exist, "must_exist")
-  format_delete_scalar(daf, name, must_exist)
-  invisible(daf)
+    .assert_name(name, "name")
+    .assert_flag(must_exist, "must_exist")
+    format_delete_scalar(daf, name, must_exist)
+    invisible(daf)
 }
 
 #' Set a vector on an axis.
@@ -64,11 +66,11 @@ delete_scalar <- function(daf, name, must_exist = TRUE) {
 #' @return Invisibly the input `daf`.
 #' @export
 set_vector <- function(daf, axis, name, vec, overwrite = FALSE) {
-  .assert_name(axis, "axis")
-  .assert_name(name, "name")
-  .assert_flag(overwrite, "overwrite")
-  format_set_vector(daf, axis, name, vec, overwrite)
-  invisible(daf)
+    .assert_name(axis, "axis")
+    .assert_name(name, "name")
+    .assert_flag(overwrite, "overwrite")
+    format_set_vector(daf, axis, name, vec, overwrite)
+    invisible(daf)
 }
 
 #' Delete a vector on an axis.
@@ -78,11 +80,11 @@ set_vector <- function(daf, axis, name, vec, overwrite = FALSE) {
 #' @return Invisibly the input `daf`.
 #' @export
 delete_vector <- function(daf, axis, name, must_exist = TRUE) {
-  .assert_name(axis, "axis")
-  .assert_name(name, "name")
-  .assert_flag(must_exist, "must_exist")
-  format_delete_vector(daf, axis, name, must_exist)
-  invisible(daf)
+    .assert_name(axis, "axis")
+    .assert_name(name, "name")
+    .assert_flag(must_exist, "must_exist")
+    format_delete_vector(daf, axis, name, must_exist)
+    invisible(daf)
 }
 
 #' Set a matrix indexed by a pair of axes.
@@ -94,12 +96,12 @@ delete_vector <- function(daf, axis, name, must_exist = TRUE) {
 #' @return Invisibly the input `daf`.
 #' @export
 set_matrix <- function(daf, rows_axis, columns_axis, name, mat, overwrite = FALSE) {
-  .assert_name(rows_axis, "rows_axis")
-  .assert_name(columns_axis, "columns_axis")
-  .assert_name(name,      "name")
-  .assert_flag(overwrite, "overwrite")
-  format_set_matrix(daf, rows_axis, columns_axis, name, mat, overwrite)
-  invisible(daf)
+    .assert_name(rows_axis, "rows_axis")
+    .assert_name(columns_axis, "columns_axis")
+    .assert_name(name, "name")
+    .assert_flag(overwrite, "overwrite")
+    format_set_matrix(daf, rows_axis, columns_axis, name, mat, overwrite)
+    invisible(daf)
 }
 
 #' Delete a matrix.
@@ -108,12 +110,12 @@ set_matrix <- function(daf, rows_axis, columns_axis, name, mat, overwrite = FALS
 #' @return Invisibly the input `daf`.
 #' @export
 delete_matrix <- function(daf, rows_axis, columns_axis, name, must_exist = TRUE) {
-  .assert_name(rows_axis, "rows_axis")
-  .assert_name(columns_axis, "columns_axis")
-  .assert_name(name,      "name")
-  .assert_flag(must_exist, "must_exist")
-  format_delete_matrix(daf, rows_axis, columns_axis, name, must_exist)
-  invisible(daf)
+    .assert_name(rows_axis, "rows_axis")
+    .assert_name(columns_axis, "columns_axis")
+    .assert_name(name, "name")
+    .assert_flag(must_exist, "must_exist")
+    format_delete_matrix(daf, rows_axis, columns_axis, name, must_exist)
+    invisible(daf)
 }
 
 #' Physically store the transposed layout of a matrix.
@@ -125,9 +127,9 @@ delete_matrix <- function(daf, rows_axis, columns_axis, name, must_exist = TRUE)
 #' @return Invisibly the input `daf`.
 #' @export
 relayout_matrix <- function(daf, rows_axis, columns_axis, name) {
-  .assert_name(rows_axis, "rows_axis")
-  .assert_name(columns_axis, "columns_axis")
-  .assert_name(name,      "name")
-  format_relayout_matrix(daf, rows_axis, columns_axis, name)
-  invisible(daf)
+    .assert_name(rows_axis, "rows_axis")
+    .assert_name(columns_axis, "columns_axis")
+    .assert_name(name, "name")
+    format_relayout_matrix(daf, rows_axis, columns_axis, name)
+    invisible(daf)
 }

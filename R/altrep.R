@@ -13,20 +13,20 @@
 #' @return An ALTREP-backed R vector sharing the file's memory.
 #' @export
 mmap_real <- function(path, length) {
-  stopifnot(file.exists(path), is.numeric(length), length >= 0)
-  mmap_real_altrep_cpp(path.expand(path), as.double(length))
+    stopifnot(file.exists(path), is.numeric(length), length >= 0)
+    mmap_real_altrep_cpp(path.expand(path), as.double(length))
 }
 
 #' @rdname mmap_real
 #' @export
 mmap_int <- function(path, length) {
-  stopifnot(file.exists(path), is.numeric(length), length >= 0)
-  mmap_int_altrep_cpp(path.expand(path), as.double(length))
+    stopifnot(file.exists(path), is.numeric(length), length >= 0)
+    mmap_int_altrep_cpp(path.expand(path), as.double(length))
 }
 
 #' @rdname mmap_real
 #' @export
 mmap_lgl <- function(path, length) {
-  stopifnot(file.exists(path), is.numeric(length), length >= 0)
-  mmap_lgl_altrep_cpp(path.expand(path), as.double(length))
+    stopifnot(file.exists(path), is.numeric(length), length >= 0)
+    mmap_lgl_altrep_cpp(path.expand(path), as.double(length))
 }

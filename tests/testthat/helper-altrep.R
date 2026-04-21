@@ -3,5 +3,5 @@
 # unexported-but-user-reachable API via `dafr:::is_altrep`.
 # Body matches the C-level test in src/altrep_mmap_r.cpp.
 is_altrep <- function(x) {
-  dafr:::is_altrep_cpp(x)
+    dafr:::is_altrep_cpp(x)
 }

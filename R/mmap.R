@@ -13,25 +13,26 @@
 #' @export
 mmap_dgCMatrix <- function(x_path, i_path, p_path, nrow, ncol, nnz,
                            dimnames = NULL) {
-  stopifnot(file.exists(x_path), file.exists(i_path), file.exists(p_path))
-  stopifnot(is.numeric(nrow), is.numeric(ncol), is.numeric(nnz))
+    stopifnot(file.exists(x_path), file.exists(i_path), file.exists(p_path))
+    stopifnot(is.numeric(nrow), is.numeric(ncol), is.numeric(nnz))
 
-  if (!is.null(dimnames)) {
-    stopifnot(is.list(dimnames), length(dimnames) == 2L)
-  }
+    if (!is.null(dimnames)) {
+        stopifnot(is.list(dimnames), length(dimnames) == 2L)
+    }
 
-  x_slot <- mmap_real(x_path, nnz)
-  i_slot <- mmap_int(i_path,  nnz)
-  p_slot <- mmap_int(p_path,  as.integer(ncol) + 1L)
+    x_slot <- mmap_real(x_path, nnz)
+    i_slot <- mmap_int(i_path, nnz)
+    p_slot <- mmap_int(p_path, as.integer(ncol) + 1L)
 
-  # Cheap CSC invariant check: p[ncol+1] must equal nnz.
-  stopifnot(p_slot[as.integer(ncol) + 1L] == nnz)
+    # Cheap CSC invariant check: p[ncol+1] must equal nnz.
+    stopifnot(p_slot[as.integer(ncol) + 1L] == nnz)
 
-  m <- methods::new("dgCMatrix",
-    x        = x_slot,
-    i        = i_slot,
-    p        = p_slot,
-    Dim      = c(as.integer(nrow), as.integer(ncol)),
-    Dimnames = if (is.null(dimnames)) list(NULL, NULL) else dimnames)
-  m
+    m <- methods::new("dgCMatrix",
+        x        = x_slot,
+        i        = i_slot,
+        p        = p_slot,
+        Dim      = c(as.integer(nrow), as.integer(ncol)),
+        Dimnames = if (is.null(dimnames)) list(NULL, NULL) else dimnames
+    )
+    m
 }

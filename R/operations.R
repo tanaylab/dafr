@@ -18,17 +18,20 @@ NULL
 #' @return Invisibly `NULL`.
 #' @export
 register_reduction <- function(name, fn, overwrite = FALSE) {
-  .assert_name(name, "reduction name")
-  if (!is.function(fn)) {
-    stop(sprintf("`fn` must be a function (for reduction %s)", sQuote(name)),
-         call. = FALSE)
-  }
-  if (!isTRUE(overwrite) && !is.null(.ops_env$reductions[[name]])) {
-    stop(sprintf("reduction operation %s already registered; use overwrite = TRUE",
-                 sQuote(name)), call. = FALSE)
-  }
-  .ops_env$reductions[[name]] <- fn
-  invisible(NULL)
+    .assert_name(name, "reduction name")
+    if (!is.function(fn)) {
+        stop(sprintf("`fn` must be a function (for reduction %s)", sQuote(name)),
+            call. = FALSE
+        )
+    }
+    if (!isTRUE(overwrite) && !is.null(.ops_env$reductions[[name]])) {
+        stop(sprintf(
+            "reduction operation %s already registered; use overwrite = TRUE",
+            sQuote(name)
+        ), call. = FALSE)
+    }
+    .ops_env$reductions[[name]] <- fn
+    invisible(NULL)
 }
 
 #' Register an eltwise operation.
@@ -44,17 +47,20 @@ register_reduction <- function(name, fn, overwrite = FALSE) {
 #' @return Invisibly `NULL`.
 #' @export
 register_eltwise <- function(name, fn, overwrite = FALSE) {
-  .assert_name(name, "eltwise name")
-  if (!is.function(fn)) {
-    stop(sprintf("`fn` must be a function (for eltwise %s)", sQuote(name)),
-         call. = FALSE)
-  }
-  if (!isTRUE(overwrite) && !is.null(.ops_env$eltwise[[name]])) {
-    stop(sprintf("eltwise operation %s already registered; use overwrite = TRUE",
-                 sQuote(name)), call. = FALSE)
-  }
-  .ops_env$eltwise[[name]] <- fn
-  invisible(NULL)
+    .assert_name(name, "eltwise name")
+    if (!is.function(fn)) {
+        stop(sprintf("`fn` must be a function (for eltwise %s)", sQuote(name)),
+            call. = FALSE
+        )
+    }
+    if (!isTRUE(overwrite) && !is.null(.ops_env$eltwise[[name]])) {
+        stop(sprintf(
+            "eltwise operation %s already registered; use overwrite = TRUE",
+            sQuote(name)
+        ), call. = FALSE)
+    }
+    .ops_env$eltwise[[name]] <- fn
+    invisible(NULL)
 }
 
 #' Retrieve a registered reduction operation by name.
@@ -66,11 +72,11 @@ register_eltwise <- function(name, fn, overwrite = FALSE) {
 #' @return The stored function.
 #' @export
 get_reduction <- function(name) {
-  fn <- .ops_env$reductions[[name]]
-  if (is.null(fn)) {
-    stop(sprintf("unknown reduction operation: %s", sQuote(name)), call. = FALSE)
-  }
-  fn
+    fn <- .ops_env$reductions[[name]]
+    if (is.null(fn)) {
+        stop(sprintf("unknown reduction operation: %s", sQuote(name)), call. = FALSE)
+    }
+    fn
 }
 
 #' Retrieve a registered eltwise operation by name.
@@ -82,11 +88,11 @@ get_reduction <- function(name) {
 #' @return The stored function.
 #' @export
 get_eltwise <- function(name) {
-  fn <- .ops_env$eltwise[[name]]
-  if (is.null(fn)) {
-    stop(sprintf("unknown eltwise operation: %s", sQuote(name)), call. = FALSE)
-  }
-  fn
+    fn <- .ops_env$eltwise[[name]]
+    if (is.null(fn)) {
+        stop(sprintf("unknown eltwise operation: %s", sQuote(name)), call. = FALSE)
+    }
+    fn
 }
 
 #' List registered reduction operations.
@@ -105,30 +111,30 @@ registered_reductions <- function() sort(names(.ops_env$reductions))
 #' @export
 registered_eltwise <- function() sort(names(.ops_env$eltwise))
 
-.op_sum   <- function(x, ..., na_rm = FALSE) sum(x, na.rm = na_rm)
-.op_mean  <- function(x, ..., na_rm = FALSE) mean(x, na.rm = na_rm)
-.op_max   <- function(x, ..., na_rm = FALSE) max(x, na.rm = na_rm)
-.op_min   <- function(x, ..., na_rm = FALSE) min(x, na.rm = na_rm)
+.op_sum <- function(x, ..., na_rm = FALSE) sum(x, na.rm = na_rm)
+.op_mean <- function(x, ..., na_rm = FALSE) mean(x, na.rm = na_rm)
+.op_max <- function(x, ..., na_rm = FALSE) max(x, na.rm = na_rm)
+.op_min <- function(x, ..., na_rm = FALSE) min(x, na.rm = na_rm)
 .op_count <- function(x, ...) length(x)
 
-.op_log   <- function(x, ..., eps = 0, base = exp(1)) log(x + eps, base = base)
-.op_abs   <- function(x, ...) abs(x)
-.op_exp   <- function(x, ...) exp(x)
-.op_sqrt  <- function(x, ...) sqrt(x)
+.op_log <- function(x, ..., eps = 0, base = exp(1)) log(x + eps, base = base)
+.op_abs <- function(x, ...) abs(x)
+.op_exp <- function(x, ...) exp(x)
+.op_sqrt <- function(x, ...) sqrt(x)
 .op_round <- function(x, ..., digits = 0) round(x, digits = digits)
 
 .register_default_ops <- function() {
-  register_reduction("Sum",   .op_sum,   overwrite = TRUE)
-  register_reduction("Mean",  .op_mean,  overwrite = TRUE)
-  register_reduction("Max",   .op_max,   overwrite = TRUE)
-  register_reduction("Min",   .op_min,   overwrite = TRUE)
-  register_reduction("Count", .op_count, overwrite = TRUE)
+    register_reduction("Sum", .op_sum, overwrite = TRUE)
+    register_reduction("Mean", .op_mean, overwrite = TRUE)
+    register_reduction("Max", .op_max, overwrite = TRUE)
+    register_reduction("Min", .op_min, overwrite = TRUE)
+    register_reduction("Count", .op_count, overwrite = TRUE)
 
-  register_eltwise("Log",   .op_log,   overwrite = TRUE)
-  register_eltwise("Abs",   .op_abs,   overwrite = TRUE)
-  register_eltwise("Exp",   .op_exp,   overwrite = TRUE)
-  register_eltwise("Sqrt",  .op_sqrt,  overwrite = TRUE)
-  register_eltwise("Round", .op_round, overwrite = TRUE)
+    register_eltwise("Log", .op_log, overwrite = TRUE)
+    register_eltwise("Abs", .op_abs, overwrite = TRUE)
+    register_eltwise("Exp", .op_exp, overwrite = TRUE)
+    register_eltwise("Sqrt", .op_sqrt, overwrite = TRUE)
+    register_eltwise("Round", .op_round, overwrite = TRUE)
 
-  invisible(NULL)
+    invisible(NULL)
 }
