@@ -112,6 +112,33 @@ chain_writer <- function(dafs, name = NULL) {
 
 .chain_dafs <- function(daf) S7::prop(daf, "dafs")
 
+.chain_writer <- function(daf) S7::prop(daf, "writer")
+
+S7::method(
+    format_set_scalar,
+    list(WriteChainDaf, S7::class_character, S7::class_any, S7::class_logical)
+) <- function(daf, name, value, overwrite) {
+    format_set_scalar(.chain_writer(daf), name, value, overwrite)
+}
+
+S7::method(
+    format_delete_scalar,
+    list(WriteChainDaf, S7::class_character, S7::class_logical)
+) <- function(daf, name, must_exist) {
+    earlier <- .chain_dafs(daf)
+    earlier <- earlier[-length(earlier)]  # all except writer
+    for (d in rev(earlier)) {
+        if (format_has_scalar(d, name)) {
+            stop(sprintf(
+                "failed to delete the scalar: %s from the daf data: %s of the chain: %s because it exists in the earlier: %s",
+                name, S7::prop(.chain_writer(daf), "name"),
+                S7::prop(daf, "name"), S7::prop(d, "name")
+            ), call. = FALSE)
+        }
+    }
+    format_delete_scalar(.chain_writer(daf), name, must_exist)
+}
+
 S7::method(
     format_has_scalar,
     list(ReadOnlyChainDaf, S7::class_character)
