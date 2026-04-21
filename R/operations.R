@@ -175,12 +175,23 @@ registered_eltwise <- function() sort(names(.ops_env$eltwise))
             sQuote(as.character(type)[1L])
         ), call. = FALSE)
     }
-    if (methods::is(x, "dgCMatrix") && type == "double") {
-        return(x)
-    }
+    # Sparse preservation for dgCMatrix
     if (methods::is(x, "dgCMatrix")) {
-        x <- as.matrix(x)
+        if (type == "double") return(x)
+        if (type == "integer") {
+            if (length(x@x) > 0L && any(x@x != floor(x@x))) {
+                stop("Convert: non-integer value in integer coercion",
+                    call. = FALSE)
+            }
+            x@x <- as.double(as.integer(x@x))
+            return(x)
+        }
+        if (type == "logical") {
+            x@x <- as.double(x@x != 0)
+            return(Matrix::drop0(x))
+        }
     }
+    # Dense or vector: existing behaviour via storage.mode
     storage.mode(x) <- type
     x
 }
