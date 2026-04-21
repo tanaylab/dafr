@@ -94,3 +94,29 @@ test_that("Median / Quantile attach .dafr_builtin", {
     expect_identical(attr(get_reduction("Median"), ".dafr_builtin"), "Median")
     expect_identical(attr(get_reduction("Quantile"), ".dafr_builtin"), "Quantile")
 })
+
+test_that("GeoMean with eps == 0 equals exp(mean(log(x)))", {
+    fn <- get_reduction("GeoMean")
+    expect_equal(fn(c(1, 4, 16)), exp(mean(log(c(1, 4, 16)))))
+    expect_equal(fn(c(2, 8)), sqrt(16))  # geomean(2, 8) = 4
+})
+
+test_that("GeoMean with eps > 0 adds then subtracts the regulariser", {
+    fn <- get_reduction("GeoMean")
+    # geomean(x + eps) - eps
+    x <- c(0, 1, 2)
+    eps <- 1
+    expect_equal(fn(x, eps = eps), exp(mean(log(x + eps))) - eps)
+})
+
+test_that("GeoMean on all-zero vector returns 0 (eps = 0)", {
+    expect_equal(get_reduction("GeoMean")(c(0, 0, 0)), 0)
+})
+
+test_that("GeoMean rejects negative eps", {
+    expect_error(get_reduction("GeoMean")(1:3, eps = -1), "eps")
+})
+
+test_that("GeoMean attaches .dafr_builtin", {
+    expect_identical(attr(get_reduction("GeoMean"), ".dafr_builtin"), "GeoMean")
+})

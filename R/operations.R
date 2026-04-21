@@ -328,6 +328,17 @@ registered_eltwise <- function() sort(names(.ops_env$eltwise))
     unname(stats::quantile(as.numeric(x), probs = p, na.rm = isTRUE(na_rm)))
 }
 
+.op_geomean <- function(x, ..., eps = 0, na_rm = FALSE) {
+    .assert_non_negative_eps(eps)
+    x <- as.numeric(x)
+    if (isTRUE(na_rm)) x <- x[!is.na(x)]
+    if (eps == 0) {
+        exp(mean(log(x)))
+    } else {
+        exp(mean(log(x + eps))) - eps
+    }
+}
+
 attr(.op_sum, ".dafr_builtin") <- "Sum"
 attr(.op_mean, ".dafr_builtin") <- "Mean"
 attr(.op_max, ".dafr_builtin") <- "Max"
@@ -348,6 +359,7 @@ attr(.op_varn, ".dafr_builtin") <- "VarN"
 attr(.op_stdn, ".dafr_builtin") <- "StdN"
 attr(.op_median, ".dafr_builtin") <- "Median"
 attr(.op_quantile, ".dafr_builtin") <- "Quantile"
+attr(.op_geomean, ".dafr_builtin") <- "GeoMean"
 
 .register_default_ops <- function() {
     register_reduction("Sum", .op_sum, overwrite = TRUE)
@@ -361,6 +373,7 @@ attr(.op_quantile, ".dafr_builtin") <- "Quantile"
     register_reduction("StdN", .op_stdn, overwrite = TRUE)
     register_reduction("Median", .op_median, overwrite = TRUE)
     register_reduction("Quantile", .op_quantile, overwrite = TRUE)
+    register_reduction("GeoMean", .op_geomean, overwrite = TRUE)
 
     register_eltwise("Log", .op_log, overwrite = TRUE)
     register_eltwise("Abs", .op_abs, overwrite = TRUE)
