@@ -257,3 +257,188 @@ copy_vector <- function(destination, source, axis, name,
         sQuote(dest_axis), S7::prop(destination, "name")
     ), call. = FALSE)
 }
+
+#' Copy a matrix from one daf to another.
+#'
+#' Mirrors Julia `copy_matrix!(; destination, source, rows_axis,
+#' columns_axis, name, rows_reaxis, columns_reaxis, rename, eltype, default,
+#' empty, relayout, overwrite, insist)`.
+#'
+#' @param destination A `DafWriter`.
+#' @param source A `DafReader`.
+#' @param rows_axis,columns_axis Axis names in `source`.
+#' @param name Matrix name in `source`.
+#' @param rows_reaxis,columns_reaxis If non-NULL, store on these
+#'   destination axes (axes must already exist in `destination`).
+#' @param rename If non-NULL, store under this name.
+#' @param type If non-NULL, coerce to this storage type string.
+#' @param default If unspecified, missing source raises. If `NULL`, silently
+#'   skips. Else scalar filled into full source-shape matrix.
+#' @param empty Value filled for entries whose row or column is missing in
+#'   source but present in destination.
+#' @param relayout If `TRUE` (default), also write the transposed layout.
+#' @param overwrite,insist See [copy_scalar()].
+#' @return Invisibly, the destination.
+#' @export
+#' @examples
+#' src <- memory_daf(name = "src")
+#' add_axis(src, "cell", c("c1", "c2"))
+#' add_axis(src, "gene", c("g1", "g2"))
+#' set_matrix(src, "cell", "gene", "UMIs",
+#'            matrix(1:4, nrow = 2,
+#'                   dimnames = list(c("c1","c2"), c("g1","g2"))))
+#' dest <- memory_daf(name = "dest")
+#' add_axis(dest, "cell", c("c1", "c2"))
+#' add_axis(dest, "gene", c("g1", "g2"))
+#' copy_matrix(dest, src, "cell", "gene", "UMIs", relayout = FALSE)
+copy_matrix <- function(destination, source,
+                        rows_axis, columns_axis, name,
+                        rows_reaxis = NULL, columns_reaxis = NULL,
+                        rename = NULL, type = NULL,
+                        default = .DAFR_UNDEF, empty = NULL,
+                        relayout = TRUE, overwrite = FALSE, insist = TRUE) {
+    .assert_name(rows_axis, "rows_axis")
+    .assert_name(columns_axis, "columns_axis")
+    .assert_name(name, "name")
+    if (!is.null(rows_reaxis)) .assert_name(rows_reaxis, "rows_reaxis")
+    if (!is.null(columns_reaxis)) .assert_name(columns_reaxis, "columns_reaxis")
+    if (!is.null(rename)) .assert_name(rename, "rename")
+    .assert_flag(relayout, "relayout")
+    .assert_flag(overwrite, "overwrite")
+    .assert_flag(insist, "insist")
+    final_rows <- if (is.null(rows_reaxis)) rows_axis else rows_reaxis
+    final_cols <- if (is.null(columns_reaxis)) columns_axis else columns_reaxis
+    final_name <- if (is.null(rename)) name else rename
+
+    if (!format_has_axis(destination, final_rows)) {
+        stop(sprintf("missing axis: %s in destination", sQuote(final_rows)),
+             call. = FALSE)
+    }
+    if (!format_has_axis(destination, final_cols)) {
+        stop(sprintf("missing axis: %s in destination", sQuote(final_cols)),
+             call. = FALSE)
+    }
+    if (format_has_matrix(destination, final_rows, final_cols, final_name) &&
+        !overwrite) {
+        if (insist) {
+            stop(sprintf(
+                "matrix %s already exists on axes %s,%s in destination",
+                sQuote(final_name), sQuote(final_rows), sQuote(final_cols)
+            ), call. = FALSE)
+        }
+        return(invisible(destination))
+    }
+
+    # Resolve source matrix or default.
+    if (format_has_matrix(source, rows_axis, columns_axis, name)) {
+        value <- format_get_matrix(source, rows_axis, columns_axis, name)
+    } else if (.is_undef(default)) {
+        stop(sprintf(
+            "missing matrix: %s for rows axis: %s and columns axis: %s in the daf data: %s",
+            sQuote(name), sQuote(rows_axis), sQuote(columns_axis),
+            S7::prop(source, "name")
+        ), call. = FALSE)
+    } else if (is.null(default)) {
+        return(invisible(destination))
+    } else {
+        nr <- format_axis_length(source, rows_axis)
+        nc <- format_axis_length(source, columns_axis)
+        value <- matrix(default, nrow = nr, ncol = nc)
+    }
+
+    rows_rel <- .verify_axis_relation(source, rows_axis, destination, final_rows)
+    cols_rel <- .verify_axis_relation(source, columns_axis, destination, final_cols)
+    out <- .copy_matrix_with_relations(
+        value = value,
+        source = source, rows_axis = rows_axis, columns_axis = columns_axis,
+        destination = destination, final_rows = final_rows, final_cols = final_cols,
+        rows_rel = rows_rel, cols_rel = cols_rel, empty = empty, name = name
+    )
+    out <- .cast_matrix_type(out, type)
+
+    format_set_matrix(destination, final_rows, final_cols, final_name, out,
+                      overwrite = overwrite)
+    if (relayout && final_rows != final_cols) {
+        format_relayout_matrix(destination, final_rows, final_cols, final_name)
+    }
+    invisible(destination)
+}
+
+.cast_matrix_type <- function(m, type) {
+    if (is.null(type)) return(m)
+    switch(type,
+        logical = {
+            if (inherits(m, "dgCMatrix")) as.matrix(m) > 0 else as.logical(m)
+        },
+        integer = {
+            d <- if (inherits(m, "dgCMatrix")) as.matrix(m) else m
+            storage.mode(d) <- "integer"
+            d
+        },
+        double = , numeric = {
+            if (inherits(m, "dgCMatrix")) m else { storage.mode(m) <- "double"; m }
+        },
+        character = as.character(m),
+        stop(sprintf("unsupported matrix type: %s", type), call. = FALSE)
+    )
+}
+
+# Given a source value and the row/col relations, produce the final
+# destination-shaped matrix. Sparse-preserving in pad modes.
+.copy_matrix_with_relations <- function(value,
+                                        source, rows_axis, columns_axis,
+                                        destination, final_rows, final_cols,
+                                        rows_rel, cols_rel, empty, name) {
+    src_rows <- format_axis_array(source, rows_axis)
+    src_cols <- format_axis_array(source, columns_axis)
+    dest_rows <- format_axis_array(destination, final_rows)
+    dest_cols <- format_axis_array(destination, final_cols)
+
+    if (identical(rows_rel, "same") && identical(cols_rel, "same")) {
+        return(value)
+    }
+    if ((rows_rel %in% c("same", "destination_is_subset")) &&
+        (cols_rel %in% c("same", "destination_is_subset"))) {
+        r_idx <- match(dest_rows, src_rows)
+        c_idx <- match(dest_cols, src_cols)
+        return(value[r_idx, c_idx, drop = FALSE])
+    }
+    if (is.null(empty)) {
+        stop(sprintf(
+            "missing entries in an axis of the source daf which are needed for copying the matrix: %s; supply `empty` to fill them",
+            sQuote(name)
+        ), call. = FALSE)
+    }
+    .embed_matrix_in_pad(value, src_rows, src_cols,
+                         dest_rows, dest_cols, empty)
+}
+
+# Embed a source-shape matrix into a destination-shape matrix filled with
+# `empty`. Sparse-preserving: if value is dgCMatrix and empty == 0, returns
+# a dgCMatrix via Matrix::sparseMatrix; else builds dense.
+.embed_matrix_in_pad <- function(value, src_rows, src_cols,
+                                 dest_rows, dest_cols, empty) {
+    n_dr <- length(dest_rows)
+    n_dc <- length(dest_cols)
+    r_map <- match(src_rows, dest_rows)
+    c_map <- match(src_cols, dest_cols)
+    keep_r <- !is.na(r_map)
+    keep_c <- !is.na(c_map)
+    r_map <- r_map[keep_r]
+    c_map <- c_map[keep_c]
+
+    if (inherits(value, "dgCMatrix") && isTRUE(empty == 0)) {
+        v_sub <- value[keep_r, keep_c, drop = FALSE]
+        tri <- Matrix::summary(as(v_sub, "TsparseMatrix"))
+        return(Matrix::sparseMatrix(
+            i = r_map[tri$i], j = c_map[tri$j], x = tri$x,
+            dims = c(n_dr, n_dc),
+            dimnames = list(dest_rows, dest_cols)
+        ))
+    }
+    full <- matrix(empty, nrow = n_dr, ncol = n_dc,
+                   dimnames = list(dest_rows, dest_cols))
+    v_dense <- if (inherits(value, "dgCMatrix")) as.matrix(value[keep_r, keep_c, drop = FALSE]) else value[keep_r, keep_c, drop = FALSE]
+    full[r_map, c_map] <- v_dense
+    full
+}
