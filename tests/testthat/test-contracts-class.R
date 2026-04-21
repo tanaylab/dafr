@@ -25,3 +25,22 @@ test_that("Contract() rejects unknown expectation", {
         "unknown expectation"
     )
 })
+
+test_that("contractor() returns daf unchanged when enforcement is off", {
+    withr::local_envvar(DAF_ENFORCE_CONTRACTS = "0")
+    withr::local_options(dafr.enforce_contracts = FALSE)
+    d <- memory_daf(name = "plain")
+    c1 <- Contract()
+    result <- contractor("comp", c1, d)
+    expect_identical(result, d)
+})
+
+test_that("contractor() wraps daf when enforcement is on", {
+    withr::local_options(dafr.enforce_contracts = TRUE)
+    d <- memory_daf(name = "plain")
+    c1 <- Contract()
+    result <- contractor("comp", c1, d)
+    expect_s3_class(result, "dafr::ContractDaf")
+    expect_s3_class(result, "dafr::DafWriter")
+    expect_identical(S7::prop(result, "computation"), "comp")
+})
