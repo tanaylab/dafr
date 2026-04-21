@@ -79,4 +79,5 @@ Collate:
     'copies.R'
     'concat.R'
     'complete.R'
+    'reconstruction.R'
     'zzz.R'
