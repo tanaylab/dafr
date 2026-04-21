@@ -1,6 +1,7 @@
 ## ---- B1: scaffold ----
 
-test_that("adapter() exists and requires a DafWriter", {
+test_that("adapter() requires a DafWriter and rejects no-op invocations", {
+    expect_error(adapter("not a daf", function(d) d), "must be a DafWriter")
     expect_error(adapter(memory_daf(), function(d) d), "no-op adapter")
 })
 

@@ -149,11 +149,8 @@ adapter <- function(daf, fn,
         for (ca in axes) {
             for (mn in format_matrices_set(source_view, ra, ca)) {
                 val <- format_get_matrix(source_view, ra, ca, mn)
-                mode_ra <- axis_mode[[ra]]
-                if (is.null(mode_ra)) mode_ra <- "new"
-                mode_ca <- axis_mode[[ca]]
-                if (is.null(mode_ca)) mode_ca <- "new"
-                if (identical(mode_ra, "pad") || identical(mode_ca, "pad")) {
+                if (identical(axis_mode[[ra]], "pad") ||
+                    identical(axis_mode[[ca]], "pad")) {
                     key <- paste(ra, ca, mn, sep = "|")
                     default <- if (is.null(empty)) NULL else empty[[key]]
                     if (is.null(default)) {
