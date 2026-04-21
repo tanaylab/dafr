@@ -17,7 +17,7 @@ NULL
 #'   registered operation.
 #' @return Invisibly `NULL`.
 #' @examples
-#' register_reduction("Median", function(x, ...) median(x, ...), overwrite = TRUE)
+#' register_reduction("Median_example", function(x, ...) median(x, ...), overwrite = TRUE)
 #' registered_reductions()
 #' @export
 register_reduction <- function(name, fn, overwrite = FALSE) {
@@ -117,8 +117,8 @@ get_eltwise <- function(name) {
 #' @return Sorted character vector of registered reduction names.
 #' @examples
 #' head(registered_reductions())
-#' register_reduction("Median", function(x, ...) median(x), overwrite = TRUE)
-#' "Median" %in% registered_reductions()
+#' register_reduction("Median_example", function(x, ...) median(x), overwrite = TRUE)
+#' "Median_example" %in% registered_reductions()
 #' @export
 registered_reductions <- function() sort(names(.ops_env$reductions))
 
@@ -129,8 +129,8 @@ registered_reductions <- function() sort(names(.ops_env$reductions))
 #' @return Sorted character vector of registered eltwise names.
 #' @examples
 #' head(registered_eltwise())
-#' register_eltwise("Negate", function(x, ...) -x, overwrite = TRUE)
-#' "Negate" %in% registered_eltwise()
+#' register_eltwise("Negate_example", function(x, ...) -x, overwrite = TRUE)
+#' "Negate_example" %in% registered_eltwise()
 #' @export
 registered_eltwise <- function() sort(names(.ops_env$eltwise))
 

@@ -14,6 +14,6 @@ Returns the names of all currently registered eltwise operations.
 }
 \examples{
 head(registered_eltwise())
-register_eltwise("Negate", function(x, ...) -x, overwrite = TRUE)
-"Negate" \%in\% registered_eltwise()
+register_eltwise("Negate_example", function(x, ...) -x, overwrite = TRUE)
+"Negate_example" \%in\% registered_eltwise()
 }

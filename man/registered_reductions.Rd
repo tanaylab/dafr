@@ -14,6 +14,6 @@ Returns the names of all currently registered reduction operations.
 }
 \examples{
 head(registered_reductions())
-register_reduction("Median", function(x, ...) median(x), overwrite = TRUE)
-"Median" \%in\% registered_reductions()
+register_reduction("Median_example", function(x, ...) median(x), overwrite = TRUE)
+"Median_example" \%in\% registered_reductions()
 }

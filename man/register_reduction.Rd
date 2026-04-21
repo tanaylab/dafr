@@ -23,6 +23,6 @@ Stores a user-defined reduction function under the given name so that it
 can be retrieved by \code{\link[=get_reduction]{get_reduction()}} and invoked during query evaluation.
 }
 \examples{
-register_reduction("Median", function(x, ...) median(x, ...), overwrite = TRUE)
+register_reduction("Median_example", function(x, ...) median(x, ...), overwrite = TRUE)
 registered_reductions()
 }
