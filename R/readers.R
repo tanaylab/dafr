@@ -2,6 +2,11 @@
 #' @param daf A `DafReader`.
 #' @param axis Axis name (character scalar).
 #' @return Logical scalar.
+#' @examples
+#' d <- memory_daf()
+#' add_axis(d, "cell", c("c1", "c2"))
+#' has_axis(d, "cell")
+#' has_axis(d, "gene")
 #' @export
 has_axis <- function(daf, axis) {
     .assert_name(axis, "axis")
@@ -11,12 +16,18 @@ has_axis <- function(daf, axis) {
 #' Names of all axes, sorted.
 #' @inheritParams has_axis
 #' @return Character vector of axis names.
+#' @examples
+#' d <- example_cells_daf()
+#' axes_set(d)
 #' @export
 axes_set <- function(daf) format_axes_set(daf)
 
 #' Length (entry count) of an axis.
 #' @inheritParams has_axis
 #' @return Integer scalar.
+#' @examples
+#' d <- example_cells_daf()
+#' axis_length(d, "cell")
 #' @export
 axis_length <- function(daf, axis) {
     .assert_name(axis, "axis")
@@ -29,6 +40,11 @@ axis_length <- function(daf, axis) {
 #' @param null_if_missing If `TRUE`, return `NULL` when the axis is
 #'   absent instead of raising.
 #' @return Character vector of entry names.
+#' @examples
+#' d <- memory_daf()
+#' add_axis(d, "cell", c("c1", "c2", "c3"))
+#' axis_vector(d, "cell")
+#' axis_vector(d, "gene", null_if_missing = TRUE)
 #' @export
 axis_vector <- function(daf, axis, null_if_missing = FALSE) {
     .assert_name(axis, "axis")
@@ -46,6 +62,11 @@ axis_vector <- function(daf, axis, null_if_missing = FALSE) {
 #' @inheritParams has_axis
 #' @param indices Optional integer index vector (1-based).
 #' @return Character vector.
+#' @examples
+#' d <- memory_daf()
+#' add_axis(d, "cell", c("c1", "c2", "c3", "c4"))
+#' axis_entries(d, "cell")
+#' axis_entries(d, "cell", indices = c(1L, 3L))
 #' @export
 axis_entries <- function(daf, axis, indices = NULL) {
     entries <- axis_vector(daf, axis)
@@ -73,6 +94,10 @@ axis_entries <- function(daf, axis, indices = NULL) {
 #' @inheritParams has_axis
 #' @param entries Character vector of entry names to resolve.
 #' @return Integer vector of 1-based positions; same length as `entries`.
+#' @examples
+#' d <- memory_daf()
+#' add_axis(d, "cell", c("c1", "c2", "c3"))
+#' axis_indices(d, "cell", c("c3", "c1"))
 #' @export
 axis_indices <- function(daf, axis, entries) {
     .assert_name(axis, "axis")
@@ -100,6 +125,11 @@ axis_indices <- function(daf, axis, entries) {
 #' Entry-name to 1-based-index hash for an axis.
 #' @inheritParams has_axis
 #' @return An environment mapping entry names to integer positions.
+#' @examples
+#' d <- memory_daf()
+#' add_axis(d, "cell", c("c1", "c2", "c3"))
+#' dict <- axis_dict(d, "cell")
+#' dict[["c2"]]
 #' @export
 axis_dict <- function(daf, axis) {
     .assert_name(axis, "axis")
@@ -110,6 +140,11 @@ axis_dict <- function(daf, axis) {
 #' @param daf A `DafReader`.
 #' @param name Scalar name.
 #' @return Logical scalar.
+#' @examples
+#' d <- memory_daf()
+#' set_scalar(d, "organism", "human")
+#' has_scalar(d, "organism")
+#' has_scalar(d, "reference")
 #' @export
 has_scalar <- function(daf, name) {
     .assert_name(name, "name")
@@ -119,6 +154,9 @@ has_scalar <- function(daf, name) {
 #' Names of all scalars, sorted.
 #' @inheritParams has_scalar
 #' @return Character vector.
+#' @examples
+#' d <- example_cells_daf()
+#' scalars_set(d)
 #' @export
 scalars_set <- function(daf) format_scalars_set(daf)
 
@@ -127,6 +165,11 @@ scalars_set <- function(daf) format_scalars_set(daf)
 #' @param default Value to return when the scalar is absent. If missing
 #'   and the scalar is absent, an error is raised.
 #' @return The scalar value.
+#' @examples
+#' d <- memory_daf()
+#' set_scalar(d, "organism", "human")
+#' get_scalar(d, "organism")
+#' get_scalar(d, "reference", default = "GRCh38")
 #' @export
 get_scalar <- function(daf, name, default) {
     .assert_name(name, "name")
@@ -144,6 +187,12 @@ get_scalar <- function(daf, name, default) {
 #' @param axis Axis name.
 #' @param name Vector name.
 #' @return Logical scalar.
+#' @examples
+#' d <- memory_daf()
+#' add_axis(d, "cell", c("c1", "c2"))
+#' set_vector(d, "cell", "donor", c("d1", "d2"))
+#' has_vector(d, "cell", "donor")
+#' has_vector(d, "cell", "age")
 #' @export
 has_vector <- function(daf, axis, name) {
     .assert_name(axis, "axis")
@@ -154,6 +203,9 @@ has_vector <- function(daf, axis, name) {
 #' Names of vectors on an axis, sorted.
 #' @inheritParams has_vector
 #' @return Character vector.
+#' @examples
+#' d <- example_cells_daf()
+#' vectors_set(d, "cell")
 #' @export
 vectors_set <- function(daf, axis) {
     .assert_name(axis, "axis")
@@ -173,6 +225,10 @@ vectors_set <- function(daf, axis) {
 #'   (e.g. `default = NA` yields `logical`, `default = "x"` yields
 #'   `character`, `default = 0.0` yields `double`).
 #' @return Named atomic vector.
+#' @examples
+#' d <- example_cells_daf()
+#' donor <- get_vector(d, "cell", "donor")
+#' head(donor)
 #' @export
 get_vector <- function(daf, axis, name, default) {
     .assert_name(axis, "axis")
@@ -224,6 +280,10 @@ get_vector <- function(daf, axis, name, default) {
 #' @param columns_axis Column-axis name.
 #' @param name Matrix name.
 #' @return Logical scalar.
+#' @examples
+#' d <- example_cells_daf()
+#' has_matrix(d, "gene", "cell", "UMIs")
+#' has_matrix(d, "cell", "gene", "UMIs")
 #' @export
 has_matrix <- function(daf, rows_axis, columns_axis, name) {
     .assert_name(rows_axis, "rows_axis")
@@ -235,6 +295,9 @@ has_matrix <- function(daf, rows_axis, columns_axis, name) {
 #' Names of matrices for an axis pair, sorted.
 #' @inheritParams has_matrix
 #' @return Character vector.
+#' @examples
+#' d <- example_cells_daf()
+#' matrices_set(d, "gene", "cell")
 #' @export
 matrices_set <- function(daf, rows_axis, columns_axis) {
     .assert_name(rows_axis, "rows_axis")
@@ -254,6 +317,10 @@ matrices_set <- function(daf, rows_axis, columns_axis) {
 #'   entries as dimnames.
 #' @return Dense `matrix` or sparse `dgCMatrix` / `lgCMatrix` with
 #'   dimnames set.
+#' @examples
+#' d <- example_cells_daf()
+#' m <- get_matrix(d, "cell", "gene", "UMIs")
+#' dim(m)
 #' @export
 get_matrix <- function(daf, rows_axis, columns_axis, name, default) {
     .assert_name(rows_axis, "rows_axis")
@@ -328,6 +395,12 @@ get_matrix <- function(daf, rows_axis, columns_axis, name, default) {
 #'
 #' @param daf A `DafReader`.
 #' @return Character scalar.
+#' @examples
+#' d <- memory_daf(name = "demo")
+#' set_scalar(d, "organism", "human")
+#' add_axis(d, "cell", c("c1", "c2"))
+#' set_vector(d, "cell", "donor", c("d1", "d2"))
+#' cat(description(d))
 #' @export
 description <- function(daf) {
     lines <- c(

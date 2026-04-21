@@ -21,3 +21,8 @@ Logical scalar.
 \description{
 Test whether a matrix exists for an axis pair.
 }
+\examples{
+d <- example_cells_daf()
+has_matrix(d, "gene", "cell", "UMIs")
+has_matrix(d, "cell", "gene", "UMIs")
+}

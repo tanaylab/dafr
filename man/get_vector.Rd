@@ -27,3 +27,8 @@ Named atomic vector.
 \description{
 Get a vector, returning it as an axis-named R vector.
 }
+\examples{
+d <- example_cells_daf()
+donor <- get_vector(d, "cell", "donor")
+head(donor)
+}

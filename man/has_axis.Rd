@@ -17,3 +17,9 @@ Logical scalar.
 \description{
 Test whether an axis exists.
 }
+\examples{
+d <- memory_daf()
+add_axis(d, "cell", c("c1", "c2"))
+has_axis(d, "cell")
+has_axis(d, "gene")
+}

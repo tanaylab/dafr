@@ -28,3 +28,8 @@ When the matrix is stored only at the flipped-layout axis pair
 \verb{(columns_axis, rows_axis)}, this function transposes on-the-fly and
 returns with the requested dimnames.
 }
+\examples{
+d <- example_cells_daf()
+m <- get_matrix(d, "cell", "gene", "UMIs")
+dim(m)
+}

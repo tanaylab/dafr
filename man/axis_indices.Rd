@@ -19,3 +19,8 @@ Integer vector of 1-based positions; same length as \code{entries}.
 \description{
 Look up 1-based positions of entries in an axis.
 }
+\examples{
+d <- memory_daf()
+add_axis(d, "cell", c("c1", "c2", "c3"))
+axis_indices(d, "cell", c("c3", "c1"))
+}

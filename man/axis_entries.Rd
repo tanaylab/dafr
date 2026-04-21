@@ -19,3 +19,9 @@ Character vector.
 \description{
 Entry names of an axis (full or by index).
 }
+\examples{
+d <- memory_daf()
+add_axis(d, "cell", c("c1", "c2", "c3", "c4"))
+axis_entries(d, "cell")
+axis_entries(d, "cell", indices = c(1L, 3L))
+}

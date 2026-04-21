@@ -15,3 +15,7 @@ Character vector of axis names.
 \description{
 Names of all axes, sorted.
 }
+\examples{
+d <- example_cells_daf()
+axes_set(d)
+}

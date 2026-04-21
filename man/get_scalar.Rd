@@ -20,3 +20,9 @@ The scalar value.
 \description{
 Get a scalar, optionally with a default when missing.
 }
+\examples{
+d <- memory_daf()
+set_scalar(d, "organism", "human")
+get_scalar(d, "organism")
+get_scalar(d, "reference", default = "GRCh38")
+}

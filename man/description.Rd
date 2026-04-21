@@ -17,3 +17,10 @@ Returns a multi-line string describing axes, scalars, vectors, and
 matrices. Matches the column-order rendering of Julia DAF's own
 \code{description()}.
 }
+\examples{
+d <- memory_daf(name = "demo")
+set_scalar(d, "organism", "human")
+add_axis(d, "cell", c("c1", "c2"))
+set_vector(d, "cell", "donor", c("d1", "d2"))
+cat(description(d))
+}

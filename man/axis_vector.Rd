@@ -20,3 +20,9 @@ Character vector of entry names.
 \description{
 Entry-name vector for an axis.
 }
+\examples{
+d <- memory_daf()
+add_axis(d, "cell", c("c1", "c2", "c3"))
+axis_vector(d, "cell")
+axis_vector(d, "gene", null_if_missing = TRUE)
+}

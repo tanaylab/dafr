@@ -19,3 +19,7 @@ Character vector.
 \description{
 Names of matrices for an axis pair, sorted.
 }
+\examples{
+d <- example_cells_daf()
+matrices_set(d, "gene", "cell")
+}

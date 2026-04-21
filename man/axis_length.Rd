@@ -17,3 +17,7 @@ Integer scalar.
 \description{
 Length (entry count) of an axis.
 }
+\examples{
+d <- example_cells_daf()
+axis_length(d, "cell")
+}

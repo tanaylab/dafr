@@ -17,3 +17,9 @@ An environment mapping entry names to integer positions.
 \description{
 Entry-name to 1-based-index hash for an axis.
 }
+\examples{
+d <- memory_daf()
+add_axis(d, "cell", c("c1", "c2", "c3"))
+dict <- axis_dict(d, "cell")
+dict[["c2"]]
+}

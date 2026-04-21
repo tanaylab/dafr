@@ -17,3 +17,9 @@ Logical scalar.
 \description{
 Test whether a scalar exists.
 }
+\examples{
+d <- memory_daf()
+set_scalar(d, "organism", "human")
+has_scalar(d, "organism")
+has_scalar(d, "reference")
+}

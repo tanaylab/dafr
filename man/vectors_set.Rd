@@ -17,3 +17,7 @@ Character vector.
 \description{
 Names of vectors on an axis, sorted.
 }
+\examples{
+d <- example_cells_daf()
+vectors_set(d, "cell")
+}

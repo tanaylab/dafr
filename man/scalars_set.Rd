@@ -15,3 +15,7 @@ Character vector.
 \description{
 Names of all scalars, sorted.
 }
+\examples{
+d <- example_cells_daf()
+scalars_set(d)
+}
