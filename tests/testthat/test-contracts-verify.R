@@ -59,3 +59,44 @@ test_that("verify_output pass after accessing RequiredInput", {
     invisible(get_scalar(cd, "version"))
     expect_null(verify_output(cd))
 })
+
+test_that("end-to-end: contract wraps MemoryDaf; input+output verify; result matches", {
+    withr::local_options(dafr.enforce_contracts = TRUE)
+    d <- memory_daf(name = "d")
+    add_axis(d, "cell", c("A", "B"))
+    set_vector(d, "cell", "age", c(10L, 20L))
+    cn <- Contract(
+        axes = list(cell = list(RequiredInput, "cell axis")),
+        data = list(
+            contract_vector("cell", "age",    RequiredInput, "integer", "age"),
+            contract_vector("cell", "doubled", CreatedOutput, "integer", "2x age")
+        )
+    )
+    cd <- contractor("comp", cn, d)
+    expect_null(verify_input(cd))
+    # Simulate the computation
+    age <- get_vector(cd, "cell", "age")
+    set_vector(cd, "cell", "doubled", unname(age) * 2L)
+    expect_null(verify_output(cd))
+    expect_identical(
+        unname(get_vector(d, "cell", "doubled")),
+        c(20L, 40L)
+    )
+})
+
+test_that("end-to-end: contract wraps FilesDaf", {
+    withr::local_options(dafr.enforce_contracts = TRUE)
+    tmp <- tempfile("dafr-fd-")
+    on.exit(unlink(tmp, recursive = TRUE), add = TRUE)
+    d <- files_daf(tmp, mode = "w", name = "fd")
+    add_axis(d, "cell", c("A", "B"))
+    set_vector(d, "cell", "age", c(10L, 20L))
+    cn <- Contract(
+        axes = list(cell = list(RequiredInput, "cell axis")),
+        data = list(contract_vector("cell", "age", RequiredInput, "integer", "age"))
+    )
+    cd <- contractor("comp", cn, d)
+    expect_null(verify_input(cd))
+    invisible(get_vector(cd, "cell", "age"))
+    expect_null(verify_output(cd))
+})
