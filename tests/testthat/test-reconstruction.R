@@ -56,3 +56,23 @@ test_that("reconstruct_axis: implicit_properties enforces consistency", {
         "inconsistent"
     )
 })
+
+test_that("reconstruct_axis: rename_axis uses a different target name", {
+    d <- memory_daf(name = "d")
+    add_axis(d, "cell", c("c1", "c2"))
+    set_vector(d, "cell", "donor", c("dA", "dB"))
+    reconstruct_axis(d, existing_axis = "cell", implicit_axis = "donor",
+                     rename_axis = "person")
+    expect_true(has_axis(d, "person"))
+    expect_false(has_axis(d, "donor"))
+})
+
+test_that("reconstruct_axis: errors when target axis pre-exists (this slice)", {
+    d <- memory_daf(name = "d")
+    add_axis(d, "cell", c("c1"))
+    add_axis(d, "donor", c("dA"))
+    set_vector(d, "cell", "donor", c("dA"))
+    expect_error(reconstruct_axis(d, existing_axis = "cell",
+                                  implicit_axis = "donor"),
+                 "already exists")
+})
