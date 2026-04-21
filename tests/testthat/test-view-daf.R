@@ -80,3 +80,10 @@ test_that("viewer with scalar override", {
     v <- viewer(d, data = list(list("species", ". organism")))
     expect_equal(get_scalar(v, "species"), "human")
 })
+
+test_that("viewer reuses base daf cache env (no per-view query bucket)", {
+    d <- memory_daf(name = "base")
+    add_axis(d, "cell", c("A", "B"))
+    v <- viewer(d)
+    expect_true(identical(S7::prop(v, "cache"), S7::prop(d, "cache")))
+})
