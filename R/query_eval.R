@@ -664,6 +664,12 @@ NULL
                         useNames = FALSE)
                 else return(NULL)
             },
+            Mode = if (is_dg && is.numeric(m@x))
+                kernel_mode_csc_cpp(m@x, m@i, m@p, nrow(m), ncol(m),
+                    axis = 0L, threshold = .dafr_kernel_threshold())
+            else if (is_dense && is.numeric(m))
+                apply(m, 1L, function(v) dafr:::.op_mode(v))
+            else return(NULL),
             return(NULL)
         )
         return(list(
@@ -754,6 +760,12 @@ NULL
                     useNames = FALSE)
             else return(NULL)
         },
+        Mode = if (is_dg && is.numeric(m@x))
+            kernel_mode_csc_cpp(m@x, m@i, m@p, nrow(m), ncol(m),
+                axis = 1L, threshold = .dafr_kernel_threshold())
+        else if (is_dense && is.numeric(m))
+            apply(m, 2L, function(v) dafr:::.op_mode(v))
+        else return(NULL),
         return(NULL)
     )
     list(

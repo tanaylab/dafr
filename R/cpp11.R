@@ -44,6 +44,10 @@ kernel_minmax_csc_cpp <- function(x, i, p, nrow, ncol, axis, variant, threshold)
   .Call(`_dafr_kernel_minmax_csc_cpp`, x, i, p, nrow, ncol, axis, variant, threshold)
 }
 
+kernel_mode_csc_cpp <- function(x, i, p, nrow, ncol, axis, threshold) {
+  .Call(`_dafr_kernel_mode_csc_cpp`, x, i, p, nrow, ncol, axis, threshold)
+}
+
 kernel_quantile_csc_cpp <- function(x, i, p, nrow, ncol, axis, q, threshold) {
   .Call(`_dafr_kernel_quantile_csc_cpp`, x, i, p, nrow, ncol, axis, q, threshold)
 }

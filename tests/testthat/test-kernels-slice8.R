@@ -297,3 +297,87 @@ test_that("sparse Median/Quantile query does not densify", {
     assert_no_densify_during(get_query(daf, "@ r @ c :: x >- Quantile p 0.25"))
     assert_no_densify_during(get_query(daf, "@ r @ c :: x >| Quantile p 0.75"))
 })
+
+# ---------------------------------------------------------------------------
+# Task 6: kernel_mode_csc_cpp
+# ---------------------------------------------------------------------------
+
+test_that("kernel_mode_csc matches .op_mode (including tied-count tiebreak)", {
+    skip_if_not_installed("Matrix")
+    set.seed(47)
+    # integer-valued so ties are common
+    x <- sample(c(-1, 0, 1, 2, 3), 600L, replace = TRUE,
+                prob = c(0.1, 0.5, 0.2, 0.15, 0.05))
+    m <- Matrix::sparseMatrix(
+        i = rep(seq_len(30L), 20L),
+        j = rep(seq_len(20L), each = 30L),
+        x = x, dims = c(30L, 20L))
+    dense <- as.matrix(m)
+    # axis=1: per-column (ReduceToRow direction)
+    got <- dafr:::kernel_mode_csc_cpp(
+        m@x, m@i, m@p, nrow(m), ncol(m), axis = 1L, threshold = 1L)
+    expected <- apply(dense, 2L, function(v) dafr:::.op_mode(v))
+    expect_equal(got, expected)
+    # axis=0: per-row (ReduceToColumn direction)
+    got_r <- dafr:::kernel_mode_csc_cpp(
+        m@x, m@i, m@p, nrow(m), ncol(m), axis = 0L, threshold = 1L)
+    expected_r <- apply(dense, 1L, function(v) dafr:::.op_mode(v))
+    expect_equal(got_r, expected_r)
+})
+
+test_that("kernel_mode_csc returns 0 when implicit zeros dominate", {
+    skip_if_not_installed("Matrix")
+    m <- Matrix::sparseMatrix(i = 1L, j = 1L, x = 7, dims = c(10L, 1L))
+    got <- dafr:::kernel_mode_csc_cpp(m@x, m@i, m@p, 10L, 1L,
+        axis = 1L, threshold = 1L)
+    expect_equal(got, 0)
+})
+
+test_that("kernel_mode_csc tiebreak: nonzero wins when it appears before first implicit zero", {
+    # Column: nonzero at row 0 (value 5), zero at rows 1..3 -> counts tie 1:3.
+    # Wait: 5 appears 1x, zero appears 3x -> zero wins, not a tie.
+    # Make actual tie: 2 nonzeros at rows 0,1 (value 5); 2 implicit zeros at rows 2,3.
+    # First-seen: 5 at row 0, 0 at row 2 -> 5 wins.
+    skip_if_not_installed("Matrix")
+    m <- Matrix::sparseMatrix(i = c(1L, 2L), j = c(1L, 1L), x = c(5, 5), dims = c(4L, 1L))
+    got <- dafr:::kernel_mode_csc_cpp(m@x, m@i, m@p, 4L, 1L,
+        axis = 1L, threshold = 1L)
+    dense <- as.matrix(m)[, 1L]
+    expected <- dafr:::.op_mode(dense)
+    expect_equal(got, expected)   # should be 5, not 0
+    expect_equal(got, 5)
+})
+
+test_that("kernel_mode_csc tiebreak: zero wins when it appears before nonzero", {
+    # Nonzeros at rows 3,4 (value 5); implicit zeros at rows 1,2 -> tie 2:2.
+    # First-seen: 0 at row 1 (0-based: row 0), 5 at row 3 (0-based: row 2) -> 0 wins.
+    skip_if_not_installed("Matrix")
+    m <- Matrix::sparseMatrix(i = c(3L, 4L), j = c(1L, 1L), x = c(5, 5), dims = c(4L, 1L))
+    got <- dafr:::kernel_mode_csc_cpp(m@x, m@i, m@p, 4L, 1L,
+        axis = 1L, threshold = 1L)
+    dense <- as.matrix(m)[, 1L]
+    expected <- dafr:::.op_mode(dense)
+    expect_equal(got, expected)   # should be 0
+    expect_equal(got, 0)
+})
+
+test_that("kernel_mode_csc handles all-zero column", {
+    skip_if_not_installed("Matrix")
+    m <- Matrix::sparseMatrix(i = integer(), j = integer(), x = double(), dims = c(5L, 1L))
+    got <- dafr:::kernel_mode_csc_cpp(m@x, m@i, m@p, 5L, 1L,
+        axis = 1L, threshold = 1L)
+    expect_equal(got, 0)
+})
+
+test_that("sparse Mode query does not densify", {
+    skip_if_not_installed("Matrix")
+    set.seed(48)
+    m <- Matrix::rsparsematrix(30L, 30L, density = 0.3,
+        rand.x = function(n) sample(c(1, 2, 3), n, replace = TRUE))
+    daf <- memory_daf("t")
+    add_axis(daf, "r", paste0("r", 1:30))
+    add_axis(daf, "c", paste0("c", 1:30))
+    set_matrix(daf, "r", "c", "x", m)
+    assert_no_densify_during(get_query(daf, "@ r @ c :: x >- Mode"))
+    assert_no_densify_during(get_query(daf, "@ r @ c :: x >| Mode"))
+})
