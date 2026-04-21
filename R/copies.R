@@ -117,3 +117,26 @@ copy_axis <- function(destination, source, axis,
     format_add_axis(destination, final_axis, format_axis_array(source, axis))
     invisible(destination)
 }
+
+# Detect the relation between a source axis and a destination axis.
+# Returns one of: "same", "destination_is_subset", "source_is_subset".
+# Raises for disjoint / partially-overlapping (non-subset) axes.
+.verify_axis_relation <- function(source, source_axis, destination, dest_axis) {
+    src_entries <- format_axis_array(source, source_axis)
+    dest_entries <- format_axis_array(destination, dest_axis)
+    if (length(src_entries) == length(dest_entries) &&
+        identical(src_entries, dest_entries)) {
+        return("same")
+    }
+    if (all(dest_entries %in% src_entries)) {
+        return("destination_is_subset")
+    }
+    if (all(src_entries %in% dest_entries)) {
+        return("source_is_subset")
+    }
+    stop(sprintf(
+        "disjoint entries in the axis: source axis %s in %s and destination axis %s in %s",
+        sQuote(source_axis), S7::prop(source, "name"),
+        sQuote(dest_axis), S7::prop(destination, "name")
+    ), call. = FALSE)
+}
