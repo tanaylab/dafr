@@ -339,6 +339,16 @@ registered_eltwise <- function() sort(names(.ops_env$eltwise))
     }
 }
 
+.op_mode <- function(x, ...) {
+    if (!is.numeric(x) && !is.logical(x)) {
+        stop("Mode: only numeric and logical input are supported this slice; got ",
+            sQuote(typeof(x)), call. = FALSE
+        )
+    }
+    ux <- unique(x)
+    ux[which.max(tabulate(match(x, ux)))]
+}
+
 attr(.op_sum, ".dafr_builtin") <- "Sum"
 attr(.op_mean, ".dafr_builtin") <- "Mean"
 attr(.op_max, ".dafr_builtin") <- "Max"
@@ -360,6 +370,7 @@ attr(.op_stdn, ".dafr_builtin") <- "StdN"
 attr(.op_median, ".dafr_builtin") <- "Median"
 attr(.op_quantile, ".dafr_builtin") <- "Quantile"
 attr(.op_geomean, ".dafr_builtin") <- "GeoMean"
+attr(.op_mode, ".dafr_builtin") <- "Mode"
 
 .register_default_ops <- function() {
     register_reduction("Sum", .op_sum, overwrite = TRUE)
@@ -374,6 +385,7 @@ attr(.op_geomean, ".dafr_builtin") <- "GeoMean"
     register_reduction("Median", .op_median, overwrite = TRUE)
     register_reduction("Quantile", .op_quantile, overwrite = TRUE)
     register_reduction("GeoMean", .op_geomean, overwrite = TRUE)
+    register_reduction("Mode", .op_mode, overwrite = TRUE)
 
     register_eltwise("Log", .op_log, overwrite = TRUE)
     register_eltwise("Abs", .op_abs, overwrite = TRUE)

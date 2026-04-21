@@ -120,3 +120,21 @@ test_that("GeoMean rejects negative eps", {
 test_that("GeoMean attaches .dafr_builtin", {
     expect_identical(attr(get_reduction("GeoMean"), ".dafr_builtin"), "GeoMean")
 })
+
+test_that("Mode returns the most frequent numeric value", {
+    fn <- get_reduction("Mode")
+    expect_equal(fn(c(1, 2, 2, 3)), 2)
+    expect_equal(fn(c(1, 1, 2, 2, 3)), 1)  # tie -> first maximum
+})
+
+test_that("Mode on a single-element vector returns that element", {
+    expect_equal(get_reduction("Mode")(7), 7)
+})
+
+test_that("Mode raises on character input (numeric-only this slice)", {
+    expect_error(get_reduction("Mode")(c("a", "b", "a")), "Mode.*numeric")
+})
+
+test_that("Mode attaches .dafr_builtin", {
+    expect_identical(attr(get_reduction("Mode"), ".dafr_builtin"), "Mode")
+})
