@@ -484,7 +484,7 @@ S7::method(
     format_vectors_set,
     list(ViewDaf, S7::class_character)
 ) <- function(daf, axis) {
-    keys <- names(daf@view_vectors)
+    keys <- names(daf@view_vectors) %||% character(0)
     prefix <- paste0(axis, "|")
     sub(prefix, "", keys[startsWith(keys, prefix)], fixed = TRUE)
 }
@@ -517,7 +517,7 @@ S7::method(
     format_matrices_set,
     list(ViewDaf, S7::class_character, S7::class_character)
 ) <- function(daf, rows_axis, columns_axis) {
-    keys <- names(daf@view_matrices)
+    keys <- names(daf@view_matrices) %||% character(0)
     prefix <- paste(rows_axis, columns_axis, "", sep = "|")
     sub(prefix, "", keys[startsWith(keys, prefix)], fixed = TRUE)
 }

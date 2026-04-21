@@ -75,4 +75,5 @@ Collate:
     'queries.R'
     'readers.R'
     'view_daf.R'
+    'adapters.R'
     'zzz.R'
