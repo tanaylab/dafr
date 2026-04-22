@@ -45,41 +45,37 @@ cpp11::writable::doubles kernel_minmax_csc_cpp(
         return out;
     }
 
-    // axis == 0: per-row output. Thread-local buckets pattern from
-    // kernel_log_reduce_csc_cpp (see src/kernel_log_reduce.cpp:88-125).
+    // axis == 0: per-row output. Row-partition: each thread owns a
+    // disjoint row range [r0, r1); writes to pout[r] and nnz_per_row[r]
+    // are race-free. No thread buckets, no serial merge.
     cpp11::writable::doubles out(nrow);
     double *pout = REAL(out.data());
     for (int r = 0; r < nrow; ++r) pout[r] = sentinel;
     std::vector<int> nnz_per_row(nrow, 0);
 
-    const int nthreads = dafr_omp_get_max_threads_capped(ncol, threshold);
-    // FIXME: tbuf is O(nthreads × nrow) memory; at scRNA scale (nrow > 1e6)
-    // with many threads this may pressure RAM. Consider a sequential fallback
-    // for very large nrow.
-    std::vector<std::vector<double>> tbuf(nthreads,
-        std::vector<double>(nrow, sentinel));
-    std::vector<std::vector<int>> tnnz(nthreads, std::vector<int>(nrow, 0));
-
-    DAFR_PARALLEL_FOR(ncol >= threshold)
-    for (int j = 0; j < ncol; ++j) {
+    DAFR_OMP_PARALLEL_IF(nrow >= threshold)
+    {
         const int tid = dafr_omp_get_thread_num();
-        auto &tb = tbuf[tid];
-        auto &tn = tnnz[tid];
-        for (int k = pp[j]; k < pp[j + 1]; ++k) {
-            const int r = pi[k];
-            tb[r] = fold(tb[r], px[k]);
-            tn[r] += 1;
+        const int nt  = dafr_omp_get_num_threads();
+        const int chunk = (nrow + nt - 1) / nt;
+        const int r0 = std::min(nrow, tid * chunk);
+        const int r1 = std::min(nrow, r0 + chunk);
+
+        // Pass 1: scan every column; filter by row-range.
+        for (int j = 0; j < ncol; ++j) {
+            const int k_end = pp[j + 1];
+            for (int k = pp[j]; k < k_end; ++k) {
+                const int r = pi[k];
+                if (r < r0 || r >= r1) continue;
+                pout[r] = fold(pout[r], px[k]);
+                nnz_per_row[r] += 1;
+            }
         }
-    }
-    for (int t = 0; t < nthreads; ++t) {
-        for (int r = 0; r < nrow; ++r) {
-            pout[r] = fold(pout[r], tbuf[t][r]);
-            nnz_per_row[r] += tnnz[t][r];
+
+        // Pass 2: fold in implicit zero for rows with at least one.
+        for (int r = r0; r < r1; ++r) {
+            if (nnz_per_row[r] < ncol) pout[r] = fold(pout[r], 0.0);
         }
-    }
-    DAFR_PARALLEL_FOR(nrow >= threshold)
-    for (int r = 0; r < nrow; ++r) {
-        if (nnz_per_row[r] < ncol) pout[r] = fold(pout[r], 0.0);
     }
     return out;
 }
