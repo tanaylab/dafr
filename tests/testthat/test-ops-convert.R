@@ -52,3 +52,23 @@ test_that(".op_convert still errors on unknown type", {
     expect_error(.op_convert(c(1, 2), type = "Float16"),
                  "'type' must be one of")
 })
+
+test_that(".op_convert Int64 preserves dim/dimnames on matrix input", {
+    m <- matrix(c(1, 2, 3, 4, 5, 6), 2, 3,
+                dimnames = list(c("a", "b"), c("x", "y", "z")))
+    out <- .op_convert(m, type = "Int64")
+    expect_s3_class(out, "integer64")
+    expect_equal(dim(out), c(2L, 3L))
+    expect_equal(dimnames(out), list(c("a", "b"), c("x", "y", "z")))
+    expect_equal(as.integer(out), c(1L, 2L, 3L, 4L, 5L, 6L))
+})
+
+test_that(".op_convert Int64 preserves dim after sparse densification", {
+    m <- Matrix::sparseMatrix(i = c(1, 2), j = c(1, 2),
+                              x = c(10, 20), dims = c(2, 2),
+                              dimnames = list(c("r1", "r2"), c("c1", "c2")))
+    out <- .op_convert(m, type = "Int64")
+    expect_s3_class(out, "integer64")
+    expect_equal(dim(out), c(2L, 2L))
+    expect_equal(dimnames(out), list(c("r1", "r2"), c("c1", "c2")))
+})

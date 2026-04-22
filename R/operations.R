@@ -188,11 +188,17 @@ registered_eltwise <- function() sort(names(.ops_env$eltwise))
         ), call. = FALSE)
     }
     # integer64 path: densify sparse input (no sparse integer64 class exists).
+    # Preserve dim/dimnames — bit64::as.integer64 strips them on matrix input.
     if (type == "integer64") {
         if (methods::is(x, "dgCMatrix")) {
             x <- as.matrix(x)
         }
-        return(bit64::as.integer64(x))
+        out <- bit64::as.integer64(x)
+        if (!is.null(dim(x))) {
+            dim(out) <- dim(x)
+            dimnames(out) <- dimnames(x)
+        }
+        return(out)
     }
     # Sparse preservation for dgCMatrix
     if (methods::is(x, "dgCMatrix")) {
