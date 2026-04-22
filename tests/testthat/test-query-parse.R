@@ -160,3 +160,15 @@ test_that("has_query returns FALSE for missing data", {
     set_scalar(d, "organism", "human")
     expect_true(has_query(d, ". organism"))
 })
+
+test_that(">> parses identically to >| (G1 Julia-parity alias)", {
+    a <- parse_query("@ ax : x / g >> Sum")
+    b <- parse_query("@ ax : x / g >| Sum")
+    expect_identical(a, b)
+})
+
+test_that(">> alias works for Mode on character (Julia-parity G1)", {
+    a <- parse_query("@ ax : color / g >> Mode")
+    b <- parse_query("@ ax : color / g >| Mode")
+    expect_identical(a, b)
+})
