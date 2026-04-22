@@ -672,6 +672,8 @@ NULL
                 if (is_dg)
                     kernel_quantile_csc_cpp(m@x, m@i, m@p, nrow(m), ncol(m),
                         axis = 0L, q = q, threshold = .dafr_kernel_threshold())
+                # is.numeric(): fast path only for INTSXP/REALSXP; character/logical
+                # dense matrices fall through to return(NULL) -> slow path.
                 else if (is_dense && is.numeric(m))
                     kernel_quantile_dense_cpp(m, axis = 0L, q = q,
                         threshold = .dafr_kernel_threshold())
@@ -775,6 +777,8 @@ NULL
             if (is_dg)
                 kernel_quantile_csc_cpp(m@x, m@i, m@p, nrow(m), ncol(m),
                     axis = 1L, q = q, threshold = .dafr_kernel_threshold())
+            # is.numeric(): fast path only for INTSXP/REALSXP; character/logical
+            # dense matrices fall through to return(NULL) -> slow path.
             else if (is_dense && is.numeric(m))
                 kernel_quantile_dense_cpp(m, axis = 1L, q = q,
                     threshold = .dafr_kernel_threshold())
