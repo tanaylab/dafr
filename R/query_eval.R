@@ -611,14 +611,18 @@ NULL
                         kernel_var_csc_cpp(m@x, m@i, m@p, nrow(m), ncol(m),
                                            axis = 0L, variant = "Var", eps = 0,
                                            threshold = .dafr_kernel_threshold())
-                    else if (is_dense) rowMeans(m * m) - rowMeans(m)^2
-                    else return(NULL),
+                    else if (is_dense) {
+                        nc <- ncol(m)
+                        matrixStats::rowVars(m) * ((nc - 1L) / nc)
+                    } else return(NULL),
             Std   = if (is_dg)
                         kernel_var_csc_cpp(m@x, m@i, m@p, nrow(m), ncol(m),
                                            axis = 0L, variant = "Std", eps = 0,
                                            threshold = .dafr_kernel_threshold())
-                    else if (is_dense) sqrt(rowMeans(m * m) - rowMeans(m)^2)
-                    else return(NULL),
+                    else if (is_dense) {
+                        nc <- ncol(m)
+                        sqrt(matrixStats::rowVars(m) * ((nc - 1L) / nc))
+                    } else return(NULL),
             VarN  = {
                 eps <- .param_eps(params)
                 if (is_dg)
@@ -626,7 +630,8 @@ NULL
                                        axis = 0L, variant = "VarN", eps = eps,
                                        threshold = .dafr_kernel_threshold())
                 else if (is_dense) {
-                    v <- rowMeans(m * m) - rowMeans(m)^2
+                    nc <- ncol(m)
+                    v  <- matrixStats::rowVars(m) * ((nc - 1L) / nc)
                     mu <- rowMeans(m)
                     v / (mu + eps)
                 } else return(NULL)
@@ -638,8 +643,9 @@ NULL
                                        axis = 0L, variant = "StdN", eps = eps,
                                        threshold = .dafr_kernel_threshold())
                 else if (is_dense) {
+                    nc <- ncol(m)
                     mu <- rowMeans(m)
-                    s <- sqrt(rowMeans(m * m) - mu^2)
+                    s  <- sqrt(matrixStats::rowVars(m) * ((nc - 1L) / nc))
                     s / (mu + eps)
                 } else return(NULL)
             },
@@ -707,14 +713,18 @@ NULL
                     kernel_var_csc_cpp(m@x, m@i, m@p, nrow(m), ncol(m),
                                        axis = 1L, variant = "Var", eps = 0,
                                        threshold = .dafr_kernel_threshold())
-                else if (is_dense) colMeans(m * m) - colMeans(m)^2
-                else return(NULL),
+                else if (is_dense) {
+                    nr <- nrow(m)
+                    matrixStats::colVars(m) * ((nr - 1L) / nr)
+                } else return(NULL),
         Std   = if (is_dg)
                     kernel_var_csc_cpp(m@x, m@i, m@p, nrow(m), ncol(m),
                                        axis = 1L, variant = "Std", eps = 0,
                                        threshold = .dafr_kernel_threshold())
-                else if (is_dense) sqrt(colMeans(m * m) - colMeans(m)^2)
-                else return(NULL),
+                else if (is_dense) {
+                    nr <- nrow(m)
+                    sqrt(matrixStats::colVars(m) * ((nr - 1L) / nr))
+                } else return(NULL),
         VarN  = {
             eps <- .param_eps(params)
             if (is_dg)
@@ -722,7 +732,8 @@ NULL
                                    axis = 1L, variant = "VarN", eps = eps,
                                    threshold = .dafr_kernel_threshold())
             else if (is_dense) {
-                v <- colMeans(m * m) - colMeans(m)^2
+                nr <- nrow(m)
+                v  <- matrixStats::colVars(m) * ((nr - 1L) / nr)
                 mu <- colMeans(m)
                 v / (mu + eps)
             } else return(NULL)
@@ -734,8 +745,9 @@ NULL
                                    axis = 1L, variant = "StdN", eps = eps,
                                    threshold = .dafr_kernel_threshold())
             else if (is_dense) {
+                nr <- nrow(m)
                 mu <- colMeans(m)
-                s <- sqrt(colMeans(m * m) - mu^2)
+                s  <- sqrt(matrixStats::colVars(m) * ((nr - 1L) / nr))
                 s / (mu + eps)
             } else return(NULL)
         },
