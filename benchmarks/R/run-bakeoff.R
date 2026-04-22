@@ -75,7 +75,7 @@ for (name in fixtures_needed) {
     files <- sort(list.files(path, recursive = TRUE, full.names = TRUE))
     hashes <- vapply(files, function(f) digest::digest(file = f, algo = "sha256"),
                      character(1L))
-    digest::digest(paste(basename(files), hashes, collapse = "\n"), algo = "sha256")
+    digest::digest(paste(basename(files), hashes, collapse = "\n"), algo = "sha256", serialize = FALSE)
 }
 checksums <- vapply(sort(fixtures_needed),
                     function(n) substr(.sha256_dir(file.path(fixture_root, n)), 1, 16),
