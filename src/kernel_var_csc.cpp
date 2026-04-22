@@ -49,40 +49,40 @@ cpp11::writable::doubles kernel_var_csc_cpp(
         return out;
     }
 
-    // axis == 0: per-row. Thread buckets for sum_x, sum_x2.
-    // FIXME: tbuf is O(nthreads * nrow). For scRNA-seq-scale inputs
-    // (nrow > 1e6), consider a sequential fallback.
+    // axis == 0: per-row. Row-partition: each thread owns a disjoint row
+    // range [r0, r1); two threads never write to the same sx_tot/sxx_tot
+    // slot. No thread buckets, no serial merge.
     cpp11::writable::doubles out(nrow);
     double *pout = REAL(out.data());
     std::vector<double> sx_tot(nrow, 0.0), sxx_tot(nrow, 0.0);
 
-    const int nthreads = dafr_omp_get_max_threads_capped(ncol, threshold);
-    std::vector<std::vector<double>> tsx(nthreads, std::vector<double>(nrow, 0.0));
-    std::vector<std::vector<double>> tsxx(nthreads, std::vector<double>(nrow, 0.0));
-
-    DAFR_PARALLEL_FOR(ncol >= threshold)
-    for (int j = 0; j < ncol; ++j) {
+    DAFR_OMP_PARALLEL_IF(nrow >= threshold)
+    {
         const int tid = dafr_omp_get_thread_num();
-        auto &tsa = tsx[tid];
-        auto &tsb = tsxx[tid];
-        for (int k = pp[j]; k < pp[j + 1]; ++k) {
-            const int r = pi[k];
-            const double v = px[k];
-            tsa[r] += v;
-            tsb[r] += v * v;
+        const int nt  = dafr_omp_get_num_threads();
+        const int chunk = (nrow + nt - 1) / nt;
+        const int r0 = std::min(nrow, tid * chunk);
+        const int r1 = std::min(nrow, r0 + chunk);
+
+        // Pass 1: scan every column; filter by row-range.
+        for (int j = 0; j < ncol; ++j) {
+            const int k_end = pp[j + 1];
+            for (int k = pp[j]; k < k_end; ++k) {
+                const int r = pi[k];
+                if (r < r0 || r >= r1) continue;
+                const double v = px[k];
+                sx_tot[r]  += v;
+                sxx_tot[r] += v * v;
+            }
         }
-    }
-    for (int t = 0; t < nthreads; ++t) {
-        for (int r = 0; r < nrow; ++r) {
-            sx_tot[r]  += tsx[t][r];
-            sxx_tot[r] += tsxx[t][r];
+
+        // Pass 2: post-process rows in [r0, r1). Each thread owns the
+        // reads and writes for its row range.
+        for (int r = r0; r < r1; ++r) {
+            const double mean = ncol > 0 ? sx_tot[r] / ncol : 0.0;
+            const double var_u = ncol > 0 ? (sxx_tot[r] / ncol - mean * mean) : 0.0;
+            pout[r] = derive(variant, var_u < 0 ? 0.0 : var_u, mean, eps);
         }
-    }
-    DAFR_PARALLEL_FOR(nrow >= threshold)
-    for (int r = 0; r < nrow; ++r) {
-        const double mean = ncol > 0 ? sx_tot[r] / ncol : 0.0;
-        const double var_u = ncol > 0 ? (sxx_tot[r] / ncol - mean * mean) : 0.0;
-        pout[r] = derive(variant, var_u < 0 ? 0.0 : var_u, mean, eps);
     }
     return out;
 }
