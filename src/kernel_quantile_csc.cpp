@@ -113,52 +113,65 @@ cpp11::writable::doubles kernel_quantile_csc_cpp(
         return out;
     }
 
-    // axis == 0: per-row. Collect each row's non-zero values first (one-pass
-    // CSC traversal), then compute per-row quantile.
+    // axis == 0: per-row. Collect each row's non-zero values first, then
+    // compute per-row quantile. Row-partition: each thread owns a disjoint
+    // row range [r0, r1); writes to rows[pi[k]] are race-free because slot
+    // ownership is fixed by r. The same thread that fills rows[r] also
+    // computes out[r], so no cross-thread reads of rows[r].
     std::vector<std::vector<double>> rows(nrow);
-    // Pre-size to avoid reallocation noise; nnz / nrow ≈ density * ncol.
-    // (No parallelism here; writes to rows[pi[k]] would race across threads.)
-    for (int j = 0; j < ncol; ++j) {
-        for (int k = pp[j]; k < pp[j + 1]; ++k) {
-            rows[pi[k]].push_back(px[k]);
-        }
-    }
 
     cpp11::writable::doubles out(nrow);
     double* pout = REAL(out.data());
 
-    // Second pass: per-row quantile. Safe to parallelise — each row's vector
-    // is fully built and rows are independent.
-    DAFR_PARALLEL_FOR(nrow >= threshold)
-    for (int r = 0; r < nrow; ++r) {
-        const int n = ncol;
-        if (n == 0) { pout[r] = 0.0; continue; }
-        const auto& rv = rows[r];
-        std::vector<double> neg, pos;
-        neg.reserve(rv.size());
-        pos.reserve(rv.size());
-        for (double v : rv) {
-            if (v < 0.0) neg.push_back(v);
-            else if (v > 0.0) pos.push_back(v);
+    DAFR_OMP_PARALLEL_IF(nrow >= threshold)
+    {
+        const int tid = dafr_omp_get_thread_num();
+        const int nt  = dafr_omp_get_num_threads();
+        const int chunk = (nrow + nt - 1) / nt;
+        const int r0 = std::min(nrow, tid * chunk);
+        const int r1 = std::min(nrow, r0 + chunk);
+
+        // Pass 1: fill rows[r] for r in [r0, r1).
+        for (int j = 0; j < ncol; ++j) {
+            const int k_end = pp[j + 1];
+            for (int k = pp[j]; k < k_end; ++k) {
+                const int r = pi[k];
+                if (r < r0 || r >= r1) continue;
+                rows[r].push_back(px[k]);
+            }
         }
-        const int n_zeros = n - static_cast<int>(neg.size()) -
-                                static_cast<int>(pos.size());
-        const double h = q * (n - 1);
-        const int lo = static_cast<int>(std::floor(h));
-        const int hi = static_cast<int>(std::ceil(h));
-        const double frac = h - lo;
-        if (lo == hi) {
-            pout[r] = pick_rank(neg, pos, n_zeros, lo);
-        } else {
-            const double v_lo = pick_rank(neg, pos, n_zeros, lo);
-            // Rebuild for hi pick.
-            neg.clear(); pos.clear();
+
+        // Pass 2: compute quantile for rows in [r0, r1).
+        for (int r = r0; r < r1; ++r) {
+            const int n = ncol;
+            if (n == 0) { pout[r] = 0.0; continue; }
+            const auto& rv = rows[r];
+            std::vector<double> neg, pos;
+            neg.reserve(rv.size());
+            pos.reserve(rv.size());
             for (double v : rv) {
                 if (v < 0.0) neg.push_back(v);
                 else if (v > 0.0) pos.push_back(v);
             }
-            const double v_hi = pick_rank(neg, pos, n_zeros, hi);
-            pout[r] = (1.0 - frac) * v_lo + frac * v_hi;
+            const int n_zeros = n - static_cast<int>(neg.size()) -
+                                    static_cast<int>(pos.size());
+            const double h = q * (n - 1);
+            const int lo = static_cast<int>(std::floor(h));
+            const int hi = static_cast<int>(std::ceil(h));
+            const double frac = h - lo;
+            if (lo == hi) {
+                pout[r] = pick_rank(neg, pos, n_zeros, lo);
+            } else {
+                const double v_lo = pick_rank(neg, pos, n_zeros, lo);
+                // Rebuild for hi pick.
+                neg.clear(); pos.clear();
+                for (double v : rv) {
+                    if (v < 0.0) neg.push_back(v);
+                    else if (v > 0.0) pos.push_back(v);
+                }
+                const double v_hi = pick_rank(neg, pos, n_zeros, hi);
+                pout[r] = (1.0 - frac) * v_lo + frac * v_hi;
+            }
         }
     }
     return out;
