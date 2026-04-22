@@ -572,6 +572,7 @@ NULL
 .apply_reduction_fast <- function(node, state, fn, params, daf) {
     builtin <- attr(fn, ".dafr_builtin")
     if (is.null(builtin)) return(NULL)
+    op_mode_fn <- .op_mode  # local alias to avoid `:::` inside closures
     m <- state$value
     # Only dgCMatrix has a numeric @x that kernel_*_csc_cpp functions accept.
     # lgCMatrix has a logical @x and must fall through to the dense slow path.
@@ -675,7 +676,7 @@ NULL
                 kernel_mode_csc_cpp(m@x, m@i, m@p, nrow(m), ncol(m),
                     axis = 0L, threshold = .dafr_kernel_threshold())
             else if (is_dense && is.numeric(m))
-                apply(m, 1L, function(v) dafr:::.op_mode(v))
+                apply(m, 1L, function(v) op_mode_fn(v))
             else return(NULL),
             return(NULL)
         )
@@ -771,7 +772,7 @@ NULL
             kernel_mode_csc_cpp(m@x, m@i, m@p, nrow(m), ncol(m),
                 axis = 1L, threshold = .dafr_kernel_threshold())
         else if (is_dense && is.numeric(m))
-            apply(m, 2L, function(v) dafr:::.op_mode(v))
+            apply(m, 2L, function(v) op_mode_fn(v))
         else return(NULL),
         return(NULL)
     )
