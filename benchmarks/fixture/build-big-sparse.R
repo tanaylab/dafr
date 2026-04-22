@@ -53,6 +53,9 @@ d <- files_daf(big_dir, name = "big_sparse", mode = "w+")
 add_axis(d, "row", rownames(m))
 add_axis(d, "col", colnames(m))
 set_matrix(d, "row", "col", "value", m)
+# Store the transpose too so queries can read the matrix from either axis
+# orientation. G3 grouping (|/ >|) needs the col@row layout.
+set_matrix(d, "col", "row", "value", Matrix::t(m))
 set_vector(d, "row", "group_100",  group_100)
 set_vector(d, "row", "group_1000", group_1000)
 rm(d); gc()

@@ -1,0 +1,169 @@
+# Single source of truth for bake-off queries.
+# The `light` tier at the top is machine-regenerated from the julia-queries
+# fixture by benchmarks/build-queries.R — edit only the other tiers here.
+
+# --- light ---
+# (populated by build-queries.R; DO NOT hand-edit below this marker)
+#<LIGHT-START>
+#<LIGHT-END>
+
+# --- kernel (big_sparse matrix reductions) ---
+- id: kernel_sum_row
+  text: "@ row @ col :: value >| Sum"
+  category: kernel
+  fixture: big_sparse
+
+- id: kernel_sum_col
+  text: "@ row @ col :: value >- Sum"
+  category: kernel
+  fixture: big_sparse
+
+- id: kernel_mean_row
+  text: "@ row @ col :: value >| Mean"
+  category: kernel
+  fixture: big_sparse
+
+- id: kernel_mean_col
+  text: "@ row @ col :: value >- Mean"
+  category: kernel
+  fixture: big_sparse
+
+- id: kernel_var_row
+  text: "@ row @ col :: value >| Var"
+  category: kernel
+  fixture: big_sparse
+
+- id: kernel_max_row
+  text: "@ row @ col :: value >| Max"
+  category: kernel
+  fixture: big_sparse
+
+- id: kernel_max_col
+  text: "@ row @ col :: value >- Max"
+  category: kernel
+  fixture: big_sparse
+
+- id: kernel_median_row
+  text: "@ row @ col :: value >| Median"
+  category: kernel
+  fixture: big_sparse
+
+- id: kernel_mode_row
+  text: "@ row @ col :: value >| Mode"
+  category: kernel
+  fixture: big_sparse
+
+- id: kernel_geomean_row
+  text: "@ row @ col :: value >| GeoMean eps 1"
+  category: kernel
+  fixture: big_sparse
+
+- id: kernel_std_row
+  text: "@ row @ col :: value >| Std"
+  category: kernel
+  fixture: big_sparse
+
+- id: kernel_quantile_row
+  text: "@ row @ col :: value >| Quantile p 0.5"
+  category: kernel
+  fixture: big_sparse
+
+# --- grouped (G2 and G3 on big_sparse) ---
+- id: grouped_g2_sum_100
+  text: "@ row @ col :: value -/ group_100 >- Sum"
+  category: grouped
+  fixture: big_sparse
+
+- id: grouped_g2_mean_100
+  text: "@ row @ col :: value -/ group_100 >- Mean"
+  category: grouped
+  fixture: big_sparse
+
+- id: grouped_g2_mean_1000
+  text: "@ row @ col :: value -/ group_1000 >- Mean"
+  category: grouped
+  fixture: big_sparse
+
+- id: grouped_g2_max_100
+  text: "@ row @ col :: value -/ group_100 >- Max"
+  category: grouped
+  fixture: big_sparse
+
+- id: grouped_g3_sum_100
+  text: "@ col @ row :: value |/ group_100 >| Sum"
+  category: grouped
+  fixture: big_sparse
+
+- id: grouped_g3_mean_100
+  text: "@ col @ row :: value |/ group_100 >| Mean"
+  category: grouped
+  fixture: big_sparse
+
+- id: grouped_g3_mean_1000
+  text: "@ col @ row :: value |/ group_1000 >| Mean"
+  category: grouped
+  fixture: big_sparse
+
+- id: grouped_g3_max_100
+  text: "@ col @ row :: value |/ group_100 >| Max"
+  category: grouped
+  fixture: big_sparse
+
+# --- mmap (reopen + read) ---
+- id: mmap_open_read_matrix
+  text: "@ cell @ gene :: UMIs"
+  category: mmap
+  fixture: mmap_reopen
+  reopen: true
+
+- id: mmap_open_read_vector
+  text: "@ cell : donor"
+  category: mmap
+  fixture: mmap_reopen
+  reopen: true
+
+- id: mmap_open_read_scalar
+  text: ". organism"
+  category: mmap
+  fixture: mmap_reopen
+  reopen: true
+
+- id: mmap_open_read_axis
+  text: "@ cell"
+  category: mmap
+  fixture: mmap_reopen
+  reopen: true
+
+# --- chain (3-layer read-through) ---
+- id: chain_read_scalar
+  text: ". organism"
+  category: chain
+  fixture: chain_triple
+
+- id: chain_read_vector
+  text: "@ cell : donor"
+  category: chain
+  fixture: chain_triple
+
+- id: chain_read_matrix
+  text: "@ cell @ gene :: UMIs"
+  category: chain
+  fixture: chain_triple
+
+- id: chain_reduce
+  text: "@ cell @ gene :: UMIs >| Sum"
+  category: chain
+  fixture: chain_triple
+
+# --- complete (reopen + query through reconstructed view) ---
+- id: complete_reopen_axis
+  text: "@ renamed_cell"
+  category: complete
+  fixture: view_renamed
+  reopen: true
+
+- id: complete_reopen_vector
+  text: "@ renamed_cell : donor"
+  category: complete
+  fixture: view_renamed
+  reopen: true
