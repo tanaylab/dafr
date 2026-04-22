@@ -1,5 +1,51 @@
 # dafr (development version)
 
+## Slice 9a — Julia-parity correctness (2026-04-22)
+
+### Breaking changes
+
+* **Grouped-matrix operator semantics inverted to match DAF.jl.** The
+  pairing between `GroupRowsBy` / `GroupColumnsBy` and `ReduceToRow` /
+  `ReduceToColumn` has been swapped.
+
+  | Pattern | Before | After |
+  |---------|--------|-------|
+  | G2 (matrix out, ngroups × ncol) | `-/ g >|` | `-/ g >-` |
+  | G3 (matrix out, nrow × ngroups) | `\|/ g >-` | `\|/ g >\|` |
+  | G4a (vector out, length ngroups) | `-/ g >-` | `-/ g >\|` |
+  | G4b (vector out, length ngroups) | `\|/ g >\|` | `\|/ g >-` |
+
+  G1 vector reduction (`/ g >|`) is unchanged.
+
+### New features
+
+* Julia G1 reduction syntax `>>` accepted as alias for `>|`.
+* Convert op now accepts Julia type names: `Float32` / `Float64` →
+  `double`; `Int32` → `integer`; `Int64` → `bit64::integer64`
+  (dim/dimnames preserved on matrix input); `Bool` → `logical`.
+  R-native names (`double`, `integer`, `logical`, `character`) continue
+  to work.
+* Julia-queries fixture extended with 23 new records covering G1 (`>>`),
+  G2, G3, Convert-to-{Int32, Int64} (matrix + vector), and
+  Mode-on-character. Byte-parity with DataAxesFormats.jl verified.
+* `complete_daf()` correctly round-trips views with renamed axes
+  (regression test added; was already supported, now guarded).
+
+### Documented divergence
+
+* `Convert type Bool` on a matrix behaves differently in DAF.jl (strict
+  `InexactError` on values > 1) versus `dafr` (permissive; non-zero →
+  TRUE via `as.logical`). This is an intrinsic language-level difference,
+  not a bug. The fixture does not include a matrix Bool record.
+
+### Internal
+
+* Matrix comparison path in `tests/testthat/test-query-julia-compat.R`
+  now handles `bit64::integer64` correctly. Previously `as.vector()` on
+  an integer64 matrix stripped the S3 class and produced IEEE-754
+  reinterpretation garbage; the fix casts both sides explicitly before
+  comparison.
+
 ## Slice 8 — Matrix-kernel fast paths + complete_daf view re-apply
 
 ### Performance
