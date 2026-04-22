@@ -76,14 +76,16 @@ double pick_mode(const ModeState& s, int n_observed) {
             best_first = fs;
         }
     }
-    if (s.nan_count > best_count ||
-        (s.nan_count == best_count && s.nan_first_seen < best_first)) {
+    if (s.nan_count > 0 &&
+        (s.nan_count > best_count ||
+         (s.nan_count == best_count && s.nan_first_seen < best_first))) {
         best_val = std::nan("");    // return a NaN (non-NA)
         best_count = s.nan_count;
         best_first = s.nan_first_seen;
     }
-    if (s.na_count > best_count ||
-        (s.na_count == best_count && s.na_first_seen < best_first)) {
+    if (s.na_count > 0 &&
+        (s.na_count > best_count ||
+         (s.na_count == best_count && s.na_first_seen < best_first))) {
         best_val = NA_REAL;
         best_count = s.na_count;
         best_first = s.na_first_seen;
@@ -123,6 +125,8 @@ cpp11::writable::doubles kernel_mode_dense_cpp(
         DAFR_PARALLEL_FOR(ncol >= threshold)
         for (int j = 0; j < ncol; ++j) {
             ModeState s;
+            s.counts.reserve(nrow);
+            s.first_seen.reserve(nrow);
             const int col_offset = j * nrow;
             for (int i = 0; i < nrow; ++i) {
                 const double v = is_int
@@ -142,6 +146,8 @@ cpp11::writable::doubles kernel_mode_dense_cpp(
     DAFR_PARALLEL_FOR(nrow >= threshold)
     for (int r = 0; r < nrow; ++r) {
         ModeState s;
+        s.counts.reserve(ncol);
+        s.first_seen.reserve(ncol);
         for (int j = 0; j < ncol; ++j) {
             const double v = is_int
                 ? value_int(xint, j * nrow + r)

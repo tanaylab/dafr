@@ -83,7 +83,7 @@ test_that("kernel_mode_dense NaN bucket can win as mode", {
     # col 1: NaN wins (3 vs 2).  col 2: 1.0 wins (3 vs 2).
     expect_true(is.nan(got[1L]))
     # In R, is.na(NaN) is TRUE; distinguish from NA_real_ via is.nan().
-    expect_equal(got[2L], 1.0)
+    expect_identical(got[2L], 1.0)
 })
 
 # ---------------------------------------------------------------------------
@@ -104,6 +104,11 @@ test_that("kernel_mode_dense empty column yields NA_REAL", {
     got <- dafr:::kernel_mode_dense_cpp(m, axis = 1L, threshold = 1L)
     expect_length(got, 3L)
     expect_true(all(is.na(got)))
+    # axis=0 symmetric: zero-column matrix -> all rows' mode is NA_REAL.
+    m2 <- matrix(double(0), nrow = 3L, ncol = 0L)
+    got2 <- dafr:::kernel_mode_dense_cpp(m2, axis = 0L, threshold = 1L)
+    expect_length(got2, 3L)
+    expect_true(all(is.na(got2)))
 })
 
 # ---------------------------------------------------------------------------
