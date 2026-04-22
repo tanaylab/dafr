@@ -12,3 +12,5 @@
 ^docs$
 ^pkgdown$
 ^LICENSE\.md$
+^benchmarks/fixture/data$
+^benchmarks/.*\.cache$

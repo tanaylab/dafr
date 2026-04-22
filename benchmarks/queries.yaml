@@ -1,0 +1,419 @@
+# Single source of truth for bake-off queries.
+# The `light` tier at the top is machine-regenerated from the julia-queries
+# fixture by benchmarks/build-queries.R — edit only the other tiers here.
+
+# --- light ---
+# (populated by build-queries.R; DO NOT hand-edit below this marker)
+#<LIGHT-START>
+- id: julia_queries_001
+  text: '. ?'
+  category: light
+  fixture: cells_daf
+
+- id: julia_queries_002
+  text: '. organism'
+  category: light
+  fixture: cells_daf
+
+- id: julia_queries_003
+  text: '. reference'
+  category: light
+  fixture: cells_daf
+
+- id: julia_queries_004
+  text: '@ ?'
+  category: light
+  fixture: cells_daf
+
+- id: julia_queries_005
+  text: '@ cell'
+  category: light
+  fixture: cells_daf
+
+- id: julia_queries_006
+  text: '@ donor'
+  category: light
+  fixture: cells_daf
+
+- id: julia_queries_007
+  text: '@ cell : ?'
+  category: light
+  fixture: cells_daf
+
+- id: julia_queries_008
+  text: '@ donor : age'
+  category: light
+  fixture: cells_daf
+
+- id: julia_queries_009
+  text: '@ donor : sex'
+  category: light
+  fixture: cells_daf
+
+- id: julia_queries_010
+  text: '@ gene : is_lateral'
+  category: light
+  fixture: cells_daf
+
+- id: julia_queries_011
+  text: '@ cell : donor'
+  category: light
+  fixture: cells_daf
+
+- id: julia_queries_012
+  text: '@ donor [ age > 60 ]'
+  category: light
+  fixture: cells_daf
+
+- id: julia_queries_013
+  text: '@ donor [ sex = M ]'
+  category: light
+  fixture: cells_daf
+
+- id: julia_queries_014
+  text: '@ cell @ gene :: UMIs'
+  category: light
+  fixture: cells_daf
+
+- id: julia_queries_015
+  text: '@ cell @ gene :: UMIs >| Sum'
+  category: light
+  fixture: cells_daf
+
+- id: julia_queries_016
+  text: '@ cell @ gene :: UMIs >- Sum'
+  category: light
+  fixture: cells_daf
+
+- id: julia_queries_017
+  text: '@ donor : age % Log base 2.0 eps 1.0'
+  category: light
+  fixture: cells_daf
+
+- id: julia_queries_018
+  text: '@ donor : age % Clamp min 20 max 60'
+  category: light
+  fixture: cells_daf
+
+- id: julia_queries_019
+  text: '@ donor : age % Fraction'
+  category: light
+  fixture: cells_daf
+
+- id: julia_queries_020
+  text: '@ donor : age % Log base 2.0 eps 1.0 % Significant high 6'
+  category: light
+  fixture: cells_daf
+
+- id: julia_queries_021
+  text: '@ cell @ gene :: UMIs >| Var'
+  category: light
+  fixture: cells_daf
+
+- id: julia_queries_022
+  text: '@ cell @ gene :: UMIs >| Std'
+  category: light
+  fixture: cells_daf
+
+- id: julia_queries_023
+  text: '@ cell @ gene :: UMIs >| VarN eps 1'
+  category: light
+  fixture: cells_daf
+
+- id: julia_queries_024
+  text: '@ cell @ gene :: UMIs >| StdN eps 1'
+  category: light
+  fixture: cells_daf
+
+- id: julia_queries_025
+  text: '@ cell @ gene :: UMIs >| Median'
+  category: light
+  fixture: cells_daf
+
+- id: julia_queries_026
+  text: '@ cell @ gene :: UMIs >| Quantile p 0.5'
+  category: light
+  fixture: cells_daf
+
+- id: julia_queries_027
+  text: '@ cell @ gene :: UMIs >| GeoMean eps 1'
+  category: light
+  fixture: cells_daf
+
+- id: julia_queries_028
+  text: '@ cell @ gene :: UMIs >| Mode'
+  category: light
+  fixture: cells_daf
+
+- id: julia_queries_029
+  text: '@ donor : age / sex >> Sum'
+  category: light
+  fixture: cells_daf
+
+- id: julia_queries_030
+  text: '@ donor : age / sex >> Mean'
+  category: light
+  fixture: cells_daf
+
+- id: julia_queries_031
+  text: '@ donor : age / sex >> Min'
+  category: light
+  fixture: cells_daf
+
+- id: julia_queries_032
+  text: '@ donor : age / sex >> Max'
+  category: light
+  fixture: cells_daf
+
+- id: julia_queries_033
+  text: '@ donor : age / sex >> Median'
+  category: light
+  fixture: cells_daf
+
+- id: julia_queries_034
+  text: '@ donor : age / sex >> Quantile p 0.25'
+  category: light
+  fixture: cells_daf
+
+- id: julia_queries_035
+  text: '@ donor : age / sex >> Var'
+  category: light
+  fixture: cells_daf
+
+- id: julia_queries_036
+  text: '@ donor : age / sex >> Std'
+  category: light
+  fixture: cells_daf
+
+- id: julia_queries_037
+  text: '@ donor : age / sex >> VarN eps 0.1'
+  category: light
+  fixture: cells_daf
+
+- id: julia_queries_038
+  text: '@ donor : age / sex >> StdN eps 0.1'
+  category: light
+  fixture: cells_daf
+
+- id: julia_queries_039
+  text: '@ donor : age / sex >> GeoMean'
+  category: light
+  fixture: cells_daf
+
+- id: julia_queries_040
+  text: '@ cell : experiment / donor >> Mode'
+  category: light
+  fixture: cells_daf
+
+- id: julia_queries_041
+  text: '@ cell @ gene :: UMIs -/ experiment >- Sum'
+  category: light
+  fixture: cells_daf
+
+- id: julia_queries_042
+  text: '@ cell @ gene :: UMIs -/ experiment >- Mean'
+  category: light
+  fixture: cells_daf
+
+- id: julia_queries_043
+  text: '@ cell @ gene :: UMIs -/ experiment >- Max'
+  category: light
+  fixture: cells_daf
+
+- id: julia_queries_044
+  text: '@ cell @ gene :: UMIs -/ experiment >- Var'
+  category: light
+  fixture: cells_daf
+
+- id: julia_queries_045
+  text: '@ gene @ cell :: UMIs |/ experiment >| Sum'
+  category: light
+  fixture: cells_daf
+
+- id: julia_queries_046
+  text: '@ gene @ cell :: UMIs |/ experiment >| Mean'
+  category: light
+  fixture: cells_daf
+
+- id: julia_queries_047
+  text: '@ gene @ cell :: UMIs |/ experiment >| Max'
+  category: light
+  fixture: cells_daf
+
+- id: julia_queries_048
+  text: '@ gene @ cell :: UMIs % Convert type Int32'
+  category: light
+  fixture: cells_daf
+
+- id: julia_queries_049
+  text: '@ donor : age % Convert type Int64'
+  category: light
+  fixture: cells_daf
+
+- id: julia_queries_050
+  text: '@ gene : is_lateral % Convert type Int32'
+  category: light
+  fixture: cells_daf
+
+- id: julia_queries_051
+  text: '@ gene @ cell :: UMIs % Convert type Int64'
+  category: light
+  fixture: cells_daf
+
+#<LIGHT-END>
+
+# --- kernel (big_sparse matrix reductions) ---
+- id: kernel_sum_row
+  text: "@ row @ col :: value >| Sum"
+  category: kernel
+  fixture: big_sparse
+
+- id: kernel_sum_col
+  text: "@ row @ col :: value >- Sum"
+  category: kernel
+  fixture: big_sparse
+
+- id: kernel_mean_row
+  text: "@ row @ col :: value >| Mean"
+  category: kernel
+  fixture: big_sparse
+
+- id: kernel_mean_col
+  text: "@ row @ col :: value >- Mean"
+  category: kernel
+  fixture: big_sparse
+
+- id: kernel_var_row
+  text: "@ row @ col :: value >| Var"
+  category: kernel
+  fixture: big_sparse
+
+- id: kernel_max_row
+  text: "@ row @ col :: value >| Max"
+  category: kernel
+  fixture: big_sparse
+
+- id: kernel_max_col
+  text: "@ row @ col :: value >- Max"
+  category: kernel
+  fixture: big_sparse
+
+- id: kernel_median_row
+  text: "@ row @ col :: value >| Median"
+  category: kernel
+  fixture: big_sparse
+
+- id: kernel_mode_row
+  text: "@ row @ col :: value >| Mode"
+  category: kernel
+  fixture: big_sparse
+
+- id: kernel_geomean_row
+  text: "@ row @ col :: value >| GeoMean eps 1"
+  category: kernel
+  fixture: big_sparse
+
+- id: kernel_std_row
+  text: "@ row @ col :: value >| Std"
+  category: kernel
+  fixture: big_sparse
+
+- id: kernel_quantile_row
+  text: "@ row @ col :: value >| Quantile p 0.5"
+  category: kernel
+  fixture: big_sparse
+
+# --- grouped (G2 and G3 on big_sparse) ---
+- id: grouped_g2_sum_100
+  text: "@ row @ col :: value -/ group_100 >- Sum"
+  category: grouped
+  fixture: big_sparse
+
+- id: grouped_g2_mean_100
+  text: "@ row @ col :: value -/ group_100 >- Mean"
+  category: grouped
+  fixture: big_sparse
+
+- id: grouped_g2_mean_1000
+  text: "@ row @ col :: value -/ group_1000 >- Mean"
+  category: grouped
+  fixture: big_sparse
+
+- id: grouped_g2_max_100
+  text: "@ row @ col :: value -/ group_100 >- Max"
+  category: grouped
+  fixture: big_sparse
+
+- id: grouped_g3_sum_100
+  text: "@ col @ row :: value |/ group_100 >| Sum"
+  category: grouped
+  fixture: big_sparse
+
+- id: grouped_g3_mean_100
+  text: "@ col @ row :: value |/ group_100 >| Mean"
+  category: grouped
+  fixture: big_sparse
+
+- id: grouped_g3_mean_1000
+  text: "@ col @ row :: value |/ group_1000 >| Mean"
+  category: grouped
+  fixture: big_sparse
+
+- id: grouped_g3_max_100
+  text: "@ col @ row :: value |/ group_100 >| Max"
+  category: grouped
+  fixture: big_sparse
+
+# (G4a `-/ g >|` and G4b `|/ g >-` are valid in dafr post-Slice-9a but
+#  DataAxesFormats.jl rejects the operator combination. Dropped from the
+#  bake-off set since there is no Julia side to compare against.)
+
+# --- mmap (reopen + read) ---
+- id: mmap_open_read_matrix
+  text: "@ cell @ gene :: UMIs"
+  category: mmap
+  fixture: mmap_reopen
+  reopen: true
+
+- id: mmap_open_read_vector
+  text: "@ cell : donor"
+  category: mmap
+  fixture: mmap_reopen
+  reopen: true
+
+- id: mmap_open_read_scalar
+  text: ". organism"
+  category: mmap
+  fixture: mmap_reopen
+  reopen: true
+
+- id: mmap_open_read_axis
+  text: "@ cell"
+  category: mmap
+  fixture: mmap_reopen
+  reopen: true
+
+# --- chain (3-layer read-through) ---
+- id: chain_read_scalar
+  text: ". organism"
+  category: chain
+  fixture: chain_triple
+
+- id: chain_read_vector
+  text: "@ cell : donor"
+  category: chain
+  fixture: chain_triple
+
+- id: chain_read_matrix
+  text: "@ cell @ gene :: UMIs"
+  category: chain
+  fixture: chain_triple
+
+- id: chain_reduce
+  text: "@ cell @ gene :: UMIs >| Sum"
+  category: chain
+  fixture: chain_triple
+
+# (The `complete` tier was dropped: DataAxesFormats.jl's `complete_daf`
+#  does not reconstruct a base_daf_view on reopen, so view_renamed
+#  fixture is R-only. No Julia side to compare against.)

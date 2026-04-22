@@ -80,7 +80,39 @@
     ), file = path)
 }
 
+# Fast-path regex for the two fixed descriptor schemas dafr emits:
+#   {"format":"dense","eltype":"X"}
+#   {"format":"sparse","eltype":"X","indtype":"Y"}
+# Falls back to jsonlite on any mismatch.
+.DESCRIPTOR_DENSE_RE <- paste0(
+    '^\\{"format":"(dense)","eltype":"([A-Za-z0-9]+)"\\}\\s*$'
+)
+.DESCRIPTOR_SPARSE_RE <- paste0(
+    '^\\{"format":"(sparse)","eltype":"([A-Za-z0-9]+)",',
+    '"indtype":"([A-Za-z0-9]+)"\\}\\s*$'
+)
+
 .read_descriptor <- function(path) {
+    raw <- readChar(path, file.size(path), useBytes = TRUE)
+    # Try dense fast-path
+    m <- regmatches(raw, regexec(.DESCRIPTOR_DENSE_RE, raw, perl = TRUE))[[1L]]
+    if (length(m) == 3L) {
+        return(list(
+            format  = m[[2L]],
+            eltype  = .dtype_canonical(m[[3L]]),
+            indtype = NULL
+        ))
+    }
+    # Try sparse fast-path
+    m <- regmatches(raw, regexec(.DESCRIPTOR_SPARSE_RE, raw, perl = TRUE))[[1L]]
+    if (length(m) == 4L) {
+        return(list(
+            format  = m[[2L]],
+            eltype  = .dtype_canonical(m[[3L]]),
+            indtype = .dtype_canonical(m[[4L]])
+        ))
+    }
+    # Fallback: full JSON parse
     j <- jsonlite::fromJSON(path, simplifyVector = TRUE)
     fmt <- j$format
     elt <- j$eltype
@@ -133,7 +165,44 @@
     cat(jsonlite::toJSON(obj, auto_unbox = FALSE), "\n", file = path, sep = "")
 }
 
+# Fast-path regex for fixed scalar schemas dafr emits:
+#   {"type":"X","value":N}       numeric/bool  (N = [-+digits.eE]+)
+#   {"type":"X","value":"S"}     string         (S = no backslash, no quote, no control)
+# Falls back to jsonlite on any mismatch (escapes, whitespace, extra fields, …).
+.SCALAR_NUM_RE  <- '^\\{"type":"([A-Za-z0-9]+)","value":(-?[0-9]+(?:\\.[0-9]+)?(?:[eE][+-]?[0-9]+)?)\\}\\s*$'
+.SCALAR_STR_RE  <- '^\\{"type":"([A-Za-z0-9]+)","value":"([^"\\\\[:cntrl:]]*)"\\}\\s*$'
+
 .read_scalar_json <- function(path) {
+    raw <- readChar(path, file.size(path), useBytes = TRUE)
+    # Try numeric/bool fast-path
+    m <- regmatches(raw, regexec(.SCALAR_NUM_RE, raw, perl = TRUE))[[1L]]
+    if (length(m) == 3L) {
+        t <- .dtype_canonical(m[[2L]])
+        v <- m[[3L]]
+        return(switch(t,
+            Bool    = as.logical(as.integer(v)),
+            Int8    = ,
+            Int16   = ,
+            Int32   = as.integer(v),
+            Int64   = bit64::as.integer64(v),
+            UInt8   = ,
+            UInt16  = ,
+            UInt32  = as.integer(v),
+            UInt64  = bit64::as.integer64(v),
+            Float32 = as.double(v),
+            Float64 = as.double(v),
+            # Unknown numeric type — fall through to jsonlite
+            NULL
+        ))
+    }
+    # Try string fast-path
+    m <- regmatches(raw, regexec(.SCALAR_STR_RE, raw, perl = TRUE))[[1L]]
+    if (length(m) == 3L) {
+        t <- .dtype_canonical(m[[2L]])
+        if (t == "String") return(m[[3L]])
+        # Non-string type with quoted value — fall through
+    }
+    # Fallback: full JSON parse
     j <- jsonlite::fromJSON(path, simplifyVector = TRUE)
     t <- .dtype_canonical(j$type)
     v <- j$value

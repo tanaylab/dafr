@@ -611,14 +611,18 @@ NULL
                         kernel_var_csc_cpp(m@x, m@i, m@p, nrow(m), ncol(m),
                                            axis = 0L, variant = "Var", eps = 0,
                                            threshold = .dafr_kernel_threshold())
-                    else if (is_dense) rowMeans(m * m) - rowMeans(m)^2
-                    else return(NULL),
+                    else if (is_dense) {
+                        nc <- ncol(m)
+                        matrixStats::rowVars(m) * ((nc - 1L) / nc)
+                    } else return(NULL),
             Std   = if (is_dg)
                         kernel_var_csc_cpp(m@x, m@i, m@p, nrow(m), ncol(m),
                                            axis = 0L, variant = "Std", eps = 0,
                                            threshold = .dafr_kernel_threshold())
-                    else if (is_dense) sqrt(rowMeans(m * m) - rowMeans(m)^2)
-                    else return(NULL),
+                    else if (is_dense) {
+                        nc <- ncol(m)
+                        sqrt(matrixStats::rowVars(m) * ((nc - 1L) / nc))
+                    } else return(NULL),
             VarN  = {
                 eps <- .param_eps(params)
                 if (is_dg)
@@ -626,7 +630,8 @@ NULL
                                        axis = 0L, variant = "VarN", eps = eps,
                                        threshold = .dafr_kernel_threshold())
                 else if (is_dense) {
-                    v <- rowMeans(m * m) - rowMeans(m)^2
+                    nc <- ncol(m)
+                    v  <- matrixStats::rowVars(m) * ((nc - 1L) / nc)
                     mu <- rowMeans(m)
                     v / (mu + eps)
                 } else return(NULL)
@@ -638,8 +643,9 @@ NULL
                                        axis = 0L, variant = "StdN", eps = eps,
                                        threshold = .dafr_kernel_threshold())
                 else if (is_dense) {
+                    nc <- ncol(m)
                     mu <- rowMeans(m)
-                    s <- sqrt(rowMeans(m * m) - mu^2)
+                    s  <- sqrt(matrixStats::rowVars(m) * ((nc - 1L) / nc))
                     s / (mu + eps)
                 } else return(NULL)
             },
@@ -707,14 +713,18 @@ NULL
                     kernel_var_csc_cpp(m@x, m@i, m@p, nrow(m), ncol(m),
                                        axis = 1L, variant = "Var", eps = 0,
                                        threshold = .dafr_kernel_threshold())
-                else if (is_dense) colMeans(m * m) - colMeans(m)^2
-                else return(NULL),
+                else if (is_dense) {
+                    nr <- nrow(m)
+                    matrixStats::colVars(m) * ((nr - 1L) / nr)
+                } else return(NULL),
         Std   = if (is_dg)
                     kernel_var_csc_cpp(m@x, m@i, m@p, nrow(m), ncol(m),
                                        axis = 1L, variant = "Std", eps = 0,
                                        threshold = .dafr_kernel_threshold())
-                else if (is_dense) sqrt(colMeans(m * m) - colMeans(m)^2)
-                else return(NULL),
+                else if (is_dense) {
+                    nr <- nrow(m)
+                    sqrt(matrixStats::colVars(m) * ((nr - 1L) / nr))
+                } else return(NULL),
         VarN  = {
             eps <- .param_eps(params)
             if (is_dg)
@@ -722,7 +732,8 @@ NULL
                                    axis = 1L, variant = "VarN", eps = eps,
                                    threshold = .dafr_kernel_threshold())
             else if (is_dense) {
-                v <- colMeans(m * m) - colMeans(m)^2
+                nr <- nrow(m)
+                v  <- matrixStats::colVars(m) * ((nr - 1L) / nr)
                 mu <- colMeans(m)
                 v / (mu + eps)
             } else return(NULL)
@@ -734,8 +745,9 @@ NULL
                                    axis = 1L, variant = "StdN", eps = eps,
                                    threshold = .dafr_kernel_threshold())
             else if (is_dense) {
+                nr <- nrow(m)
                 mu <- colMeans(m)
-                s <- sqrt(colMeans(m * m) - mu^2)
+                s  <- sqrt(matrixStats::colVars(m) * ((nr - 1L) / nr))
                 s / (mu + eps)
             } else return(NULL)
         },
@@ -1040,14 +1052,138 @@ NULL
             op = label, eps = eps,
             threshold = .dafr_kernel_threshold())
     } else {
-        # Dense kernel expects a double matrix.
-        if (!is.double(m)) storage.mode(m) <- "double"
-        kernel_grouped_reduce_dense_cpp(
+        # Dense fast path: C++ grouped-rowsum kernel for all ops except GeoMean.
+        # axis == 2 (G2, row-grouped): kernel output -> ngroups x ncol
+        # axis == 3 (G3, col-grouped): kernel output -> nrow x ngroups
+        # The kernel accepts INTSXP or REALSXP directly (no storage.mode copy).
+        .grouped_dense_rowsum(m, gi, ngroups, n_in_group, axis, label, eps)
+    }
+}
+
+# Dense grouped reduction via rowsum() / matrixStats.
+# Called by .grouped_matrix_builtin for non-sparse, non-GeoMean ops.
+.grouped_dense_rowsum <- function(m, gi, ngroups, n_in_group, axis, label, eps) {
+    # n_in_group: integer vector length ngroups, count of obs per group.
+    # axis 2 (G2): rows of m are grouped -> output ngroups x ncol(m)
+    # axis 3 (G3): cols of m are grouped -> output nrow(m) x ngroups
+    if (label == "GeoMean") {
+        # GeoMean requires log; delegate to C++ dense kernel.
+        return(kernel_grouped_reduce_dense_cpp(
             m, group = gi, ngroups = ngroups,
             n_in_group = n_in_group, axis = axis,
             op = label, eps = eps,
-            threshold = .dafr_kernel_threshold())
+            threshold = .dafr_kernel_threshold()))
     }
+    # need_sq: whether Var/Std/VarN/StdN need sum-of-squares.
+    need_sq <- label %in% c("Var", "Std", "VarN", "StdN")
+    # For Sum/Mean/Var/Std/VarN/StdN use the new Int-aware C++ kernel.
+    use_kernel <- label %in% c("Sum", "Mean", "Var", "Std", "VarN", "StdN")
+
+    if (axis == 2L) {
+        # G2: groups along rows.  Output: ngroups x ncol.
+        if (use_kernel) {
+            res <- kernel_grouped_rowsum_dense_cpp(m, gi, ngroups, need_sq, axis)
+            rs  <- res$sum
+            return(switch(label,
+                Sum  = rs,
+                Mean = rs / n_in_group,
+                {
+                    n   <- n_in_group
+                    rs2 <- res$sq
+                    mu  <- rs / n
+                    v   <- pmax(rs2 / n - mu * mu, 0)
+                    switch(label,
+                        Var  = v,
+                        Std  = sqrt(v),
+                        VarN = v / (mu + eps),
+                        StdN = sqrt(v) / (mu + eps)
+                    )
+                }
+            ))
+        }
+        switch(label,
+            Max = {
+                idx <- split(seq_len(nrow(m)), gi)
+                out <- matrix(0, ngroups, ncol(m))
+                for (g in seq_len(ngroups)) {
+                    if (length(idx[[g]]) == 0L) next
+                    out[g, ] <- matrixStats::colMaxs(m[idx[[g]], , drop = FALSE])
+                }
+                out
+            },
+            Min = {
+                idx <- split(seq_len(nrow(m)), gi)
+                out <- matrix(0, ngroups, ncol(m))
+                for (g in seq_len(ngroups)) {
+                    if (length(idx[[g]]) == 0L) next
+                    out[g, ] <- matrixStats::colMins(m[idx[[g]], , drop = FALSE])
+                }
+                out
+            },
+            # Fallback for unknown ops
+            kernel_grouped_reduce_dense_cpp(
+                m, group = gi, ngroups = ngroups,
+                n_in_group = n_in_group, axis = axis,
+                op = label, eps = eps,
+                threshold = .dafr_kernel_threshold())
+        )
+    } else {
+        # G3 (axis == 3): groups along cols.  Output: nrow(m) x ngroups.
+        if (use_kernel) {
+            res <- kernel_grouped_rowsum_dense_cpp(m, gi, ngroups, need_sq, axis)
+            rs  <- res$sum
+            return(switch(label,
+                Sum  = rs,
+                Mean = t(t(rs) / n_in_group),
+                {
+                    n   <- n_in_group
+                    rs2 <- res$sq
+                    mu  <- t(t(rs) / n)
+                    v   <- pmax(t(t(rs2) / n) - mu * mu, 0)
+                    switch(label,
+                        Var  = v,
+                        Std  = sqrt(v),
+                        VarN = v / (mu + eps),
+                        StdN = sqrt(v) / (mu + eps)
+                    )
+                }
+            ))
+        }
+        switch(label,
+            Max = {
+                idx <- split(seq_len(ncol(m)), gi)
+                out <- matrix(0, nrow(m), ngroups)
+                for (g in seq_len(ngroups)) {
+                    if (length(idx[[g]]) == 0L) next
+                    out[, g] <- matrixStats::rowMaxs(m[, idx[[g]], drop = FALSE])
+                }
+                out
+            },
+            Min = {
+                idx <- split(seq_len(ncol(m)), gi)
+                out <- matrix(0, nrow(m), ngroups)
+                for (g in seq_len(ngroups)) {
+                    if (length(idx[[g]]) == 0L) next
+                    out[, g] <- matrixStats::rowMins(m[, idx[[g]], drop = FALSE])
+                }
+                out
+            },
+            # Fallback for unknown ops
+            kernel_grouped_reduce_dense_cpp(
+                m, group = gi, ngroups = ngroups,
+                n_in_group = n_in_group, axis = axis,
+                op = label, eps = eps,
+                threshold = .dafr_kernel_threshold())
+        )
+    }
+}
+
+# Build a 0/1 indicator matrix (ncols x ngroups) for the G3 BLAS path.
+# Entry [j, g] = 1 if gi[j] == g (gi is 1-based group assignment of length ncols).
+.g3_indicator <- function(gi, ncols, ngroups) {
+    ind <- matrix(0, ncols, ngroups)
+    ind[cbind(seq_len(ncols), gi)] <- 1.0
+    ind
 }
 
 # G2/G3 fallback: type-sniffed split+apply (replaces old sapply+apply path

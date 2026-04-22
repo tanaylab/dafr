@@ -1,5 +1,66 @@
 # dafr (development version)
 
+## Slice 9b — Perf parity with DAF.jl (2026-04-22)
+
+### Performance
+
+* **Dense grouped matrix reductions are now single-pass and int-aware.**
+  The G2/G3 `rowsum`-based fast paths added in this slice now route
+  through a new cpp11 kernel (`kernel_grouped_rowsum_dense_cpp`) that
+  promotes `Int32` input to `double` during accumulation instead of
+  materializing a full `double` copy first (`storage.mode(m) <- "double"`
+  was costing ~1.5–2.5 ms per call on the 856 × 683 Int32 UMIs mmap
+  matrix). For Var/Std/VarN/StdN, the same pass also accumulates sum-
+  of-squares, eliminating the intermediate `m * m` allocation. 9 of the
+  original 17 baseline breaches closed from this change alone; several
+  queries now *beat* DAF.jl at single-thread.
+* **Dense column Var/Std use `matrixStats::colVars` / `rowVars`.** The
+  R-side two-pass formula `colMeans(m * m) - colMeans(m)^2` allocated a
+  full copy of `m * m` before reducing; the one-pass two-moment
+  algorithm in `matrixStats` is ~2.5× faster on the UMIs fixture and is
+  now the default for the dense path of `Var`, `Std`, `VarN`, `StdN`.
+* **G3 Sum-family uses a BLAS indicator matrix.** `t(rowsum(t(m), g))`
+  has been replaced with `m %*% indicator` for G3 Sum/Mean/Var when the
+  input is dense double; this hands the reduction to the underlying
+  BLAS and cuts G3 kernel time by ~4.7× on the UMIs corpus.
+* **FilesDaf descriptors and scalar-JSON files parsed by regex.** The
+  three fixed-schema JSON files dafr emits (`daf.json`, scalar-value
+  files, matrix/vector descriptors) are now parsed with `readChar` +
+  regex, falling back to `jsonlite::fromJSON` on any non-matching
+  content. Closed the `mmap_open_read_scalar` breach and shaved 125–160
+  µs off every FilesDaf cold reopen.
+* **GeoMean accumulator no longer wastes `std::log` calls.**
+  `Acc::push` in `src/kernel_grouped_acc.h` previously computed
+  `std::log(v + eps)` on every element for every op; now gated behind a
+  `bool need_log` flag set to true only when the op is GeoMean. Pure
+  waste removal — the existing Sum/Mean/Var/etc. paths never read
+  `log_sum`.
+
+### Tooling
+
+* **Bake-off harness** at `benchmarks/` (package repo): reproducible R↔
+  Julia performance comparison. Hand-authored 79-query set + 5 FilesDaf
+  fixtures, SHA256-verified so the comparison can refuse to join runs
+  against divergent corpora. R-side runner (`bench::mark`), Julia-side
+  runner (`BenchmarkTools.jl`), both emit matching-schema CSVs consumed
+  by `benchmarks/compare.R`, which produces a markdown breach report.
+  See `benchmarks/README.md` to reproduce.
+
+### Deferred
+
+* `Quantile` and `Mode` dense-matrix reductions on `cells_daf`-scale
+  inputs (julia-queries 26 and 28) still breach at ~2.3–3.0× and need
+  new cpp11 dense-kernel analogs of the existing CSC quantile and mode
+  kernels. Tracked for a follow-up slice.
+* Five remaining baseline breaches (Max grouped on UMIs, and the mmap-
+  reopen family on `vector`/`matrix`/`axis`) sit at the R per-call
+  dispatch / S7-constructor floor. Further closure requires
+  architectural work (query-parse caching or rewriting `files_daf` in
+  C++) out of slice scope.
+* `kernel_grouped_reduce_csc_cpp` axis=3 memory behaviour at 128 threads
+  × 10 k nrow × 100 groups is unchanged; single-thread baseline did not
+  exercise it. Profile-driven fix tracked for follow-up.
+
 ## CI stabilisation (post-Slice-9a)
 
 ### Bug fixes

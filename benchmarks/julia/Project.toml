@@ -1,0 +1,21 @@
+name = "DafrBakeoff"
+uuid = "00000000-0000-0000-0000-000000000009"
+version = "0.1.0"
+authors = ["dafr"]
+
+[deps]
+ArgParse = "c7e460c6-2fb9-53a9-8c5b-16f535851c63"
+BenchmarkTools = "6e4b80f9-dd63-53aa-95a3-0cdb28fa8baf"
+CSV = "336ed68f-0bac-5ca0-87d4-7b16caf5d00b"
+DataAxesFormats = "1375bf9c-a47d-45a1-aad5-626dd8629d98"
+DataFrames = "a93c6f00-e57d-5684-b7b6-d8193f3e46c0"
+SHA = "ea8e919c-243c-51af-8825-aaa63cd721ce"
+TanayLabUtilities = "2fad9582-3092-42c8-a7a2-4a8f52ca25c8"
+YAML = "ddb6d928-2868-570f-bddf-ab3f9cf99eb6"
+
+[compat]
+ArgParse = "1.2.0"
+BenchmarkTools = "1.8.0"
+CSV = "0.10.16"
+DataFrames = "1.8.2"
+YAML = "0.4.16"
