@@ -1,5 +1,27 @@
 # dafr (development version)
 
+## Slice 9d-N — CSC axis-0 row-partition sweep (2026-04-22)
+
+### Performance
+
+* **Row-partition rewrite of the axis = 0 branch of six non-grouped
+  CSC kernels.** Four category-A kernels (`kernel_var_csc`,
+  `kernel_minmax_csc`, `kernel_log_reduce`, `kernel_geomean_csc`) each
+  carried a `std::vector<std::vector<T>>` of length `nthreads × nrow`
+  that was merged serially after the parallel scan; two category-B
+  kernels (`kernel_mode_csc`, `kernel_quantile_csc`) had a single-
+  threaded fill pass because `rows[pi[k]].push_back(...)` would race
+  across threads. The rewrite applies the 9d-M row-partition template
+  inline: each thread owns a disjoint row range `[r0, r1)` and writes
+  directly into the shared output-shaped accumulator, with post-process
+  folded into the same parallel region. Combined peak-RSS reduction on
+  a 10⁵ × 5·10³ × 0.02 stress fixture at 128 threads is measured in
+  hundreds of MB for category-A kernels; category-B kernels gain
+  parallel fill for the first time. Bit-identity with serial dispatch
+  is preserved — values accumulate in column-ascending order per row
+  in both paths. No bake-off regression; the fix is memory-and-perf at
+  scale, invisible at OMP\_NUM\_THREADS = 1.
+
 ## Slice 9d-M — G3 grouped-CSC memory fix (2026-04-22)
 
 ### Performance
