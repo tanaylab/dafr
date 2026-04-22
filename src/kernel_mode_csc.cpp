@@ -116,6 +116,27 @@ cpp11::writable::doubles kernel_mode_csc_cpp(
     struct Entry { int col; double val; };
     std::vector<std::vector<Entry>> rows(nrow);
 
+    // Pre-size rows[r] from a serial nnz-per-row count. The parallel
+    // push_back below never hits the allocator because capacity is
+    // already sufficient — that avoids the capacity-doubling path in
+    // std::vector::push_back, which under 128 threads induces heavy
+    // malloc contention. Measured wall-time impact at nr=100k, nc=5k,
+    // density=0.02: ~2.5x speedup (0.286s -> 0.111s). Peak RSS is
+    // unchanged within noise — the post-process per-row unordered_map
+    // allocations dominate mode's memory footprint, not the fill.
+    {
+        std::vector<int> nnz_per_row(nrow, 0);
+        for (int j = 0; j < ncol; ++j) {
+            const int k_end = pp[j + 1];
+            for (int k = pp[j]; k < k_end; ++k) {
+                ++nnz_per_row[pi[k]];
+            }
+        }
+        for (int r = 0; r < nrow; ++r) {
+            rows[r].reserve(nnz_per_row[r]);
+        }
+    }
+
     cpp11::writable::doubles out(nrow);
     double *pout = REAL(out.data());
 

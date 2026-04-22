@@ -120,6 +120,23 @@ cpp11::writable::doubles kernel_quantile_csc_cpp(
     // computes out[r], so no cross-thread reads of rows[r].
     std::vector<std::vector<double>> rows(nrow);
 
+    // Pre-size rows[r] from a serial nnz-per-row count so the parallel
+    // push_back below never hits the capacity-doubling path in
+    // std::vector::push_back — that path induces heavy malloc
+    // contention across 128 threads. Keeps the parallel-fill win clean.
+    {
+        std::vector<int> nnz_per_row(nrow, 0);
+        for (int j = 0; j < ncol; ++j) {
+            const int k_end = pp[j + 1];
+            for (int k = pp[j]; k < k_end; ++k) {
+                ++nnz_per_row[pi[k]];
+            }
+        }
+        for (int r = 0; r < nrow; ++r) {
+            rows[r].reserve(nnz_per_row[r]);
+        }
+    }
+
     cpp11::writable::doubles out(nrow);
     double* pout = REAL(out.data());
 
