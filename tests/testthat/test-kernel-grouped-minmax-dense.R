@@ -3,6 +3,9 @@
 
 # Authoritative reference builders (match the pre-slice R fallback at
 # R/query_eval.R:1104-1122 and L1152-1170).
+# Assumes gi covers groups 1..ngroups contiguously so split() list
+# positions equal group labels.  Tests with gaps in the group labels
+# should build references inline instead of calling these helpers.
 .ref_g2 <- function(m, gi, ngroups, fn) {
     idx <- split(seq_len(nrow(m)), gi)
     out <- matrix(0, ngroups, ncol(m))
@@ -121,6 +124,28 @@ test_that("kernel_grouped_minmax NA propagation per (row, group)", {
         m, gi, ngroups, axis = 2L, variant = 1L)  # G2 Max
     # col 2: group 1 aggregated rows {1, 3} -> row 1 is NA -> NA.
     expect_true(is.na(got[1L, 2L]))
+    expect_false(is.na(got[2L, 2L]))
+    expect_false(is.na(got[1L, 1L]))
+})
+
+# ---------------------------------------------------------------------------
+# Test 6b: NaN in double input is treated as NA (propagation).
+# ISNAN covers both NaN and NA_REAL, so NaN must also short-circuit
+# the (row, group) cell to NA_REAL.
+# ---------------------------------------------------------------------------
+test_that("kernel_grouped_minmax NaN in double propagates to NA_REAL", {
+    m <- matrix(c(1.0, 2.0, 3.0,
+                  4.0, 5.0, 6.0,
+                  7.0, 8.0, 9.0,
+                  10.0, 11.0, 12.0),
+                nrow = 4L, ncol = 3L)
+    m[1L, 2L] <- NaN   # row 1 col 2 -> group 1 (gi[1] == 1)
+    gi <- c(1L, 2L, 1L, 2L); ngroups <- 2L
+    got <- dafr:::kernel_grouped_minmax_dense_cpp(
+        m, gi, ngroups, axis = 2L, variant = 1L)
+    # col 2, group 1 (rows 1 & 3) has NaN at row 1 -> NA_REAL
+    expect_true(is.na(got[1L, 2L]))
+    # Other cells unaffected
     expect_false(is.na(got[2L, 2L]))
     expect_false(is.na(got[1L, 1L]))
 })

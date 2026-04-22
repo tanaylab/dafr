@@ -65,8 +65,11 @@ kernel_grouped_minmax_dense_cpp(
                     is_na = (vi == NA_INTEGER);
                     v = is_na ? 0.0 : static_cast<double>(vi);
                 } else {
+                    // Use ISNAN (not ISNA) so that plain NaN (not just NA_REAL) also triggers
+                    // NA propagation.  IEEE-754 comparisons with NaN always return false, so
+                    // without this, NaN would silently vanish from the min/max accumulator.
                     v = xdbl[col_offset + i];
-                    is_na = ISNA(v);
+                    is_na = ISNAN(v);
                 }
 
                 if (na_flag[g]) continue;
@@ -108,7 +111,7 @@ kernel_grouped_minmax_dense_cpp(
                 v = is_na ? 0.0 : static_cast<double>(vi);
             } else {
                 v = xdbl[col_offset + i];
-                is_na = ISNA(v);
+                is_na = ISNAN(v);
             }
 
             const size_t idx = static_cast<size_t>(g) * nrow + i;
