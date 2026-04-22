@@ -572,7 +572,6 @@ NULL
 .apply_reduction_fast <- function(node, state, fn, params, daf) {
     builtin <- attr(fn, ".dafr_builtin")
     if (is.null(builtin)) return(NULL)
-    op_mode_fn <- .op_mode  # local alias to avoid `:::` inside closures
     m <- state$value
     # Only dgCMatrix has a numeric @x that kernel_*_csc_cpp functions accept.
     # lgCMatrix has a logical @x and must fall through to the dense slow path.
@@ -673,16 +672,19 @@ NULL
                 if (is_dg)
                     kernel_quantile_csc_cpp(m@x, m@i, m@p, nrow(m), ncol(m),
                         axis = 0L, q = q, threshold = .dafr_kernel_threshold())
-                else if (is_dense)
-                    matrixStats::rowQuantiles(m, probs = q, type = 7L,
-                        useNames = FALSE)
+                # is.numeric(): fast path only for INTSXP/REALSXP; character/logical
+                # dense matrices fall through to return(NULL) -> slow path.
+                else if (is_dense && is.numeric(m))
+                    kernel_quantile_dense_cpp(m, axis = 0L, q = q,
+                        threshold = .dafr_kernel_threshold())
                 else return(NULL)
             },
             Mode = if (is_dg && is.numeric(m@x))
                 kernel_mode_csc_cpp(m@x, m@i, m@p, nrow(m), ncol(m),
                     axis = 0L, threshold = .dafr_kernel_threshold())
             else if (is_dense && is.numeric(m))
-                apply(m, 1L, function(v) op_mode_fn(v))
+                kernel_mode_dense_cpp(m, axis = 0L,
+                    threshold = .dafr_kernel_threshold())
             else return(NULL),
             return(NULL)
         )
@@ -775,16 +777,19 @@ NULL
             if (is_dg)
                 kernel_quantile_csc_cpp(m@x, m@i, m@p, nrow(m), ncol(m),
                     axis = 1L, q = q, threshold = .dafr_kernel_threshold())
-            else if (is_dense)
-                matrixStats::colQuantiles(m, probs = q, type = 7L,
-                    useNames = FALSE)
+            # is.numeric(): fast path only for INTSXP/REALSXP; character/logical
+            # dense matrices fall through to return(NULL) -> slow path.
+            else if (is_dense && is.numeric(m))
+                kernel_quantile_dense_cpp(m, axis = 1L, q = q,
+                    threshold = .dafr_kernel_threshold())
             else return(NULL)
         },
         Mode = if (is_dg && is.numeric(m@x))
             kernel_mode_csc_cpp(m@x, m@i, m@p, nrow(m), ncol(m),
                 axis = 1L, threshold = .dafr_kernel_threshold())
         else if (is_dense && is.numeric(m))
-            apply(m, 2L, function(v) op_mode_fn(v))
+            kernel_mode_dense_cpp(m, axis = 1L,
+                threshold = .dafr_kernel_threshold())
         else return(NULL),
         return(NULL)
     )
@@ -1060,6 +1065,20 @@ NULL
     }
 }
 
+# Scrub +/-Inf sentinels from empty groups in kernel_grouped_minmax_dense output.
+# axis = 2L: output is ngroups x ncol -> zero-count groups = NA rows.
+# axis = 3L: output is nrow x ngroups -> zero-count groups = NA cols.
+.minmax_empty_to_na <- function(out, gi, ngroups, axis) {
+    empty <- tabulate(gi, ngroups) == 0L
+    if (!any(empty)) return(out)
+    if (axis == 2L) {
+        out[empty, ] <- NA_real_
+    } else {
+        out[, empty] <- NA_real_
+    }
+    out
+}
+
 # Dense grouped reduction via rowsum() / matrixStats.
 # Called by .grouped_matrix_builtin for non-sparse, non-GeoMean ops.
 .grouped_dense_rowsum <- function(m, gi, ngroups, n_in_group, axis, label, eps) {
@@ -1102,24 +1121,14 @@ NULL
             ))
         }
         switch(label,
-            Max = {
-                idx <- split(seq_len(nrow(m)), gi)
-                out <- matrix(0, ngroups, ncol(m))
-                for (g in seq_len(ngroups)) {
-                    if (length(idx[[g]]) == 0L) next
-                    out[g, ] <- matrixStats::colMaxs(m[idx[[g]], , drop = FALSE])
-                }
-                out
-            },
-            Min = {
-                idx <- split(seq_len(nrow(m)), gi)
-                out <- matrix(0, ngroups, ncol(m))
-                for (g in seq_len(ngroups)) {
-                    if (length(idx[[g]]) == 0L) next
-                    out[g, ] <- matrixStats::colMins(m[idx[[g]], , drop = FALSE])
-                }
-                out
-            },
+            Max = .minmax_empty_to_na(
+                kernel_grouped_minmax_dense_cpp(m, groups = gi, ngroups = ngroups,
+                    axis = 2L, variant = 1L),
+                gi, ngroups, axis = 2L),
+            Min = .minmax_empty_to_na(
+                kernel_grouped_minmax_dense_cpp(m, groups = gi, ngroups = ngroups,
+                    axis = 2L, variant = 0L),
+                gi, ngroups, axis = 2L),
             # Fallback for unknown ops
             kernel_grouped_reduce_dense_cpp(
                 m, group = gi, ngroups = ngroups,
@@ -1150,24 +1159,14 @@ NULL
             ))
         }
         switch(label,
-            Max = {
-                idx <- split(seq_len(ncol(m)), gi)
-                out <- matrix(0, nrow(m), ngroups)
-                for (g in seq_len(ngroups)) {
-                    if (length(idx[[g]]) == 0L) next
-                    out[, g] <- matrixStats::rowMaxs(m[, idx[[g]], drop = FALSE])
-                }
-                out
-            },
-            Min = {
-                idx <- split(seq_len(ncol(m)), gi)
-                out <- matrix(0, nrow(m), ngroups)
-                for (g in seq_len(ngroups)) {
-                    if (length(idx[[g]]) == 0L) next
-                    out[, g] <- matrixStats::rowMins(m[, idx[[g]], drop = FALSE])
-                }
-                out
-            },
+            Max = .minmax_empty_to_na(
+                kernel_grouped_minmax_dense_cpp(m, groups = gi, ngroups = ngroups,
+                    axis = 3L, variant = 1L),
+                gi, ngroups, axis = 3L),
+            Min = .minmax_empty_to_na(
+                kernel_grouped_minmax_dense_cpp(m, groups = gi, ngroups = ngroups,
+                    axis = 3L, variant = 0L),
+                gi, ngroups, axis = 3L),
             # Fallback for unknown ops
             kernel_grouped_reduce_dense_cpp(
                 m, group = gi, ngroups = ngroups,

@@ -5,6 +5,11 @@ shared query set and fixture corpus.
 
 ## Reproduce
 
+**Prerequisite:** the bake-off loads `library(dafr)` from the *installed*
+package, not the source tree. After any change to `R/*.R` or `src/*.cpp`,
+run `R CMD INSTALL . --preclean` from the package root before step 3 or
+the new code will not be exercised and results will be misleading.
+
 1. Build fixtures (one-time, ~30s):
 
        Rscript benchmarks/fixture/build-fixture.R

@@ -1,5 +1,21 @@
 # dafr (development version)
 
+## Slice 9c — Dense perf closure (2026-04-22)
+
+### Performance
+
+* **Dense Int-aware Quantile, Mode, and grouped Min/Max kernels.** Three
+  new cpp11 kernels — `kernel_quantile_dense_cpp`, `kernel_mode_dense_cpp`,
+  `kernel_grouped_minmax_dense_cpp` — replace the prior
+  `matrixStats::colQuantiles` / `apply(.op_mode)` /
+  `matrixStats::rowMaxs`-in-loop paths for dense-layout queries on Int32
+  matrices. All three accept INTSXP or REALSXP directly, avoiding the
+  `storage.mode(m) <- "double"` copy that dominated light-tier query
+  time on the 856 × 683 UMIs mmap matrix. Closes the 4 remaining
+  bake-off breaches against DAF.jl (`julia_queries_026` Quantile,
+  `_028` Mode, `_043` G2 Max, `_047` G3 Max); the remaining 4 accepted
+  breaches are the mmap-query S7-ctor floor (deferred).
+
 ## Slice 9b — Perf parity with DAF.jl (2026-04-22)
 
 ### Performance

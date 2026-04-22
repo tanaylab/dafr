@@ -32,6 +32,10 @@ kernel_geomean_csc_cpp <- function(x, i, p, nrow, ncol, axis, eps, threshold) {
   .Call(`_dafr_kernel_geomean_csc_cpp`, x, i, p, nrow, ncol, axis, eps, threshold)
 }
 
+kernel_grouped_minmax_dense_cpp <- function(mat, groups, ngroups, axis, variant) {
+  .Call(`_dafr_kernel_grouped_minmax_dense_cpp`, mat, groups, ngroups, axis, variant)
+}
+
 kernel_grouped_mode_csc_cpp <- function(x, i, p, nrow, ncol, group, ngroups, n_in_group, axis, threshold) {
   .Call(`_dafr_kernel_grouped_mode_csc_cpp`, x, i, p, nrow, ncol, group, ngroups, n_in_group, axis, threshold)
 }
@@ -68,8 +72,16 @@ kernel_mode_csc_cpp <- function(x, i, p, nrow, ncol, axis, threshold) {
   .Call(`_dafr_kernel_mode_csc_cpp`, x, i, p, nrow, ncol, axis, threshold)
 }
 
+kernel_mode_dense_cpp <- function(mat, axis, threshold) {
+  .Call(`_dafr_kernel_mode_dense_cpp`, mat, axis, threshold)
+}
+
 kernel_quantile_csc_cpp <- function(x, i, p, nrow, ncol, axis, q, threshold) {
   .Call(`_dafr_kernel_quantile_csc_cpp`, x, i, p, nrow, ncol, axis, q, threshold)
+}
+
+kernel_quantile_dense_cpp <- function(mat, axis, q, threshold) {
+  .Call(`_dafr_kernel_quantile_dense_cpp`, mat, axis, q, threshold)
 }
 
 kernel_var_csc_cpp <- function(x, i, p, nrow, ncol, axis, variant, eps, threshold) {
