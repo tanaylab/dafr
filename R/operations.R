@@ -165,15 +165,40 @@ registered_eltwise <- function() sort(names(.ops_env$eltwise))
 
 .op_convert <- function(x, ..., type) {
     if (missing(type)) {
-        stop("Convert: 'type' parameter is required (one of 'double', 'integer', 'logical')",
+        stop("Convert: 'type' parameter is required (one of 'double', 'integer', 'logical', 'integer64'; Julia aliases 'Float32'/'Float64'/'Int32'/'Int64'/'Bool' also accepted)",
             call. = FALSE
         )
     }
-    if (!is.character(type) || length(type) != 1L || !type %in% c("double", "integer", "logical")) {
+    # Normalize Julia type names to R-native canonical form.
+    julia_aliases <- c(
+        Float32 = "double",
+        Float64 = "double",
+        Int32 = "integer",
+        Int64 = "integer64",
+        Bool = "logical"
+    )
+    if (is.character(type) && length(type) == 1L && type %in% names(julia_aliases)) {
+        type <- unname(julia_aliases[type])
+    }
+    valid_types <- c("double", "integer", "logical", "integer64")
+    if (!is.character(type) || length(type) != 1L || !type %in% valid_types) {
         stop(sprintf(
-            "Convert: 'type' must be one of 'double', 'integer', 'logical' (got %s)",
+            "Convert: 'type' must be one of 'double', 'integer', 'logical', 'integer64' (or Julia aliases 'Float32'/'Float64'/'Int32'/'Int64'/'Bool'); got %s",
             sQuote(as.character(type)[1L])
         ), call. = FALSE)
+    }
+    # integer64 path: densify sparse input (no sparse integer64 class exists).
+    # Preserve dim/dimnames — bit64::as.integer64 strips them on matrix input.
+    if (type == "integer64") {
+        if (methods::is(x, "dgCMatrix")) {
+            x <- as.matrix(x)
+        }
+        out <- bit64::as.integer64(x)
+        if (!is.null(dim(x))) {
+            dim(out) <- dim(x)
+            dimnames(out) <- dimnames(x)
+        }
+        return(out)
     }
     # Sparse preservation for dgCMatrix
     if (methods::is(x, "dgCMatrix")) {

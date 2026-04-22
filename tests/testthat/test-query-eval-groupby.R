@@ -17,3 +17,14 @@ test_that("* CountBy builds co-occurrence matrix", {
     expect_equal(sort(rownames(m)), c("F", "M"))
     expect_equal(sort(colnames(m)), c("A", "B"))
 })
+
+test_that(">> G1 alias evaluates identically to >|", {
+    d <- memory_daf(name = "t")
+    add_axis(d, "cell", c("c1", "c2", "c3", "c4"))
+    set_vector(d, "cell", "donor", c("d1", "d1", "d2", "d2"))
+    set_vector(d, "cell", "UMIs", c(1, 2, 10, 20))
+    a <- get_query(d, "@ cell : UMIs / donor >> Sum")
+    b <- get_query(d, "@ cell : UMIs / donor >| Sum")
+    expect_equal(a, b)
+    expect_equal(a, c(d1 = 3, d2 = 30))
+})

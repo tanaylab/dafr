@@ -95,7 +95,7 @@ test_that("G1 fallback preserves logical output from custom reduction", {
     expect_equal(unname(out), c(FALSE, TRUE))
 })
 
-test_that("G2 row-grouped + ReduceToColumn: sparse -> ngroups x ncol", {
+test_that("G2 row-grouped + ReduceToRow: sparse -> ngroups x ncol", {
     skip_if_not_installed("Matrix")
     set.seed(49)
     m <- Matrix::rsparsematrix(30L, 20L, density = 0.4,
@@ -108,20 +108,20 @@ test_that("G2 row-grouped + ReduceToColumn: sparse -> ngroups x ncol", {
     set_vector(d, "r", "rg", row_g)
 
     for (op in c("Sum", "Mean", "Min", "Max", "Var", "Std")) {
-        out <- get_query(d, sprintf("@ r @ c :: x -/ rg >| %s", op))
+        out <- get_query(d, sprintf("@ r @ c :: x -/ rg >- %s", op))
         expect_equal(dim(out), c(3L, 20L), info = op)
         expect_equal(rownames(out), c("a", "b", "c"), info = op)
         expect_equal(colnames(out), paste0("c", 1:20), info = op)
     }
     # Content check for Sum: compare to Matrix::rowsum of dense matrix.
-    out_sum <- get_query(d, "@ r @ c :: x -/ rg >| Sum")
+    out_sum <- get_query(d, "@ r @ c :: x -/ rg >- Sum")
     dense <- as.matrix(m)
     expected <- rowsum(dense, row_g)
     expect_equal(out_sum, expected[c("a", "b", "c"), ], tolerance = 1e-9,
         ignore_attr = TRUE)
 })
 
-test_that("G2 row-grouped + ReduceToColumn: dense -> ngroups x ncol", {
+test_that("G2 row-grouped + ReduceToRow: dense -> ngroups x ncol", {
     set.seed(50)
     m <- matrix(runif(30L * 20L, 0.1, 3), 30L, 20L)
     d <- memory_daf(name = "t")
@@ -132,17 +132,17 @@ test_that("G2 row-grouped + ReduceToColumn: dense -> ngroups x ncol", {
     set_vector(d, "r", "rg", row_g)
 
     for (op in c("Sum", "Mean", "Min", "Max", "Var", "Std", "Median", "Mode")) {
-        out <- get_query(d, sprintf("@ r @ c :: x -/ rg >| %s", op))
+        out <- get_query(d, sprintf("@ r @ c :: x -/ rg >- %s", op))
         expect_equal(dim(out), c(3L, 20L), info = op)
     }
     # Content check
-    out_mean <- get_query(d, "@ r @ c :: x -/ rg >| Mean")
+    out_mean <- get_query(d, "@ r @ c :: x -/ rg >- Mean")
     expected <- rowsum(m, row_g) / as.integer(table(row_g))
     expect_equal(out_mean, expected[c("a", "b", "c"), ],
         tolerance = 1e-9, ignore_attr = TRUE)
 })
 
-test_that("G3 col-grouped + ReduceToRow: sparse -> nrow x ngroups", {
+test_that("G3 col-grouped + ReduceToColumn: sparse -> nrow x ngroups", {
     skip_if_not_installed("Matrix")
     set.seed(51)
     m <- Matrix::rsparsematrix(30L, 20L, density = 0.4,
@@ -155,19 +155,19 @@ test_that("G3 col-grouped + ReduceToRow: sparse -> nrow x ngroups", {
     set_vector(d, "c", "cg", col_g)
 
     for (op in c("Sum", "Mean", "Min", "Max", "Var", "Std")) {
-        out <- get_query(d, sprintf("@ r @ c :: x |/ cg >- %s", op))
+        out <- get_query(d, sprintf("@ r @ c :: x |/ cg >| %s", op))
         expect_equal(dim(out), c(30L, 4L), info = op)
         expect_equal(colnames(out), c("x", "y", "z", "w"), info = op)
     }
     # Content check for Sum: column-groupsum of dense matrix.
-    out_sum <- get_query(d, "@ r @ c :: x |/ cg >- Sum")
+    out_sum <- get_query(d, "@ r @ c :: x |/ cg >| Sum")
     dense <- as.matrix(m)
     expected <- t(rowsum(t(dense), col_g))[, c("x", "y", "z", "w")]
     expect_equal(out_sum, expected, tolerance = 1e-9,
         ignore_attr = TRUE)
 })
 
-test_that("G3 col-grouped + ReduceToRow: dense -> nrow x ngroups", {
+test_that("G3 col-grouped + ReduceToColumn: dense -> nrow x ngroups", {
     set.seed(52)
     m <- matrix(runif(30L * 20L, 0.1, 3), 30L, 20L)
     d <- memory_daf(name = "t")
@@ -178,12 +178,12 @@ test_that("G3 col-grouped + ReduceToRow: dense -> nrow x ngroups", {
     set_vector(d, "c", "cg", col_g)
 
     for (op in c("Sum", "Mean", "Min", "Max", "Median")) {
-        out <- get_query(d, sprintf("@ r @ c :: x |/ cg >- %s", op))
+        out <- get_query(d, sprintf("@ r @ c :: x |/ cg >| %s", op))
         expect_equal(dim(out), c(30L, 4L), info = op)
     }
 })
 
-test_that("G4a row-grouped + ReduceToRow: vector[ngroups]", {
+test_that("G4a row-grouped + ReduceToColumn: vector[ngroups]", {
     set.seed(53)
     m <- matrix(runif(30L * 20L, 0.1, 3), 30L, 20L)
     d <- memory_daf(name = "t")
@@ -193,14 +193,14 @@ test_that("G4a row-grouped + ReduceToRow: vector[ngroups]", {
     row_g <- rep(c("a", "b", "c"), each = 10L)
     set_vector(d, "r", "rg", row_g)
 
-    out <- get_query(d, "@ r @ c :: x -/ rg >- Sum")
+    out <- get_query(d, "@ r @ c :: x -/ rg >| Sum")
     # G4a decomposes as: inner ReduceToRow (per-col Sum) -> vector[ncol]
     # then grouped-vector-reduce on... wait — inner reduces first along the
     # non-grouped axis, giving a per-col vector, but the groups (row groups)
     # don't apply to that vector. Instead G4 is: the inner reduce collapses
     # the ungrouped axis, and the outer reduce collapses the grouped axis.
     #
-    # For row-grouped + ReduceToRow: inner = per-col reduce across all rows
+    # For row-grouped + ReduceToColumn: inner = per-col reduce across all rows
     # within each group -> matrix ngroups x ncol, then reduce across cols
     # in each group row -> vector[ngroups].
     # Easier: it's ReduceToRow applied to an already row-grouped matrix, i.e.
@@ -222,7 +222,7 @@ test_that("G4b col-grouped + ReduceToColumn: vector[ngroups]", {
     col_g <- rep(c("x", "y", "z", "w"), each = 5L)
     set_vector(d, "c", "cg", col_g)
 
-    out <- get_query(d, "@ r @ c :: x |/ cg >| Sum")
+    out <- get_query(d, "@ r @ c :: x |/ cg >- Sum")
     expected <- vapply(split(seq_len(20L), col_g),
         function(j) sum(m[, j, drop = FALSE]), numeric(1))
     expect_equal(unname(out), unname(expected[c("x", "y", "z", "w")]),
@@ -241,7 +241,7 @@ test_that("G2 sparse Median and Quantile route through dedicated kernel", {
     row_g <- rep(c("a", "b", "c"), each = 10L)
     set_vector(d, "r", "rg", row_g)
 
-    out_med <- get_query(d, "@ r @ c :: x -/ rg >| Median")
+    out_med <- get_query(d, "@ r @ c :: x -/ rg >- Median")
     expect_equal(dim(out_med), c(3L, 20L))
     # Compare to split+apply.
     dense <- as.matrix(m)
@@ -256,7 +256,7 @@ test_that("G2 sparse Median and Quantile route through dedicated kernel", {
     }
     expect_equal(unname(out_med), expected, tolerance = 1e-9)
 
-    out_q <- get_query(d, "@ r @ c :: x -/ rg >| Quantile p 0.25")
+    out_q <- get_query(d, "@ r @ c :: x -/ rg >- Quantile p 0.25")
     expect_equal(dim(out_q), c(3L, 20L))
 })
 
@@ -274,7 +274,7 @@ test_that("G2 sparse Mode routes through dedicated kernel", {
     set_matrix(d, "r", "c", "x", m)
     row_g <- rep(c("a", "b"), each = 10L)
     set_vector(d, "r", "rg", row_g)
-    out <- get_query(d, "@ r @ c :: x -/ rg >| Mode")
+    out <- get_query(d, "@ r @ c :: x -/ rg >- Mode")
     expect_equal(dim(out), c(2L, 10L))
 })
 
@@ -287,7 +287,7 @@ test_that("G2 dense Median works via matrixStats fallback", {
     set_matrix(d, "r", "c", "x", m)
     row_g <- rep(c("a", "b", "c"), each = 10L)
     set_vector(d, "r", "rg", row_g)
-    out <- get_query(d, "@ r @ c :: x -/ rg >| Median")
+    out <- get_query(d, "@ r @ c :: x -/ rg >- Median")
     expect_equal(dim(out), c(3L, 20L))
     dense <- m
     idx <- split(seq_len(30L), row_g)
@@ -318,7 +318,7 @@ test_that("G2 lgCMatrix input falls back to split+apply path", {
     row_g <- rep(c("a", "b"), each = 4L)
     set_vector(d, "r", "rg", row_g)
     # Sum over logical: should succeed via fallback path
-    out <- get_query(d, "@ r @ c :: x -/ rg >| Sum")
+    out <- get_query(d, "@ r @ c :: x -/ rg >- Sum")
     expect_equal(dim(out), c(2L, 2L))
 })
 
@@ -332,11 +332,11 @@ test_that("G2 fallback with custom int-returning reduction preserves type", {
     add_axis(d, "c", paste0("c", 1:10))
     set_matrix(d, "r", "c", "x", m)
     set_vector(d, "r", "rg", rep(c("a", "b"), each = 3L))
-    out <- get_query(d, "@ r @ c :: x -/ rg >| Slice10RowLen")
+    out <- get_query(d, "@ r @ c :: x -/ rg >- Slice10RowLen")
     expect_equal(dim(out), c(2L, 10L))
     expect_type(out, "integer")
     # Each group has 3 rows; length of row slice = ncol = 10; no wait: for
-    # G2 ReduceToColumn, for each (group, col) pair we reduce the column
+    # G2 ReduceToRow, for each (group, col) pair we reduce the column
     # values within that group -> length = 3.
     expect_equal(unname(out)[1L, 1L], 3L)
 })
@@ -352,7 +352,7 @@ test_that("G4 preserves integer output for user reductions", {
         function(v, ...) length(v), overwrite = TRUE)
     # G4a: row-grouped, ReduceToRow (double reduction)
     # Inner G2 gives 2 x 4 matrix; outer length() on each 4-element row -> 4L
-    out <- get_query(daf, "@ r @ c :: m -/ rg >- Slice10TestG4LenInt")
+    out <- get_query(daf, "@ r @ c :: m -/ rg >| Slice10TestG4LenInt")
     expect_type(out, "integer")
     expect_equal(unname(out), c(4L, 4L))
 })
@@ -367,13 +367,13 @@ test_that("G4 supports logical and character user reductions without vapply erro
 
     register_reduction("Slice10TestG4AnyPos",
         function(v, ...) any(v > 0), overwrite = TRUE)
-    out_log <- get_query(daf, "@ r @ c :: m -/ rg >- Slice10TestG4AnyPos")
+    out_log <- get_query(daf, "@ r @ c :: m -/ rg >| Slice10TestG4AnyPos")
     expect_type(out_log, "logical")
     expect_length(out_log, 2L)
 
     register_reduction("Slice10TestG4FirstChar",
         function(v, ...) as.character(v[1L]), overwrite = TRUE)
-    out_char <- get_query(daf, "@ r @ c :: m -/ rg >- Slice10TestG4FirstChar")
+    out_char <- get_query(daf, "@ r @ c :: m -/ rg >| Slice10TestG4FirstChar")
     expect_type(out_char, "character")
     expect_length(out_char, 2L)
 })

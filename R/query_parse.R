@@ -60,6 +60,7 @@ parse_query <- function(query_string) {
             "@-" = .parse_cmp(tokens, i, src, .qop_square_row_is),
             "@|" = .parse_cmp(tokens, i, src, .qop_square_column_is),
             ">|" = .parse_reduction(tokens, i, src, .qop_reduce_to_column),
+            ">>" = .parse_reduction(tokens, i, src, .qop_reduce_to_column),
             ">-" = .parse_reduction(tokens, i, src, .qop_reduce_to_row),
             "/" = .parse_lookup_like(tokens, i, src, .qop_group_by),
             "-/" = .parse_lookup_like(tokens, i, src, .qop_group_rows_by),

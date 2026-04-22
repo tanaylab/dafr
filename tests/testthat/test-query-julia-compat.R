@@ -98,7 +98,15 @@
         # expected is a list(nrow, ncol, values) from .julia_value_to_r
         expect_equal(nrow(r_val), expected$nrow, info = paste("matrix nrow:", query))
         expect_equal(ncol(r_val), expected$ncol, info = paste("matrix ncol:", query))
-        expect_equal(sort(as.vector(r_val)), sort(expected$values),
+        # integer64 matrices retain their S3 class after dim<- but as.vector()
+        # strips it, reinterpreting the underlying double storage as IEEE-754 —
+        # garbage values. bit64::as.double.integer64 dispatches correctly.
+        r_flat <- if (inherits(r_val, "integer64")) {
+            bit64::as.double.integer64(r_val)
+        } else {
+            as.vector(r_val)
+        }
+        expect_equal(sort(r_flat), sort(expected$values),
             tolerance = 1e-5, info = query
         )
     } else if (kind == "names") {
