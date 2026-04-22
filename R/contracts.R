@@ -579,14 +579,30 @@ S7::method(
 }
 
 .matrix_type_ok <- function(m, type_name) {
-    eltype_ok <- switch(type_name,
-        integer   = is.integer(m[1L]),
+    switch(type_name,
+        integer   = .is_integer_valued(m),
         numeric   = is.numeric(m[1L]),
         double    = is.double(m[1L]),
-        logical   = is.logical(m[1L]),
+        logical   = is.logical(m[1L]) || .is_logical_valued_sparse(m),
+        character = is.character(m[1L]),
         inherits(m, type_name)
     )
-    eltype_ok
+}
+
+.is_integer_valued <- function(m) {
+    if (!is.null(dim(m)) && length(m) == 0L) return(TRUE)
+    if (is.integer(m[1L])) return(TRUE)
+    if (methods::is(m, "dgCMatrix")) {
+        if (length(m@x) == 0L) return(TRUE)
+        return(all(m@x == floor(m@x)) &&
+               max(abs(m@x)) < .Machine$integer.max)
+    }
+    FALSE
+}
+
+.is_logical_valued_sparse <- function(m) {
+    methods::is(m, "dgCMatrix") &&
+        (length(m@x) == 0L || all(m@x %in% c(0, 1)))
 }
 
 .verify_scalar_data <- function(cd, rec, is_for_output) {

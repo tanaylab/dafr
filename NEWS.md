@@ -1,3 +1,55 @@
+# dafr (development version)
+
+## Slice 8 — Matrix-kernel fast paths + complete_daf view re-apply
+
+### Performance
+
+* Sparse `dgCMatrix` reductions (Var, Std, VarN, StdN, Median, Quantile,
+  GeoMean, Mode) now use custom CSC C++ kernels and no longer densify
+  via `as.matrix()`. Min/Max on sparse input no longer densifies either.
+* Grouped reductions (patterns G1–G4) use new CSC + dense C++ kernels
+  instead of `split()` + `apply()`. Benchmark gates show 10–80× speedups
+  at representative small-to-medium scale. Large-scale grouped
+  reductions on high-thread-count machines may benefit from tuning
+  `dafr.kernel_threshold` — see `?dafr-options`.
+
+### New features
+
+* `.op_convert` preserves sparsity for `dgCMatrix → integer` and
+  `dgCMatrix → logical` conversions. Sparse → character still
+  densifies (R has no character-valued sparse class).
+* `Mode` reduction now accepts character input in grouped-vector
+  reductions. Underlying grouped-reduction dispatch no longer hard-codes
+  `vapply(..., numeric(1))` — output storage is inferred from the
+  reducer's return value (supports integer, logical, character).
+* `complete_daf()` re-applies `base_daf_view` JSON on reopen; previously
+  the stored view spec was parsed but ignored. Supports identity views;
+  axis-rename round-trip depends on `viewer()` rename syntax support.
+
+### Fixes
+
+* `.matrix_type_ok` now recognises `character` matrices and
+  integer-/logical-valued `dgCMatrix` inputs for contract checking.
+* Sparse Min/Max no longer silently densifies via
+  `matrixStats::rowMaxs(as.matrix(m))` (pre-existing Slice-3 mine).
+* `lgCMatrix` inputs route correctly to the slow path for ops whose
+  kernels expect `dgCMatrix` (avoids `cpp11::doubles` type-mismatch
+  crash).
+
+### Known limitations
+
+* **Grouped matrix reductions**: the R-side operator-to-reduce-kind
+  mapping differs from Julia DAF's convention for grouped-matrix
+  patterns. Byte-parity with DataAxesFormats.jl is not achieved for
+  grouped queries. R-side semantics are internally self-consistent
+  and tested.
+* **Grouped G3 kernel at high thread counts**: thread-bucket layout is
+  O(nthreads × nrow × ngroups). On many-core machines (>16 threads) at
+  large scale (nrow > 10k with ngroups > 50), the fast path may be
+  slower than the pure-R fallback due to bucket allocation cost.
+  Set `options(dafr.kernel_threshold = Inf)` to force sequential
+  execution if you observe this.
+
 # dafr 0.6.0 (in development)
 
 ## New features

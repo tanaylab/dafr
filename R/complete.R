@@ -145,11 +145,45 @@ complete_daf <- function(leaf, mode = "r", name = NULL) {
     }
     # Stack is leaf-first; chain wants base-first (root to leaf, reads fall
     # through to last).
+    leaf_daf <- stack[[1L]]
     readers <- rev(stack)
-    if (length(readers) == 1L) return(readers[[1L]])
-    if (identical(mode, "r")) {
-        chain_reader(readers, name = name %||% basename(leaf))
+    chain_name <- name %||% basename(leaf)
+    chain <- if (length(readers) == 1L) {
+        readers[[1L]]
+    } else if (identical(mode, "r")) {
+        chain_reader(readers, name = chain_name)
     } else {
-        chain_writer(readers, name = name %||% basename(leaf))
+        chain_writer(readers, name = chain_name)
     }
+    if (format_has_scalar(leaf_daf, "base_daf_view")) {
+        spec <- jsonlite::fromJSON(
+            format_get_scalar(leaf_daf, "base_daf_view"),
+            simplifyVector = FALSE
+        )
+        chain <- viewer(chain, name = chain_name,
+            axes = .normalise_json_spec(spec$axes),
+            data = .normalise_json_spec(spec$data))
+    }
+    chain
+}
+
+# fromJSON with simplifyVector = FALSE returns JSON arrays of strings as R
+# lists rather than character vectors. viewer() (via .parse_view_item) expects
+# the key of a matrix item to be a character vector, not a list. This helper
+# converts all-character inner lists to vectors so the spec is viewer-ready.
+.normalise_json_spec <- function(x) {
+    if (is.null(x) || length(x) == 0L) return(x)
+    lapply(x, function(item) {
+        if (!is.list(item)) return(item)
+        # key-value pair: list(key, value) where key may be a char-list
+        if (length(item) == 2L && is.null(names(item)) &&
+            (is.character(item[[2L]]) || is.null(item[[2L]]))) {
+            key <- item[[1L]]
+            if (is.list(key) && all(vapply(key, is.character, logical(1L)))) {
+                key <- unlist(key, use.names = FALSE)
+            }
+            return(list(key, item[[2L]]))
+        }
+        item
+    })
 }

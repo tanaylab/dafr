@@ -28,10 +28,46 @@ kernel_log_add_cpp <- function(x, y, threshold) {
   .Call(`_dafr_kernel_log_add_cpp`, x, y, threshold)
 }
 
+kernel_geomean_csc_cpp <- function(x, i, p, nrow, ncol, axis, eps, threshold) {
+  .Call(`_dafr_kernel_geomean_csc_cpp`, x, i, p, nrow, ncol, axis, eps, threshold)
+}
+
+kernel_grouped_mode_csc_cpp <- function(x, i, p, nrow, ncol, group, ngroups, n_in_group, axis, threshold) {
+  .Call(`_dafr_kernel_grouped_mode_csc_cpp`, x, i, p, nrow, ncol, group, ngroups, n_in_group, axis, threshold)
+}
+
+kernel_grouped_quantile_csc_cpp <- function(x, i, p, nrow, ncol, group, ngroups, n_in_group, axis, q, threshold) {
+  .Call(`_dafr_kernel_grouped_quantile_csc_cpp`, x, i, p, nrow, ncol, group, ngroups, n_in_group, axis, q, threshold)
+}
+
+kernel_grouped_reduce_csc_cpp <- function(x, i, p, nrow, ncol, group, ngroups, n_in_group, axis, op, eps, threshold) {
+  .Call(`_dafr_kernel_grouped_reduce_csc_cpp`, x, i, p, nrow, ncol, group, ngroups, n_in_group, axis, op, eps, threshold)
+}
+
+kernel_grouped_reduce_dense_cpp <- function(m, group, ngroups, n_in_group, axis, op, eps, threshold) {
+  .Call(`_dafr_kernel_grouped_reduce_dense_cpp`, m, group, ngroups, n_in_group, axis, op, eps, threshold)
+}
+
 kernel_log_reduce_dense_cpp <- function(m, eps, base, axis, reducer, threshold) {
   .Call(`_dafr_kernel_log_reduce_dense_cpp`, m, eps, base, axis, reducer, threshold)
 }
 
 kernel_log_reduce_csc_cpp <- function(x, i, p, nrow, ncol, eps, base, axis, reducer, threshold) {
   .Call(`_dafr_kernel_log_reduce_csc_cpp`, x, i, p, nrow, ncol, eps, base, axis, reducer, threshold)
+}
+
+kernel_minmax_csc_cpp <- function(x, i, p, nrow, ncol, axis, variant, threshold) {
+  .Call(`_dafr_kernel_minmax_csc_cpp`, x, i, p, nrow, ncol, axis, variant, threshold)
+}
+
+kernel_mode_csc_cpp <- function(x, i, p, nrow, ncol, axis, threshold) {
+  .Call(`_dafr_kernel_mode_csc_cpp`, x, i, p, nrow, ncol, axis, threshold)
+}
+
+kernel_quantile_csc_cpp <- function(x, i, p, nrow, ncol, axis, q, threshold) {
+  .Call(`_dafr_kernel_quantile_csc_cpp`, x, i, p, nrow, ncol, axis, q, threshold)
+}
+
+kernel_var_csc_cpp <- function(x, i, p, nrow, ncol, axis, variant, eps, threshold) {
+  .Call(`_dafr_kernel_var_csc_cpp`, x, i, p, nrow, ncol, axis, variant, eps, threshold)
 }

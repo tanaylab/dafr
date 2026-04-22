@@ -33,6 +33,7 @@ LinkingTo:
 Suggests:
     bench,
     knitr,
+    pkgload,
     rmarkdown,
     rprojroot,
     scran,
