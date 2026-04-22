@@ -109,6 +109,16 @@
   category: grouped
   fixture: big_sparse
 
+- id: grouped_g4a_sum_100
+  text: "@ row @ col :: value -/ group_100 >| Sum"
+  category: grouped
+  fixture: big_sparse
+
+- id: grouped_g4b_sum_100
+  text: "@ col @ row :: value |/ group_100 >- Sum"
+  category: grouped
+  fixture: big_sparse
+
 # --- mmap (reopen + read) ---
 - id: mmap_open_read_matrix
   text: "@ cell @ gene :: UMIs"
