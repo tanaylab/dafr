@@ -1052,13 +1052,156 @@ NULL
             op = label, eps = eps,
             threshold = .dafr_kernel_threshold())
     } else {
-        # Dense kernel expects a double matrix.
+        # Dense fast path: rowsum()-based for all ops except GeoMean.
+        # axis == 2 (G2, row-grouped): rowsum(m, gi)         -> ngroups x ncol
+        # axis == 3 (G3, col-grouped): t(rowsum(t(m), gi))   -> nrow x ngroups
         if (!is.double(m)) storage.mode(m) <- "double"
-        kernel_grouped_reduce_dense_cpp(
+        .grouped_dense_rowsum(m, gi, ngroups, n_in_group, axis, label, eps)
+    }
+}
+
+# Dense grouped reduction via rowsum() / matrixStats.
+# Called by .grouped_matrix_builtin for non-sparse, non-GeoMean ops.
+.grouped_dense_rowsum <- function(m, gi, ngroups, n_in_group, axis, label, eps) {
+    # n_in_group: integer vector length ngroups, count of obs per group.
+    # axis 2 (G2): rows of m are grouped -> output ngroups x ncol(m)
+    # axis 3 (G3): cols of m are grouped -> output nrow(m) x ngroups
+    if (label == "GeoMean") {
+        # GeoMean requires log; delegate to C++ dense kernel.
+        return(kernel_grouped_reduce_dense_cpp(
             m, group = gi, ngroups = ngroups,
             n_in_group = n_in_group, axis = axis,
             op = label, eps = eps,
-            threshold = .dafr_kernel_threshold())
+            threshold = .dafr_kernel_threshold()))
+    }
+    if (axis == 2L) {
+        # G2: rowsum groups rows.
+        switch(label,
+            Sum = rowsum(m, gi, reorder = FALSE),
+            Mean = {
+                rs <- rowsum(m, gi, reorder = FALSE)
+                rs / n_in_group
+            },
+            Var = {
+                n  <- n_in_group
+                rs <- rowsum(m, gi, reorder = FALSE)
+                rs2 <- rowsum(m * m, gi, reorder = FALSE)
+                mu  <- rs / n
+                pmax(rs2 / n - mu * mu, 0)
+            },
+            Std = {
+                n  <- n_in_group
+                rs <- rowsum(m, gi, reorder = FALSE)
+                rs2 <- rowsum(m * m, gi, reorder = FALSE)
+                mu  <- rs / n
+                sqrt(pmax(rs2 / n - mu * mu, 0))
+            },
+            VarN = {
+                n  <- n_in_group
+                rs <- rowsum(m, gi, reorder = FALSE)
+                rs2 <- rowsum(m * m, gi, reorder = FALSE)
+                mu  <- rs / n
+                v   <- pmax(rs2 / n - mu * mu, 0)
+                v / (mu + eps)
+            },
+            StdN = {
+                n  <- n_in_group
+                rs <- rowsum(m, gi, reorder = FALSE)
+                rs2 <- rowsum(m * m, gi, reorder = FALSE)
+                mu  <- rs / n
+                s   <- sqrt(pmax(rs2 / n - mu * mu, 0))
+                s / (mu + eps)
+            },
+            Max = {
+                idx <- split(seq_len(nrow(m)), gi)
+                out <- matrix(0, ngroups, ncol(m))
+                for (g in seq_len(ngroups)) {
+                    if (length(idx[[g]]) == 0L) next
+                    out[g, ] <- matrixStats::colMaxs(m[idx[[g]], , drop = FALSE])
+                }
+                out
+            },
+            Min = {
+                idx <- split(seq_len(nrow(m)), gi)
+                out <- matrix(0, ngroups, ncol(m))
+                for (g in seq_len(ngroups)) {
+                    if (length(idx[[g]]) == 0L) next
+                    out[g, ] <- matrixStats::colMins(m[idx[[g]], , drop = FALSE])
+                }
+                out
+            },
+            # Fallback for unknown ops
+            kernel_grouped_reduce_dense_cpp(
+                m, group = gi, ngroups = ngroups,
+                n_in_group = n_in_group, axis = axis,
+                op = label, eps = eps,
+                threshold = .dafr_kernel_threshold())
+        )
+    } else {
+        # G3 (axis == 3): cols of m are grouped.
+        # t(rowsum(t(m), gi)) groups cols then transposes back.
+        mt <- t(m)
+        switch(label,
+            Sum = t(rowsum(mt, gi, reorder = FALSE)),
+            Mean = {
+                rs <- t(rowsum(mt, gi, reorder = FALSE))
+                t(t(rs) / n_in_group)
+            },
+            Var = {
+                n   <- n_in_group
+                rs  <- t(rowsum(mt, gi, reorder = FALSE))
+                rs2 <- t(rowsum(mt * mt, gi, reorder = FALSE))
+                mu  <- t(t(rs) / n)
+                pmax(t(t(rs2) / n) - mu * mu, 0)
+            },
+            Std = {
+                n   <- n_in_group
+                rs  <- t(rowsum(mt, gi, reorder = FALSE))
+                rs2 <- t(rowsum(mt * mt, gi, reorder = FALSE))
+                mu  <- t(t(rs) / n)
+                sqrt(pmax(t(t(rs2) / n) - mu * mu, 0))
+            },
+            VarN = {
+                n   <- n_in_group
+                rs  <- t(rowsum(mt, gi, reorder = FALSE))
+                rs2 <- t(rowsum(mt * mt, gi, reorder = FALSE))
+                mu  <- t(t(rs) / n)
+                v   <- pmax(t(t(rs2) / n) - mu * mu, 0)
+                v / (mu + eps)
+            },
+            StdN = {
+                n   <- n_in_group
+                rs  <- t(rowsum(mt, gi, reorder = FALSE))
+                rs2 <- t(rowsum(mt * mt, gi, reorder = FALSE))
+                mu  <- t(t(rs) / n)
+                s   <- sqrt(pmax(t(t(rs2) / n) - mu * mu, 0))
+                s / (mu + eps)
+            },
+            Max = {
+                idx <- split(seq_len(ncol(m)), gi)
+                out <- matrix(0, nrow(m), ngroups)
+                for (g in seq_len(ngroups)) {
+                    if (length(idx[[g]]) == 0L) next
+                    out[, g] <- matrixStats::rowMaxs(m[, idx[[g]], drop = FALSE])
+                }
+                out
+            },
+            Min = {
+                idx <- split(seq_len(ncol(m)), gi)
+                out <- matrix(0, nrow(m), ngroups)
+                for (g in seq_len(ngroups)) {
+                    if (length(idx[[g]]) == 0L) next
+                    out[, g] <- matrixStats::rowMins(m[, idx[[g]], drop = FALSE])
+                }
+                out
+            },
+            # Fallback for unknown ops
+            kernel_grouped_reduce_dense_cpp(
+                m, group = gi, ngroups = ngroups,
+                n_in_group = n_in_group, axis = axis,
+                op = label, eps = eps,
+                threshold = .dafr_kernel_threshold())
+        )
     }
 }
 
