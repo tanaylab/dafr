@@ -1138,41 +1138,50 @@ NULL
                 threshold = .dafr_kernel_threshold())
         )
     } else {
-        # G3 (axis == 3): cols of m are grouped.
-        # t(rowsum(t(m), gi)) groups cols then transposes back.
-        mt <- t(m)
+        # G3 (axis == 3): cols of m are grouped -> output nrow(m) x ngroups.
+        # Use BLAS matrix multiply via a 0/1 indicator matrix (ncol x ngroups)
+        # for Sum/Mean/Var/Std/VarN/StdN.  m %*% ind sums columns per group
+        # without an explicit transpose, leveraging MKL/OpenBLAS efficiently.
         switch(label,
-            Sum = t(rowsum(mt, gi, reorder = FALSE)),
+            Sum = {
+                ind <- .g3_indicator(gi, ncol(m), ngroups)
+                m %*% ind
+            },
             Mean = {
-                rs <- t(rowsum(mt, gi, reorder = FALSE))
+                ind <- .g3_indicator(gi, ncol(m), ngroups)
+                rs  <- m %*% ind
                 t(t(rs) / n_in_group)
             },
             Var = {
                 n   <- n_in_group
-                rs  <- t(rowsum(mt, gi, reorder = FALSE))
-                rs2 <- t(rowsum(mt * mt, gi, reorder = FALSE))
+                ind <- .g3_indicator(gi, ncol(m), ngroups)
+                rs  <- m %*% ind
+                rs2 <- (m * m) %*% ind
                 mu  <- t(t(rs) / n)
                 pmax(t(t(rs2) / n) - mu * mu, 0)
             },
             Std = {
                 n   <- n_in_group
-                rs  <- t(rowsum(mt, gi, reorder = FALSE))
-                rs2 <- t(rowsum(mt * mt, gi, reorder = FALSE))
+                ind <- .g3_indicator(gi, ncol(m), ngroups)
+                rs  <- m %*% ind
+                rs2 <- (m * m) %*% ind
                 mu  <- t(t(rs) / n)
                 sqrt(pmax(t(t(rs2) / n) - mu * mu, 0))
             },
             VarN = {
                 n   <- n_in_group
-                rs  <- t(rowsum(mt, gi, reorder = FALSE))
-                rs2 <- t(rowsum(mt * mt, gi, reorder = FALSE))
+                ind <- .g3_indicator(gi, ncol(m), ngroups)
+                rs  <- m %*% ind
+                rs2 <- (m * m) %*% ind
                 mu  <- t(t(rs) / n)
                 v   <- pmax(t(t(rs2) / n) - mu * mu, 0)
                 v / (mu + eps)
             },
             StdN = {
                 n   <- n_in_group
-                rs  <- t(rowsum(mt, gi, reorder = FALSE))
-                rs2 <- t(rowsum(mt * mt, gi, reorder = FALSE))
+                ind <- .g3_indicator(gi, ncol(m), ngroups)
+                rs  <- m %*% ind
+                rs2 <- (m * m) %*% ind
                 mu  <- t(t(rs) / n)
                 s   <- sqrt(pmax(t(t(rs2) / n) - mu * mu, 0))
                 s / (mu + eps)
@@ -1203,6 +1212,14 @@ NULL
                 threshold = .dafr_kernel_threshold())
         )
     }
+}
+
+# Build a 0/1 indicator matrix (ncols x ngroups) for the G3 BLAS path.
+# Entry [j, g] = 1 if gi[j] == g (gi is 1-based group assignment of length ncols).
+.g3_indicator <- function(gi, ncols, ngroups) {
+    ind <- matrix(0, ncols, ngroups)
+    ind[cbind(seq_len(ncols), gi)] <- 1.0
+    ind
 }
 
 # G2/G3 fallback: type-sniffed split+apply (replaces old sapply+apply path
