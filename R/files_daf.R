@@ -170,24 +170,40 @@ S7::method(
     invisible()
 }
 
+# Fast-path regex for the daf.json dafr emits:
+#   {"version":[1,0]}
+# Falls back to jsonlite on any mismatch.
+.DAF_JSON_RE <- '^\\{"version":\\[([0-9]+),([0-9]+)\\](?:,"name":"[^"\\\\[:cntrl:]]*")?\\}\\s*$'
+
 .files_daf_check_version <- function(path) {
-    j <- jsonlite::fromJSON(file.path(path, "daf.json"), simplifyVector = TRUE)
-    v <- j$version
-    if (is.null(v) || length(v) != 2L) {
-        stop(sprintf("files_daf: %s daf.json version is malformed", sQuote(path)),
-            call. = FALSE
-        )
+    daf_json_path <- file.path(path, "daf.json")
+    raw <- readChar(daf_json_path, file.size(daf_json_path), useBytes = TRUE)
+    m <- regmatches(raw, regexec(.DAF_JSON_RE, raw, perl = TRUE))[[1L]]
+    if (length(m) == 3L) {
+        v1 <- as.integer(m[[2L]])
+        v2 <- as.integer(m[[3L]])
+    } else {
+        # Fallback: full JSON parse
+        j <- jsonlite::fromJSON(daf_json_path, simplifyVector = TRUE)
+        v <- j$version
+        if (is.null(v) || length(v) != 2L) {
+            stop(sprintf("files_daf: %s daf.json version is malformed", sQuote(path)),
+                call. = FALSE
+            )
+        }
+        v1 <- v[[1L]]
+        v2 <- v[[2L]]
     }
-    if (v[[1L]] != 1L) {
+    if (v1 != 1L) {
         stop(sprintf(
             "files_daf: %s daf.json major version %d unsupported (expected 1)",
-            sQuote(path), v[[1L]]
+            sQuote(path), v1
         ), call. = FALSE)
     }
-    if (v[[2L]] > 0L) {
+    if (v2 > 0L) {
         stop(sprintf(
             "files_daf: %s daf.json minor version %d exceeds supported (0)",
-            sQuote(path), v[[2L]]
+            sQuote(path), v2
         ), call. = FALSE)
     }
     invisible()
