@@ -68,6 +68,10 @@ kernel_mode_csc_cpp <- function(x, i, p, nrow, ncol, axis, threshold) {
   .Call(`_dafr_kernel_mode_csc_cpp`, x, i, p, nrow, ncol, axis, threshold)
 }
 
+kernel_mode_dense_cpp <- function(mat, axis, threshold) {
+  .Call(`_dafr_kernel_mode_dense_cpp`, mat, axis, threshold)
+}
+
 kernel_quantile_csc_cpp <- function(x, i, p, nrow, ncol, axis, q, threshold) {
   .Call(`_dafr_kernel_quantile_csc_cpp`, x, i, p, nrow, ncol, axis, q, threshold)
 }

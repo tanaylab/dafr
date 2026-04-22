@@ -124,6 +124,13 @@ extern "C" SEXP _dafr_kernel_mode_csc_cpp(SEXP x, SEXP i, SEXP p, SEXP nrow, SEX
     return cpp11::as_sexp(kernel_mode_csc_cpp(cpp11::as_cpp<cpp11::decay_t<cpp11::doubles>>(x), cpp11::as_cpp<cpp11::decay_t<cpp11::integers>>(i), cpp11::as_cpp<cpp11::decay_t<cpp11::integers>>(p), cpp11::as_cpp<cpp11::decay_t<int>>(nrow), cpp11::as_cpp<cpp11::decay_t<int>>(ncol), cpp11::as_cpp<cpp11::decay_t<int>>(axis), cpp11::as_cpp<cpp11::decay_t<int>>(threshold)));
   END_CPP11
 }
+// kernel_mode_dense.cpp
+cpp11::writable::doubles kernel_mode_dense_cpp(SEXP mat, int axis, int threshold);
+extern "C" SEXP _dafr_kernel_mode_dense_cpp(SEXP mat, SEXP axis, SEXP threshold) {
+  BEGIN_CPP11
+    return cpp11::as_sexp(kernel_mode_dense_cpp(cpp11::as_cpp<cpp11::decay_t<SEXP>>(mat), cpp11::as_cpp<cpp11::decay_t<int>>(axis), cpp11::as_cpp<cpp11::decay_t<int>>(threshold)));
+  END_CPP11
+}
 // kernel_quantile_csc.cpp
 cpp11::writable::doubles kernel_quantile_csc_cpp(cpp11::doubles x, cpp11::integers i, cpp11::integers p, int nrow, int ncol, int axis, double q, int threshold);
 extern "C" SEXP _dafr_kernel_quantile_csc_cpp(SEXP x, SEXP i, SEXP p, SEXP nrow, SEXP ncol, SEXP axis, SEXP q, SEXP threshold) {
@@ -162,6 +169,7 @@ static const R_CallMethodDef CallEntries[] = {
     {"_dafr_kernel_log_reduce_dense_cpp",     (DL_FUNC) &_dafr_kernel_log_reduce_dense_cpp,      6},
     {"_dafr_kernel_minmax_csc_cpp",           (DL_FUNC) &_dafr_kernel_minmax_csc_cpp,            8},
     {"_dafr_kernel_mode_csc_cpp",             (DL_FUNC) &_dafr_kernel_mode_csc_cpp,              7},
+    {"_dafr_kernel_mode_dense_cpp",           (DL_FUNC) &_dafr_kernel_mode_dense_cpp,            3},
     {"_dafr_kernel_quantile_csc_cpp",         (DL_FUNC) &_dafr_kernel_quantile_csc_cpp,          8},
     {"_dafr_kernel_quantile_dense_cpp",       (DL_FUNC) &_dafr_kernel_quantile_dense_cpp,        4},
     {"_dafr_kernel_var_csc_cpp",              (DL_FUNC) &_dafr_kernel_var_csc_cpp,               9},
