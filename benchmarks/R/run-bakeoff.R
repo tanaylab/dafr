@@ -102,13 +102,32 @@ for (k in seq_along(queries)) {
     }
 
     t0 <- Sys.time()
-    b <- bench::mark(
-        eval(expr),
-        min_iterations = min_iter,
-        filter_gc = FALSE,
-        check = FALSE,
-        time_unit = "ns"
+    b <- tryCatch(
+        bench::mark(
+            eval(expr),
+            min_iterations = min_iter,
+            filter_gc = FALSE,
+            check = FALSE,
+            time_unit = "ns"
+        ),
+        error = function(e) {
+            cat(sprintf("  [%3d/%3d] %-30s %-22s FAIL: %s\n",
+                        k, length(queries), q$id, q$category,
+                        conditionMessage(e)))
+            NULL
+        }
     )
+    if (is.null(b)) {
+        rows[[k]] <- data.frame(
+            query_id = q$id, query_text = q$text,
+            category = q$category, fixture = q$fixture,
+            median_time_ns = NA_real_, min_time_ns = NA_real_,
+            gc_count = NA_integer_, allocations = NA_real_,
+            n_iter = NA_integer_,
+            stringsAsFactors = FALSE
+        )
+        next
+    }
     dt <- as.numeric(Sys.time() - t0, units = "secs")
     cat(sprintf("  [%3d/%3d] %-30s %-22s ok (%.1fs)\n",
                 k, length(queries), q$id, q$category, dt))
