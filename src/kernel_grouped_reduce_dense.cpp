@@ -35,6 +35,8 @@ cpp11::writable::doubles_matrix<cpp11::by_column> kernel_grouped_reduce_dense_cp
     const int *pg = INTEGER(group.data());
     const int *png = INTEGER(n_in_group.data());
 
+    const bool need_log = (op == "GeoMean");
+
     if (axis == 2) {
         // G2 (row-group): output is ngroups x ncol. Per-column iteration,
         // per-column local accs of length ngroups.
@@ -42,6 +44,7 @@ cpp11::writable::doubles_matrix<cpp11::by_column> kernel_grouped_reduce_dense_cp
         DAFR_PARALLEL_FOR(ncol >= threshold)
         for (int j = 0; j < ncol; ++j) {
             std::vector<Acc> accs(ngroups);
+            for (int g = 0; g < ngroups; ++g) accs[g].need_log = need_log;
             for (int r = 0; r < nrow; ++r) {
                 const int g = pg[r] - 1;       // 1-based -> 0-based
                 accs[g].push(m(r, j), eps);
@@ -62,6 +65,7 @@ cpp11::writable::doubles_matrix<cpp11::by_column> kernel_grouped_reduce_dense_cp
     DAFR_PARALLEL_FOR(nrow >= threshold)
     for (int r = 0; r < nrow; ++r) {
         std::vector<Acc> accs(ngroups);
+        for (int g = 0; g < ngroups; ++g) accs[g].need_log = need_log;
         for (int j = 0; j < ncol; ++j) {
             const int g = pg[j] - 1;
             accs[g].push(m(r, j), eps);

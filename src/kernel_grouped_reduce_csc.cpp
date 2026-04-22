@@ -40,6 +40,8 @@ cpp11::writable::doubles_matrix<cpp11::by_column> kernel_grouped_reduce_csc_cpp(
     const int *pg = INTEGER(group.data());
     const int *png = INTEGER(n_in_group.data());
 
+    const bool need_log = (op == "GeoMean");
+
     if (axis == 2) {
         // G2 (row-group): output is ngroups x ncol. One pass per column,
         // each column gets its own local accumulator vector of length ngroups.
@@ -47,6 +49,7 @@ cpp11::writable::doubles_matrix<cpp11::by_column> kernel_grouped_reduce_csc_cpp(
         DAFR_PARALLEL_FOR(ncol >= threshold)
         for (int j = 0; j < ncol; ++j) {
             std::vector<Acc> accs(ngroups);
+            for (int g = 0; g < ngroups; ++g) accs[g].need_log = need_log;
             for (int k = pp[j]; k < pp[j + 1]; ++k) {
                 const int g = pg[pi[k]] - 1;     // 1-based -> 0-based
                 accs[g].push(px[k], eps);
@@ -70,6 +73,11 @@ cpp11::writable::doubles_matrix<cpp11::by_column> kernel_grouped_reduce_csc_cpp(
     const int nthreads = dafr_omp_get_max_threads_capped(ncol, threshold);
     std::vector<std::vector<Acc>> tacc(nthreads,
         std::vector<Acc>((size_t)nrow * (size_t)ngroups));
+    // Set need_log on every accumulator in each thread bucket.
+    if (need_log) {
+        for (int t = 0; t < nthreads; ++t)
+            for (auto &a : tacc[t]) a.need_log = true;
+    }
 
     DAFR_PARALLEL_FOR(ncol >= threshold)
     for (int j = 0; j < ncol; ++j) {
@@ -84,6 +92,7 @@ cpp11::writable::doubles_matrix<cpp11::by_column> kernel_grouped_reduce_csc_cpp(
 
     // Serial merge of thread buckets.
     std::vector<Acc> accs((size_t)nrow * (size_t)ngroups);
+    if (need_log) for (auto &a : accs) a.need_log = true;
     for (int t = 0; t < nthreads; ++t) {
         const auto &tb = tacc[t];
         const size_t N = accs.size();

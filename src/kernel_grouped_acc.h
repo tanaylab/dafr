@@ -20,14 +20,16 @@ namespace dafr_grouped {
 struct Acc {
     double sum_x = 0.0;
     double sum_x2 = 0.0;
-    double log_sum = 0.0;   // Σ log(x + eps) over explicit entries
+    double log_sum = 0.0;   // Σ log(x + eps) over explicit entries; only
+                            // computed when need_log == true (GeoMean only)
     int nnz = 0;
     double min_x =  std::numeric_limits<double>::infinity();
     double max_x = -std::numeric_limits<double>::infinity();
+    bool need_log = false;  // set at construction; skip log() for non-GeoMean
     inline void push(double v, double eps) {
         sum_x   += v;
         sum_x2  += v * v;
-        log_sum += std::log(v + eps);
+        if (need_log) log_sum += std::log(v + eps);
         nnz     += 1;
         if (v < min_x) min_x = v;
         if (v > max_x) max_x = v;
