@@ -1063,8 +1063,8 @@ NULL
             call. = FALSE)
     }
 
-    if (identical(by, "rows") && identical(node$op, "ReduceToColumn")) {
-        # G2 fallback: ngroups x ncol output.
+    if (identical(by, "rows") && identical(node$op, "ReduceToRow")) {
+        # G2 fallback: by="rows", op="ReduceToRow" -> ngroups x ncol.
         sub0 <- m[idx[[valid[1L]]], , drop = FALSE]
         sample_out <- apply(sub0, 2L,
             function(col) do.call(fn, c(list(col), params)))
@@ -1081,7 +1081,7 @@ NULL
         return(out)
     }
 
-    # G3 fallback: by="cols", op="ReduceToRow" -> nrow x ngroups.
+    # G3 fallback: by="cols", op="ReduceToColumn" -> nrow x ngroups.
     sub0 <- m[, idx[[valid[1L]]], drop = FALSE]
     sample_out <- apply(sub0, 1L,
         function(row) do.call(fn, c(list(row), params)))
@@ -1104,10 +1104,10 @@ NULL
     m <- state$value
     label <- .reduction_builtin_label(fn)
 
-    is_g2 <- identical(by, "rows") && identical(node$op, "ReduceToColumn")
-    is_g3 <- identical(by, "cols") && identical(node$op, "ReduceToRow")
-    is_g4a <- identical(by, "rows") && identical(node$op, "ReduceToRow")
-    is_g4b <- identical(by, "cols") && identical(node$op, "ReduceToColumn")
+    is_g2 <- identical(by, "rows") && identical(node$op, "ReduceToRow")
+    is_g3 <- identical(by, "cols") && identical(node$op, "ReduceToColumn")
+    is_g4a <- identical(by, "rows") && identical(node$op, "ReduceToColumn")
+    is_g4b <- identical(by, "cols") && identical(node$op, "ReduceToRow")
 
     if (is_g2 || is_g3) {
         g <- if (is_g2) state$pending_row_groups else state$pending_col_groups
@@ -1155,10 +1155,10 @@ NULL
         # vector reduction across the ungrouped axis. Equivalent to the old
         # double-apply logic but sidesteps DSL recursion issues.
         if (is_g4a) {
-            # Row-grouped + ReduceToRow: G2 gives ngroups x ncol, then reduce
+            # Row-grouped + ReduceToColumn: G2 gives ngroups x ncol, then reduce
             # each row (across cols) to a scalar per group.
             inner_by <- "rows"
-            inner_op <- "ReduceToColumn"
+            inner_op <- "ReduceToRow"
             inner_state <- state
             inner_node <- list(op = inner_op,
                 reduction = node$reduction, params = node$params)
@@ -1182,9 +1182,9 @@ NULL
             names(out) <- lvls
             return(list(kind = "vector", axis = NULL, value = out))
         }
-        # G4b: col-grouped + ReduceToColumn: G3 gives nrow x ngroups, then
+        # G4b: col-grouped + ReduceToRow: G3 gives nrow x ngroups, then
         # reduce each column (across rows) to a scalar per group.
-        inner_node <- list(op = "ReduceToRow",
+        inner_node <- list(op = "ReduceToColumn",
             reduction = node$reduction, params = node$params)
         inner <- .apply_reduction_grouped_matrix(inner_node, state, daf,
             by = "cols")
