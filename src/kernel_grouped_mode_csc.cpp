@@ -148,25 +148,16 @@ kernel_grouped_mode_csc_cpp(
 
     // axis == 3 (G3, col-group): output is nrow x ngroups.
     //
-    // For each (row r, col-group g) we need:
-    //   - count of each distinct value in dense[r, cols_in_group[g]]
-    //   - first-seen ordinal position within cols_in_group[g]
-    // where cols_in_group[g] is the sorted list of columns whose group is g.
+    // For each (row r, col-group g) we need the count and first-seen
+    // ordinal position of each distinct value in dense[r, cols_in_group[g]].
     //
-    // Pass 1 (serial, rows independent but writes are per-(r,g) so we'd
-    // need locks or thread buckets): collect (value, ord_pos) for each
-    // explicit cell into per-(r, g) vectors.
-    //
-    // We use thread-local buckets of `Entry` = (value, ord_pos). After the
-    // parallel pass we merge them into one vector per (r, g) and finalise.
-    //
-    // FIXME: memory is O(nthreads * nrow * ngroups) Entry pointers plus
-    // O(nnz) Entry values.  For large nrow * ngroups consider a row-
-    // partitioned fallback.
+    // Row-partition: each thread owns a disjoint row range [r0, r1).
+    // All threads scan every column, but only push when pi[k] falls in
+    // their row range. Writes to accs[base + r] are race-free (slot
+    // ownership fixed by r, ranges disjoint). No thread buckets, no merge.
     struct Entry { double val; int pos; };
 
-    // Precompute ordinal position per column within its group and
-    // cols_in_group[g] for later use.
+    // Precompute per-column ordinal position and cols_in_group[g].
     std::vector<std::vector<int>> cols_in_group(ngroups);
     for (int g = 0; g < ngroups; ++g) cols_in_group[g].reserve(png[g]);
     std::vector<int> col_ord(ncol, -1);
@@ -177,108 +168,93 @@ kernel_grouped_mode_csc_cpp(
     }
 
     cpp11::writable::doubles_matrix<cpp11::by_column> out(nrow, ngroups);
-
-    const int nthreads = dafr_omp_get_max_threads_capped(ncol, threshold);
-    // tbuf[tid][r + g * nrow] = vector<Entry>.
-    std::vector<std::vector<std::vector<Entry>>> tbuf(nthreads,
-        std::vector<std::vector<Entry>>((size_t)nrow * (size_t)ngroups));
-
-    DAFR_PARALLEL_FOR(ncol >= threshold)
-    for (int j = 0; j < ncol; ++j) {
-        const int tid = dafr_omp_get_thread_num();
-        const int g = pg[j] - 1;
-        const int ord = col_ord[j];
-        auto &buf = tbuf[tid];
-        const size_t base = (size_t)g * (size_t)nrow;
-        for (int k = pp[j]; k < pp[j + 1]; ++k) {
-            buf[base + (size_t)pi[k]].push_back({px[k], ord});
-        }
-    }
-
-    // Serial merge of thread buckets.
     std::vector<std::vector<Entry>> accs((size_t)nrow * (size_t)ngroups);
-    for (int t = 0; t < nthreads; ++t) {
-        auto &tb = tbuf[t];
-        const size_t N = accs.size();
-        for (size_t idx = 0; idx < N; ++idx) {
-            if (!tb[idx].empty()) {
-                auto &dst = accs[idx];
-                dst.insert(dst.end(), tb[idx].begin(), tb[idx].end());
-                tb[idx].clear();
-                tb[idx].shrink_to_fit();
+
+    DAFR_OMP_PARALLEL_IF(nrow >= threshold)
+    {
+        const int tid = dafr_omp_get_thread_num();
+        const int nt  = dafr_omp_get_num_threads();
+        const int chunk = (nrow + nt - 1) / nt;
+        const int r0 = std::min(nrow, tid * chunk);
+        const int r1 = std::min(nrow, r0 + chunk);
+
+        // Pass 1: scan every column, filter by row-range.
+        for (int j = 0; j < ncol; ++j) {
+            const int g = pg[j] - 1;
+            const int ord = col_ord[j];
+            const size_t base = (size_t)g * (size_t)nrow;
+            const int k_end = pp[j + 1];
+            for (int k = pp[j]; k < k_end; ++k) {
+                const int r = pi[k];
+                if (r < r0 || r >= r1) continue;
+                accs[base + (size_t)r].push_back({px[k], ord});
             }
         }
-    }
-    tbuf.clear();
 
-    // Parallel post-process: compute mode per (r, g).
-    DAFR_PARALLEL_FOR(nrow >= threshold)
-    for (int r = 0; r < nrow; ++r) {
-        for (int g = 0; g < ngroups; ++g) {
-            const int n_total = png[g];
-            if (n_total <= 0) { out(r, g) = 0.0; continue; }
-            const size_t idx = (size_t)r + (size_t)g * (size_t)nrow;
-            auto &entries = accs[idx];
-            // Sort entries by ord so first-seen is correct (thread-bucket
-            // merge may interleave).  ord is unique per entry in a cell
-            // (one ord per column) so stability isn't an issue.
-            std::sort(entries.begin(), entries.end(),
-                      [](const Entry &a, const Entry &b) { return a.pos < b.pos; });
+        // Pass 2: compute mode per (r, g) for r in [r0, r1).
+        for (int r = r0; r < r1; ++r) {
+            for (int g = 0; g < ngroups; ++g) {
+                const int n_total = png[g];
+                if (n_total <= 0) { out(r, g) = 0.0; continue; }
+                const size_t idx = (size_t)r + (size_t)g * (size_t)nrow;
+                auto &entries = accs[idx];
+                // Sort entries by ord so first-seen is correct.  ord is
+                // unique per entry in a cell (one ord per column).
+                std::sort(entries.begin(), entries.end(),
+                          [](const Entry &a, const Entry &b) { return a.pos < b.pos; });
 
-            std::unordered_map<double, int> counts;
-            std::unordered_map<double, int> first_pos;
-            counts.reserve(entries.size());
-            first_pos.reserve(entries.size());
+                std::unordered_map<double, int> counts;
+                std::unordered_map<double, int> first_pos;
+                counts.reserve(entries.size());
+                first_pos.reserve(entries.size());
 
-            int n_zeros = 0;
-            int zero_first_pos = std::numeric_limits<int>::max();
-            bool zero_seen = false;
+                int n_zeros = 0;
+                int zero_first_pos = std::numeric_limits<int>::max();
+                bool zero_seen = false;
 
-            // Walk cols_in_group[g] in order; for each ord, either an
-            // explicit entry appears (consume from entries) or it's an
-            // implicit zero for row r.
-            const auto &cg = cols_in_group[g];
-            int ei = 0;
-            const int ne = static_cast<int>(entries.size());
-            for (int ord = 0; ord < static_cast<int>(cg.size()); ++ord) {
-                if (ei < ne && entries[ei].pos == ord) {
-                    const double v = entries[ei].val;
-                    if (v == 0.0) {
+                const auto &cg = cols_in_group[g];
+                int ei = 0;
+                const int ne = static_cast<int>(entries.size());
+                for (int ord = 0; ord < static_cast<int>(cg.size()); ++ord) {
+                    if (ei < ne && entries[ei].pos == ord) {
+                        const double v = entries[ei].val;
+                        if (v == 0.0) {
+                            ++n_zeros;
+                            if (!zero_seen) { zero_first_pos = ord; zero_seen = true; }
+                        } else {
+                            auto it = counts.find(v);
+                            if (it == counts.end()) {
+                                counts[v]    = 1;
+                                first_pos[v] = ord;
+                            } else {
+                                it->second += 1;
+                            }
+                        }
+                        ++ei;
+                    } else {
+                        // implicit zero
                         ++n_zeros;
                         if (!zero_seen) { zero_first_pos = ord; zero_seen = true; }
-                    } else {
-                        auto it = counts.find(v);
-                        if (it == counts.end()) {
-                            counts[v]    = 1;
-                            first_pos[v] = ord;
-                        } else {
-                            it->second += 1;
-                        }
                     }
-                    ++ei;
-                } else {
-                    // implicit zero
-                    ++n_zeros;
-                    if (!zero_seen) { zero_first_pos = ord; zero_seen = true; }
                 }
-            }
 
-            double best_val = 0.0;
-            int best_count = n_zeros;
-            int best_first_pos = zero_seen ? zero_first_pos
-                                             : std::numeric_limits<int>::max();
-            if (!zero_seen) best_count = 0;
-            for (const auto &kv : counts) {
-                const int cnt = kv.second;
-                const int fp  = first_pos[kv.first];
-                if (cnt > best_count ||
-                    (cnt == best_count && fp < best_first_pos)) {
-                    best_count     = cnt;
-                    best_val       = kv.first;
-                    best_first_pos = fp;
+                double best_val = 0.0;
+                int best_count = n_zeros;
+                int best_first_pos = zero_seen ? zero_first_pos
+                                                 : std::numeric_limits<int>::max();
+                if (!zero_seen) best_count = 0;
+                for (const auto &kv : counts) {
+                    const int cnt = kv.second;
+                    const int fp  = first_pos[kv.first];
+                    if (cnt > best_count ||
+                        (cnt == best_count && fp < best_first_pos)) {
+                        best_count     = cnt;
+                        best_val       = kv.first;
+                        best_first_pos = fp;
+                    }
                 }
+                out(r, g) = best_val;
             }
-            out(r, g) = best_val;
         }
     }
     return out;

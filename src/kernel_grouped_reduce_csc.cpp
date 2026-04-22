@@ -61,53 +61,47 @@ cpp11::writable::doubles_matrix<cpp11::by_column> kernel_grouped_reduce_csc_cpp(
         return out;
     }
 
-    // axis == 3 (G3, col-group): output is nrow x ngroups. Thread-bucket
-    // pattern: tacc[tid] is a flat Acc vector of length nrow * ngroups,
-    // indexed as (r + g * nrow) for locality when post-processing by
-    // column of the output matrix.
+    // axis == 3 (G3, col-group): output is nrow x ngroups.
     //
-    // FIXME: this is O(nthreads * nrow * ngroups) memory. For large nrow
-    // and ngroups (e.g. 1e6 * 100 cells * 8 threads ~= 10 GB of Acc),
-    // consider a row-partitioned fallback. Not implemented in this slice.
+    // Row-partition: each thread owns a disjoint row range [r0, r1).
+    // All threads scan every column, but only push when pi[k] falls in
+    // their row range. Writes to accs[base + r] are race-free because
+    // slot ownership is fixed by r, and row ranges across threads are
+    // disjoint. No thread buckets, no serial merge.
     cpp11::writable::doubles_matrix<cpp11::by_column> out(nrow, ngroups);
-    const int nthreads = dafr_omp_get_max_threads_capped(ncol, threshold);
-    std::vector<std::vector<Acc>> tacc(nthreads,
-        std::vector<Acc>((size_t)nrow * (size_t)ngroups));
-    // Set need_log on every accumulator in each thread bucket.
-    if (need_log) {
-        for (int t = 0; t < nthreads; ++t)
-            for (auto &a : tacc[t]) a.need_log = true;
-    }
-
-    DAFR_PARALLEL_FOR(ncol >= threshold)
-    for (int j = 0; j < ncol; ++j) {
-        const int tid = dafr_omp_get_thread_num();
-        const int g = pg[j] - 1;   // 1-based -> 0-based; constant per column
-        auto &tbuf = tacc[tid];
-        const size_t base = (size_t)g * (size_t)nrow;
-        for (int k = pp[j]; k < pp[j + 1]; ++k) {
-            tbuf[base + (size_t)pi[k]].push(px[k], eps);
-        }
-    }
-
-    // Serial merge of thread buckets.
     std::vector<Acc> accs((size_t)nrow * (size_t)ngroups);
-    if (need_log) for (auto &a : accs) a.need_log = true;
-    for (int t = 0; t < nthreads; ++t) {
-        const auto &tb = tacc[t];
-        const size_t N = accs.size();
-        for (size_t idx = 0; idx < N; ++idx) {
-            acc_merge(accs[idx], tb[idx]);
-        }
+    if (need_log) {
+        for (auto &a : accs) a.need_log = true;
     }
 
-    // Parallel post-process (rows independent).
-    DAFR_PARALLEL_FOR(nrow >= threshold)
-    for (int r = 0; r < nrow; ++r) {
-        for (int g = 0; g < ngroups; ++g) {
-            out(r, g) = derive_op(op,
-                accs[(size_t)r + (size_t)g * (size_t)nrow],
-                png[g], eps);
+    DAFR_OMP_PARALLEL_IF(nrow >= threshold)
+    {
+        const int tid = dafr_omp_get_thread_num();
+        const int nt  = dafr_omp_get_num_threads();
+        const int chunk = (nrow + nt - 1) / nt;
+        const int r0 = std::min(nrow, tid * chunk);
+        const int r1 = std::min(nrow, r0 + chunk);
+
+        // Pass 1: scan every column, filter by row-range.
+        for (int j = 0; j < ncol; ++j) {
+            const int g = pg[j] - 1;
+            const size_t base = (size_t)g * (size_t)nrow;
+            const int k_end = pp[j + 1];
+            for (int k = pp[j]; k < k_end; ++k) {
+                const int r = pi[k];
+                if (r < r0 || r >= r1) continue;
+                accs[base + (size_t)r].push(px[k], eps);
+            }
+        }
+
+        // Pass 2: post-process rows in [r0, r1). Rows are independent;
+        // the same thread owns both the writes and reads in this range.
+        for (int r = r0; r < r1; ++r) {
+            for (int g = 0; g < ngroups; ++g) {
+                out(r, g) = derive_op(op,
+                    accs[(size_t)r + (size_t)g * (size_t)nrow],
+                    png[g], eps);
+            }
         }
     }
     return out;
