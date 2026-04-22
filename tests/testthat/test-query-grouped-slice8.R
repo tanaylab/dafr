@@ -95,7 +95,7 @@ test_that("G1 fallback preserves logical output from custom reduction", {
     expect_equal(unname(out), c(FALSE, TRUE))
 })
 
-test_that("G2 row-grouped + ReduceToColumn: sparse -> ngroups x ncol", {
+test_that("G2 row-grouped + ReduceToRow: sparse -> ngroups x ncol", {
     skip_if_not_installed("Matrix")
     set.seed(49)
     m <- Matrix::rsparsematrix(30L, 20L, density = 0.4,
@@ -121,7 +121,7 @@ test_that("G2 row-grouped + ReduceToColumn: sparse -> ngroups x ncol", {
         ignore_attr = TRUE)
 })
 
-test_that("G2 row-grouped + ReduceToColumn: dense -> ngroups x ncol", {
+test_that("G2 row-grouped + ReduceToRow: dense -> ngroups x ncol", {
     set.seed(50)
     m <- matrix(runif(30L * 20L, 0.1, 3), 30L, 20L)
     d <- memory_daf(name = "t")
@@ -142,7 +142,7 @@ test_that("G2 row-grouped + ReduceToColumn: dense -> ngroups x ncol", {
         tolerance = 1e-9, ignore_attr = TRUE)
 })
 
-test_that("G3 col-grouped + ReduceToRow: sparse -> nrow x ngroups", {
+test_that("G3 col-grouped + ReduceToColumn: sparse -> nrow x ngroups", {
     skip_if_not_installed("Matrix")
     set.seed(51)
     m <- Matrix::rsparsematrix(30L, 20L, density = 0.4,
@@ -167,7 +167,7 @@ test_that("G3 col-grouped + ReduceToRow: sparse -> nrow x ngroups", {
         ignore_attr = TRUE)
 })
 
-test_that("G3 col-grouped + ReduceToRow: dense -> nrow x ngroups", {
+test_that("G3 col-grouped + ReduceToColumn: dense -> nrow x ngroups", {
     set.seed(52)
     m <- matrix(runif(30L * 20L, 0.1, 3), 30L, 20L)
     d <- memory_daf(name = "t")
@@ -183,7 +183,7 @@ test_that("G3 col-grouped + ReduceToRow: dense -> nrow x ngroups", {
     }
 })
 
-test_that("G4a row-grouped + ReduceToRow: vector[ngroups]", {
+test_that("G4a row-grouped + ReduceToColumn: vector[ngroups]", {
     set.seed(53)
     m <- matrix(runif(30L * 20L, 0.1, 3), 30L, 20L)
     d <- memory_daf(name = "t")
@@ -200,7 +200,7 @@ test_that("G4a row-grouped + ReduceToRow: vector[ngroups]", {
     # don't apply to that vector. Instead G4 is: the inner reduce collapses
     # the ungrouped axis, and the outer reduce collapses the grouped axis.
     #
-    # For row-grouped + ReduceToRow: inner = per-col reduce across all rows
+    # For row-grouped + ReduceToColumn: inner = per-col reduce across all rows
     # within each group -> matrix ngroups x ncol, then reduce across cols
     # in each group row -> vector[ngroups].
     # Easier: it's ReduceToRow applied to an already row-grouped matrix, i.e.
@@ -336,7 +336,7 @@ test_that("G2 fallback with custom int-returning reduction preserves type", {
     expect_equal(dim(out), c(2L, 10L))
     expect_type(out, "integer")
     # Each group has 3 rows; length of row slice = ncol = 10; no wait: for
-    # G2 ReduceToColumn, for each (group, col) pair we reduce the column
+    # G2 ReduceToRow, for each (group, col) pair we reduce the column
     # values within that group -> length = 3.
     expect_equal(unname(out)[1L, 1L], 3L)
 })
