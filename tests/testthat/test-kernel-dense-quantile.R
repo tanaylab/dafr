@@ -82,6 +82,20 @@ test_that("kernel_quantile_dense NaN column yields NA_REAL", {
 })
 
 # ---------------------------------------------------------------------------
+# Test 6b: NA_real_ in double column yields NA_REAL.
+# (ISNAN covers both NaN and NA_real_; this exercises the NA_real_ case.)
+# ---------------------------------------------------------------------------
+test_that("kernel_quantile_dense NA_REAL in double column yields NA_REAL", {
+    m <- matrix(c(1.0, NA_real_, 3.0, 4.0,
+                  5.0,      6.0, 7.0, 8.0),
+                nrow = 4L, ncol = 2L)
+    got <- dafr:::kernel_quantile_dense_cpp(m, axis = 1L, q = 0.5, threshold = 1L)
+    expect_true(is.na(got[1L]))
+    expect_false(is.na(got[2L]))
+    expect_equal(got[2L], 6.5, tolerance = sqrt(.Machine$double.eps))
+})
+
+# ---------------------------------------------------------------------------
 # Test 7: NA_INTEGER in Int column yields NA_REAL.
 # ---------------------------------------------------------------------------
 test_that("kernel_quantile_dense NA_INTEGER column yields NA_REAL", {
