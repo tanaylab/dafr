@@ -66,8 +66,9 @@ cpp11::writable::doubles kernel_geomean_csc_cpp(
         return out;
     }
 
-    // axis == 0: per-row. Thread-bucket accumulation pattern (same as
-    // kernel_log_reduce_csc_cpp, kernel_var_csc_cpp).
+    // axis == 0: per-row. Row-partition: each thread owns a disjoint row
+    // range [r0, r1); writes to pout[r] and nnz_per_row[r] are race-free.
+    // No thread buckets, no serial merge.
     cpp11::writable::doubles out(nrow);
     double *pout = REAL(out.data());
 
@@ -77,47 +78,37 @@ cpp11::writable::doubles kernel_geomean_csc_cpp(
         return out;
     }
 
-    // FIXME: tsum/tnnz are O(nthreads * nrow). For scRNA-seq-scale inputs
-    // (nrow > 1e6), consider a sequential fallback.
-    const int nthreads = dafr_omp_get_max_threads_capped(ncol, threshold);
-    std::vector<std::vector<double>> tsum(nthreads,
-        std::vector<double>(nrow, 0.0));
-    std::vector<std::vector<int>>    tnnz(nthreads,
-        std::vector<int>(nrow, 0));
-
-    DAFR_PARALLEL_FOR(ncol >= threshold)
-    for (int j = 0; j < ncol; ++j) {
-        const int tid = dafr_omp_get_thread_num();
-        std::vector<double> &ts = tsum[tid];
-        std::vector<int>    &tn = tnnz[tid];
-        for (int k = pp[j]; k < pp[j + 1]; ++k) {
-            const int r = pi[k];
-            ts[r] += std::log(px[k] + eps);
-            tn[r] += 1;
-        }
-    }
-
-    // Initialise output to zero before serial reduction.
     for (int r = 0; r < nrow; ++r) pout[r] = 0.0;
     std::vector<int> nnz_per_row(nrow, 0);
 
-    for (int t = 0; t < nthreads; ++t) {
-        const std::vector<double> &ts = tsum[t];
-        const std::vector<int>    &tn = tnnz[t];
-        for (int r = 0; r < nrow; ++r) {
-            pout[r]        += ts[r];
-            nnz_per_row[r] += tn[r];
-        }
-    }
+    DAFR_OMP_PARALLEL_IF(nrow >= threshold)
+    {
+        const int tid = dafr_omp_get_thread_num();
+        const int nt  = dafr_omp_get_num_threads();
+        const int chunk = (nrow + nt - 1) / nt;
+        const int r0 = std::min(nrow, tid * chunk);
+        const int r1 = std::min(nrow, r0 + chunk);
 
-    DAFR_PARALLEL_FOR(nrow >= threshold)
-    for (int r = 0; r < nrow; ++r) {
-        double s = pout[r];
-        if (has_eps) {
-            s += (double)(ncol - nnz_per_row[r]) * log_eps;
-            pout[r] = std::exp(s / ncol) - eps;
-        } else {
-            pout[r] = std::exp(s / ncol);
+        // Pass 1: scan every column; filter by row-range.
+        for (int j = 0; j < ncol; ++j) {
+            const int k_end = pp[j + 1];
+            for (int k = pp[j]; k < k_end; ++k) {
+                const int r = pi[k];
+                if (r < r0 || r >= r1) continue;
+                pout[r] += std::log(px[k] + eps);
+                nnz_per_row[r] += 1;
+            }
+        }
+
+        // Pass 2: add zero contribution, derive geometric mean.
+        for (int r = r0; r < r1; ++r) {
+            double s = pout[r];
+            if (has_eps) {
+                s += (double)(ncol - nnz_per_row[r]) * log_eps;
+                pout[r] = std::exp(s / ncol) - eps;
+            } else {
+                pout[r] = std::exp(s / ncol);
+            }
         }
     }
     return out;
