@@ -63,6 +63,14 @@ if (nrow(joined) != nrow(r$df) || nrow(joined) != nrow(j$df)) {
                     nrow(r$df), nrow(j$df), nrow(joined)))
 }
 
+# Fail loudly on categories the threshold table doesn't know about, so
+# silently-mis-tiered rows can't slip through as phantom breaches (NA
+# thresholds propagate to NA breach which is ambiguous).
+unknown_cats <- setdiff(unique(joined$category), names(THRESHOLDS))
+if (length(unknown_cats) > 0L) {
+    stop(sprintf("unknown categories in query set: %s",
+                 paste(unknown_cats, collapse = ", ")))
+}
 # ratio = R / J (higher = dafr slower = bad)
 joined$ratio     <- joined$median_time_ns_r / joined$median_time_ns_j
 joined$threshold <- THRESHOLDS[joined$category]
