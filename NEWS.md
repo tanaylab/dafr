@@ -1,5 +1,25 @@
 # dafr (development version)
 
+## Slice 9d-M — G3 grouped-CSC memory fix (2026-04-22)
+
+### Performance
+
+* **Row-partition rewrite of the axis = 3 branch of three grouped CSC
+  kernels** (`kernel_grouped_reduce_csc`, `kernel_grouped_mode_csc`,
+  `kernel_grouped_quantile_csc`). The prior implementation allocated an
+  `O(nthreads × nrow × ngroups)` vector of thread-local accumulator
+  buckets and merged them serially after the parallel scan. On a stress
+  fixture of 10⁴ × 10⁴ CSC with 100 groups, that pattern grew to 7.34 GB
+  at 128 threads and the serial merge made the 128-thread dispatch 10-
+  30× *slower* than single-threaded. The rewrite gives each thread a
+  disjoint row range `[r0, r1)` and lets it write directly into a single
+  shared output-shaped accumulator; no thread buckets, no merge. Peak RSS
+  at 128 threads drops to 340 MB (-7.0 GB), and wall-time at 128 threads
+  is now 29–103× faster than the pre-fix value across the measured
+  kernel variants. Single-threaded behaviour is bit-identical to the
+  prior path (no bake-off regression); the fix is memory-and-perf at
+  scale, invisible at OMP\_NUM\_THREADS = 1.
+
 ## Slice 9c — Dense perf closure (2026-04-22)
 
 ### Performance
