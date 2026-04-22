@@ -48,6 +48,10 @@ kernel_grouped_reduce_dense_cpp <- function(m, group, ngroups, n_in_group, axis,
   .Call(`_dafr_kernel_grouped_reduce_dense_cpp`, m, group, ngroups, n_in_group, axis, op, eps, threshold)
 }
 
+kernel_grouped_rowsum_dense_cpp <- function(mat, groups, ngroups, need_sq, axis) {
+  .Call(`_dafr_kernel_grouped_rowsum_dense_cpp`, mat, groups, ngroups, need_sq, axis)
+}
+
 kernel_log_reduce_dense_cpp <- function(m, eps, base, axis, reducer, threshold) {
   .Call(`_dafr_kernel_log_reduce_dense_cpp`, m, eps, base, axis, reducer, threshold)
 }

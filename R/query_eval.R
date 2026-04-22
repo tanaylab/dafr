@@ -1052,10 +1052,10 @@ NULL
             op = label, eps = eps,
             threshold = .dafr_kernel_threshold())
     } else {
-        # Dense fast path: rowsum()-based for all ops except GeoMean.
-        # axis == 2 (G2, row-grouped): rowsum(m, gi)         -> ngroups x ncol
-        # axis == 3 (G3, col-grouped): t(rowsum(t(m), gi))   -> nrow x ngroups
-        if (!is.double(m)) storage.mode(m) <- "double"
+        # Dense fast path: C++ grouped-rowsum kernel for all ops except GeoMean.
+        # axis == 2 (G2, row-grouped): kernel output -> ngroups x ncol
+        # axis == 3 (G3, col-grouped): kernel output -> nrow x ngroups
+        # The kernel accepts INTSXP or REALSXP directly (no storage.mode copy).
         .grouped_dense_rowsum(m, gi, ngroups, n_in_group, axis, label, eps)
     }
 }
@@ -1074,44 +1074,34 @@ NULL
             op = label, eps = eps,
             threshold = .dafr_kernel_threshold()))
     }
+    # need_sq: whether Var/Std/VarN/StdN need sum-of-squares.
+    need_sq <- label %in% c("Var", "Std", "VarN", "StdN")
+    # For Sum/Mean/Var/Std/VarN/StdN use the new Int-aware C++ kernel.
+    use_kernel <- label %in% c("Sum", "Mean", "Var", "Std", "VarN", "StdN")
+
     if (axis == 2L) {
-        # G2: rowsum groups rows.
+        # G2: groups along rows.  Output: ngroups x ncol.
+        if (use_kernel) {
+            res <- kernel_grouped_rowsum_dense_cpp(m, gi, ngroups, need_sq, axis)
+            rs  <- res$sum
+            return(switch(label,
+                Sum  = rs,
+                Mean = rs / n_in_group,
+                {
+                    n   <- n_in_group
+                    rs2 <- res$sq
+                    mu  <- rs / n
+                    v   <- pmax(rs2 / n - mu * mu, 0)
+                    switch(label,
+                        Var  = v,
+                        Std  = sqrt(v),
+                        VarN = v / (mu + eps),
+                        StdN = sqrt(v) / (mu + eps)
+                    )
+                }
+            ))
+        }
         switch(label,
-            Sum = rowsum(m, gi, reorder = FALSE),
-            Mean = {
-                rs <- rowsum(m, gi, reorder = FALSE)
-                rs / n_in_group
-            },
-            Var = {
-                n  <- n_in_group
-                rs <- rowsum(m, gi, reorder = FALSE)
-                rs2 <- rowsum(m * m, gi, reorder = FALSE)
-                mu  <- rs / n
-                pmax(rs2 / n - mu * mu, 0)
-            },
-            Std = {
-                n  <- n_in_group
-                rs <- rowsum(m, gi, reorder = FALSE)
-                rs2 <- rowsum(m * m, gi, reorder = FALSE)
-                mu  <- rs / n
-                sqrt(pmax(rs2 / n - mu * mu, 0))
-            },
-            VarN = {
-                n  <- n_in_group
-                rs <- rowsum(m, gi, reorder = FALSE)
-                rs2 <- rowsum(m * m, gi, reorder = FALSE)
-                mu  <- rs / n
-                v   <- pmax(rs2 / n - mu * mu, 0)
-                v / (mu + eps)
-            },
-            StdN = {
-                n  <- n_in_group
-                rs <- rowsum(m, gi, reorder = FALSE)
-                rs2 <- rowsum(m * m, gi, reorder = FALSE)
-                mu  <- rs / n
-                s   <- sqrt(pmax(rs2 / n - mu * mu, 0))
-                s / (mu + eps)
-            },
             Max = {
                 idx <- split(seq_len(nrow(m)), gi)
                 out <- matrix(0, ngroups, ncol(m))
@@ -1138,54 +1128,28 @@ NULL
                 threshold = .dafr_kernel_threshold())
         )
     } else {
-        # G3 (axis == 3): cols of m are grouped -> output nrow(m) x ngroups.
-        # Use BLAS matrix multiply via a 0/1 indicator matrix (ncol x ngroups)
-        # for Sum/Mean/Var/Std/VarN/StdN.  m %*% ind sums columns per group
-        # without an explicit transpose, leveraging MKL/OpenBLAS efficiently.
+        # G3 (axis == 3): groups along cols.  Output: nrow(m) x ngroups.
+        if (use_kernel) {
+            res <- kernel_grouped_rowsum_dense_cpp(m, gi, ngroups, need_sq, axis)
+            rs  <- res$sum
+            return(switch(label,
+                Sum  = rs,
+                Mean = t(t(rs) / n_in_group),
+                {
+                    n   <- n_in_group
+                    rs2 <- res$sq
+                    mu  <- t(t(rs) / n)
+                    v   <- pmax(t(t(rs2) / n) - mu * mu, 0)
+                    switch(label,
+                        Var  = v,
+                        Std  = sqrt(v),
+                        VarN = v / (mu + eps),
+                        StdN = sqrt(v) / (mu + eps)
+                    )
+                }
+            ))
+        }
         switch(label,
-            Sum = {
-                ind <- .g3_indicator(gi, ncol(m), ngroups)
-                m %*% ind
-            },
-            Mean = {
-                ind <- .g3_indicator(gi, ncol(m), ngroups)
-                rs  <- m %*% ind
-                t(t(rs) / n_in_group)
-            },
-            Var = {
-                n   <- n_in_group
-                ind <- .g3_indicator(gi, ncol(m), ngroups)
-                rs  <- m %*% ind
-                rs2 <- (m * m) %*% ind
-                mu  <- t(t(rs) / n)
-                pmax(t(t(rs2) / n) - mu * mu, 0)
-            },
-            Std = {
-                n   <- n_in_group
-                ind <- .g3_indicator(gi, ncol(m), ngroups)
-                rs  <- m %*% ind
-                rs2 <- (m * m) %*% ind
-                mu  <- t(t(rs) / n)
-                sqrt(pmax(t(t(rs2) / n) - mu * mu, 0))
-            },
-            VarN = {
-                n   <- n_in_group
-                ind <- .g3_indicator(gi, ncol(m), ngroups)
-                rs  <- m %*% ind
-                rs2 <- (m * m) %*% ind
-                mu  <- t(t(rs) / n)
-                v   <- pmax(t(t(rs2) / n) - mu * mu, 0)
-                v / (mu + eps)
-            },
-            StdN = {
-                n   <- n_in_group
-                ind <- .g3_indicator(gi, ncol(m), ngroups)
-                rs  <- m %*% ind
-                rs2 <- (m * m) %*% ind
-                mu  <- t(t(rs) / n)
-                s   <- sqrt(pmax(t(t(rs2) / n) - mu * mu, 0))
-                s / (mu + eps)
-            },
             Max = {
                 idx <- split(seq_len(ncol(m)), gi)
                 out <- matrix(0, nrow(m), ngroups)

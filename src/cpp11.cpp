@@ -89,6 +89,13 @@ extern "C" SEXP _dafr_kernel_grouped_reduce_dense_cpp(SEXP m, SEXP group, SEXP n
     return cpp11::as_sexp(kernel_grouped_reduce_dense_cpp(cpp11::as_cpp<cpp11::decay_t<cpp11::doubles_matrix<>>>(m), cpp11::as_cpp<cpp11::decay_t<cpp11::integers>>(group), cpp11::as_cpp<cpp11::decay_t<int>>(ngroups), cpp11::as_cpp<cpp11::decay_t<cpp11::integers>>(n_in_group), cpp11::as_cpp<cpp11::decay_t<int>>(axis), cpp11::as_cpp<cpp11::decay_t<std::string>>(op), cpp11::as_cpp<cpp11::decay_t<double>>(eps), cpp11::as_cpp<cpp11::decay_t<int>>(threshold)));
   END_CPP11
 }
+// kernel_grouped_rowsum_dense.cpp
+list kernel_grouped_rowsum_dense_cpp(SEXP mat, cpp11::integers groups, int ngroups, bool need_sq, int axis);
+extern "C" SEXP _dafr_kernel_grouped_rowsum_dense_cpp(SEXP mat, SEXP groups, SEXP ngroups, SEXP need_sq, SEXP axis) {
+  BEGIN_CPP11
+    return cpp11::as_sexp(kernel_grouped_rowsum_dense_cpp(cpp11::as_cpp<cpp11::decay_t<SEXP>>(mat), cpp11::as_cpp<cpp11::decay_t<cpp11::integers>>(groups), cpp11::as_cpp<cpp11::decay_t<int>>(ngroups), cpp11::as_cpp<cpp11::decay_t<bool>>(need_sq), cpp11::as_cpp<cpp11::decay_t<int>>(axis)));
+  END_CPP11
+}
 // kernel_log_reduce.cpp
 cpp11::writable::doubles kernel_log_reduce_dense_cpp(cpp11::doubles_matrix<> m, double eps, double base, int axis, std::string reducer, int threshold);
 extern "C" SEXP _dafr_kernel_log_reduce_dense_cpp(SEXP m, SEXP eps, SEXP base, SEXP axis, SEXP reducer, SEXP threshold) {
@@ -142,6 +149,7 @@ static const R_CallMethodDef CallEntries[] = {
     {"_dafr_kernel_grouped_quantile_csc_cpp", (DL_FUNC) &_dafr_kernel_grouped_quantile_csc_cpp, 11},
     {"_dafr_kernel_grouped_reduce_csc_cpp",   (DL_FUNC) &_dafr_kernel_grouped_reduce_csc_cpp,   12},
     {"_dafr_kernel_grouped_reduce_dense_cpp", (DL_FUNC) &_dafr_kernel_grouped_reduce_dense_cpp,  8},
+    {"_dafr_kernel_grouped_rowsum_dense_cpp", (DL_FUNC) &_dafr_kernel_grouped_rowsum_dense_cpp,  5},
     {"_dafr_kernel_log_add_cpp",              (DL_FUNC) &_dafr_kernel_log_add_cpp,               3},
     {"_dafr_kernel_log_reduce_csc_cpp",       (DL_FUNC) &_dafr_kernel_log_reduce_csc_cpp,       10},
     {"_dafr_kernel_log_reduce_dense_cpp",     (DL_FUNC) &_dafr_kernel_log_reduce_dense_cpp,      6},
