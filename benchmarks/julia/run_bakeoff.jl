@@ -82,9 +82,15 @@ function main()
 
     fixtures_needed = sort(unique(q["fixture"] for q in queries))
     opened = Dict{String,Any}()
+    failed_fixtures = Set{String}()
     for name in fixtures_needed
-        opened[name] = open_fixture(name)
-        println("opened fixture $name")
+        try
+            opened[name] = open_fixture(name)
+            println("opened fixture $name")
+        catch e
+            println("WARN: failed to open fixture $name: $(sprint(showerror, e))")
+            push!(failed_fixtures, name)
+        end
     end
     checksums = Dict(name => sha256_dir(joinpath(FIXTURE_ROOT, name))
                      for name in fixtures_needed)
@@ -99,6 +105,13 @@ function main()
         text      = q["text"]
         name      = q["fixture"]
         reopen    = get(q, "reopen", false)
+
+        if name in failed_fixtures
+            @printf "  [%3d/%3d] %-30s %-22s SKIP: fixture failed to open\n" k length(queries) q["id"] q["category"]
+            push!(rows, (q["id"], text, q["category"], name,
+                         NaN, NaN, 0, NaN, 0))
+            continue
+        end
 
         bench = try
             if reopen
