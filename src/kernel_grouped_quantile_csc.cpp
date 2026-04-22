@@ -109,80 +109,67 @@ kernel_grouped_quantile_csc_cpp(
     }
 
     // axis == 3 (G3, col-group): output is nrow x ngroups.
-    // Collect per-(row, group) explicit values in thread-local buffers,
-    // merge, then compute quantile per cell.
     //
-    // FIXME: thread-bucket storage is O(nthreads * nrow * ngroups) pointers
-    // plus O(nnz) values total. For very large nrow * ngroups this can be
-    // memory-heavy; consider a row-partitioned fallback if it becomes an
-    // issue in benchmarks.
+    // Row-partition: each thread owns a disjoint row range [r0, r1).
+    // All threads scan every column, but only push when pi[k] falls in
+    // their row range. Writes to accs[base + r] are race-free. No
+    // thread buckets, no merge phase.
     cpp11::writable::doubles_matrix<cpp11::by_column> out(nrow, ngroups);
-    const int nthreads = dafr_omp_get_max_threads_capped(ncol, threshold);
-    // tbuf[tid][r + g * nrow] = vector<double> of explicit values in that cell.
-    std::vector<std::vector<std::vector<double>>> tbuf(nthreads,
-        std::vector<std::vector<double>>((size_t)nrow * (size_t)ngroups));
-
-    DAFR_PARALLEL_FOR(ncol >= threshold)
-    for (int j = 0; j < ncol; ++j) {
-        const int tid = dafr_omp_get_thread_num();
-        const int g = pg[j] - 1;            // constant within column
-        auto &buf = tbuf[tid];
-        const size_t base = (size_t)g * (size_t)nrow;
-        for (int k = pp[j]; k < pp[j + 1]; ++k) {
-            buf[base + (size_t)pi[k]].push_back(px[k]);
-        }
-    }
-
-    // Serial merge of thread buckets into a single accs vector.
     std::vector<std::vector<double>> accs((size_t)nrow * (size_t)ngroups);
-    for (int t = 0; t < nthreads; ++t) {
-        auto &tb = tbuf[t];
-        const size_t N = accs.size();
-        for (size_t idx = 0; idx < N; ++idx) {
-            if (!tb[idx].empty()) {
-                auto &dst = accs[idx];
-                dst.insert(dst.end(), tb[idx].begin(), tb[idx].end());
-                tb[idx].clear();
-                tb[idx].shrink_to_fit();
+
+    DAFR_OMP_PARALLEL_IF(nrow >= threshold)
+    {
+        const int tid = dafr_omp_get_thread_num();
+        const int nt  = dafr_omp_get_num_threads();
+        const int chunk = (nrow + nt - 1) / nt;
+        const int r0 = std::min(nrow, tid * chunk);
+        const int r1 = std::min(nrow, r0 + chunk);
+
+        // Pass 1: scan every column, filter by row-range.
+        for (int j = 0; j < ncol; ++j) {
+            const int g = pg[j] - 1;
+            const size_t base = (size_t)g * (size_t)nrow;
+            const int k_end = pp[j + 1];
+            for (int k = pp[j]; k < k_end; ++k) {
+                const int r = pi[k];
+                if (r < r0 || r >= r1) continue;
+                accs[base + (size_t)r].push_back(px[k]);
             }
         }
-    }
-    // Free thread buckets before the (potentially parallel) compute phase.
-    tbuf.clear();
 
-    // Parallel post-process: rows independent, groups independent.
-    DAFR_PARALLEL_FOR(nrow >= threshold)
-    for (int r = 0; r < nrow; ++r) {
-        for (int g = 0; g < ngroups; ++g) {
-            const int n_total = png[g];
-            if (n_total <= 0) { out(r, g) = 0.0; continue; }
-            const size_t idx = (size_t)r + (size_t)g * (size_t)nrow;
-            auto &vals = accs[idx];
-            std::vector<double> neg, pos;
-            neg.reserve(vals.size());
-            pos.reserve(vals.size());
-            for (double v : vals) {
-                if (v < 0.0) neg.push_back(v);
-                else if (v > 0.0) pos.push_back(v);
-            }
-            const int n_zeros = n_total -
-                static_cast<int>(neg.size()) - static_cast<int>(pos.size());
-            const double h = q * (n_total - 1);
-            const int lo = static_cast<int>(std::floor(h));
-            const int hi = static_cast<int>(std::ceil(h));
-            const double frac = h - lo;
-            if (lo == hi) {
-                out(r, g) = pick_rank(neg, pos, n_zeros, lo);
-            } else {
-                const double v_lo = pick_rank(neg, pos, n_zeros, lo);
-                // Rebuild for hi pick.
-                neg.clear(); pos.clear();
+        // Pass 2: compute quantile per (r, g) for r in [r0, r1).
+        for (int r = r0; r < r1; ++r) {
+            for (int g = 0; g < ngroups; ++g) {
+                const int n_total = png[g];
+                if (n_total <= 0) { out(r, g) = 0.0; continue; }
+                const size_t idx = (size_t)r + (size_t)g * (size_t)nrow;
+                auto &vals = accs[idx];
+                std::vector<double> neg, pos;
+                neg.reserve(vals.size());
+                pos.reserve(vals.size());
                 for (double v : vals) {
                     if (v < 0.0) neg.push_back(v);
                     else if (v > 0.0) pos.push_back(v);
                 }
-                const double v_hi = pick_rank(neg, pos, n_zeros, hi);
-                out(r, g) = (1.0 - frac) * v_lo + frac * v_hi;
+                const int n_zeros = n_total -
+                    static_cast<int>(neg.size()) - static_cast<int>(pos.size());
+                const double h = q * (n_total - 1);
+                const int lo = static_cast<int>(std::floor(h));
+                const int hi = static_cast<int>(std::ceil(h));
+                const double frac = h - lo;
+                if (lo == hi) {
+                    out(r, g) = pick_rank(neg, pos, n_zeros, lo);
+                } else {
+                    const double v_lo = pick_rank(neg, pos, n_zeros, lo);
+                    // Rebuild for hi pick (pick_rank is destructive).
+                    neg.clear(); pos.clear();
+                    for (double v : vals) {
+                        if (v < 0.0) neg.push_back(v);
+                        else if (v > 0.0) pos.push_back(v);
+                    }
+                    const double v_hi = pick_rank(neg, pos, n_zeros, hi);
+                    out(r, g) = (1.0 - frac) * v_lo + frac * v_hi;
+                }
             }
         }
     }
