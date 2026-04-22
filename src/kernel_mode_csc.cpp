@@ -105,98 +105,102 @@ cpp11::writable::doubles kernel_mode_csc_cpp(
     }
 
     // axis == 0: per-row (ReduceToColumn): one result per row.
-    // Collect nonzero values per row together with the column index at which
-    // they are first seen (column order == scan order for first-encountered).
-    // For implicit zeros per row, first_seen_col = first column that does NOT
-    // store this row.  We compute that lazily after collecting the data.
-
-    // per_row_vals[r] : nonzero values for row r (in column-scan order)
-    // per_row_cols[r] : column indices of the first occurrence of each distinct
-    //                   nonzero value for row r
-    // We store (col_idx, value) pairs per row; first col wins on ties.
+    // Row-partition: each thread owns a disjoint row range [r0, r1).
+    // The same thread fills rows[r] and computes out[r] for r in that
+    // range — no write race on rows[pi[k]], no cross-thread reads of
+    // rows[r] during post-process.
+    //
+    // Entry list per row: (col, val) pairs. Ordered by column because
+    // the owning thread scans j = 0..ncol-1 in ascending order. Mode's
+    // first-column-wins tie-break relies on this ordering.
     struct Entry { int col; double val; };
     std::vector<std::vector<Entry>> rows(nrow);
-    for (int j = 0; j < ncol; ++j) {
-        for (int k = pp[j]; k < pp[j + 1]; ++k) {
-            rows[pi[k]].push_back({j, px[k]});
-        }
-    }
-
-    // For each row, we also need to know the first column index at which a
-    // zero (implicit) appears.  Columns are scanned 0..ncol-1.  We can find
-    // this by looking at the sorted column indices stored for each row, then
-    // finding the first gap — exactly as for zero_row above but over columns.
-    // Since we built rows[r] in column order (j is increasing), we can walk
-    // the Entry list to find the first column not present.
 
     cpp11::writable::doubles out(nrow);
     double *pout = REAL(out.data());
 
-    DAFR_PARALLEL_FOR(nrow >= threshold)
-    for (int r = 0; r < nrow; ++r) {
-        const auto &entries = rows[r];
-        const int n_stored  = (int)entries.size();
-        const int n_zeros   = ncol - n_stored;
+    DAFR_OMP_PARALLEL_IF(nrow >= threshold)
+    {
+        const int tid = dafr_omp_get_thread_num();
+        const int nt  = dafr_omp_get_num_threads();
+        const int chunk = (nrow + nt - 1) / nt;
+        const int r0 = std::min(nrow, tid * chunk);
+        const int r1 = std::min(nrow, r0 + chunk);
 
-        // Find first_seen_col for implicit zero.
-        // entries are ordered by column (we inserted in j order).
-        int zero_first_col = std::numeric_limits<int>::max();
-        if (n_zeros > 0) {
-            // Walk stored columns looking for first gap.
-            if (n_stored == 0 || entries[0].col > 0) {
-                zero_first_col = 0;
-            } else {
-                zero_first_col = ncol; // default: no gap found yet
-                for (int k = 0; k < n_stored; ++k) {
-                    if (k + 1 < n_stored) {
-                        if (entries[k + 1].col > entries[k].col + 1) {
-                            zero_first_col = entries[k].col + 1;
-                            break;
-                        }
-                    } else {
-                        if (entries[k].col < ncol - 1) {
-                            zero_first_col = entries[k].col + 1;
+        // Pass 1: fill rows[r] for r in [r0, r1).
+        for (int j = 0; j < ncol; ++j) {
+            const int k_end = pp[j + 1];
+            for (int k = pp[j]; k < k_end; ++k) {
+                const int r = pi[k];
+                if (r < r0 || r >= r1) continue;
+                rows[r].push_back({j, px[k]});
+            }
+        }
+
+        // Pass 2: compute mode for rows in [r0, r1).
+        for (int r = r0; r < r1; ++r) {
+            const auto &entries = rows[r];
+            const int n_stored  = (int)entries.size();
+            const int n_zeros   = ncol - n_stored;
+
+            // Find first_seen_col for implicit zero.
+            // entries are ordered by column (we inserted in j order).
+            int zero_first_col = std::numeric_limits<int>::max();
+            if (n_zeros > 0) {
+                if (n_stored == 0 || entries[0].col > 0) {
+                    zero_first_col = 0;
+                } else {
+                    zero_first_col = ncol; // default: no gap found yet
+                    for (int k = 0; k < n_stored; ++k) {
+                        if (k + 1 < n_stored) {
+                            if (entries[k + 1].col > entries[k].col + 1) {
+                                zero_first_col = entries[k].col + 1;
+                                break;
+                            }
+                        } else {
+                            if (entries[k].col < ncol - 1) {
+                                zero_first_col = entries[k].col + 1;
+                            }
                         }
                     }
                 }
             }
-        }
 
-        // Build count and first_col maps for nonzero values.
-        std::unordered_map<double, int> counts;
-        std::unordered_map<double, int> first_col;
-        counts.reserve(n_stored);
-        first_col.reserve(n_stored);
-        for (const auto &e : entries) {
-            auto it = counts.find(e.val);
-            if (it == counts.end()) {
-                counts[e.val]    = 1;
-                first_col[e.val] = e.col;
-            } else {
-                it->second += 1;
+            // Build count and first_col maps for nonzero values.
+            std::unordered_map<double, int> counts;
+            std::unordered_map<double, int> first_col;
+            counts.reserve(n_stored);
+            first_col.reserve(n_stored);
+            for (const auto &e : entries) {
+                auto it = counts.find(e.val);
+                if (it == counts.end()) {
+                    counts[e.val]    = 1;
+                    first_col[e.val] = e.col;
+                } else {
+                    it->second += 1;
+                }
             }
-        }
 
-        double best_val      = 0.0;
-        int    best_count    = n_zeros;
-        int    best_first_col = zero_first_col;
-        // If no zeros at all, initialise with something that will be displaced.
-        if (n_zeros == 0) {
-            best_count     = 0;
-            best_first_col = std::numeric_limits<int>::max();
-        }
-
-        for (auto &kv : counts) {
-            int cnt = kv.second;
-            int fc  = first_col[kv.first];
-            if (cnt > best_count ||
-                (cnt == best_count && fc < best_first_col)) {
-                best_count     = cnt;
-                best_val       = kv.first;
-                best_first_col = fc;
+            double best_val      = 0.0;
+            int    best_count    = n_zeros;
+            int    best_first_col = zero_first_col;
+            if (n_zeros == 0) {
+                best_count     = 0;
+                best_first_col = std::numeric_limits<int>::max();
             }
+
+            for (auto &kv : counts) {
+                int cnt = kv.second;
+                int fc  = first_col[kv.first];
+                if (cnt > best_count ||
+                    (cnt == best_count && fc < best_first_col)) {
+                    best_count     = cnt;
+                    best_val       = kv.first;
+                    best_first_col = fc;
+                }
+            }
+            pout[r] = best_val;
         }
-        pout[r] = best_val;
     }
     return out;
 }
