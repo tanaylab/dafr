@@ -87,6 +87,14 @@ complete_chain <- function(base_daf, new_daf, name = NULL,
                  name = name %||% S7::prop(new_daf, "name"))
 }
 
+# Cross-platform absolute-path check. Unix: leading /. Windows: drive-letter
+# form (C:/ or C:\) or UNC (leading \\).
+.is_absolute_path <- function(path) {
+    startsWith(path, "/") ||
+        grepl("^[A-Za-z]:[/\\\\]", path) ||
+        startsWith(path, "\\\\")
+}
+
 # Resolve a daf's on-disk path. FilesDaf stores `path` in its internal env.
 .complete_path <- function(daf) {
     internal <- tryCatch(S7::prop(daf, "internal"),
@@ -135,7 +143,7 @@ complete_daf <- function(leaf, mode = "r", name = NULL) {
         stack <- c(stack, list(d))
         next_path <- if (format_has_scalar(d, "base_daf_repository")) {
             base <- format_get_scalar(d, "base_daf_repository")
-            if (!startsWith(base, "/")) {
+            if (!.is_absolute_path(base)) {
                 base <- normalizePath(file.path(dirname(path), base),
                                       mustWork = FALSE)
             }

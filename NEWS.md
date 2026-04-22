@@ -1,5 +1,24 @@
 # dafr (development version)
 
+## CI stabilisation (post-Slice-9a)
+
+### Bug fixes
+
+* **`assert_no_densify_during` test helper**: replaced
+  `assignInNamespace("as.matrix.Matrix", ...)` with direct
+  namespace-binding + `.__S3MethodsTable__.` manipulation. The R 4.5
+  `utils::assignInNamespace` S3-remap path touches
+  `methods::slot(genfun, "default")@methods$ANY`, which fails with
+  `"no slot of name 'methods' for this object of class
+  'derivedDefaultMethod'"` against Matrix 1.7-4+. Tests passed locally
+  against older Matrix but failed on all CI platforms (ubuntu, macos,
+  windows).
+* **`complete_daf` relative-path detection is Windows-safe**: the old
+  test `startsWith(base, "/")` misclassified Windows absolute paths
+  (`C:/...`, `C:\...`, UNC) as relative, producing nonsense
+  `dirname(path) / abs_base` concatenations. Extracted to
+  `.is_absolute_path()` handling Unix, drive-letter, and UNC forms.
+
 ## Slice 9a — Julia-parity correctness (2026-04-22)
 
 ### Breaking changes

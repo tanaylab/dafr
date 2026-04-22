@@ -13,10 +13,13 @@
 #      dispatch cache, so the traced method fires reliably.
 #
 #   2. When Matrix is imported but not attached (e.g., inside devtools::test),
-#      as.matrix is a base S3 generic (UseMethod). The S3 dispatch cache
-#      can hold a reference to the pre-trace as.matrix.Matrix function,
-#      making trace() unreliable after cache warm. We replace the binding
-#      directly via assignInNamespace(), which always bypasses the cache.
+#      as.matrix is a base S3 generic (UseMethod). We intercept by directly
+#      replacing the binding in Matrix's namespace AND the cached entry in
+#      base's .__S3MethodsTable__. (both are consulted by UseMethod). We do
+#      NOT use assignInNamespace() because in R 4.5 + Matrix 1.7-4 its S3-
+#      remap code path calls `methods::slot(genfun, "default")@methods$ANY`,
+#      which fails with "no slot of name 'methods' for this object of class
+#      'derivedDefaultMethod'" — an upstream utils/methods interaction bug.
 #
 #      In addition, kernel code using the namespace-qualified form
 #      Matrix::as.matrix(m) bypasses the S3 slot because Matrix::as.matrix
@@ -68,9 +71,15 @@ assert_no_densify_during <- function(expr) {
             rm(list = counter_name, envir = globalenv())
         }, add = TRUE)
     } else {
-        # S3 context: replace the binding directly to bypass the S3 cache.
+        # S3 context: replace the namespace binding AND the base S3 methods
+        # table entry directly. We bypass assignInNamespace() because its S3
+        # remap path is broken under newer R/methods (see header comment).
         mat_ns <- getNamespace("Matrix")
+        s3_table <- getNamespace("base")$.__S3MethodsTable__.
         orig_s3 <- get("as.matrix.Matrix", envir = mat_ns)
+        has_tbl <- exists("as.matrix.Matrix", envir = s3_table,
+                          inherits = FALSE)
+        orig_tbl <- if (has_tbl) s3_table$as.matrix.Matrix else NULL
         patched_body <- bquote({
             assign(.(counter_name),
                    get(.(counter_name), envir = globalenv()) + 1L,
@@ -81,9 +90,19 @@ assert_no_densify_during <- function(expr) {
         body(patched) <- patched_body
         formals(patched) <- formals(orig_s3)
         environment(patched) <- environment(orig_s3)
-        assignInNamespace("as.matrix.Matrix", patched, ns = "Matrix")
+        unlockBinding("as.matrix.Matrix", mat_ns)
+        assign("as.matrix.Matrix", patched, envir = mat_ns)
+        lockBinding("as.matrix.Matrix", mat_ns)
+        if (has_tbl) {
+            assign("as.matrix.Matrix", patched, envir = s3_table)
+        }
         on.exit({
-            assignInNamespace("as.matrix.Matrix", orig_s3, ns = "Matrix")
+            unlockBinding("as.matrix.Matrix", mat_ns)
+            assign("as.matrix.Matrix", orig_s3, envir = mat_ns)
+            lockBinding("as.matrix.Matrix", mat_ns)
+            if (has_tbl) {
+                assign("as.matrix.Matrix", orig_tbl, envir = s3_table)
+            }
             rm(list = counter_name, envir = globalenv())
         }, add = TRUE)
 

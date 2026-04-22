@@ -76,3 +76,16 @@ test_that("complete_daf rejects invalid mode", {
     files_daf(tmp, name = "t", mode = "w+")
     expect_error(complete_daf(tmp, "w"), "must be")
 })
+
+test_that(".is_absolute_path recognises unix, windows and UNC paths", {
+    f <- dafr:::.is_absolute_path
+    expect_true(f("/tmp/foo"))
+    expect_true(f("C:/tmp/foo"))
+    expect_true(f("c:/tmp/foo"))
+    expect_true(f("C:\\tmp\\foo"))
+    expect_true(f("\\\\server\\share"))
+    expect_false(f("relative/path"))
+    expect_false(f("foo"))
+    expect_false(f("."))
+    expect_false(f("./x"))
+})
