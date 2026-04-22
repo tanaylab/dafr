@@ -75,52 +75,39 @@ cpp11::writable::doubles kernel_log_reduce_csc_cpp(
     const bool is_mean = (reducer == "Mean");
 
     if (axis == 0) {
+        // Row-partition: each thread owns a disjoint row range [r0, r1);
+        // writes to pout[r] and nnz_per_row[r] are race-free. No thread
+        // buckets, no serial merge.
         cpp11::writable::doubles out(nrow);
         double *pout = REAL(out.data());
-        // Each row receives:
-        //   sum_explicit = sum over nonzero entries in this row of log(x+eps)/log(base)
-        //   sum_zeros    = (ncol - nnz_in_this_row) * log(eps)/log(base)
-        // Total for Sum = sum_explicit + sum_zeros; Mean divides by ncol.
-        //
-        // Per-thread accumulator buffers avoid write contention on per-row
-        // counters. Post-parallel reduction is O(nthreads * nrow) — cheap
-        // vs O(nnz) for typical UMI matrices.
-        for (int r = 0; r < nrow; ++r) { pout[r] = 0.0; }
+        for (int r = 0; r < nrow; ++r) pout[r] = 0.0;
         std::vector<int> nnz_per_row(nrow, 0);
 
-        const int nthreads = dafr_omp_get_max_threads_capped(ncol, threshold);
-        std::vector<std::vector<double>> tsum(nthreads,
-            std::vector<double>(nrow, 0.0));
-        std::vector<std::vector<int>>    tnnz(nthreads,
-            std::vector<int>(nrow, 0));
-
-        DAFR_PARALLEL_FOR(ncol >= threshold)
-        for (int j = 0; j < ncol; ++j) {
+        DAFR_OMP_PARALLEL_IF(nrow >= threshold)
+        {
             const int tid = dafr_omp_get_thread_num();
-            std::vector<double> &ts = tsum[tid];
-            std::vector<int>    &tn = tnnz[tid];
-            for (int k = pp[j]; k < pp[j + 1]; ++k) {
-                const int r = pi[k];
-                ts[r] += std::log(px[k] + eps) * inv_log_base;
-                tn[r] += 1;
-            }
-        }
+            const int nt  = dafr_omp_get_num_threads();
+            const int chunk = (nrow + nt - 1) / nt;
+            const int r0 = std::min(nrow, tid * chunk);
+            const int r1 = std::min(nrow, r0 + chunk);
 
-        // Reduce thread buffers serially into outputs.
-        for (int t = 0; t < nthreads; ++t) {
-            const std::vector<double> &ts = tsum[t];
-            const std::vector<int>    &tn = tnnz[t];
-            for (int r = 0; r < nrow; ++r) {
-                pout[r]        += ts[r];
-                nnz_per_row[r] += tn[r];
+            // Pass 1: scan every column; filter by row-range.
+            for (int j = 0; j < ncol; ++j) {
+                const int k_end = pp[j + 1];
+                for (int k = pp[j]; k < k_end; ++k) {
+                    const int r = pi[k];
+                    if (r < r0 || r >= r1) continue;
+                    pout[r] += std::log(px[k] + eps) * inv_log_base;
+                    nnz_per_row[r] += 1;
+                }
             }
-        }
 
-        DAFR_PARALLEL_FOR(nrow >= threshold)
-        for (int r = 0; r < nrow; ++r) {
-            const int zeros = ncol - nnz_per_row[r];
-            pout[r] += zeros * zero_log;
-            if (is_mean) pout[r] /= ncol;
+            // Pass 2: add zero contributions, divide by ncol if Mean.
+            for (int r = r0; r < r1; ++r) {
+                const int zeros = ncol - nnz_per_row[r];
+                pout[r] += zeros * zero_log;
+                if (is_mean) pout[r] /= ncol;
+            }
         }
         return out;
     } else {
