@@ -118,7 +118,10 @@ function main()
                 @benchmark get_query(open_fixture($name), $text) samples=50 seconds=5 evals=1
             else
                 daf = opened[name]
-                @benchmark get_query($daf, $text) samples=50 seconds=5 evals=1
+                @benchmark begin
+                    empty_cache!($daf)
+                    get_query($daf, $text)
+                end samples=50 seconds=5 evals=1
             end
         catch e
             @printf "  [%3d/%3d] %-30s %-22s FAIL: %s\n" k length(queries) q["id"] q["category"] sprint(showerror, e)

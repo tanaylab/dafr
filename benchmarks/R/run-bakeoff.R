@@ -35,7 +35,6 @@ par_mode    <- .has_flag("--par")
 # ---- single-threaded baseline unless --par ----
 if (!par_mode) {
     Sys.setenv(OMP_NUM_THREADS = "1")
-    options(dafr.kernel_threshold = Inf)   # force scalar code paths
     if (requireNamespace("RhpcBLASctl", quietly = TRUE)) {
         RhpcBLASctl::blas_set_num_threads(1)
         RhpcBLASctl::omp_set_num_threads(1)
@@ -98,7 +97,10 @@ for (k in seq_along(queries)) {
         })
     } else {
         d <- opened[[fixture_name]]
-        expr <- bquote(dafr::get_query(.(d), .(text)))
+        expr <- bquote({
+            dafr::empty_cache(.(d))
+            dafr::get_query(.(d), .(text))
+        })
     }
 
     t0 <- Sys.time()
