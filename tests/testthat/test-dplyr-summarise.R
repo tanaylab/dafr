@@ -92,3 +92,35 @@ test_that("ungroup() drops grouping", {
     u <- dplyr::ungroup(g)
     expect_identical(attr(u, "groups"), character())
 })
+
+test_that("end-to-end pipeline: filter + mutate + group_by + summarise + arrange", {
+    skip_if_not_installed("dplyr")
+    d <- memory_daf()
+    add_axis(d, "donor", c("A", "B"))
+    add_axis(d, "cell", paste0("c", 1:6))
+    set_vector(d, "cell", "donor",
+        c("A", "A", "A", "B", "B", "B")
+    )
+    set_vector(d, "cell", "n_umis",
+        c(500, 1500, 2000, 800, 1200, 3000)
+    )
+    set_vector(d, "cell", "is_doublet",
+        c(FALSE, FALSE, TRUE, FALSE, FALSE, FALSE)
+    )
+    out <- dplyr::tbl(d, "cell") |>
+        dplyr::filter(n_umis > 1000, !is_doublet) |>
+        dplyr::mutate(log_umis = log10(n_umis)) |>
+        dplyr::group_by(donor) |>
+        dplyr::summarise(n = dplyr::n(), mean_log = mean(log_umis)) |>
+        dplyr::arrange(dplyr::desc(n))
+    expect_s3_class(out, "daf_axis_tbl")
+    expect_identical(attr(out, "axis"), "donor")
+    df <- dplyr::collect(out)
+    # A: c2 (1500, not doublet) only -> 1.
+    # B: c5 (1200) and c6 (3000) -> 2.
+    expect_setequal(df$name, c("A", "B"))
+    expect_identical(df$n[df$name == "A"], 1L)
+    expect_identical(df$n[df$name == "B"], 2L)
+    # arrange(desc(n)) -> B first, then A.
+    expect_identical(df$name, c("B", "A"))
+})
