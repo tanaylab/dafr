@@ -34,6 +34,7 @@ LinkingTo:
     cpp11
 Suggests:
     bench,
+    dplyr,
     hdf5r,
     knitr,
     pkgload,
@@ -45,6 +46,7 @@ Suggests:
     testthat (>= 3.0.0),
     tibble,
     tidyr,
+    tidyselect,
     withr
 SystemRequirements: C++17
 VignetteBuilder: knitr
@@ -85,6 +87,7 @@ Collate:
     'cpp11.R'
     'dafr-package.R'
     'dataframes.R'
+    'dplyr_backend.R'
     'example_data.R'
     'files_io.R'
     'files_daf_read.R'
