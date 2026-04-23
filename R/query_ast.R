@@ -64,12 +64,58 @@ NULL
     )
 }
 
-.escape_value <- function(s) {
-    if (grepl("[\\s!&*%./:<=>?@\\[\\]^\\|~\"]", s, perl = TRUE)) {
-        paste0("\"", gsub("[\\\\\"]", "\\\\\\0", s, perl = TRUE), "\"")
+#' Escape a value for use as a query literal.
+#'
+#' If `s` contains any of the query metacharacters (whitespace, `!`,
+#' `&`, `*`, `%`, `.`, `/`, `:`, `<`, `=`, `>`, `?`, `@`, `[`, `]`,
+#' `^`, `|`, `~`, `"`), the result is double-quoted and any backslash
+#' or double-quote inside is backslash-escaped. Otherwise `s` is
+#' returned unchanged.
+#'
+#' @param s Character scalar.
+#' @return Character scalar suitable for concatenation into a query
+#'   string.
+#' @examples
+#' escape_value("plain")
+#' escape_value("has space")
+#' unescape_value(escape_value("has \"quotes\""))
+#' @seealso [unescape_value()], [canonical_query()]
+#' @export
+escape_value <- function(s) {
+    if (grepl("[\\s\\\\!&*%./:<=>?@\\[\\]^\\|~\"]", s, perl = TRUE)) {
+        paste0("\"", gsub("([\\\\\"])", "\\\\\\1", s, perl = TRUE), "\"")
     } else {
         s
     }
+}
+
+# Kept as a private alias because many internals and tests call
+# `.escape_value` directly; do not remove without a separate sweep.
+.escape_value <- escape_value
+
+#' Inverse of [escape_value()].
+#'
+#' Strips an outer pair of double quotes (if present) and unescapes
+#' `\\` and `\"` sequences. Leaves already-bare strings unchanged.
+#'
+#' @param s Character scalar (an escaped query literal).
+#' @return Character scalar (the original value).
+#' @examples
+#' unescape_value("\"a b\"")
+#' unescape_value("plain")
+#' stopifnot(identical(unescape_value(escape_value("a b")), "a b"))
+#' @seealso [escape_value()]
+#' @export
+unescape_value <- function(s) {
+    stopifnot(is.character(s), length(s) == 1L)
+    if (!startsWith(s, "\"") || !endsWith(s, "\"") || nchar(s) < 2L) {
+        return(s)
+    }
+    inner <- substr(s, 2L, nchar(s) - 1L)
+    # Replace \" and \\ sequences left-to-right in a single pass so
+    # that "\\\"" decodes to "\"" rather than the escape of a literal
+    # quote following a backslash. Use a regex with capture group.
+    gsub("\\\\([\\\\\"])", "\\1", inner, perl = TRUE)
 }
 
 .qop_begin_mask <- function(property, negated = FALSE) {

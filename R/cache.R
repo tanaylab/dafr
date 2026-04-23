@@ -139,6 +139,70 @@ matrix_stamp <- function(daf, rows_axis, columns_axis, name) {
     )
 }
 
+# ---- Public version-counter accessors --------------------------------------
+
+#' Per-axis version counter.
+#'
+#' Returns the monotonic counter for `axis` on `daf`. Incremented on
+#' `add_axis` / `delete_axis`. Returns `0L` if the axis has never been
+#' mutated (including non-existent axes, to match wrapper semantics).
+#'
+#' @param daf A [DafReader].
+#' @param axis Axis name (character scalar).
+#' @return `integer(1)`.
+#' @examples
+#' d <- memory_daf()
+#' axis_version_counter(d, "cell") # 0L
+#' add_axis(d, "cell", c("c1", "c2"))
+#' axis_version_counter(d, "cell") # 1L
+#' @seealso [vector_version_counter()], [matrix_version_counter()]
+#' @export
+axis_version_counter <- function(daf, axis) {
+    S7::prop(daf, "axis_version_counter")[[axis]] %||% 0L
+}
+
+#' Per-vector version counter.
+#'
+#' Returns the monotonic counter for the `name` vector on `axis`.
+#' Incremented on `set_vector` / `delete_vector`. Returns `0L` if the
+#' vector has never been mutated.
+#'
+#' @inheritParams axis_version_counter
+#' @param name Vector name (character scalar).
+#' @return `integer(1)`.
+#' @examples
+#' d <- memory_daf()
+#' add_axis(d, "cell", c("c1", "c2"))
+#' vector_version_counter(d, "cell", "donor") # 0L
+#' set_vector(d, "cell", "donor", c("A", "B"))
+#' vector_version_counter(d, "cell", "donor") # 1L
+#' @export
+vector_version_counter <- function(daf, axis, name) {
+    key <- paste0(axis, ":", name)
+    S7::prop(daf, "vector_version_counter")[[key]] %||% 0L
+}
+
+#' Per-matrix version counter.
+#'
+#' Returns the monotonic counter for the `name` matrix on
+#' `(rows_axis, columns_axis)`. Incremented on `set_matrix` /
+#' `delete_matrix` / `relayout_matrix`. Returns `0L` if never mutated.
+#'
+#' @inheritParams axis_version_counter
+#' @param rows_axis,columns_axis Axis names.
+#' @param name Matrix name.
+#' @return `integer(1)`.
+#' @examples
+#' d <- memory_daf()
+#' add_axis(d, "cell", c("c1", "c2"))
+#' add_axis(d, "gene", c("g1", "g2", "g3"))
+#' matrix_version_counter(d, "cell", "gene", "UMIs") # 0L
+#' @export
+matrix_version_counter <- function(daf, rows_axis, columns_axis, name) {
+    key <- paste0(rows_axis, ":", columns_axis, ":", name)
+    S7::prop(daf, "matrix_version_counter")[[key]] %||% 0L
+}
+
 # ---- Cache with LRU + memory-cap (applies to memory + query tiers) ----------
 
 .cache_default_cap <- function() {

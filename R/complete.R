@@ -108,6 +108,24 @@ complete_chain <- function(base_daf, new_daf, name = NULL,
     internal$path
 }
 
+#' Canonical disk path of a (possibly chained) daf.
+#'
+#' Public alias of the internal `.complete_path`. For a `FilesDaf`,
+#' returns the root directory on disk. For a chain whose last writer
+#' is a `FilesDaf`, returns that directory. Errors on dafs with no
+#' on-disk location.
+#'
+#' @param daf A [DafReader].
+#' @return Character scalar (absolute path).
+#' @examples
+#' tmp <- tempfile("dafr-")
+#' dir.create(tmp)
+#' fd <- files_daf(tmp, mode = "w+", name = "fd")
+#' complete_path(fd)
+#' unlink(tmp, recursive = TRUE)
+#' @export
+complete_path <- function(daf) .complete_path(daf)
+
 #' Reopen a persistent chain from disk.
 #'
 #' Walks the `base_daf_repository` scalar chain rooted at `leaf`, opening

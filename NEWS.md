@@ -1,5 +1,66 @@
 # dafr (development version)
 
+## Slice 10c — Wrapper-parity surface (2026-04-23)
+
+### New exports (25)
+
+- Handler constants: `ERROR_HANDLER`, `WARN_HANDLER`, `IGNORE_HANDLER`,
+  `inefficient_action_handler()`.
+- Query introspection: `escape_value()`, `unescape_value()`,
+  `query_requires_relayout()`.
+- Version counters: `axis_version_counter()`, `vector_version_counter()`,
+  `matrix_version_counter()`.
+- Group helpers: `compact_groups()`, `collect_group_members()`,
+  `group_names()`.
+- Class-surface sugar: `is_daf()`, `daf_name()`, `complete_path()`,
+  `read_only()`.
+- DataFrame helpers: `get_dataframe()`, `get_dataframe_query()`,
+  `get_tidy()`.
+- Contract UX: `create_contract()`, `axis_contract()`,
+  `tensor_contract()`, `contract_docs()`, `verify_contract()`.
+
+### Breaking changes vs. `dafJuliaWrapper` (Julia-facade)
+
+- `get_frame` was renamed to `get_dataframe_query`. No compatibility
+  shim (native package is pre-1.0). Users of the wrapper's `get_frame`
+  should migrate to `get_dataframe_query` (query-string form) or
+  `get_dataframe` (axis-name form).
+- `create_contract` takes typed per-category args
+  (`scalars` / `vectors` / `matrices` / `tensors` / `axes`) rather than
+  the wrapper's flat `data = list(...)`. There is no `name` field on a
+  contract; the computation name lives on `contractor()`.
+- `tensor_contract` parameter is now `type` (aligning with native's
+  existing `contract_scalar` / `contract_vector` / `contract_matrix`)
+  rather than the wrapper's `dtype`.
+- `axis_version_counter` / `vector_version_counter` /
+  `matrix_version_counter` return `integer(1)`, not character. Native
+  counters are per-process and fit comfortably in R's signed integer
+  range.
+- `read_only()` is implemented by wrapping the reader in a 1-element
+  `chain_reader`, rather than introducing a new S7 class. The returned
+  object is a `ReadOnlyChainDaf` whose `name` defaults to the original
+  daf's name (pass `name = "..."` to override).
+
+### New Imports / Suggests
+
+- `rlang` → `Imports` (used for `check_installed` gating in `get_tidy`).
+- `tidyr`, `tibble` → `Suggests` (required only for `get_tidy`).
+
+### Known limitations
+
+- Tensor `.verify_access` tracking is not implemented; tensors declared
+  `RequiredInput` are never flagged as "unused input" by
+  `verify_input()`. `verify_contract()` works around a static-check
+  false-positive on the round-trip guard by marking trackers as
+  accessed between `verify_input()` and `verify_output()`.
+
+### Deliberately deferred
+
+- `h5df` HDF5-backed Daf store (post-0.1.0).
+- `set_seed` Julia RNG hook (not applicable to native).
+- AnnData facade + h5ad round-trip (slice 10b).
+- Query builder functions (`Axis()`, `LookupVector()`, …) (slice 10a).
+
 ## Slice 9d-N — CSC axis-0 row-partition sweep (2026-04-22)
 
 ### Performance
