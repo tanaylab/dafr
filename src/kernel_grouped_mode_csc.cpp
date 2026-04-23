@@ -198,10 +198,9 @@ kernel_grouped_mode_csc_cpp(
                 if (n_total <= 0) { out(r, g) = 0.0; continue; }
                 const size_t idx = (size_t)r + (size_t)g * (size_t)nrow;
                 auto &entries = accs[idx];
-                // Sort entries by ord so first-seen is correct.  ord is
-                // unique per entry in a cell (one ord per column).
-                std::sort(entries.begin(), entries.end(),
-                          [](const Entry &a, const Entry &b) { return a.pos < b.pos; });
+                // Entries arrive pre-sorted by ord: each slot is written by a
+                // single thread in ascending j order and pos = col_ord[j] is
+                // monotonically increasing within a group as j increases.
 
                 std::unordered_map<double, int> counts;
                 std::unordered_map<double, int> first_pos;

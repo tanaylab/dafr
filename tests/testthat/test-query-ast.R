@@ -18,7 +18,9 @@ test_that(".qop_names constructs a Names node (no args)", {
 test_that(".qop_if_missing captures default value", {
     n <- .qop_if_missing(0)
     expect_equal(n$op, "IfMissing")
-    expect_identical(n$default, 0)
+    # Defaults are coerced to character at construction so the stored AST
+    # matches what parse_query() produces for the canonical form.
+    expect_identical(n$default, "0")
 })
 
 test_that("canonicalise_ast emits the canonical string", {

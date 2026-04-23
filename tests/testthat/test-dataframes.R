@@ -54,6 +54,22 @@ test_that("get_tidy errors informatively without tidyr/tibble", {
     }
 })
 
+test_that("get_dataframe_query respects columns arg", {
+    d <- memory_daf()
+    add_axis(d, "cell", c("c1", "c2", "c3"))
+    set_vector(d, "cell", "donor", c("A", "B", "A"))
+    set_vector(d, "cell", "age", c(1L, 2L, 3L))
+
+    df <- get_dataframe_query(d, "@ cell", columns = "donor")
+    expect_identical(colnames(df), "donor")
+    expect_identical(df$donor, c("A", "B", "A"))
+
+    expect_error(
+        get_dataframe_query(d, "@ cell", columns = "nonexistent"),
+        "columns not on query result"
+    )
+})
+
 test_that("get_frame is no longer exported", {
     expect_false("get_frame" %in% getNamespaceExports("dafr"))
 })

@@ -4,12 +4,15 @@
 \alias{get_dataframe_query}
 \title{Extract an axis-resolving query's result as a \code{data.frame}.}
 \usage{
-get_dataframe_query(daf, query, cache = TRUE)
+get_dataframe_query(daf, query, columns = NULL, cache = TRUE)
 }
 \arguments{
 \item{daf}{A \link{DafReader}.}
 
 \item{query}{A query string resolving to an axis.}
+
+\item{columns}{Optional character vector of column names to include in
+the result. Defaults to all vectors on the resolved axis.}
 
 \item{cache}{Logical; if \code{TRUE} (default), serve from the query cache.}
 }

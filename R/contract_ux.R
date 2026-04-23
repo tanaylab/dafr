@@ -273,19 +273,9 @@ verify_contract <- function(contract, daf) {
         # contractor returns daf unchanged. Nothing to verify.
         return(invisible(daf))
     }
-    verify_input(cd)
-    # Static check only: we do not execute a computation here, so the
-    # "unused RequiredInput" diagnostic (driven by tracker$accessed) is
-    # not meaningful. Pre-mark all trackers as accessed so verify_output
-    # performs existence/type checks without false-positive unused errors.
-    ax_env <- S7::prop(cd, "axes")
-    for (ax in ls(ax_env, all.names = TRUE)) {
-        ax_env[[ax]]$accessed <- TRUE
-    }
-    data_env <- S7::prop(cd, "data")
-    for (key in ls(data_env, all.names = TRUE)) {
-        data_env[[key]]$accessed <- TRUE
-    }
-    verify_output(cd)
+    # Static check: existence + type only, no unused-input diagnostic (that
+    # check only makes sense around a real computation, which we do not run).
+    .verify_contract(cd, is_for_output = FALSE, is_static = TRUE)
+    .verify_contract(cd, is_for_output = TRUE, is_static = TRUE)
     invisible(daf)
 }
