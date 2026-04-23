@@ -92,6 +92,8 @@ get_dataframe <- function(daf, axis, columns = NULL, cache = TRUE) {
 #'
 #' @param daf A [DafReader].
 #' @param query A query string resolving to an axis.
+#' @param columns Optional character vector of column names to include in
+#'   the result. Defaults to all vectors on the resolved axis.
 #' @param cache Logical; if `TRUE` (default), serve from the query cache.
 #' @return A `data.frame` with axis-entry rownames.
 #' @examples
@@ -101,9 +103,19 @@ get_dataframe <- function(daf, axis, columns = NULL, cache = TRUE) {
 #' get_dataframe_query(d, "@ donor")
 #' @seealso [get_dataframe()], [get_tidy()]
 #' @export
-get_dataframe_query <- function(daf, query, cache = TRUE) {
+get_dataframe_query <- function(daf, query, columns = NULL, cache = TRUE) {
     stopifnot("`daf` must be a DafReader" = is_daf(daf))
-    .get_dataframe_from_query(daf, query, cache = cache)
+    df <- .get_dataframe_from_query(daf, query, cache = cache)
+    if (!is.null(columns)) {
+        missing_cols <- setdiff(columns, colnames(df))
+        if (length(missing_cols)) {
+            stop(sprintf("columns not on query result: %s",
+                paste(sQuote(missing_cols), collapse = ", ")),
+                 call. = FALSE)
+        }
+        df <- df[, columns, drop = FALSE]
+    }
+    df
 }
 
 #' Pivot axis vectors into a tidy long-format tibble.
