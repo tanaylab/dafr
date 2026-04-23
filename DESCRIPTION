@@ -28,11 +28,13 @@ Imports:
     jsonlite,
     matrixStats,
     methods,
+    R6,
     rlang
 LinkingTo:
     cpp11
 Suggests:
     bench,
+    hdf5r,
     knitr,
     pkgload,
     rmarkdown,
@@ -66,6 +68,9 @@ Collate:
     'chain_daf.R'
     'adapters.R'
     'altrep.R'
+    'handlers.R'
+    'anndata_facade.R'
+    'anndata_format.R'
     'writers.R'
     'readers.R'
     'memory_daf.R'
@@ -84,7 +89,6 @@ Collate:
     'files_daf_read.R'
     'files_daf_write.R'
     'groups.R'
-    'handlers.R'
     'mmap.R'
     'options.R'
     'query_builders.R'
