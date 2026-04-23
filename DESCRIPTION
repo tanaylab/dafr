@@ -34,6 +34,7 @@ LinkingTo:
     cpp11
 Suggests:
     bench,
+    hdf5r,
     knitr,
     pkgload,
     rmarkdown,
@@ -69,6 +70,7 @@ Collate:
     'altrep.R'
     'handlers.R'
     'anndata_facade.R'
+    'anndata_format.R'
     'writers.R'
     'readers.R'
     'memory_daf.R'
