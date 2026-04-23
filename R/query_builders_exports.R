@@ -742,3 +742,124 @@ XorNegatedMask <- .make_string_op(
     "XorNegatedMask",
     function(prop) .qop_xor_mask(prop, negated = TRUE)
 )
+
+# ---- Phase F: Comparison builders ------------------------------------------
+
+#' Equal-to comparison query operation.
+#'
+#' Builds a `= <value>` query fragment. Typically used inside a mask
+#' subquery (after [BeginMask()]) to filter entries whose property equals
+#' `value`.
+#'
+#' @param value Value to compare against (character or numeric scalar),
+#'   or a piped [DafrQuery].
+#' @param ... Optional piped [DafrQuery].
+#' @return A [DafrQuery].
+#' @examples
+#' IsEqual("T-cell")
+#' Axis("cell") |> BeginMask("type") |> IsEqual("T-cell") |> EndMask()
+#' @seealso [IsNotEqual()], [IsGreater()], [IsLess()], [IsMatch()]
+#' @export
+IsEqual <- .make_value_op("IsEqual", .qop_is_equal)
+
+#' Not-equal-to comparison query operation.
+#'
+#' Builds a `!= <value>` query fragment.
+#'
+#' @param value Value to compare against (character or numeric scalar),
+#'   or a piped [DafrQuery].
+#' @param ... Optional piped [DafrQuery].
+#' @return A [DafrQuery].
+#' @examples
+#' IsNotEqual("unknown")
+#' @seealso [IsEqual()], [IsMatch()], [IsNotMatch()]
+#' @export
+IsNotEqual <- .make_value_op("IsNotEqual", .qop_is_not_equal)
+
+#' Greater-than comparison query operation.
+#'
+#' Builds a `> <value>` query fragment.
+#'
+#' @param value Threshold value (character or numeric scalar), or a
+#'   piped [DafrQuery].
+#' @param ... Optional piped [DafrQuery].
+#' @return A [DafrQuery].
+#' @examples
+#' IsGreater(18)
+#' Axis("cell") |> BeginMask("age") |> IsGreater(18) |> EndMask()
+#' @seealso [IsGreaterEqual()], [IsLess()], [IsLessEqual()]
+#' @export
+IsGreater <- .make_value_op("IsGreater", .qop_is_greater)
+
+#' Greater-than-or-equal comparison query operation.
+#'
+#' Builds a `>= <value>` query fragment.
+#'
+#' @param value Threshold value (character or numeric scalar), or a
+#'   piped [DafrQuery].
+#' @param ... Optional piped [DafrQuery].
+#' @return A [DafrQuery].
+#' @examples
+#' IsGreaterEqual(18)
+#' @seealso [IsGreater()], [IsLessEqual()]
+#' @export
+IsGreaterEqual <- .make_value_op("IsGreaterEqual", .qop_is_greater_equal)
+
+#' Less-than comparison query operation.
+#'
+#' Builds a `< <value>` query fragment.
+#'
+#' @param value Threshold value (character or numeric scalar), or a
+#'   piped [DafrQuery].
+#' @param ... Optional piped [DafrQuery].
+#' @return A [DafrQuery].
+#' @examples
+#' IsLess(100)
+#' Axis("cell") |> BeginMask("score") |> IsLess(100) |> EndMask()
+#' @seealso [IsLessEqual()], [IsGreater()]
+#' @export
+IsLess <- .make_value_op("IsLess", .qop_is_less)
+
+#' Less-than-or-equal comparison query operation.
+#'
+#' Builds a `<= <value>` query fragment.
+#'
+#' @param value Threshold value (character or numeric scalar), or a
+#'   piped [DafrQuery].
+#' @param ... Optional piped [DafrQuery].
+#' @return A [DafrQuery].
+#' @examples
+#' IsLessEqual(65)
+#' @seealso [IsLess()], [IsGreaterEqual()]
+#' @export
+IsLessEqual <- .make_value_op("IsLessEqual", .qop_is_less_equal)
+
+#' Regex-match query operation.
+#'
+#' Builds a `~ <pattern>` query fragment. Filters entries whose property
+#' value matches the given regular-expression pattern.
+#'
+#' @param value Regex pattern (character scalar), or a piped [DafrQuery].
+#' @param ... Optional piped [DafrQuery].
+#' @return A [DafrQuery].
+#' @examples
+#' IsMatch("^T")
+#' Axis("cell") |> BeginMask("type") |> IsMatch("^T") |> EndMask()
+#' @seealso [IsNotMatch()], [IsEqual()]
+#' @export
+IsMatch <- .make_value_op("IsMatch", .qop_is_match, param_name = "pattern")
+
+#' Negated regex-match query operation.
+#'
+#' Builds a `!~ <pattern>` query fragment. Filters entries whose property
+#' value does NOT match the given regular-expression pattern.
+#'
+#' @param value Regex pattern (character scalar), or a piped [DafrQuery].
+#' @param ... Optional piped [DafrQuery].
+#' @return A [DafrQuery].
+#' @examples
+#' IsNotMatch("^unknown")
+#' Axis("cell") |> BeginMask("type") |> IsNotMatch("^unknown") |> EndMask()
+#' @seealso [IsMatch()], [IsNotEqual()]
+#' @export
+IsNotMatch <- .make_value_op("IsNotMatch", .qop_is_not_match, param_name = "pattern")
