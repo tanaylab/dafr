@@ -129,6 +129,10 @@ reference:
       - get_dataframe_query
       - get_tidy
 
+  - title: dplyr backend
+    contents:
+      - compute
+
   - title: AnnData interop
     contents:
       - DafAnnData
