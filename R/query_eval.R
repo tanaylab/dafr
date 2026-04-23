@@ -148,10 +148,15 @@ NULL
         ), call. = FALSE)
     }
     if (identical(state$kind, "axis")) {
-        # second axis -> matrix dimension in scope
+        # second axis -> matrix dimension in scope.
+        # If the first axis was mask-filtered, carry its surviving-entry
+        # indices forward as row_indices so a subsequent LookupMatrix
+        # returns only the filtered rows.
         state$kind <- "two_axes"
         state$rows_axis <- state$axis
         state$cols_axis <- node$axis_name
+        state$row_indices <- state$indices
+        state$indices <- NULL
         state$value <- NULL
         state$axis <- NULL
         return(state)
@@ -273,13 +278,19 @@ NULL
         state$kind <- "matrix_names_ready"
         return(state)
     }
+    row_indices <- state$row_indices
     if (!format_has_matrix(daf, rows, cols, node$name)) {
         if (!is.null(state$if_missing)) {
+            nrow_out <- if (is.null(row_indices)) {
+                format_axis_length(daf, rows)
+            } else {
+                length(row_indices)
+            }
             return(list(
                 kind = "matrix",
                 value = matrix(
                     state$if_missing,
-                    format_axis_length(daf, rows),
+                    nrow_out,
                     format_axis_length(daf, cols)
                 ),
                 rows_axis = rows, cols_axis = cols
@@ -293,9 +304,13 @@ NULL
             call. = FALSE
         )
     }
+    m <- format_get_matrix(daf, rows, cols, node$name)
+    if (!is.null(row_indices)) {
+        m <- m[row_indices, , drop = FALSE]
+    }
     list(
         kind = "matrix",
-        value = format_get_matrix(daf, rows, cols, node$name),
+        value = m,
         rows_axis = rows, cols_axis = cols
     )
 }
