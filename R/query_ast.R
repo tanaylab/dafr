@@ -4,6 +4,24 @@ NULL
 # AST node constructors + canonical-string serialiser.
 # Reference: DataAxesFormats.jl queries.jl export list lines 5-53.
 
+# Canonicalise a scalar value for use in a query string.
+#
+# Forces `scipen = 0` (R's built-in default) so the output is deterministic
+# regardless of the user's global `options(scipen = ...)` setting. At scipen=0
+# R emits the shorter of fixed/scientific notations, e.g. `1e-06`, `1e+06`,
+# `0.5`, `12345`. This matches Julia's default `Float64` print behaviour on
+# the small/large values that show up in query canonical strings
+# (e.g. `< 1e-6`), while keeping human-readable values (e.g. `< 0.5`, `= 42`)
+# in their natural form. Without this override a user with `scipen = 3`
+# would produce `"0.000001"` instead of `"1e-06"` and canonical strings would
+# drift from Julia's.
+.fmt_value <- function(v) {
+    if (is.character(v)) return(v)
+    old <- options(scipen = 0L)
+    on.exit(options(old), add = TRUE)
+    format(v)
+}
+
 .qop <- function(op, ...) {
     structure(list(op = op, ...),
         class = c(paste0("qop_", op), "qop")
@@ -19,7 +37,7 @@ NULL
     # defaults such as IfMissing(42) produce AST $default = 42 (numeric) while
     # parse_query("|| 42") produces "42" (character); the canonical strings
     # are equal but the ASTs are not. Mirrors .qop_eltwise_typed.
-    default <- format(default)
+    default <- .fmt_value(default)
     .qop("IfMissing", default = default)
 }
 .qop_if_not <- function(value = NULL) .qop("IfNot", value = value)
@@ -37,20 +55,20 @@ NULL
         Names = "?",
         Axis = paste0("@ ", .escape_value(n$axis_name)),
         AsAxis = if (is.null(n$axis_name)) "=@" else paste0("=@ ", .escape_value(n$axis_name)),
-        IfMissing = paste0("|| ", .escape_value(format(n$default))),
-        IfNot = if (is.null(n$value)) "??" else paste0("?? ", .escape_value(format(n$value))),
+        IfMissing = paste0("|| ", .escape_value(.fmt_value(n$default))),
+        IfNot = if (is.null(n$value)) "??" else paste0("?? ", .escape_value(.fmt_value(n$value))),
         LookupScalar = if (is.null(n$name)) "." else paste0(". ", .escape_value(n$name)),
         LookupVector = if (is.null(n$name)) ":" else paste0(": ", .escape_value(n$name)),
         LookupMatrix = if (is.null(n$name)) "::" else paste0(":: ", .escape_value(n$name)),
         BeginMask = paste0("[ ", .escape_value(n$property)),
         BeginNegatedMask = paste0("[ ! ", .escape_value(n$property)),
         EndMask = "]",
-        IsLess = paste0("< ", .escape_value(format(n$value))),
-        IsLessEqual = paste0("<= ", .escape_value(format(n$value))),
-        IsEqual = paste0("= ", .escape_value(format(n$value))),
-        IsNotEqual = paste0("!= ", .escape_value(format(n$value))),
-        IsGreater = paste0("> ", .escape_value(format(n$value))),
-        IsGreaterEqual = paste0(">= ", .escape_value(format(n$value))),
+        IsLess = paste0("< ", .escape_value(.fmt_value(n$value))),
+        IsLessEqual = paste0("<= ", .escape_value(.fmt_value(n$value))),
+        IsEqual = paste0("= ", .escape_value(.fmt_value(n$value))),
+        IsNotEqual = paste0("!= ", .escape_value(.fmt_value(n$value))),
+        IsGreater = paste0("> ", .escape_value(.fmt_value(n$value))),
+        IsGreaterEqual = paste0(">= ", .escape_value(.fmt_value(n$value))),
         IsMatch = paste0("~ ", n$pattern),
         IsNotMatch = paste0("!~ ", n$pattern),
         AndMask = paste0("& ", .escape_value(n$property)),
@@ -59,8 +77,8 @@ NULL
         OrNegatedMask = paste0("| ! ", .escape_value(n$property)),
         XorMask = paste0("^ ", .escape_value(n$property)),
         XorNegatedMask = paste0("^ ! ", .escape_value(n$property)),
-        SquareRowIs = paste0("@- ", .escape_value(format(n$value))),
-        SquareColumnIs = paste0("@| ", .escape_value(format(n$value))),
+        SquareRowIs = paste0("@- ", .escape_value(.fmt_value(n$value))),
+        SquareColumnIs = paste0("@| ", .escape_value(.fmt_value(n$value))),
         GroupBy = paste0("/ ", .escape_value(n$property)),
         GroupRowsBy = paste0("-/ ", .escape_value(n$property)),
         GroupColumnsBy = paste0("|/ ", .escape_value(n$property)),
@@ -169,11 +187,11 @@ unescape_value <- function(s) {
 .qop_square_row_is <- function(value) {
     # Coerce to character so the stored AST matches parse_query output.
     # See .qop_if_missing for the full rationale.
-    value <- format(value)
+    value <- .fmt_value(value)
     .qop("SquareRowIs", value = value)
 }
 .qop_square_column_is <- function(value) {
-    value <- format(value)
+    value <- .fmt_value(value)
     .qop("SquareColumnIs", value = value)
 }
 
@@ -204,7 +222,7 @@ unescape_value <- function(s) {
         params <- c(list(type = type), as.list(params))
     }
     if (length(params)) {
-        params <- lapply(params, function(v) format(v))
+        params <- lapply(params, .fmt_value)
     }
     .qop_eltwise(name, params = params)
 }
@@ -278,7 +296,7 @@ unescape_value <- function(s) {
         names(params), function(k) {
             paste0(
                 .escape_value(k), ": ",
-                .escape_value(format(params[[k]]))
+                .escape_value(.fmt_value(params[[k]]))
             )
         },
         character(1)
@@ -295,7 +313,7 @@ unescape_value <- function(s) {
         names(params), function(k) {
             paste0(
                 .escape_value(k), ": ",
-                .escape_value(format(params[[k]]))
+                .escape_value(.fmt_value(params[[k]]))
             )
         },
         character(1)
