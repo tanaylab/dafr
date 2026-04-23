@@ -7,7 +7,9 @@
   `group_by`, `ungroup`, `distinct`, `pull`, and `collect`. Grouped
   `summarise()` whose grouping variable names an existing axis in the
   daf auto-ties-back to a `daf_axis_tbl` on that axis. Write-back to
-  the daf is explicit via `compute(tbl, vectors = c(...))`. See
+  the daf is explicit via `dplyr::compute(tbl, vectors = c(...))` —
+  dafr plugs into dplyr's `compute()` generic rather than introducing
+  a new one, so it doesn't shadow dbplyr's. See
   `vignette("dplyr", package = "dafr")`. `dplyr` / `tibble` /
   `tidyselect` are Suggests — methods are registered conditionally
   in `.onLoad`, so dafr still installs without them.

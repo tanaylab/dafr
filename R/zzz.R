@@ -33,6 +33,7 @@
     registerS3method("ungroup", "daf_axis_tbl", ns$ungroup_daf_axis_tbl, envir = dplyr_ns)
     registerS3method("summarise", "daf_axis_tbl", ns$summarise_daf_axis_tbl, envir = dplyr_ns)
     registerS3method("summarize", "daf_axis_tbl", ns$summarise_daf_axis_tbl, envir = dplyr_ns)
+    registerS3method("compute", "daf_axis_tbl", ns$compute_daf_axis_tbl, envir = dplyr_ns)
 }
 
 .onUnload <- function(libpath) {

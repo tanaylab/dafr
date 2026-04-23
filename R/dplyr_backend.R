@@ -231,52 +231,26 @@ ungroup_daf_axis_tbl <- function(x, ...) {
 }
 
 # ---- compute() — explicit write-back --------------------------------------
+#
+# We hook into dplyr::compute rather than defining our own generic, so
+# dafr doesn't shadow dplyr's compute() for db-tbl users.
+# `dplyr::compute(daf_tbl, vectors = c("x"))` persists named overrides
+# on the axis via set_vector(). Called as a method on an existing
+# generic (not a new symbol), so no NAMESPACE export is needed — just
+# the runtime binding in .onLoad via registerS3method().
 
-#' Persist `mutate()`-produced columns as daf vectors.
-#'
-#' `compute()` is the explicit write-back step for a `daf_axis_tbl`.
-#' It accepts only columns that currently exist in the tbl's
-#' overrides (i.e. introduced by [dplyr::mutate()]) and writes each as
-#' a vector on the tbl's axis via [set_vector()].
-#'
-#' Write-back requires **full row coverage** of the axis. If the tbl
-#' has been [dplyr::filter()]ed (partial row mask), `compute()` errors
-#' rather than silently persist partial data. A permuted-but-full row
-#' mask (e.g. after [dplyr::arrange()]) is un-permuted to axis order
-#' before writing.
-#'
-#' @param x A `daf_axis_tbl`.
-#' @param vectors Character vector of override column names to persist.
-#'   Required — passing `NULL` errors, by design, to avoid silent
-#'   whole-tbl writes.
-#' @param overwrite Passed to [set_vector()]. Defaults to `FALSE`.
-#' @return Invisibly, `x`.
-#' @examples
-#' d <- memory_daf()
-#' add_axis(d, "cell", c("c1", "c2", "c3"))
-#' set_vector(d, "cell", "n", c(10, 20, 30))
-#' if (requireNamespace("dplyr", quietly = TRUE)) {
-#'     t <- dplyr::tbl(d, "cell") |> dplyr::mutate(log_n = log10(n))
-#'     compute(t, vectors = "log_n")
-#'     has_vector(d, "cell", "log_n")  # TRUE
-#' }
-#' @export
-compute <- function(x, vectors = NULL, overwrite = FALSE) {
-    UseMethod("compute")
-}
-
-#' @export
-compute.daf_axis_tbl <- function(x, vectors = NULL, overwrite = FALSE) {
+#' @noRd
+compute_daf_axis_tbl <- function(x, ..., vectors = NULL, overwrite = FALSE) {
     if (is.null(vectors) || !length(vectors)) {
         stop("compute(): `vectors` must name override columns to persist",
              call. = FALSE)
     }
     overrides <- attr(x, "overrides")
-    missing <- setdiff(vectors, names(overrides))
-    if (length(missing)) {
+    absent <- setdiff(vectors, names(overrides))
+    if (length(absent)) {
         stop(sprintf(
             "compute(): not present as an override: %s. Create with mutate().",
-            paste(sQuote(missing), collapse = ", ")
+            paste(sQuote(absent), collapse = ", ")
         ), call. = FALSE)
     }
     daf <- attr(x, "daf")

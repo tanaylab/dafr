@@ -51,6 +51,10 @@ tbl(d, "cell") |>
     compute(vectors = "log_umis")
 ```
 
+The daf backend reuses `dplyr::compute()` (with an extra
+`vectors = ...` argument) rather than introducing a new generic, so
+it doesn't shadow `dplyr::compute()` for dbplyr users.
+
 `compute()` errors if the tbl has been filtered (partial row mask) —
 you cannot write back a partial vector. A permuted-but-full row mask
 (e.g. after `arrange()`) is un-permuted to axis order before writing.
