@@ -40,13 +40,6 @@ extern "C" SEXP _dafr_kernel_csc_colsums_cpp(SEXP x, SEXP p, SEXP ncol, SEXP thr
     return cpp11::as_sexp(kernel_csc_colsums_cpp(cpp11::as_cpp<cpp11::decay_t<cpp11::doubles>>(x), cpp11::as_cpp<cpp11::decay_t<cpp11::integers>>(p), cpp11::as_cpp<cpp11::decay_t<int>>(ncol), cpp11::as_cpp<cpp11::decay_t<int>>(threshold)));
   END_CPP11
 }
-// kernel_csc_to_csr.cpp
-cpp11::writable::list kernel_csc_to_csr_cpp(cpp11::doubles x, cpp11::integers i, cpp11::integers p, int nrow, int ncol);
-extern "C" SEXP _dafr_kernel_csc_to_csr_cpp(SEXP x, SEXP i, SEXP p, SEXP nrow, SEXP ncol) {
-  BEGIN_CPP11
-    return cpp11::as_sexp(kernel_csc_to_csr_cpp(cpp11::as_cpp<cpp11::decay_t<cpp11::doubles>>(x), cpp11::as_cpp<cpp11::decay_t<cpp11::integers>>(i), cpp11::as_cpp<cpp11::decay_t<cpp11::integers>>(p), cpp11::as_cpp<cpp11::decay_t<int>>(nrow), cpp11::as_cpp<cpp11::decay_t<int>>(ncol)));
-  END_CPP11
-}
 // kernel_eltwise_log_add.cpp
 cpp11::writable::doubles kernel_log_add_cpp(cpp11::doubles x, cpp11::doubles y, int threshold);
 extern "C" SEXP _dafr_kernel_log_add_cpp(SEXP x, SEXP y, SEXP threshold) {
@@ -62,10 +55,10 @@ extern "C" SEXP _dafr_kernel_geomean_csc_cpp(SEXP x, SEXP i, SEXP p, SEXP nrow, 
   END_CPP11
 }
 // kernel_grouped_minmax_dense.cpp
-cpp11::writable::doubles_matrix<cpp11::by_column> kernel_grouped_minmax_dense_cpp(SEXP mat, cpp11::integers groups, int ngroups, int axis, int variant);
-extern "C" SEXP _dafr_kernel_grouped_minmax_dense_cpp(SEXP mat, SEXP groups, SEXP ngroups, SEXP axis, SEXP variant) {
+cpp11::writable::doubles_matrix<cpp11::by_column> kernel_grouped_minmax_dense_cpp(SEXP mat, cpp11::integers groups, int ngroups, int axis, int variant, int threshold);
+extern "C" SEXP _dafr_kernel_grouped_minmax_dense_cpp(SEXP mat, SEXP groups, SEXP ngroups, SEXP axis, SEXP variant, SEXP threshold) {
   BEGIN_CPP11
-    return cpp11::as_sexp(kernel_grouped_minmax_dense_cpp(cpp11::as_cpp<cpp11::decay_t<SEXP>>(mat), cpp11::as_cpp<cpp11::decay_t<cpp11::integers>>(groups), cpp11::as_cpp<cpp11::decay_t<int>>(ngroups), cpp11::as_cpp<cpp11::decay_t<int>>(axis), cpp11::as_cpp<cpp11::decay_t<int>>(variant)));
+    return cpp11::as_sexp(kernel_grouped_minmax_dense_cpp(cpp11::as_cpp<cpp11::decay_t<SEXP>>(mat), cpp11::as_cpp<cpp11::decay_t<cpp11::integers>>(groups), cpp11::as_cpp<cpp11::decay_t<int>>(ngroups), cpp11::as_cpp<cpp11::decay_t<int>>(axis), cpp11::as_cpp<cpp11::decay_t<int>>(variant), cpp11::as_cpp<cpp11::decay_t<int>>(threshold)));
   END_CPP11
 }
 // kernel_grouped_mode_csc.cpp
@@ -97,10 +90,10 @@ extern "C" SEXP _dafr_kernel_grouped_reduce_dense_cpp(SEXP m, SEXP group, SEXP n
   END_CPP11
 }
 // kernel_grouped_rowsum_dense.cpp
-list kernel_grouped_rowsum_dense_cpp(SEXP mat, cpp11::integers groups, int ngroups, bool need_sq, int axis);
-extern "C" SEXP _dafr_kernel_grouped_rowsum_dense_cpp(SEXP mat, SEXP groups, SEXP ngroups, SEXP need_sq, SEXP axis) {
+list kernel_grouped_rowsum_dense_cpp(SEXP mat, cpp11::integers groups, int ngroups, bool need_sq, int axis, int threshold);
+extern "C" SEXP _dafr_kernel_grouped_rowsum_dense_cpp(SEXP mat, SEXP groups, SEXP ngroups, SEXP need_sq, SEXP axis, SEXP threshold) {
   BEGIN_CPP11
-    return cpp11::as_sexp(kernel_grouped_rowsum_dense_cpp(cpp11::as_cpp<cpp11::decay_t<SEXP>>(mat), cpp11::as_cpp<cpp11::decay_t<cpp11::integers>>(groups), cpp11::as_cpp<cpp11::decay_t<int>>(ngroups), cpp11::as_cpp<cpp11::decay_t<bool>>(need_sq), cpp11::as_cpp<cpp11::decay_t<int>>(axis)));
+    return cpp11::as_sexp(kernel_grouped_rowsum_dense_cpp(cpp11::as_cpp<cpp11::decay_t<SEXP>>(mat), cpp11::as_cpp<cpp11::decay_t<cpp11::integers>>(groups), cpp11::as_cpp<cpp11::decay_t<int>>(ngroups), cpp11::as_cpp<cpp11::decay_t<bool>>(need_sq), cpp11::as_cpp<cpp11::decay_t<int>>(axis), cpp11::as_cpp<cpp11::decay_t<int>>(threshold)));
   END_CPP11
 }
 // kernel_log_reduce.cpp
@@ -164,14 +157,13 @@ extern "C" {
 static const R_CallMethodDef CallEntries[] = {
     {"_dafr_is_altrep_cpp",                   (DL_FUNC) &_dafr_is_altrep_cpp,                    1},
     {"_dafr_kernel_csc_colsums_cpp",          (DL_FUNC) &_dafr_kernel_csc_colsums_cpp,           4},
-    {"_dafr_kernel_csc_to_csr_cpp",           (DL_FUNC) &_dafr_kernel_csc_to_csr_cpp,            5},
     {"_dafr_kernel_geomean_csc_cpp",          (DL_FUNC) &_dafr_kernel_geomean_csc_cpp,           8},
-    {"_dafr_kernel_grouped_minmax_dense_cpp", (DL_FUNC) &_dafr_kernel_grouped_minmax_dense_cpp,  5},
+    {"_dafr_kernel_grouped_minmax_dense_cpp", (DL_FUNC) &_dafr_kernel_grouped_minmax_dense_cpp,  6},
     {"_dafr_kernel_grouped_mode_csc_cpp",     (DL_FUNC) &_dafr_kernel_grouped_mode_csc_cpp,     10},
     {"_dafr_kernel_grouped_quantile_csc_cpp", (DL_FUNC) &_dafr_kernel_grouped_quantile_csc_cpp, 11},
     {"_dafr_kernel_grouped_reduce_csc_cpp",   (DL_FUNC) &_dafr_kernel_grouped_reduce_csc_cpp,   12},
     {"_dafr_kernel_grouped_reduce_dense_cpp", (DL_FUNC) &_dafr_kernel_grouped_reduce_dense_cpp,  8},
-    {"_dafr_kernel_grouped_rowsum_dense_cpp", (DL_FUNC) &_dafr_kernel_grouped_rowsum_dense_cpp,  5},
+    {"_dafr_kernel_grouped_rowsum_dense_cpp", (DL_FUNC) &_dafr_kernel_grouped_rowsum_dense_cpp,  6},
     {"_dafr_kernel_log_add_cpp",              (DL_FUNC) &_dafr_kernel_log_add_cpp,               3},
     {"_dafr_kernel_log_reduce_csc_cpp",       (DL_FUNC) &_dafr_kernel_log_reduce_csc_cpp,       10},
     {"_dafr_kernel_log_reduce_dense_cpp",     (DL_FUNC) &_dafr_kernel_log_reduce_dense_cpp,      6},

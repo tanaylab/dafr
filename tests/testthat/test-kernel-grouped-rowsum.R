@@ -12,7 +12,7 @@ test_that("kernel_grouped_rowsum G2 integer Sum matches rowsum()", {
     gi <- c(1L, 1L, 2L, 2L, 3L, 3L)  # 3 groups, 2 rows each
     ngroups <- 3L
     res <- dafr:::kernel_grouped_rowsum_dense_cpp(m, gi, ngroups,
-                                                  need_sq = FALSE, axis = 2L)
+                                                  need_sq = FALSE, axis = 2L, threshold = 1L)
     expected <- rowsum(m, gi, reorder = FALSE)
     # rowsum returns matrix with rownames = group labels and numeric (double) values.
     expect_equal(unname(res$sum), unname(expected + 0.0), tolerance = 1e-12)
@@ -29,7 +29,7 @@ test_that("kernel_grouped_rowsum G2 double Sum matches rowsum()", {
     gi <- c(1L, 2L, 1L, 2L, 1L, 2L)  # 2 groups, alternating rows
     ngroups <- 2L
     res <- dafr:::kernel_grouped_rowsum_dense_cpp(m, gi, ngroups,
-                                                  need_sq = FALSE, axis = 2L)
+                                                  need_sq = FALSE, axis = 2L, threshold = 1L)
     expected <- rowsum(m, gi, reorder = FALSE)
     expect_equal(unname(res$sum), unname(expected), tolerance = 1e-12)
     expect_null(res$sq)
@@ -45,7 +45,7 @@ test_that("kernel_grouped_rowsum G3 integer Sum matches t(rowsum(t(m), g))", {
     gi <- c(1L, 2L, 1L, 2L, 1L)   # 2 groups for 5 columns
     ngroups <- 2L
     res <- dafr:::kernel_grouped_rowsum_dense_cpp(m, gi, ngroups,
-                                                  need_sq = FALSE, axis = 3L)
+                                                  need_sq = FALSE, axis = 3L, threshold = 1L)
     expected <- t(rowsum(t(m + 0.0), gi, reorder = FALSE))
     expect_equal(unname(res$sum), unname(expected), tolerance = 1e-12)
     expect_null(res$sq)
@@ -61,7 +61,7 @@ test_that("kernel_grouped_rowsum G2 integer sum-of-squares matches manual formul
     ngroups <- 3L
     n_in_group <- as.integer(tabulate(gi, ngroups))
     res <- dafr:::kernel_grouped_rowsum_dense_cpp(m, gi, ngroups,
-                                                  need_sq = TRUE, axis = 2L)
+                                                  need_sq = TRUE, axis = 2L, threshold = 1L)
     # Reference: rowsum on double
     md <- m + 0.0
     rs  <- rowsum(md, gi, reorder = FALSE)
@@ -91,7 +91,7 @@ test_that("kernel_grouped_rowsum propagates NA correctly", {
     gi <- c(1L, 2L, 1L, 2L)
     ngroups <- 2L
     res_int <- dafr:::kernel_grouped_rowsum_dense_cpp(m_int, gi, ngroups,
-                                                      need_sq = TRUE, axis = 2L)
+                                                      need_sq = TRUE, axis = 2L, threshold = 1L)
     # col 2: group 1 has rows 1,3 -> row 1 is NA -> accumulator is NA
     expect_true(is.na(res_int$sum[1L, 2L]),  label = "sum: group 1 col 2 is NA")
     expect_true(is.na(res_int$sq[1L, 2L]),   label = "sq:  group 1 col 2 is NA")
@@ -107,7 +107,7 @@ test_that("kernel_grouped_rowsum propagates NA correctly", {
                     nrow = 4L, ncol = 3L)
     m_dbl[3L, 1L] <- NA_real_         # row 3 col 1 -> group 1, col 1 should be NA
     res_dbl <- dafr:::kernel_grouped_rowsum_dense_cpp(m_dbl, gi, ngroups,
-                                                      need_sq = FALSE, axis = 2L)
+                                                      need_sq = FALSE, axis = 2L, threshold = 1L)
     expect_true(is.na(res_dbl$sum[1L, 1L]),  label = "dbl: group 1 col 1 is NA")
     expect_false(is.na(res_dbl$sum[2L, 1L]), label = "dbl: group 2 col 1 not NA")
 })

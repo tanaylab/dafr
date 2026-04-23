@@ -20,10 +20,6 @@ kernel_csc_colsums_cpp <- function(x, p, ncol, threshold) {
   .Call(`_dafr_kernel_csc_colsums_cpp`, x, p, ncol, threshold)
 }
 
-kernel_csc_to_csr_cpp <- function(x, i, p, nrow, ncol) {
-  .Call(`_dafr_kernel_csc_to_csr_cpp`, x, i, p, nrow, ncol)
-}
-
 kernel_log_add_cpp <- function(x, y, threshold) {
   .Call(`_dafr_kernel_log_add_cpp`, x, y, threshold)
 }
@@ -32,8 +28,8 @@ kernel_geomean_csc_cpp <- function(x, i, p, nrow, ncol, axis, eps, threshold) {
   .Call(`_dafr_kernel_geomean_csc_cpp`, x, i, p, nrow, ncol, axis, eps, threshold)
 }
 
-kernel_grouped_minmax_dense_cpp <- function(mat, groups, ngroups, axis, variant) {
-  .Call(`_dafr_kernel_grouped_minmax_dense_cpp`, mat, groups, ngroups, axis, variant)
+kernel_grouped_minmax_dense_cpp <- function(mat, groups, ngroups, axis, variant, threshold) {
+  .Call(`_dafr_kernel_grouped_minmax_dense_cpp`, mat, groups, ngroups, axis, variant, threshold)
 }
 
 kernel_grouped_mode_csc_cpp <- function(x, i, p, nrow, ncol, group, ngroups, n_in_group, axis, threshold) {
@@ -52,8 +48,8 @@ kernel_grouped_reduce_dense_cpp <- function(m, group, ngroups, n_in_group, axis,
   .Call(`_dafr_kernel_grouped_reduce_dense_cpp`, m, group, ngroups, n_in_group, axis, op, eps, threshold)
 }
 
-kernel_grouped_rowsum_dense_cpp <- function(mat, groups, ngroups, need_sq, axis) {
-  .Call(`_dafr_kernel_grouped_rowsum_dense_cpp`, mat, groups, ngroups, need_sq, axis)
+kernel_grouped_rowsum_dense_cpp <- function(mat, groups, ngroups, need_sq, axis, threshold) {
+  .Call(`_dafr_kernel_grouped_rowsum_dense_cpp`, mat, groups, ngroups, need_sq, axis, threshold)
 }
 
 kernel_log_reduce_dense_cpp <- function(m, eps, base, axis, reducer, threshold) {

@@ -55,19 +55,34 @@ assert_no_densify_during <- function(expr) {
     )
     assign(counter_name, 0L, envir = globalenv())
 
-    if ("package:Matrix" %in% search()) {
-        # S4 context: trace() + setMethod() invalidates the S4 dispatch cache.
-        tracer_expr <- bquote(
+    # Pick the intercept strategy based on how `as.matrix` actually
+    # resolves in the caller's scope, not on `search()`. Under
+    # testthat::test_check(load_package = "installed") the test body's
+    # lookup chain does not pass through the session's `package:Matrix`
+    # entry, so `as.matrix(m)` resolves to base's S3 function even when
+    # `package:Matrix` is on search() — an S4-generic-targeted trace
+    # would never fire in that context.
+    am_in_env <- tryCatch(get("as.matrix", envir = env, inherits = TRUE),
+                          error = function(e) base::as.matrix)
+    use_s4 <- isS4(am_in_env) ||
+        identical(environmentName(environment(am_in_env)), "Matrix")
+    if (use_s4) {
+        # S4 context: replace the "Matrix"-signature method directly via
+        # setMethod(). trace() was used previously but was unreliable when
+        # an S4 dispatch cache had been populated before Matrix was
+        # attached; setMethod() always invalidates the cache.
+        orig_method <- getMethod("as.matrix", "Matrix")
+        wrapper <- eval(bquote(function(x, ...) {
             assign(.(counter_name),
                    get(.(counter_name), envir = globalenv()) + 1L,
                    envir = globalenv())
-        )
+            .(orig_method)(x, ...)
+        }))
         suppressMessages(
-            trace("as.matrix", signature = "Matrix",
-                  tracer = tracer_expr, print = FALSE)
+            setMethod("as.matrix", signature = "Matrix", wrapper)
         )
         on.exit({
-            suppressMessages(untrace("as.matrix", signature = "Matrix"))
+            suppressMessages(setMethod("as.matrix", "Matrix", orig_method))
             rm(list = counter_name, envir = globalenv())
         }, add = TRUE)
     } else {

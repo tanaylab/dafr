@@ -38,7 +38,7 @@ test_that("kernel_grouped_minmax G2 Max integer matches per-group colMaxs", {
     gi <- c(1L, 1L, 2L, 2L, 3L, 3L)
     ngroups <- 3L
     got <- dafr:::kernel_grouped_minmax_dense_cpp(
-        m, groups = gi, ngroups = ngroups, axis = 2L, variant = 1L)
+        m, groups = gi, ngroups = ngroups, axis = 2L, variant = 1L, threshold = 1L)
     expected <- .ref_g2(m, gi, ngroups, matrixStats::colMaxs)
     expect_equal(unname(got), unname(expected + 0.0), tolerance = 0)
 })
@@ -52,7 +52,7 @@ test_that("kernel_grouped_minmax G2 Min integer matches per-group colMins", {
     gi <- c(1L, 1L, 2L, 2L, 3L, 3L)
     ngroups <- 3L
     got <- dafr:::kernel_grouped_minmax_dense_cpp(
-        m, gi, ngroups, axis = 2L, variant = 0L)
+        m, gi, ngroups, axis = 2L, variant = 0L, threshold = 1L)
     expected <- .ref_g2(m, gi, ngroups, matrixStats::colMins)
     expect_equal(unname(got), unname(expected + 0.0), tolerance = 0)
 })
@@ -66,7 +66,7 @@ test_that("kernel_grouped_minmax G3 Max integer matches per-group rowMaxs", {
     gi <- c(1L, 2L, 1L, 2L, 1L)
     ngroups <- 2L
     got <- dafr:::kernel_grouped_minmax_dense_cpp(
-        m, gi, ngroups, axis = 3L, variant = 1L)
+        m, gi, ngroups, axis = 3L, variant = 1L, threshold = 1L)
     expected <- .ref_g3(m, gi, ngroups, matrixStats::rowMaxs)
     expect_equal(unname(got), unname(expected + 0.0), tolerance = 0)
 })
@@ -80,7 +80,7 @@ test_that("kernel_grouped_minmax G3 Min integer matches per-group rowMins", {
     gi <- c(1L, 2L, 1L, 2L, 1L)
     ngroups <- 2L
     got <- dafr:::kernel_grouped_minmax_dense_cpp(
-        m, gi, ngroups, axis = 3L, variant = 0L)
+        m, gi, ngroups, axis = 3L, variant = 0L, threshold = 1L)
     expected <- .ref_g3(m, gi, ngroups, matrixStats::rowMins)
     expect_equal(unname(got), unname(expected + 0.0), tolerance = 0)
 })
@@ -100,9 +100,9 @@ test_that("kernel_grouped_minmax int vs double parity, all variants", {
             gi      <- if (axis == 2L) gi2 else gi3
             ngroups <- if (axis == 2L) ngroups2 else ngroups3
             got_int <- dafr:::kernel_grouped_minmax_dense_cpp(
-                mi, gi, ngroups, axis = axis, variant = variant)
+                mi, gi, ngroups, axis = axis, variant = variant, threshold = 1L)
             got_dbl <- dafr:::kernel_grouped_minmax_dense_cpp(
-                md, gi, ngroups, axis = axis, variant = variant)
+                md, gi, ngroups, axis = axis, variant = variant, threshold = 1L)
             expect_identical(got_int, got_dbl,
                 label = sprintf("axis=%d variant=%d", axis, variant))
         }
@@ -121,7 +121,7 @@ test_that("kernel_grouped_minmax NA propagation per (row, group)", {
     m[1L, 2L] <- NA_integer_     # row 1 col 2 belongs to group 1
     gi <- c(1L, 2L, 1L, 2L); ngroups <- 2L
     got <- dafr:::kernel_grouped_minmax_dense_cpp(
-        m, gi, ngroups, axis = 2L, variant = 1L)  # G2 Max
+        m, gi, ngroups, axis = 2L, variant = 1L, threshold = 1L)  # G2 Max
     # col 2: group 1 aggregated rows {1, 3} -> row 1 is NA -> NA.
     expect_true(is.na(got[1L, 2L]))
     expect_false(is.na(got[2L, 2L]))
@@ -142,7 +142,7 @@ test_that("kernel_grouped_minmax NaN in double propagates to NA_REAL", {
     m[1L, 2L] <- NaN   # row 1 col 2 -> group 1 (gi[1] == 1)
     gi <- c(1L, 2L, 1L, 2L); ngroups <- 2L
     got <- dafr:::kernel_grouped_minmax_dense_cpp(
-        m, gi, ngroups, axis = 2L, variant = 1L)
+        m, gi, ngroups, axis = 2L, variant = 1L, threshold = 1L)
     # col 2, group 1 (rows 1 & 3) has NaN at row 1 -> NA_REAL
     expect_true(is.na(got[1L, 2L]))
     # Other cells unaffected
@@ -157,9 +157,9 @@ test_that("kernel_grouped_minmax empty group produces sentinel", {
     m <- matrix(1:12 + 0.0, nrow = 4L, ncol = 3L)
     gi <- c(1L, 1L, 3L, 3L); ngroups <- 3L   # group 2 is empty
     got_max <- dafr:::kernel_grouped_minmax_dense_cpp(
-        m, gi, ngroups, axis = 2L, variant = 1L)
+        m, gi, ngroups, axis = 2L, variant = 1L, threshold = 1L)
     got_min <- dafr:::kernel_grouped_minmax_dense_cpp(
-        m, gi, ngroups, axis = 2L, variant = 0L)
+        m, gi, ngroups, axis = 2L, variant = 0L, threshold = 1L)
     expect_true(all(got_max[2L, ] == -Inf))
     expect_true(all(got_min[2L, ] ==  Inf))
 })
@@ -173,7 +173,7 @@ test_that("kernel_grouped_minmax single-element group returns that element", {
     m <- matrix(c(10.0, 20.0, 30.0, 40.0, 50.0, 60.0), nrow = 3L, ncol = 2L)
     gi <- c(1L, 2L, 3L); ngroups <- 3L
     got <- dafr:::kernel_grouped_minmax_dense_cpp(
-        m, gi, ngroups, axis = 2L, variant = 1L)  # G2 Max
+        m, gi, ngroups, axis = 2L, variant = 1L, threshold = 1L)  # G2 Max
     # Each group has one row; the max equals that row.
     expect_equal(got[1L, ], c(10.0, 40.0))
     expect_equal(got[2L, ], c(20.0, 50.0))
