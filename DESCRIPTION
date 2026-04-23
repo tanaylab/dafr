@@ -77,6 +77,7 @@ Collate:
     'files_io.R'
     'files_daf_read.R'
     'files_daf_write.R'
+    'groups.R'
     'handlers.R'
     'mmap.R'
     'options.R'
