@@ -23,6 +23,8 @@
         )
     }
     registerS3method("print", "daf_axis_tbl", ns$print_daf_axis_tbl)
+    registerS3method("select", "daf_axis_tbl", ns$select_daf_axis_tbl, envir = dplyr_ns)
+    registerS3method("pull", "daf_axis_tbl", ns$pull_daf_axis_tbl, envir = dplyr_ns)
 }
 
 .onUnload <- function(libpath) {

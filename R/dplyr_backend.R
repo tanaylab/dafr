@@ -118,3 +118,25 @@ print_daf_axis_tbl <- function(x, n = 6L, ...) {
     print(utils::head(.realize(x), n))
     invisible(x)
 }
+
+# ---- select / pull ---------------------------------------------------------
+
+#' @noRd
+select_daf_axis_tbl <- function(.data, ...) {
+    daf <- attr(.data, "daf")
+    axis <- attr(.data, "axis")
+    available <- c(vectors_set(daf, axis), names(attr(.data, "overrides")))
+    chosen <- tidyselect::eval_select(
+        rlang::expr(c(...)),
+        stats::setNames(seq_along(available), available)
+    )
+    attr(.data, "col_select") <- names(chosen)
+    .data
+}
+
+#' @noRd
+pull_daf_axis_tbl <- function(.data, var = -1, name = NULL, ...) {
+    df <- .realize(.data)
+    if (inherits(df, "grouped_df")) df <- dplyr::ungroup(df)
+    dplyr::pull(df, {{ var }}, name = {{ name }})
+}
