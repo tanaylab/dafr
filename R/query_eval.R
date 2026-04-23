@@ -228,14 +228,17 @@ NULL
         state$kind <- "vector_names_ready"
         return(state)
     }
+    indices <- state$indices
     if (!format_has_vector(daf, axis, node$name)) {
         if (!is.null(state$if_missing)) {
+            out_len <- if (is.null(indices)) {
+                format_axis_length(daf, axis)
+            } else {
+                length(indices)
+            }
             return(list(
                 kind = "vector",
-                value = rep(
-                    state$if_missing,
-                    format_axis_length(daf, axis)
-                ),
+                value = rep(state$if_missing, out_len),
                 axis = axis,
                 property = node$name
             ))
@@ -245,9 +248,13 @@ NULL
             sQuote(node$name), sQuote(axis)
         ), call. = FALSE)
     }
+    value <- format_get_vector(daf, axis, node$name)
+    if (!is.null(indices)) {
+        value <- value[indices]
+    }
     list(
         kind = "vector",
-        value = format_get_vector(daf, axis, node$name),
+        value = value,
         axis = axis,
         property = node$name
     )
@@ -400,7 +407,14 @@ NULL
     entries <- format_axis_array(daf, axis)
     mask <- state$pending_mask
     keep <- !is.na(mask) & mask
-    list(kind = "axis", axis = axis, value = entries[keep])
+    # Carry the surviving-entry indices forward so that a subsequent
+    # LookupVector / LookupMatrix subsets by the mask rather than returning
+    # the full axis-length vector. indices=NULL (i.e. all entries pass) is
+    # treated as "no filter" by downstream consumers.
+    list(
+        kind = "axis", axis = axis, value = entries[keep],
+        indices = if (all(keep)) NULL else which(keep)
+    )
 }
 
 .apply_logical_mask <- function(node, state, daf) {
