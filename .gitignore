@@ -17,6 +17,9 @@ dev/
 # Claude Code session state
 .claude/
 
+# git worktrees for isolated agent work
+.worktrees/
+
 # testthat recovery artifacts (written on test failure, not source-controlled)
 tests/testthat/_problems/
 tests/testthat/testthat-problems.rds
