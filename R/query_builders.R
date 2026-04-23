@@ -111,6 +111,51 @@ inherits_dafr_query <- function(x) S7::S7_inherits(x, DafrQuery)
     }
 }
 
+# Factory for `ReduceToColumn` / `ReduceToRow`, which consume a prior
+# reduction (e.g. `Sum()`, `Quantile(p = 0.5)`) and rewrap its last AST
+# node as a `ReduceToColumn` / `ReduceToRow` node with the same
+# reduction name and params. Supports chaining: `prior |> ReduceToColumn(Sum())`.
+.make_reduce_to <- function(op_name, qop_builder) {
+    force(op_name)
+    force(qop_builder)
+    function(reduction, ...) {
+        dots <- list(...)
+        # Dispatch: `reduction` may be the pipe target (DafrQuery that is
+        # a full query so far) with the real reduction in dots, OR the
+        # actual reduction (single-node DafrQuery).
+        if (missing(reduction)) {
+            cli::cli_abort("{.field reduction} is missing with no default")
+        }
+        query <- NULL
+        actual_reduction <- reduction
+        if (inherits_dafr_query(reduction) && length(dots) >= 1L &&
+            inherits_dafr_query(dots[[1L]])) {
+            query <- reduction
+            actual_reduction <- dots[[1L]]
+        }
+        if (!inherits_dafr_query(actual_reduction)) {
+            cli::cli_abort(
+                "{.field reduction} must be a {.cls DafrQuery}"
+            )
+        }
+        # The reduction DafrQuery should have a trailing Eltwise node
+        # (e.g. built by `Sum()`, `Quantile(p = 0.5)`). Extract its name
+        # and params for the ReduceToColumn/ReduceToRow node.
+        last_node <- actual_reduction@ast[[length(actual_reduction@ast)]]
+        if (is.null(last_node) || last_node$op != "Eltwise") {
+            cli::cli_abort(
+                "{.code {op_name}} requires a reduction query (e.g. {.code Sum()}), got a query whose trailing node is {.val {last_node$op}}"
+            )
+        }
+        frag <- .build_fragment(
+            qop_builder,
+            last_node$name,
+            last_node$params
+        )
+        .compose_query(query, frag$ast, frag$canonical)
+    }
+}
+
 .make_typed_reduction <- function(op_name, qop_builder) {
     force(op_name)
     force(qop_builder)

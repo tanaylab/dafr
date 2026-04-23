@@ -213,6 +213,46 @@ unescape_value <- function(s) {
     .qop_eltwise_typed("Log", type, params)
 }
 
+# Reduction op builders. Although these canonicalise as `% <Name>` (i.e. the
+# parser produces `qop_Eltwise` nodes), they are semantically reductions —
+# consuming a matrix/vector and producing a vector/scalar. The surface
+# distinction is only in the query-evaluator.
+.qop_max <- function() .qop_eltwise("Max")
+.qop_min <- function() .qop_eltwise("Min")
+.qop_mode <- function(type = NULL, params = list()) {
+    .qop_eltwise_typed("Mode", type, params)
+}
+.qop_sum <- function(type = NULL, params = list()) {
+    .qop_eltwise_typed("Sum", type, params)
+}
+.qop_mean <- function(type = NULL, params = list()) {
+    .qop_eltwise_typed("Mean", type, params)
+}
+.qop_median <- function(type = NULL, params = list()) {
+    .qop_eltwise_typed("Median", type, params)
+}
+.qop_count <- function(type = NULL, params = list()) {
+    .qop_eltwise_typed("Count", type, params)
+}
+.qop_geomean <- function(type = NULL, params = list()) {
+    .qop_eltwise_typed("GeoMean", type, params)
+}
+.qop_quantile <- function(type = NULL, params = list()) {
+    .qop_eltwise_typed("Quantile", type, params)
+}
+.qop_std <- function(type = NULL, params = list()) {
+    .qop_eltwise_typed("Std", type, params)
+}
+.qop_std_n <- function(type = NULL, params = list()) {
+    .qop_eltwise_typed("StdN", type, params)
+}
+.qop_var <- function(type = NULL, params = list()) {
+    .qop_eltwise_typed("Var", type, params)
+}
+.qop_var_n <- function(type = NULL, params = list()) {
+    .qop_eltwise_typed("VarN", type, params)
+}
+
 .canonicalise_reduction <- function(tok, reduction, params) {
     head <- paste0(tok, " ", .escape_value(reduction))
     if (length(params) == 0L) {
