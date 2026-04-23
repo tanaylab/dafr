@@ -27,3 +27,41 @@ test_that("pull() without arg returns the last column", {
     v <- dplyr::tbl(d, "cell") |> dplyr::pull()
     expect_identical(v, c(1L, 2L))
 })
+
+test_that("filter() reduces rows; result is still a daf_axis_tbl", {
+    skip_if_not_installed("dplyr")
+    d <- memory_daf()
+    add_axis(d, "cell", c("c1", "c2", "c3"))
+    set_vector(d, "cell", "age", c(10L, 20L, 30L))
+    out <- dplyr::tbl(d, "cell") |> dplyr::filter(age > 15)
+    expect_s3_class(out, "daf_axis_tbl")
+    df <- dplyr::collect(out)
+    expect_identical(df$name, c("c2", "c3"))
+    expect_identical(df$age, c(20L, 30L))
+})
+
+test_that("filter() composes with select()", {
+    skip_if_not_installed("dplyr")
+    d <- memory_daf()
+    add_axis(d, "cell", c("c1", "c2", "c3"))
+    set_vector(d, "cell", "age", c(10L, 20L, 30L))
+    set_vector(d, "cell", "donor", c("A", "B", "C"))
+    df <- dplyr::tbl(d, "cell") |>
+        dplyr::filter(age > 15) |>
+        dplyr::select(donor) |>
+        dplyr::collect()
+    expect_identical(df$name, c("c2", "c3"))
+    expect_setequal(colnames(df), c("name", "donor"))
+})
+
+test_that("filter() supports multi-variable predicates", {
+    skip_if_not_installed("dplyr")
+    d <- memory_daf()
+    add_axis(d, "cell", c("c1", "c2", "c3"))
+    set_vector(d, "cell", "age", c(10L, 20L, 30L))
+    set_vector(d, "cell", "donor", c("A", "B", "A"))
+    df <- dplyr::tbl(d, "cell") |>
+        dplyr::filter(age > 15, donor == "A") |>
+        dplyr::collect()
+    expect_identical(df$name, "c3")
+})

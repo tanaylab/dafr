@@ -140,3 +140,24 @@ pull_daf_axis_tbl <- function(.data, var = -1, name = NULL, ...) {
     if (inherits(df, "grouped_df")) df <- dplyr::ungroup(df)
     dplyr::pull(df, {{ var }}, name = {{ name }})
 }
+
+# ---- filter ----------------------------------------------------------------
+
+#' @noRd
+filter_daf_axis_tbl <- function(.data, ..., .by = NULL) {
+    df <- .realize(.data)
+    if (inherits(df, "grouped_df")) df <- dplyr::ungroup(df)
+    keep <- dplyr::filter(df, ...)
+    daf <- attr(.data, "daf")
+    axis <- attr(.data, "axis")
+    # New row_mask: positions in the full axis of the kept entries.
+    attr(.data, "row_mask") <- match(keep$name, axis_entries(daf, axis))
+    # Reindex overrides (aligned to previous row_mask order) to match
+    # the new row_mask order.
+    overrides <- attr(.data, "overrides")
+    if (length(overrides)) {
+        local_idx <- match(keep$name, df$name)
+        attr(.data, "overrides") <- lapply(overrides, function(v) v[local_idx])
+    }
+    .data
+}
