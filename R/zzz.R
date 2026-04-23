@@ -27,6 +27,8 @@
     registerS3method("pull", "daf_axis_tbl", ns$pull_daf_axis_tbl, envir = dplyr_ns)
     registerS3method("filter", "daf_axis_tbl", ns$filter_daf_axis_tbl, envir = dplyr_ns)
     registerS3method("mutate", "daf_axis_tbl", ns$mutate_daf_axis_tbl, envir = dplyr_ns)
+    registerS3method("arrange", "daf_axis_tbl", ns$arrange_daf_axis_tbl, envir = dplyr_ns)
+    registerS3method("distinct", "daf_axis_tbl", ns$distinct_daf_axis_tbl, envir = dplyr_ns)
 }
 
 .onUnload <- function(libpath) {

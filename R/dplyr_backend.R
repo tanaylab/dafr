@@ -184,3 +184,30 @@ mutate_daf_axis_tbl <- function(.data, ...) {
     attr(.data, "overrides") <- overrides
     .data
 }
+
+# ---- arrange / distinct ----------------------------------------------------
+
+#' @noRd
+arrange_daf_axis_tbl <- function(.data, ..., .by_group = FALSE) {
+    df <- .realize(.data)
+    if (inherits(df, "grouped_df")) df <- dplyr::ungroup(df)
+    sorted <- dplyr::arrange(df, ...)
+    local_idx <- match(sorted$name, df$name)
+    daf <- attr(.data, "daf")
+    axis <- attr(.data, "axis")
+    old_rm <- attr(.data, "row_mask")
+    if (is.null(old_rm)) old_rm <- seq_len(axis_length(daf, axis))
+    attr(.data, "row_mask") <- old_rm[local_idx]
+    overrides <- attr(.data, "overrides")
+    if (length(overrides)) {
+        attr(.data, "overrides") <- lapply(overrides, function(v) v[local_idx])
+    }
+    .data
+}
+
+#' @noRd
+distinct_daf_axis_tbl <- function(.data, ..., .keep_all = FALSE) {
+    df <- .realize(.data)
+    if (inherits(df, "grouped_df")) df <- dplyr::ungroup(df)
+    dplyr::distinct(df, ..., .keep_all = .keep_all)
+}
