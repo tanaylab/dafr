@@ -74,6 +74,7 @@ Collate:
     'computations.R'
     'copies.R'
     'concat.R'
+    'contract_ux.R'
     'cpp11.R'
     'dafr-package.R'
     'dataframes.R'

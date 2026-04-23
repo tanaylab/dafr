@@ -79,6 +79,11 @@ Contract <- S7::new_class(
             if (!is.list(rec) || !("kind" %in% names(rec))) {
                 return(sprintf("data[[%d]] must be a record with $kind", i))
             }
+            if (!(rec$kind %in% c("scalar", "vector", "matrix", "tensor"))) {
+                return(sprintf(
+                    "data[[%d]] has unknown $kind: %s", i, sQuote(rec$kind)
+                ))
+            }
             .assert_expectation(rec$expectation, sprintf("data[[%d]] expectation", i))
             .assert_type(rec$type, sprintf("data[[%d]] type", i))
         }
@@ -208,7 +213,9 @@ ContractDaf <- S7::new_class(
         scalar = sprintf("scalar:%s", rec$name),
         vector = sprintf("vector:%s:%s", rec$axis, rec$name),
         matrix = sprintf("matrix:%s:%s:%s", rec$rows_axis, rec$columns_axis, rec$name),
-        stop("unknown data kind")
+        tensor = sprintf("tensor:%s:%s:%s:%s",
+            rec$main_axis, rec$rows_axis, rec$columns_axis, rec$name),
+        stop(sprintf("unknown kind: %s", sQuote(rec$kind)), call. = FALSE)
     )
 }
 
@@ -705,6 +712,43 @@ S7::method(
     invisible()
 }
 
+.verify_tensor_data <- function(cd, rec, is_for_output) {
+    base <- S7::prop(cd, "base")
+    comp <- S7::prop(cd, "computation")
+    dname <- S7::prop(base, "name")
+    main <- rec$main_axis
+    ra <- rec$rows_axis
+    ca <- rec$columns_axis
+    if (!format_has_axis(base, main)) {
+        if (.is_mandatory(rec$expectation, is_for_output)) {
+            stop(sprintf(
+                "missing %s tensor: %s main axis: %s not present for the computation: %s on the daf data: %s",
+                .direction_name(is_for_output), rec$name, main, comp, dname
+            ), call. = FALSE)
+        }
+        return(invisible())
+    }
+    entries <- format_axis_array(base, main)
+    for (entry in entries) {
+        mat_name <- sprintf("%s_%s", entry, rec$name)
+        has_it <- format_has_matrix(base, ra, ca, mat_name)
+        if (!has_it && .is_mandatory(rec$expectation, is_for_output)) {
+            stop(sprintf(
+                "missing %s tensor matrix: %s of the rows axis: %s and the columns axis: %s for the computation: %s on the daf data: %s",
+                .direction_name(is_for_output), mat_name, ra, ca, comp, dname
+            ), call. = FALSE)
+        }
+        if (has_it && .is_forbidden(rec$expectation, is_for_output,
+            S7::prop(cd, "overwrite"))) {
+            stop(sprintf(
+                "pre-existing %s tensor matrix: %s for the computation: %s on the daf data: %s",
+                rec$expectation, mat_name, comp, dname
+            ), call. = FALSE)
+        }
+    }
+    invisible()
+}
+
 .verify_axis_data <- function(cd, axis, is_for_output) {
     base <- S7::prop(cd, "base")
     comp <- S7::prop(cd, "computation")
@@ -772,6 +816,11 @@ S7::method(
                     parts[[4L]], parts[[2L]], parts[[3L]], comp, dname
                 ), call. = FALSE)
             }
+        } else if (kind == "tensor") {
+            # Skip unused-check for tensors; access tracking for
+            # per-entry matrices would require a separate tracker per
+            # entry. Future work.
+            next
         }
     }
     invisible()
@@ -792,12 +841,17 @@ S7::method(
                           expectation = tracker$expectation, type = tracker$type),
             matrix = list(kind = "matrix", rows_axis = parts[[2L]],
                           columns_axis = parts[[3L]], name = parts[[4L]],
+                          expectation = tracker$expectation, type = tracker$type),
+            tensor = list(kind = "tensor", main_axis = parts[[2L]],
+                          rows_axis = parts[[3L]], columns_axis = parts[[4L]],
+                          name = parts[[5L]],
                           expectation = tracker$expectation, type = tracker$type)
         )
         switch(rec$kind,
             scalar = .verify_scalar_data(cd, rec, is_for_output),
             vector = .verify_vector_data(cd, rec, is_for_output),
-            matrix = .verify_matrix_data(cd, rec, is_for_output)
+            matrix = .verify_matrix_data(cd, rec, is_for_output),
+            tensor = .verify_tensor_data(cd, rec, is_for_output)
         )
     }
     if (is_for_output) .verify_access(cd)
