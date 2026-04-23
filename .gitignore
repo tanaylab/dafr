@@ -13,3 +13,10 @@ dev/
 
 # babysitter/a5c runs and state
 .a5c/
+
+# Claude Code session state
+.claude/
+
+# testthat recovery artifacts (written on test failure, not source-controlled)
+tests/testthat/_problems/
+tests/testthat/testthat-problems.rds
