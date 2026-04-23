@@ -3,7 +3,7 @@ NULL
 
 # Public entry points: parse_query, get_query, has_query,
 # is_axis_query, query_axis_name, query_result_dimensions,
-# get_frame.
+# query_requires_relayout.
 
 #' Evaluate a query string against a daf reader.
 #' @param daf A `DafReader`.
@@ -308,37 +308,3 @@ has_query <- function(daf, query_string) {
     TRUE
 }
 
-#' Extract a data.frame of vectors along one axis.
-#' @param daf A DafReader.
-#' @param axis_query A query string that evaluates to an axis entry vector
-#'   (optionally filtered via mask).
-#' @param columns Optional character vector of vector names. Default: all
-#'   vectors for the axis.
-#' @return A data.frame with one column per vector, rows named by axis entries.
-#' @examples
-#' d <- example_cells_daf()
-#' df <- get_frame(d, "@ donor", columns = c("age"))
-#' head(df)
-#' @export
-get_frame <- function(daf, axis_query, columns = NULL) {
-    axis_ast <- parse_query(axis_query)
-    state <- list(kind = "init", value = NULL, if_missing = NULL)
-    for (node in axis_ast) state <- .apply_node(node, state, daf)
-    if (!identical(state$kind, "axis")) {
-        stop("axis_query did not resolve to an axis", call. = FALSE)
-    }
-    entries <- state$value
-    axis_name <- state$axis
-    if (is.null(columns)) columns <- format_vectors_set(daf, axis_name)
-    cols <- lapply(columns, function(nm) {
-        v <- format_get_vector(daf, axis_name, nm)
-        full_entries <- format_axis_array(daf, axis_name)
-        idx <- match(entries, full_entries)
-        v[idx]
-    })
-    names(cols) <- columns
-    as.data.frame(cols,
-        row.names = entries,
-        stringsAsFactors = FALSE, optional = TRUE
-    )
-}
