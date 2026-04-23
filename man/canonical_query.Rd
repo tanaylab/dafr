@@ -7,7 +7,9 @@
 canonical_query(query_string)
 }
 \arguments{
-\item{query_string}{A query string.}
+\item{query_string}{A query string (character scalar) or a
+\link{DafrQuery} object produced by the query builders (e.g.
+\code{Axis("cell") |> LookupVector("donor")}).}
 }
 \value{
 The canonical query string (stable form; suitable for use as cache key).

@@ -2,20 +2,22 @@
 % Please edit documentation in R/queries.R
 \name{get_query}
 \alias{get_query}
-\title{Evaluate a query string against a daf reader.}
+\title{Evaluate a query against a daf reader.}
 \usage{
 get_query(daf, query_string)
 }
 \arguments{
 \item{daf}{A \code{DafReader}.}
 
-\item{query_string}{A query string.}
+\item{query_string}{A query string (character scalar) or a
+\link{DafrQuery} object produced by the query builders (e.g.
+\code{Axis("cell") |> LookupVector("donor")}).}
 }
 \value{
 A scalar, vector, matrix, names set, or NULL if missing.
 }
 \description{
-Evaluate a query string against a daf reader.
+Evaluate a query against a daf reader.
 }
 \examples{
 d <- example_cells_daf()

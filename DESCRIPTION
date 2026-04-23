@@ -52,11 +52,12 @@ Roxygen: list(markdown = TRUE)
 RoxygenNote: 7.3.3
 Collate: 
     'format_api.R'
+    'classes.R'
+    'query_class.R'
     'utils.R'
     'query_tokens.R'
     'query_ast.R'
     'query_parse.R'
-    'classes.R'
     'operations.R'
     'query_eval.R'
     'queries.R'
@@ -86,5 +87,7 @@ Collate:
     'handlers.R'
     'mmap.R'
     'options.R'
+    'query_builders.R'
+    'query_builders_exports.R'
     'reconstruction.R'
     'zzz.R'

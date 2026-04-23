@@ -1,13 +1,15 @@
-#' @include query_eval.R query_parse.R
+#' @include query_eval.R query_parse.R query_class.R
 NULL
 
 # Public entry points: parse_query, get_query, has_query,
 # is_axis_query, query_axis_name, query_result_dimensions,
 # query_requires_relayout.
 
-#' Evaluate a query string against a daf reader.
+#' Evaluate a query against a daf reader.
 #' @param daf A `DafReader`.
-#' @param query_string A query string.
+#' @param query_string A query string (character scalar) or a
+#'   [DafrQuery] object produced by the query builders (e.g.
+#'   `Axis("cell") |> LookupVector("donor")`).
 #' @return A scalar, vector, matrix, names set, or NULL if missing.
 #' @examples
 #' d <- example_cells_daf()
@@ -15,8 +17,9 @@ NULL
 #' head(get_query(d, "@ cell : donor"))
 #' @export
 get_query <- function(daf, query_string) {
-    ast <- parse_query(query_string)
-    canon <- .canonicalise_ast(ast)
+    parts <- .get_query_dispatch(query_string)
+    ast <- parts$ast
+    canon <- parts$canonical
     key <- cache_key_query(canon)
     touched <- .collect_query_versions(daf, ast)
     stamp <- .snapshot_versions(daf, touched)
@@ -30,6 +33,18 @@ get_query <- function(daf, query_string) {
         size_bytes = as.numeric(object.size(value))
     )
     value
+}
+
+# Resolve either a character scalar or DafrQuery into (ast, canonical).
+.get_query_dispatch <- function(q) {
+    if (S7::S7_inherits(q, DafrQuery)) {
+        list(ast = q@ast, canonical = q@canonical)
+    } else if (is.character(q) && length(q) == 1L && !is.na(q)) {
+        ast <- parse_query(q)
+        list(ast = ast, canonical = .canonicalise_ast(ast))
+    } else {
+        stop("`query_string` must be a character scalar or DafrQuery", call. = FALSE)
+    }
 }
 
 # Scan AST nodes and collect which axes/vectors/matrices the query reads.
@@ -295,6 +310,8 @@ last_matrix_name <- function(ast) {
 #' has_query(d, "@ cell : nonexistent_property")
 #' @export
 has_query <- function(daf, query_string) {
+    # Validate input shape up-front; evaluation errors still fall through to FALSE.
+    .get_query_dispatch(query_string)
     result <- tryCatch(get_query(daf, query_string), error = function(e) NULL)
     if (is.null(result)) {
         return(FALSE)
@@ -306,5 +323,14 @@ has_query <- function(daf, query_string) {
         return(nrow(result) > 0L && ncol(result) > 0L)
     }
     TRUE
+}
+
+# `daf[q]` is shorthand for `get_query(daf, q)`. Accepts either a
+# character-scalar query string or a `DafrQuery`. S7 registers the
+# method against the base `[` generic, which makes it discoverable via
+# normal S3 dispatch -- no `@export` tag needed (in fact roxygen would
+# generate an invalid `export()` line for this non-function name).
+S7::method(`[`, DafReader) <- function(x, i) {
+    get_query(x, i)
 }
 

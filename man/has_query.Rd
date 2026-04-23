@@ -9,7 +9,9 @@ has_query(daf, query_string)
 \arguments{
 \item{daf}{A \code{DafReader}.}
 
-\item{query_string}{A query string.}
+\item{query_string}{A query string (character scalar) or a
+\link{DafrQuery} object produced by the query builders (e.g.
+\code{Axis("cell") |> LookupVector("donor")}).}
 }
 \value{
 Logical scalar. TRUE if \code{get_query(daf, query_string)} would

@@ -7,7 +7,9 @@
 is_axis_query(query_string)
 }
 \arguments{
-\item{query_string}{A query string.}
+\item{query_string}{A query string (character scalar) or a
+\link{DafrQuery} object produced by the query builders (e.g.
+\code{Axis("cell") |> LookupVector("donor")}).}
 }
 \value{
 Logical scalar.
