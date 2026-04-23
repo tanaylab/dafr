@@ -212,6 +212,79 @@ query_result_dimensions <- function(query_string) {
     NA_integer_
 }
 
+#' Does evaluating this query require a matrix relayout (transpose)?
+#'
+#' Walks the parsed AST and returns `TRUE` if any `LookupMatrix` node
+#' would read a matrix stored with axis order different from the order
+#' implied by the surrounding `@ rows @ cols` scopes, or if a
+#' `ReduceToColumn`/`ReduceToRow` would force a relayout.
+#'
+#' @inheritParams get_query
+#' @return Logical scalar.
+#' @examples
+#' d <- example_cells_daf()
+#' query_requires_relayout(d, "@ cell @ gene :: UMIs") # stored order → FALSE
+#' query_requires_relayout(d, "@ gene @ cell :: UMIs") # swapped → TRUE
+#' @export
+query_requires_relayout <- function(daf, query_string) {
+    ast <- parse_query(query_string)
+    rows_axis <- NULL
+    cols_axis <- NULL
+    two_axes <- FALSE
+    scope_axis <- NULL
+    for (n in ast) {
+        switch(n$op,
+            Axis = {
+                if (isTRUE(two_axes)) {
+                    # ignore further Axis nodes inside two-axis scope
+                } else if (!is.null(scope_axis)) {
+                    rows_axis <- scope_axis
+                    cols_axis <- n$axis_name
+                    two_axes <- TRUE
+                } else {
+                    scope_axis <- n$axis_name
+                }
+            },
+            LookupMatrix = {
+                if (isTRUE(two_axes) && !is.null(n$name)) {
+                    if (!format_has_matrix(daf, rows_axis, cols_axis, n$name) &&
+                        format_has_matrix(daf, cols_axis, rows_axis, n$name)) {
+                        return(TRUE)
+                    }
+                }
+            },
+            ReduceToColumn = ,
+            ReduceToRow = {
+                if (isTRUE(two_axes)) {
+                    # A column-reduction of a (rows, cols) matrix stored
+                    # as (cols, rows) requires relayout to iterate by column.
+                    return(
+                        !format_has_matrix(daf, rows_axis, cols_axis,
+                            last_matrix_name(ast)
+                        ) &&
+                            format_has_matrix(daf, cols_axis, rows_axis,
+                                last_matrix_name(ast)
+                            )
+                    )
+                }
+            },
+            NULL
+        )
+    }
+    FALSE
+}
+
+# Find the most recent LookupMatrix $name in an AST, for reduction
+# dispatch in query_requires_relayout. Returns NA_character_ if absent.
+last_matrix_name <- function(ast) {
+    for (n in rev(ast)) {
+        if (identical(n$op, "LookupMatrix") && !is.null(n$name)) {
+            return(n$name)
+        }
+    }
+    NA_character_
+}
+
 #' Check whether a query can be evaluated against a daf without error.
 #' @inheritParams get_query
 #' @return Logical scalar. TRUE if `get_query(daf, query_string)` would
