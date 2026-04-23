@@ -28,6 +28,7 @@ Imports:
     jsonlite,
     matrixStats,
     methods,
+    R6,
     rlang
 LinkingTo:
     cpp11
@@ -66,6 +67,8 @@ Collate:
     'chain_daf.R'
     'adapters.R'
     'altrep.R'
+    'handlers.R'
+    'anndata_facade.R'
     'writers.R'
     'readers.R'
     'memory_daf.R'
@@ -84,7 +87,6 @@ Collate:
     'files_daf_read.R'
     'files_daf_write.R'
     'groups.R'
-    'handlers.R'
     'mmap.R'
     'options.R'
     'query_builders.R'
