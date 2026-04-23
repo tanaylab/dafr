@@ -627,3 +627,118 @@ LookupMatrix <- .make_optional_string_op(
     "LookupMatrix", .qop_lookup_matrix,
     param_name = "name"
 )
+
+#' And-mask query operation.
+#'
+#' Builds a `& <property>` query fragment that chains a logical AND
+#' condition into an open mask subquery. Use after [BeginMask()] or another
+#' mask combinator; close the mask with [EndMask()].
+#'
+#' @param property Property name (character scalar), or a piped
+#'   [DafrQuery].
+#' @param ... Optional piped [DafrQuery].
+#' @return A [DafrQuery].
+#' @examples
+#' AndMask("type")
+#' BeginMask("a") |> AndMask("b") |> EndMask()
+#' @seealso [AndNegatedMask()], [OrMask()], [XorMask()], [BeginMask()], [EndMask()]
+#' @export
+AndMask <- .make_string_op(
+    "AndMask",
+    function(prop) .qop_and_mask(prop, negated = FALSE)
+)
+
+#' And-negated-mask query operation.
+#'
+#' Builds a `& ! <property>` query fragment that chains a logical AND NOT
+#' condition into an open mask subquery.
+#'
+#' @param property Property name (character scalar), or a piped
+#'   [DafrQuery].
+#' @param ... Optional piped [DafrQuery].
+#' @return A [DafrQuery].
+#' @examples
+#' AndNegatedMask("type")
+#' BeginMask("a") |> AndNegatedMask("b") |> EndMask()
+#' @seealso [AndMask()], [OrNegatedMask()], [XorNegatedMask()], [BeginMask()], [EndMask()]
+#' @export
+AndNegatedMask <- .make_string_op(
+    "AndNegatedMask",
+    function(prop) .qop_and_mask(prop, negated = TRUE)
+)
+
+#' Or-mask query operation.
+#'
+#' Builds a `| <property>` query fragment that chains a logical OR
+#' condition into an open mask subquery.
+#'
+#' @param property Property name (character scalar), or a piped
+#'   [DafrQuery].
+#' @param ... Optional piped [DafrQuery].
+#' @return A [DafrQuery].
+#' @examples
+#' OrMask("type")
+#' BeginMask("a") |> OrMask("b") |> EndMask()
+#' @seealso [OrNegatedMask()], [AndMask()], [XorMask()], [BeginMask()], [EndMask()]
+#' @export
+OrMask <- .make_string_op(
+    "OrMask",
+    function(prop) .qop_or_mask(prop, negated = FALSE)
+)
+
+#' Or-negated-mask query operation.
+#'
+#' Builds a `| ! <property>` query fragment that chains a logical OR NOT
+#' condition into an open mask subquery.
+#'
+#' @param property Property name (character scalar), or a piped
+#'   [DafrQuery].
+#' @param ... Optional piped [DafrQuery].
+#' @return A [DafrQuery].
+#' @examples
+#' OrNegatedMask("type")
+#' BeginMask("a") |> OrNegatedMask("b") |> EndMask()
+#' @seealso [OrMask()], [AndNegatedMask()], [XorNegatedMask()], [BeginMask()], [EndMask()]
+#' @export
+OrNegatedMask <- .make_string_op(
+    "OrNegatedMask",
+    function(prop) .qop_or_mask(prop, negated = TRUE)
+)
+
+#' Xor-mask query operation.
+#'
+#' Builds a `^ <property>` query fragment that chains a logical XOR
+#' condition into an open mask subquery.
+#'
+#' @param property Property name (character scalar), or a piped
+#'   [DafrQuery].
+#' @param ... Optional piped [DafrQuery].
+#' @return A [DafrQuery].
+#' @examples
+#' XorMask("type")
+#' BeginMask("a") |> XorMask("b") |> EndMask()
+#' @seealso [XorNegatedMask()], [AndMask()], [OrMask()], [BeginMask()], [EndMask()]
+#' @export
+XorMask <- .make_string_op(
+    "XorMask",
+    function(prop) .qop_xor_mask(prop, negated = FALSE)
+)
+
+#' Xor-negated-mask query operation.
+#'
+#' Builds a `^ ! <property>` query fragment that chains a logical XOR NOT
+#' condition into an open mask subquery.
+#'
+#' @param property Property name (character scalar), or a piped
+#'   [DafrQuery].
+#' @param ... Optional piped [DafrQuery].
+#' @return A [DafrQuery].
+#' @examples
+#' XorNegatedMask("type")
+#' BeginMask("a") |> XorNegatedMask("b") |> EndMask()
+#' @seealso [XorMask()], [AndNegatedMask()], [OrNegatedMask()], [BeginMask()], [EndMask()]
+#' @export
+XorNegatedMask <- .make_string_op(
+    "XorNegatedMask",
+    function(prop) .qop_xor_mask(prop, negated = TRUE)
+)
