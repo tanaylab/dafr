@@ -842,7 +842,7 @@ S7::method(
     invisible()
 }
 
-.verify_contract <- function(cd, is_for_output) {
+.verify_contract <- function(cd, is_for_output, is_static = FALSE) {
     for (ax in ls(S7::prop(cd, "axes"), all.names = TRUE)) {
         .verify_axis_data(cd, ax, is_for_output)
     }
@@ -870,7 +870,10 @@ S7::method(
             tensor = .verify_tensor_data(cd, rec, is_for_output)
         )
     }
-    if (is_for_output) .verify_access(cd)
+    # In static mode (verify_contract), we only check existence / types — no
+    # computation has run, so the "unused RequiredInput" diagnostic (driven by
+    # tracker$accessed) is not meaningful and would always false-positive.
+    if (is_for_output && !is_static) .verify_access(cd)
     invisible()
 }
 
