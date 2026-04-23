@@ -211,3 +211,52 @@ distinct_daf_axis_tbl <- function(.data, ..., .keep_all = FALSE) {
     if (inherits(df, "grouped_df")) df <- dplyr::ungroup(df)
     dplyr::distinct(df, ..., .keep_all = .keep_all)
 }
+
+# ---- group_by / summarise --------------------------------------------------
+
+#' @noRd
+group_by_daf_axis_tbl <- function(.data, ..., .add = FALSE,
+                                  .drop = dplyr::group_by_drop_default(.data)) {
+    quos <- rlang::enquos(...)
+    vars <- unname(vapply(quos, rlang::as_name, character(1)))
+    prev <- attr(.data, "groups")
+    attr(.data, "groups") <- if (isTRUE(.add)) unique(c(prev, vars)) else vars
+    .data
+}
+
+#' @noRd
+ungroup_daf_axis_tbl <- function(x, ...) {
+    attr(x, "groups") <- character()
+    x
+}
+
+#' @noRd
+summarise_daf_axis_tbl <- function(.data, ..., .by = NULL, .groups = NULL) {
+    df <- .realize(.data)
+    grps <- attr(.data, "groups")
+    if (length(grps) == 0) {
+        if (inherits(df, "grouped_df")) df <- dplyr::ungroup(df)
+        return(dplyr::summarise(df, ...))
+    }
+    result <- dplyr::summarise(df, ..., .groups = "drop")
+    daf <- attr(.data, "daf")
+    # Auto-tie-back: single group var, that var names an axis in the daf.
+    if (length(grps) == 1L && has_axis(daf, grps)) {
+        axis_name <- grps
+        all_entries <- axis_entries(daf, axis_name)
+        group_col <- result[[axis_name]]
+        if (is.character(group_col) && all(group_col %in% all_entries)) {
+            rm <- match(group_col, all_entries)
+            derived <- as.list(result[, setdiff(colnames(result), axis_name),
+                drop = FALSE])
+            return(new_daf_axis_tbl(
+                daf = daf,
+                axis = axis_name,
+                row_mask = rm,
+                col_select = names(derived),
+                overrides = derived
+            ))
+        }
+    }
+    result
+}

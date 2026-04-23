@@ -29,6 +29,10 @@
     registerS3method("mutate", "daf_axis_tbl", ns$mutate_daf_axis_tbl, envir = dplyr_ns)
     registerS3method("arrange", "daf_axis_tbl", ns$arrange_daf_axis_tbl, envir = dplyr_ns)
     registerS3method("distinct", "daf_axis_tbl", ns$distinct_daf_axis_tbl, envir = dplyr_ns)
+    registerS3method("group_by", "daf_axis_tbl", ns$group_by_daf_axis_tbl, envir = dplyr_ns)
+    registerS3method("ungroup", "daf_axis_tbl", ns$ungroup_daf_axis_tbl, envir = dplyr_ns)
+    registerS3method("summarise", "daf_axis_tbl", ns$summarise_daf_axis_tbl, envir = dplyr_ns)
+    registerS3method("summarize", "daf_axis_tbl", ns$summarise_daf_axis_tbl, envir = dplyr_ns)
 }
 
 .onUnload <- function(libpath) {
