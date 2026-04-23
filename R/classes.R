@@ -70,3 +70,37 @@ new_cache_env <- function() {
 }
 
 new_counter_env <- function() new.env(parent = emptyenv())
+
+# ---- Class-surface sugar ---------------------------------------------------
+
+#' Test whether an object is a `DafReader`.
+#'
+#' Non-throwing predicate for any of the S7 class descendants
+#' (`MemoryDaf`, `FilesDaf`, `ReadOnlyChainDaf`, `WriteChainDaf`,
+#' `ViewDaf`, `ContractDaf`, ...).
+#'
+#' @param x Any R object.
+#' @return `TRUE` if `x` inherits from [DafReader], else `FALSE`.
+#' @examples
+#' is_daf(memory_daf())
+#' is_daf(NULL)
+#' @export
+is_daf <- function(x) S7::S7_inherits(x, DafReader)
+
+#' Return the name of a `DafReader`.
+#'
+#' Asserts that `x` is a [DafReader] and returns its `name` property
+#' (the string passed to the constructor).
+#'
+#' @param x A [DafReader].
+#' @return Character scalar.
+#' @examples
+#' daf_name(memory_daf(name = "hello"))
+#' @seealso [is_daf()], [read_only()]
+#' @export
+daf_name <- function(x) {
+    if (!is_daf(x)) {
+        stop("`x` must be a DafReader", call. = FALSE)
+    }
+    S7::prop(x, "name")
+}

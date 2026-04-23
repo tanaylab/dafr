@@ -77,6 +77,29 @@ chain_reader <- function(dafs, name = NULL) {
     )
 }
 
+#' Wrap a writer into a read-only view via a 1-element chain.
+#'
+#' Returns a `ReadOnlyChainDaf` that reads from `daf` but rejects
+#' writes. Implementation delegates to [chain_reader()] with a single
+#' entry; there is no separate read-only class.
+#'
+#' @param daf A [DafReader] (typically a [DafWriter]).
+#' @param name Optional chain name; defaults to `daf_name(daf)`.
+#' @return A [ReadOnlyChainDaf].
+#' @examples
+#' d <- memory_daf(name = "inner")
+#' add_axis(d, "cell", c("c1", "c2"))
+#' ro <- read_only(d)
+#' daf_name(ro)
+#' @seealso [chain_reader()], [is_daf()]
+#' @export
+read_only <- function(daf, name = NULL) {
+    if (!is_daf(daf)) {
+        stop("`daf` must be a DafReader", call. = FALSE)
+    }
+    chain_reader(list(daf), name = name %||% S7::prop(daf, "name"))
+}
+
 #' Create a chain of DafReaders with a final DafWriter.
 #' @inheritParams chain_reader
 #' @return A `WriteChainDaf`.
