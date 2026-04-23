@@ -43,3 +43,47 @@ emit_action <- function(category, message) {
         )
     }
 }
+
+#' Inefficient-action handler constants.
+#'
+#' String constants matching the lowercase tokens accepted by
+#' [register_dafr_handler()]. Pass these to
+#' [inefficient_action_handler()] or any registry entry that takes
+#' an action token.
+#'
+#' @return Character scalar (one of `"error"`, `"warn"`, `"ignore"`).
+#' @examples
+#' inefficient_action_handler(WARN_HANDLER)
+#' @name handler-constants
+NULL
+
+#' @rdname handler-constants
+#' @export
+ERROR_HANDLER <- "error"
+
+#' @rdname handler-constants
+#' @export
+WARN_HANDLER <- "warn"
+
+#' @rdname handler-constants
+#' @export
+IGNORE_HANDLER <- "ignore"
+
+#' Register a handler for the `"inefficient"` action category.
+#'
+#' Thin wrapper around `register_dafr_handler("inefficient", handler)`.
+#' Exists to match the Julia-facade wrapper's API.
+#'
+#' @param handler One of [`ERROR_HANDLER`][handler-constants],
+#'   [`WARN_HANDLER`][handler-constants],
+#'   [`IGNORE_HANDLER`][handler-constants], or a function
+#'   `function(message, ...)`.
+#' @return Invisibly `NULL`.
+#' @examples
+#' inefficient_action_handler(IGNORE_HANDLER)
+#' inefficient_action_handler(function(msg) message("inefficient: ", msg))
+#' @export
+inefficient_action_handler <- function(handler) {
+    register_dafr_handler("inefficient", handler)
+    invisible()
+}
