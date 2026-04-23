@@ -1,4 +1,5 @@
 #' @include classes.R format_api.R handlers.R
+#' @importFrom R6 R6Class
 NULL
 
 .read_only_error <- function() {
@@ -141,7 +142,11 @@ DafAnnData <- R6::R6Class(
 
 #' One-shot factory for a [DafAnnData] facade.
 #'
-#' @inheritParams DafAnnData
+#' @param daf A [DafReader].
+#' @param obs_axis Axis name for observations. Defaults auto-detect:
+#'   `"cell"` then `"metacell"`.
+#' @param var_axis Axis name for variables. Defaults to `"gene"`.
+#' @param x_name Matrix name for `X`. Default `"UMIs"`.
 #' @return A [DafAnnData] instance.
 #' @examples
 #' d <- memory_daf()

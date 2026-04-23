@@ -6,6 +6,16 @@
 \usage{
 as_anndata(daf, obs_axis = NULL, var_axis = NULL, x_name = "UMIs")
 }
+\arguments{
+\item{daf}{A \link{DafReader}.}
+
+\item{obs_axis}{Axis name for observations. Defaults auto-detect:
+\code{"cell"} then \code{"metacell"}.}
+
+\item{var_axis}{Axis name for variables. Defaults to \code{"gene"}.}
+
+\item{x_name}{Matrix name for \code{X}. Default \code{"UMIs"}.}
+}
 \value{
 A \link{DafAnnData} instance.
 }

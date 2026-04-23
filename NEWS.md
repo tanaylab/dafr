@@ -1,5 +1,46 @@
 # dafr (development version)
 
+## Slice 10b — AnnData + h5ad round-trip (2026-04-23)
+
+### New exports (4)
+
+- **`DafAnnData`** — R6 read-only facade that exposes a `DafReader`
+  with AnnData-style property names: `X`, `obs`, `var`, `layers`,
+  `uns`, `obs_names`, `var_names`, `n_obs`, `n_vars`, `shape`. All
+  writes error with the message *"DafAnnData facade is read-only.
+  Use the underlying Daf object to modify data."* (matches wrapper).
+- **`as_anndata(daf, obs_axis = NULL, var_axis = NULL, x_name = "UMIs")`**
+  — one-shot factory. Auto-detects `obs_axis` from `cell` / `metacell`
+  and `var_axis` from `gene`.
+- **`h5ad_as_daf(path, name = NULL, mode = "r",
+  unsupported_handler = WARN_HANDLER)`** — loads a Muon-style h5ad file
+  into a fresh `memory_daf`. Sparse matrices, categorical columns,
+  and nested `uns` groups are currently emitted via the
+  `unsupported_handler` (default warning) and skipped.
+- **`daf_as_h5ad(daf, path, obs_axis = NULL, var_axis = NULL,
+  x_name = "UMIs", overwrite = FALSE,
+  unsupported_handler = WARN_HANDLER)`** — writes a Daf to h5ad. Sparse
+  matrices are densified (with a handler-routed warning).
+
+### Dependency changes
+
+- `R6` promoted to `Imports` (the `DafAnnData` facade class).
+- `hdf5r` added to `Suggests`; gated via `rlang::check_installed()` at
+  each h5ad entry point.
+
+### Fixture
+
+- `inst/extdata/small_test.h5ad` — 50 obs × 20 var reference for
+  round-trip testing.
+
+### Known limitations (post-release work)
+
+- Sparse matrix h5ad encoding (`csr_matrix` / `csc_matrix`) not yet
+  translated; read path emits a handler warning and skips.
+- Categorical (factor) `obs` / `var` columns not translated; skipped.
+- Nested `uns` groups skipped.
+- `varm` / `obsm` / `obsp` / `varp` / `raw` not translated.
+
 ## Slice 10a — Query builders (2026-04-23)
 
 ### New exports (54)
