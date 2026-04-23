@@ -1,5 +1,17 @@
+---
+output: github_document
+---
 
 <!-- README.md is generated from README.Rmd. Please edit that file -->
+
+```{r, include = FALSE}
+knitr::opts_chunk$set(
+    collapse = TRUE,
+    comment = "#>",
+    fig.path = "man/figures/README-",
+    out.width = "100%"
+)
+```
 
 # dafr - Data in Axes in Formats for R (native)
 
@@ -19,7 +31,7 @@ implementation — **no Julia install is required**.
 
 ## Installation
 
-``` r
+```r
 # Install from GitHub:
 remotes::install_github("tanaylab/dafr")
 
@@ -32,10 +44,10 @@ This package has no Julia dependency. It is pure R + C++.
 ## Native advantages
 
 - No Julia install required — pure R + C++ (no JuliaCall copy tax).
-- Mmap-backed reads via `mmap_dgCMatrix` / `mmap_int` / `mmap_lgl` /
-  `mmap_real`.
-- OpenMP-parallel kernels for Sum / Mean / Var / Mode / Quantile /
-  GeoMean.
+- Mmap-backed reads via `mmap_dgCMatrix` / `mmap_int` / `mmap_lgl`
+  / `mmap_real`.
+- OpenMP-parallel kernels for Sum / Mean / Var / Mode / Quantile
+  / GeoMean.
 - `register_eltwise` / `register_reduction` for user-defined query ops.
 - Pipe-chain builders:
   `daf[Axis("cell") |> LookupVector("age") |> IsGreater(2)]`.
@@ -43,13 +55,8 @@ This package has no Julia dependency. It is pure R + C++.
 
 ## Usage
 
-``` r
+```{r example_data}
 library(dafr)
-#> 
-#> Attaching package: 'dafr'
-#> The following object is masked from 'package:graphics':
-#> 
-#>     Axis
 
 # Create a DAF object in memory
 daf <- memory_daf("example")
@@ -67,20 +74,10 @@ set_matrix(daf, "obs", "var", "counts", mat)
 
 # Access data
 get_vector(daf, "obs", "score")
-#> cell1 cell2 cell3 
-#>   0.1   0.5   0.9
 get_matrix(daf, "obs", "var", "counts")
-#>       gene1 gene2
-#> cell1     1     4
-#> cell2     2     5
-#> cell3     3     6
 
 # Get a dataframe view
 get_dataframe(daf, "obs")
-#>       score
-#> cell1   0.1
-#> cell2   0.5
-#> cell3   0.9
 ```
 
 ## Querying Data
@@ -89,7 +86,7 @@ get_dataframe(daf, "obs")
 and pipe-composable builders. The `[` operator on any `DafReader`
 accepts either form.
 
-``` r
+```{r query_setup}
 # Create a sample dataset
 daf <- memory_daf("query_examples")
 add_axis(daf, "cell", c("A", "B", "C"))
@@ -101,36 +98,25 @@ set_matrix(daf, "cell", "gene", "counts", matrix(1:9, nrow = 3, ncol = 3))
 
 # Scalar
 daf[". version"]
-#> [1] "1.0"
 
 # Axes
 daf["@ ?"]
-#> [1] "cell" "gene"
 daf["@ cell : ?"]
-#> [1] "age"  "type"
 
 # Vector data
 daf["@ cell : age"]
-#> [1] 10 50 70
 
 # Matrix data
 daf["@ cell @ gene :: counts"]
-#>      [,1] [,2] [,3]
-#> [1,]    1    4    7
-#> [2,]    2    5    8
-#> [3,]    3    6    9
 
 # Filter axis by property
 daf["@ cell [ age > 20 ]"]
-#> [1] "B" "C"
 
 # Transform with eltwise op
 daf["@ cell : age % Abs"]
-#> [1] 10 50 70
 
 # Pipe-chain builder form
 daf[Axis("cell") |> LookupVector("age")]
-#> [1] 10 50 70
 
 # Composed builder: mask + vector lookup
 daf[
@@ -139,40 +125,35 @@ daf[
         IsGreater(20) |>
         EndMask()
 ]
-#> [1] "B" "C"
 ```
 
 The query syntax follows a simple pattern:
 
-- `@ axis` selects an axis
-- `. property` retrieves a scalar
-- `: property` retrieves a vector property
-- `:: property` retrieves a matrix property
-- `% operation` applies an element-wise operation
-- `>> reduction` applies a reduction operation
-- `[ property comparison value ]` filters by a property
+* `@ axis` selects an axis
+* `. property` retrieves a scalar
+* `: property` retrieves a vector property
+* `:: property` retrieves a matrix property
+* `% operation` applies an element-wise operation
+* `>> reduction` applies a reduction operation
+* `[ property comparison value ]` filters by a property
 
-See the upstream Julia
-[documentation](https://tanaylab.github.io/DataAxesFormats.jl/v0.2.0/queries.html)
+See the upstream Julia [documentation](https://tanaylab.github.io/DataAxesFormats.jl/v0.2.0/queries.html)
 for the full query language reference — the native parser is
 semantically equivalent.
 
 ## AnnData interop
 
-``` r
+```{r anndata_demo}
 d <- example_cells_daf()
 ann <- as_anndata(d)
 ann$n_obs
-#> [1] 856
 ann$n_vars
-#> [1] 683
 dim(ann$X)
-#> [1] 856 683
 ```
 
 Round-trip h5ad I/O is supported (requires the `hdf5r` Suggests dep):
 
-``` r
+```{r h5ad_demo, eval = FALSE}
 d <- h5ad_as_daf("path/to/file.h5ad")
 daf_as_h5ad(d, "out.h5ad", overwrite = TRUE)
 ```
@@ -190,16 +171,16 @@ daf_as_h5ad(d, "out.h5ad", overwrite = TRUE)
 - Chaining repositories for efficient overlay / reuse of data.
 - Contracts for explicit computation input / output validation.
 - Explicit support for grouped axes and group helpers.
-- Query DSL (string form + pipe-chain builders) with user-extensible ops
-  (`register_eltwise`, `register_reduction`).
+- Query DSL (string form + pipe-chain builders) with user-extensible
+  ops (`register_eltwise`, `register_reduction`).
 - AnnData (`h5ad`) import / export.
 - Control over data layout and support for both dense and sparse
   matrices.
 
 ## Status
 
-First public release: `0.1.0`. See `NEWS.md` for headline features and
-known gaps. Comments, bug reports, and PRs are welcome.
+First public release: `0.1.0`. See `NEWS.md` for headline features
+and known gaps. Comments, bug reports, and PRs are welcome.
 
 ## Roadmap
 
@@ -216,7 +197,7 @@ Copyright (c) 2025-2026 Weizmann Institute of Science
 
 Permission is hereby granted, free of charge, to any person obtaining a
 copy of this software and associated documentation files (the
-“Software”), to deal in the Software without restriction, including
+"Software"), to deal in the Software without restriction, including
 without limitation the rights to use, copy, modify, merge, publish,
 distribute, sublicense, and/or sell copies of the Software, and to
 permit persons to whom the Software is furnished to do so, subject to
@@ -225,8 +206,8 @@ the following conditions:
 The above copyright notice and this permission notice shall be included
 in all copies or substantial portions of the Software.
 
-THE SOFTWARE IS PROVIDED “AS IS”, WITHOUT WARRANTY OF ANY KIND, EXPRESS
-OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF
+THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,
+EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF
 MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT.
 IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY
 CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT,
