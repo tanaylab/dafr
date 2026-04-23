@@ -401,3 +401,229 @@ ReduceToColumn <- .make_reduce_to("ReduceToColumn", .qop_reduce_to_column)
 #' @seealso [ReduceToColumn()]
 #' @export
 ReduceToRow <- .make_reduce_to("ReduceToRow", .qop_reduce_to_row)
+
+# ---- Phase D: Selection/axis builders -------------------------------------
+
+#' Axis selection query operation.
+#'
+#' Builds an `@ <axis_name>` query fragment, selecting the named axis
+#' as the next input to the query.
+#'
+#' @param axis_name Axis name (character scalar), or a piped [DafrQuery].
+#' @param ... Optional piped [DafrQuery].
+#' @return A [DafrQuery].
+#' @examples
+#' Axis("cell")
+#' Axis("cell") |> Axis("gene")
+#' @seealso [AsAxis()], [LookupVector()], [LookupMatrix()]
+#' @export
+Axis <- .make_string_op("Axis", .qop_axis, param_name = "axis_name")
+
+#' Begin-mask query operation.
+#'
+#' Builds a `[ <property>` query fragment that opens a masked subquery
+#' against `property`. Close the mask with [EndMask()].
+#'
+#' @param property Property name (character scalar), or a piped
+#'   [DafrQuery].
+#' @param ... Optional piped [DafrQuery].
+#' @return A [DafrQuery].
+#' @examples
+#' BeginMask("type")
+#' Axis("cell") |> BeginMask("type") |> EndMask()
+#' @seealso [BeginNegatedMask()], [EndMask()], [AndMask()]
+#' @export
+BeginMask <- .make_string_op(
+    "BeginMask",
+    function(prop) .qop_begin_mask(prop, negated = FALSE)
+)
+
+#' Negated begin-mask query operation.
+#'
+#' Builds a `[ ! <property>` query fragment that opens a negated masked
+#' subquery against `property`. Close the mask with [EndMask()].
+#'
+#' @param property Property name (character scalar), or a piped
+#'   [DafrQuery].
+#' @param ... Optional piped [DafrQuery].
+#' @return A [DafrQuery].
+#' @examples
+#' BeginNegatedMask("type")
+#' @seealso [BeginMask()], [EndMask()]
+#' @export
+BeginNegatedMask <- .make_string_op(
+    "BeginNegatedMask",
+    function(prop) .qop_begin_mask(prop, negated = TRUE)
+)
+
+#' End-mask query operation.
+#'
+#' Builds a `]` query fragment that closes a masked subquery opened
+#' with [BeginMask()] or [BeginNegatedMask()].
+#'
+#' @param ... Optional piped [DafrQuery].
+#' @return A [DafrQuery].
+#' @examples
+#' EndMask()
+#' Axis("cell") |> BeginMask("type") |> EndMask()
+#' @seealso [BeginMask()], [BeginNegatedMask()]
+#' @export
+EndMask <- .make_nullary("EndMask", .qop_end_mask)
+
+#' Names query operation.
+#'
+#' Builds a `?` query fragment, listing the entries of the prior axis.
+#'
+#' @param ... Optional piped [DafrQuery].
+#' @return A [DafrQuery].
+#' @examples
+#' Names()
+#' Axis("cell") |> Names()
+#' @seealso [Axis()]
+#' @export
+Names <- .make_nullary("Names", .qop_names)
+
+#' If-missing query operation.
+#'
+#' Builds a `|| <default>` query fragment, providing a default value
+#' for entries missing from the prior lookup.
+#'
+#' @param default Default value (character or numeric scalar), or a
+#'   piped [DafrQuery].
+#' @param ... Optional piped [DafrQuery].
+#' @return A [DafrQuery].
+#' @examples
+#' IfMissing("N/A")
+#' IfMissing(0)
+#' Axis("cell") |> LookupVector("age") |> IfMissing(0)
+#' @seealso [IfNot()]
+#' @export
+IfMissing <- .make_value_op(
+    "IfMissing", .qop_if_missing,
+    param_name = "default"
+)
+
+#' Square-column-is query operation.
+#'
+#' Builds a `@| <value>` query fragment, selecting the row of a square
+#' matrix whose column key equals `value`.
+#'
+#' @param value Column key (character or numeric scalar), or a piped
+#'   [DafrQuery].
+#' @param ... Optional piped [DafrQuery].
+#' @return A [DafrQuery].
+#' @examples
+#' SquareColumnIs("M1")
+#' @seealso [SquareRowIs()]
+#' @export
+SquareColumnIs <- .make_value_op("SquareColumnIs", .qop_square_column_is)
+
+#' Square-row-is query operation.
+#'
+#' Builds a `@- <value>` query fragment, selecting the column of a
+#' square matrix whose row key equals `value`.
+#'
+#' @param value Row key (character or numeric scalar), or a piped
+#'   [DafrQuery].
+#' @param ... Optional piped [DafrQuery].
+#' @return A [DafrQuery].
+#' @examples
+#' SquareRowIs("M1")
+#' @seealso [SquareColumnIs()]
+#' @export
+SquareRowIs <- .make_value_op("SquareRowIs", .qop_square_row_is)
+
+#' As-axis query operation.
+#'
+#' Builds a `=@` (optionally `=@ <axis_name>`) query fragment, treating
+#' the prior vector's values as entries of an axis.
+#'
+#' @param axis_name Optional axis name (character scalar), or a piped
+#'   [DafrQuery].
+#' @param ... Optional piped [DafrQuery].
+#' @return A [DafrQuery].
+#' @examples
+#' AsAxis()
+#' AsAxis("cell")
+#' Axis("cell") |> LookupVector("donor") |> AsAxis()
+#' @seealso [Axis()]
+#' @export
+AsAxis <- .make_optional_string_op(
+    "AsAxis", .qop_as_axis,
+    param_name = "axis_name"
+)
+
+#' If-not query operation.
+#'
+#' Builds a `??` (optionally `?? <value>`) query fragment, providing a
+#' fallback when a prior boolean query yields `FALSE`.
+#'
+#' @param value Optional fallback value (character scalar), or a piped
+#'   [DafrQuery].
+#' @param ... Optional piped [DafrQuery].
+#' @return A [DafrQuery].
+#' @examples
+#' IfNot()
+#' IfNot("fallback")
+#' @seealso [IfMissing()]
+#' @export
+IfNot <- .make_optional_string_op("IfNot", .qop_if_not)
+
+#' Lookup-scalar query operation.
+#'
+#' Builds a `.` (optionally `. <name>`) query fragment, looking up the
+#' named scalar property.
+#'
+#' @param name Optional scalar name (character scalar), or a piped
+#'   [DafrQuery].
+#' @param ... Optional piped [DafrQuery].
+#' @return A [DafrQuery].
+#' @examples
+#' LookupScalar()
+#' LookupScalar("version")
+#' @seealso [LookupVector()], [LookupMatrix()]
+#' @export
+LookupScalar <- .make_optional_string_op(
+    "LookupScalar", .qop_lookup_scalar,
+    param_name = "name"
+)
+
+#' Lookup-vector query operation.
+#'
+#' Builds a `:` (optionally `: <name>`) query fragment, looking up the
+#' named vector property of the prior axis.
+#'
+#' @param name Optional vector name (character scalar), or a piped
+#'   [DafrQuery].
+#' @param ... Optional piped [DafrQuery].
+#' @return A [DafrQuery].
+#' @examples
+#' LookupVector()
+#' LookupVector("age")
+#' Axis("cell") |> LookupVector("age")
+#' @seealso [LookupScalar()], [LookupMatrix()]
+#' @export
+LookupVector <- .make_optional_string_op(
+    "LookupVector", .qop_lookup_vector,
+    param_name = "name"
+)
+
+#' Lookup-matrix query operation.
+#'
+#' Builds a `::` (optionally `:: <name>`) query fragment, looking up
+#' the named matrix property indexed by the prior two axes.
+#'
+#' @param name Optional matrix name (character scalar), or a piped
+#'   [DafrQuery].
+#' @param ... Optional piped [DafrQuery].
+#' @return A [DafrQuery].
+#' @examples
+#' LookupMatrix()
+#' LookupMatrix("UMIs")
+#' Axis("cell") |> Axis("gene") |> LookupMatrix("UMIs")
+#' @seealso [LookupScalar()], [LookupVector()]
+#' @export
+LookupMatrix <- .make_optional_string_op(
+    "LookupMatrix", .qop_lookup_matrix,
+    param_name = "name"
+)
