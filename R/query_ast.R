@@ -177,6 +177,42 @@ unescape_value <- function(s) {
     .qop("Eltwise", name = name, params = params)
 }
 
+# Helper for .make_typed_reduction-backed eltwise builders. Factory
+# passes `(type, params)` where `type` is either NULL or a character
+# scalar (e.g. the `Int64` in `% Convert type Int64`). Fold `type`
+# into the params dict as a first key when non-NULL. All param values
+# are coerced to character scalars so AST round-trips through the
+# canonical string (which the parser produces as strings).
+.qop_eltwise_typed <- function(name, type, params) {
+    if (!is.null(type)) {
+        params <- c(list(type = type), as.list(params))
+    }
+    if (length(params)) {
+        params <- lapply(params, function(v) format(v))
+    }
+    .qop_eltwise(name, params = params)
+}
+
+# Thin wrappers for each element-wise op. Keep the `.qop_<name>`
+# pattern used by the rest of the builder surface.
+.qop_abs <- function() .qop_eltwise("Abs")
+.qop_round <- function() .qop_eltwise("Round")
+.qop_significant <- function(type = NULL, params = list()) {
+    .qop_eltwise_typed("Significant", type, params)
+}
+.qop_clamp <- function(type = NULL, params = list()) {
+    .qop_eltwise_typed("Clamp", type, params)
+}
+.qop_convert <- function(type = NULL, params = list()) {
+    .qop_eltwise_typed("Convert", type, params)
+}
+.qop_fraction <- function(type = NULL, params = list()) {
+    .qop_eltwise_typed("Fraction", type, params)
+}
+.qop_log <- function(type = NULL, params = list()) {
+    .qop_eltwise_typed("Log", type, params)
+}
+
 .canonicalise_reduction <- function(tok, reduction, params) {
     head <- paste0(tok, " ", .escape_value(reduction))
     if (length(params) == 0L) {
@@ -208,5 +244,5 @@ unescape_value <- function(s) {
         },
         character(1)
     ), collapse = " ")
-    paste0(head, "(", tail, ")")
+    paste0(head, " ", tail)
 }

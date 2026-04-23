@@ -116,17 +116,41 @@ inherits_dafr_query <- function(x) S7::S7_inherits(x, DafrQuery)
     force(qop_builder)
     function(type = NULL, ...) {
         dots <- list(...)
-        res <- .extract_query_and_value(type, missing(type), dots, required = FALSE)
-        if (!is.null(res$value) && (!is.character(res$value) || length(res$value) != 1L)) {
+        # Detect the pipe target: it can land in `type` (when the only
+        # pipe-target is positional) or in the first unnamed entry of
+        # `...`. Named params (e.g. `base = 2`) are never a pipe target.
+        query <- NULL
+        type_value <- NULL
+        if (!missing(type) && inherits_dafr_query(type)) {
+            query <- type
+        } else if (!missing(type) && !is.null(type)) {
+            type_value <- type
+        }
+        # Scan dots for a DafrQuery (only one allowed) and strip it.
+        if (length(dots)) {
+            is_q <- vapply(dots, inherits_dafr_query, logical(1L))
+            if (any(is_q)) {
+                if (!is.null(query)) {
+                    cli::cli_abort(
+                        "{.code {op_name}} received more than one {.cls DafrQuery}"
+                    )
+                }
+                query <- dots[[which(is_q)[1L]]]
+                dots <- dots[!is_q]
+            }
+        }
+        # If `type` was omitted positionally but passed via a named
+        # entry in dots, pick it up.
+        if (is.null(type_value) && !is.null(dots[["type"]])) {
+            type_value <- dots[["type"]]
+            dots[["type"]] <- NULL
+        }
+        if (!is.null(type_value) &&
+            (!is.character(type_value) || length(type_value) != 1L)) {
             cli::cli_abort("`type` must be a character scalar or NULL")
         }
-        # Separate the type from other dots (params like eps, p, na_rm).
-        params <- dots[vapply(dots, function(x) !inherits_dafr_query(x), logical(1L))]
-        # If the type was in dots (first non-query arg), drop it.
-        if (length(params) && identical(params[[1L]], res$value)) {
-            params <- params[-1L]
-        }
-        frag <- .build_fragment(qop_builder, res$value, params)
-        .compose_query(res$query, frag$ast, frag$canonical)
+        params <- dots
+        frag <- .build_fragment(qop_builder, type_value, params)
+        .compose_query(query, frag$ast, frag$canonical)
     }
 }
