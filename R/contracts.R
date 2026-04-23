@@ -55,7 +55,6 @@ OptionalOutput <- "OptionalOutput"
 #' @param data List of contract_scalar()/contract_vector()/contract_matrix() records.
 #' @examples
 #' ct <- create_contract(
-#'     name = "demo",
 #'     scalars = list(contract_scalar("organism", RequiredInput, "character",
 #'                                    "Species name."))
 #' )

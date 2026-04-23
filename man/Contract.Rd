@@ -20,7 +20,6 @@ A contract describing a computation's inputs and outputs.
 }
 \examples{
 ct <- create_contract(
-    name = "demo",
     scalars = list(contract_scalar("organism", RequiredInput, "character",
                                    "Species name."))
 )
