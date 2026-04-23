@@ -13,7 +13,15 @@ NULL
 .qop_names <- function() .qop("Names")
 .qop_axis <- function(axis_name) .qop("Axis", axis_name = axis_name)
 .qop_as_axis <- function(axis_name) .qop("AsAxis", axis_name = axis_name)
-.qop_if_missing <- function(default) .qop("IfMissing", default = default)
+.qop_if_missing <- function(default) {
+    # Coerce to character so the stored AST matches what parse_query() produces
+    # (the parser always emits character-typed literals). Without this, numeric
+    # defaults such as IfMissing(42) produce AST $default = 42 (numeric) while
+    # parse_query("|| 42") produces "42" (character); the canonical strings
+    # are equal but the ASTs are not. Mirrors .qop_eltwise_typed.
+    default <- format(default)
+    .qop("IfMissing", default = default)
+}
 .qop_if_not <- function(value = NULL) .qop("IfNot", value = value)
 .qop_lookup_scalar <- function(name = NULL) .qop("LookupScalar", name = name)
 .qop_lookup_vector <- function(name = NULL) .qop("LookupVector", name = name)
@@ -158,8 +166,16 @@ unescape_value <- function(s) {
     }
 }
 
-.qop_square_row_is <- function(value) .qop("SquareRowIs", value = value)
-.qop_square_column_is <- function(value) .qop("SquareColumnIs", value = value)
+.qop_square_row_is <- function(value) {
+    # Coerce to character so the stored AST matches parse_query output.
+    # See .qop_if_missing for the full rationale.
+    value <- format(value)
+    .qop("SquareRowIs", value = value)
+}
+.qop_square_column_is <- function(value) {
+    value <- format(value)
+    .qop("SquareColumnIs", value = value)
+}
 
 .qop_group_by <- function(property) .qop("GroupBy", property = property)
 .qop_group_rows_by <- function(property) .qop("GroupRowsBy", property = property)

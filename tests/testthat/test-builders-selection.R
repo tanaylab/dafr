@@ -130,19 +130,18 @@ test_that("IfMissing builds a || <default> query fragment", {
     expect_identical(q@ast, parse_query(q@canonical))
 })
 
-test_that("IfMissing accepts numeric default (canonical-only round-trip)", {
-    # Numeric defaults canonicalise via format() to bare tokens; the
-    # parser reconstructs them as character. Canonical string matches;
-    # AST differs only in the default field's storage type.
+test_that("IfMissing(numeric) has AST identity with parse_query", {
+    # Numeric defaults are coerced to character at construction time so the
+    # stored AST matches what parse_query() produces for the canonical form.
     q <- IfMissing(42)
     expect_identical(q@canonical, "|| 42")
-    expect_identical(canonical_query(q@canonical), q@canonical)
+    expect_identical(q@ast, parse_query(q@canonical))
 })
 
 test_that("IfMissing composes via pipe", {
     q <- .prior_vector_query() |> IfMissing(0)
     expect_identical(q@canonical, "@ cell : age || 0")
-    expect_identical(canonical_query(q@canonical), q@canonical)
+    expect_identical(q@ast, parse_query(q@canonical))
 })
 
 test_that("IfMissing errors when default is missing", {
@@ -163,10 +162,10 @@ test_that("SquareColumnIs composes via pipe", {
     expect_identical(q@ast, parse_query(q@canonical))
 })
 
-test_that("SquareColumnIs accepts numeric value (canonical-only round-trip)", {
+test_that("SquareColumnIs(numeric) has AST identity with parse_query", {
     q <- SquareColumnIs(7)
     expect_identical(q@canonical, "@| 7")
-    expect_identical(canonical_query(q@canonical), q@canonical)
+    expect_identical(q@ast, parse_query(q@canonical))
 })
 
 test_that("SquareColumnIs errors when value is missing", {
@@ -187,10 +186,10 @@ test_that("SquareRowIs composes via pipe", {
     expect_identical(q@ast, parse_query(q@canonical))
 })
 
-test_that("SquareRowIs accepts numeric value (canonical-only round-trip)", {
+test_that("SquareRowIs(numeric) has AST identity with parse_query", {
     q <- SquareRowIs(7)
     expect_identical(q@canonical, "@- 7")
-    expect_identical(canonical_query(q@canonical), q@canonical)
+    expect_identical(q@ast, parse_query(q@canonical))
 })
 
 test_that("SquareRowIs errors when value is missing", {
@@ -324,15 +323,16 @@ test_that("LookupMatrix rejects non-character name", {
 # ---- Cross-cutting --------------------------------------------------------
 
 test_that("Selection builders round-trip canonical through parse_query", {
-    # Builders whose AST stores character-typed scalars round-trip
-    # through parse_query exactly. Numeric-valued builders (e.g.
-    # IfMissing(42)) are covered separately via canonical-string equality.
+    # All selection-builder ASTs round-trip through parse_query exactly.
+    # IfMissing / SquareColumnIs / SquareRowIs coerce numeric values to
+    # character at construction time so they match the parser's output.
     builders <- list(
         Axis("cell"), Axis("name with spaces"),
         BeginMask("type"), BeginNegatedMask("type"),
         EndMask(), Names(),
-        IfMissing("N/A"),
-        SquareColumnIs("M1"), SquareRowIs("M1"),
+        IfMissing("N/A"), IfMissing(42),
+        SquareColumnIs("M1"), SquareColumnIs(7),
+        SquareRowIs("M1"), SquareRowIs(7),
         AsAxis(), AsAxis("cell"),
         IfNot(), IfNot("fallback"),
         LookupScalar(), LookupScalar("v"),
