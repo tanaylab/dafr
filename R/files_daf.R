@@ -68,6 +68,11 @@ files_daf <- function(path, mode = c("r", "r+", "w", "w+"), name = NULL) {
 #' construct instances.
 #'
 #' @inheritParams DafReader
+#' @examples
+#' \dontrun{
+#' d <- files_daf(tempfile("dafr-"), mode = "w")
+#' inherits(d, "dafr::FilesDaf")
+#' }
 #' @export
 FilesDaf <- S7::new_class(
     name    = "FilesDaf",
@@ -82,6 +87,11 @@ FilesDaf <- S7::new_class(
 #' this class with a clear "store opened read-only" error.
 #'
 #' @inheritParams DafReader
+#' @examples
+#' \dontrun{
+#' d <- files_daf("/path/to/existing/store", mode = "r")
+#' inherits(d, "dafr::FilesDafReadOnly")
+#' }
 #' @export
 FilesDafReadOnly <- S7::new_class(
     name    = "FilesDafReadOnly",

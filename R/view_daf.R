@@ -3,15 +3,32 @@ NULL
 
 # Sentinel constants for wildcard view specifications.
 #' Wildcard for all axes.
+#' @examples
+#' d <- example_cells_daf()
+#' v <- viewer(d, axes = list(list(ALL_AXES, "=")))
+#' axes_set(v)
 #' @export
 ALL_AXES <- "*"
 #' Wildcard for all scalars.
+#' @examples
+#' d <- memory_daf()
+#' set_scalar(d, "organism", "human")
+#' v <- viewer(d, data = list(list(ALL_SCALARS, "=")))
+#' scalars_set(v)
 #' @export
 ALL_SCALARS <- "*"
 #' Wildcard for all vectors.
+#' @examples
+#' d <- example_cells_daf()
+#' v <- viewer(d, data = list(list(ALL_VECTORS, "=")))
+#' vectors_set(v, "cell")
 #' @export
 ALL_VECTORS <- c("*", "*")
 #' Wildcard for all matrices.
+#' @examples
+#' d <- example_cells_daf()
+#' v <- viewer(d, data = list(list(ALL_MATRICES, "=")))
+#' matrices_set(v, "cell", "gene")
 #' @export
 ALL_MATRICES <- c("*", "*", "*")
 
@@ -25,6 +42,10 @@ ALL_MATRICES <- c("*", "*", "*")
 #' A pre-built `axes` override list for `viewer()` that exposes every axis of
 #' the base daf unchanged. Equivalent to `list(list(ALL_AXES, "="))`.
 #' @seealso [viewer()], [ALL_AXES]
+#' @examples
+#' d <- example_cells_daf()
+#' v <- viewer(d, axes = list(VIEW_ALL_AXES))
+#' axes_set(v)
 #' @export
 VIEW_ALL_AXES <- setNames(list("="), ALL_AXES)
 
@@ -33,6 +54,11 @@ VIEW_ALL_AXES <- setNames(list("="), ALL_AXES)
 #' A pre-built `data` item for `viewer()` that exposes every scalar of the base
 #' daf unchanged. Equivalent to `list(list(ALL_SCALARS, "="))`.
 #' @seealso [viewer()], [ALL_SCALARS]
+#' @examples
+#' d <- memory_daf()
+#' set_scalar(d, "organism", "human")
+#' v <- viewer(d, data = list(VIEW_ALL_SCALARS))
+#' scalars_set(v)
 #' @export
 VIEW_ALL_SCALARS <- setNames(list("="), ALL_SCALARS)
 
@@ -41,6 +67,10 @@ VIEW_ALL_SCALARS <- setNames(list("="), ALL_SCALARS)
 #' A pre-built `data` item for `viewer()` that exposes every vector of every
 #' axis of the base daf unchanged.
 #' @seealso [viewer()], [ALL_VECTORS]
+#' @examples
+#' d <- example_cells_daf()
+#' v <- viewer(d, data = VIEW_ALL_VECTORS)
+#' vectors_set(v, "cell")
 #' @export
 VIEW_ALL_VECTORS <- list(list(ALL_VECTORS, "="))
 
@@ -49,6 +79,10 @@ VIEW_ALL_VECTORS <- list(list(ALL_VECTORS, "="))
 #' A pre-built `data` item for `viewer()` that exposes every matrix of the base
 #' daf unchanged.
 #' @seealso [viewer()], [ALL_MATRICES]
+#' @examples
+#' d <- example_cells_daf()
+#' v <- viewer(d, data = VIEW_ALL_MATRICES)
+#' matrices_set(v, "cell", "gene")
 #' @export
 VIEW_ALL_MATRICES <- list(list(ALL_MATRICES, "="))
 
@@ -59,6 +93,10 @@ VIEW_ALL_MATRICES <- list(list(ALL_MATRICES, "="))
 #' every data item from the base daf unchanged.
 #' @seealso [viewer()], [VIEW_ALL_SCALARS], [VIEW_ALL_VECTORS],
 #'   [VIEW_ALL_MATRICES]
+#' @examples
+#' d <- example_cells_daf()
+#' v <- viewer(d, data = VIEW_ALL_DATA)
+#' scalars_set(v)
 #' @export
 VIEW_ALL_DATA <- list(VIEW_ALL_SCALARS, VIEW_ALL_VECTORS, VIEW_ALL_MATRICES)
 
@@ -88,6 +126,10 @@ VIEW_ALL_DATA <- list(VIEW_ALL_SCALARS, VIEW_ALL_VECTORS, VIEW_ALL_MATRICES)
 #' @param view_matrices Named list mapping `"rows|cols|name"` keys to override
 #'   specs.
 #' @seealso [viewer()]
+#' @examples
+#' d <- example_cells_daf()
+#' v <- viewer(d)
+#' inherits(v, "dafr::ViewDaf")
 #' @export
 ViewDaf <- S7::new_class(
     name = "ViewDaf",

@@ -34,3 +34,7 @@ mutation counters.}
 \description{
 Abstract writer class.
 }
+\examples{
+d <- memory_daf()
+inherits(d, "dafr::DafWriter")
+}

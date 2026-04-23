@@ -14,6 +14,11 @@ VIEW_ALL_VECTORS
 A pre-built \code{data} item for \code{viewer()} that exposes every vector of every
 axis of the base daf unchanged.
 }
+\examples{
+d <- example_cells_daf()
+v <- viewer(d, data = VIEW_ALL_VECTORS)
+vectors_set(v, "cell")
+}
 \seealso{
 \code{\link[=viewer]{viewer()}}, \link{ALL_VECTORS}
 }

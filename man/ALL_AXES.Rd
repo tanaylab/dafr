@@ -13,4 +13,9 @@ ALL_AXES
 \description{
 Wildcard for all axes.
 }
+\examples{
+d <- example_cells_daf()
+v <- viewer(d, axes = list(list(ALL_AXES, "=")))
+axes_set(v)
+}
 \keyword{datasets}

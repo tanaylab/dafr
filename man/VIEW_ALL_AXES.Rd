@@ -14,6 +14,11 @@ VIEW_ALL_AXES
 A pre-built \code{axes} override list for \code{viewer()} that exposes every axis of
 the base daf unchanged. Equivalent to \code{list(list(ALL_AXES, "="))}.
 }
+\examples{
+d <- example_cells_daf()
+v <- viewer(d, axes = list(VIEW_ALL_AXES))
+axes_set(v)
+}
 \seealso{
 \code{\link[=viewer]{viewer()}}, \link{ALL_AXES}
 }

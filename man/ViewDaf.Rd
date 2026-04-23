@@ -59,6 +59,11 @@ the view rewrite into queries against the base; no data is copied.
 Users should construct \code{ViewDaf} objects via \code{\link[=viewer]{viewer()}} rather than calling
 the constructor directly.
 }
+\examples{
+d <- example_cells_daf()
+v <- viewer(d)
+inherits(v, "dafr::ViewDaf")
+}
 \seealso{
 \code{\link[=viewer]{viewer()}}
 }

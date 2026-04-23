@@ -34,3 +34,8 @@ mutation counters.}
 \description{
 Abstract read-only reader class.
 }
+\examples{
+d <- memory_daf()
+ro <- read_only(d)
+inherits(ro, "dafr::DafReadOnly")
+}

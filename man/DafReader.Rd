@@ -36,3 +36,7 @@ Abstract S7 class. Concrete subclasses (\code{MemoryDaf}, \code{FilesDaf},
 ...) inherit from \code{DafReader} or one of its abstract descendants
 \code{DafReadOnly} / \code{DafWriter}.
 }
+\examples{
+d <- memory_daf()
+inherits(d, "dafr::DafReader")
+}

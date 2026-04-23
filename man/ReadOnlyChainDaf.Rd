@@ -38,3 +38,9 @@ mutation counters.}
 Produced by \code{\link[=chain_reader]{chain_reader()}}. Every \verb{format_*} read falls through the
 chain in reverse order (last wins); writes raise.
 }
+\examples{
+base <- memory_daf(name = "base")
+overlay <- memory_daf(name = "overlay")
+ch <- chain_reader(list(base, overlay))
+inherits(ch, "dafr::ReadOnlyChainDaf")
+}

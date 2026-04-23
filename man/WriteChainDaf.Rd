@@ -42,3 +42,9 @@ Produced by \code{\link[=chain_writer]{chain_writer()}}. Reads fall through in r
 (writer last-wins); writes go to the final writer; deletes succeed
 only if the entry does not exist in any earlier daf.
 }
+\examples{
+base <- memory_daf(name = "base")
+writer <- memory_daf(name = "writer")
+ch <- chain_writer(list(base, writer))
+inherits(ch, "dafr::WriteChainDaf")
+}

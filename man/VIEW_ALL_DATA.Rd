@@ -15,6 +15,11 @@ A convenience list combining \link{VIEW_ALL_SCALARS}, \link{VIEW_ALL_VECTORS}, a
 \link{VIEW_ALL_MATRICES}. Pass as the \code{data} argument to \code{viewer()} to expose
 every data item from the base daf unchanged.
 }
+\examples{
+d <- example_cells_daf()
+v <- viewer(d, data = VIEW_ALL_DATA)
+scalars_set(v)
+}
 \seealso{
 \code{\link[=viewer]{viewer()}}, \link{VIEW_ALL_SCALARS}, \link{VIEW_ALL_VECTORS},
 \link{VIEW_ALL_MATRICES}

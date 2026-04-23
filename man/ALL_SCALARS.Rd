@@ -13,4 +13,10 @@ ALL_SCALARS
 \description{
 Wildcard for all scalars.
 }
+\examples{
+d <- memory_daf()
+set_scalar(d, "organism", "human")
+v <- viewer(d, data = list(list(ALL_SCALARS, "=")))
+scalars_set(v)
+}
 \keyword{datasets}
