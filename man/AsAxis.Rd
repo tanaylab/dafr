@@ -7,10 +7,10 @@
 AsAxis(value = NULL, ...)
 }
 \arguments{
-\item{...}{Optional piped \link{DafrQuery}.}
-
-\item{axis_name}{Optional axis name (character scalar), or a piped
+\item{value}{Optional axis name (character scalar), or a piped
 \link{DafrQuery}.}
+
+\item{...}{Optional piped \link{DafrQuery}.}
 }
 \value{
 A \link{DafrQuery}.

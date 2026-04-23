@@ -7,9 +7,9 @@
 Axis(value, ...)
 }
 \arguments{
-\item{...}{Optional piped \link{DafrQuery}.}
+\item{value}{Axis name (character scalar), or a piped \link{DafrQuery}.}
 
-\item{axis_name}{Axis name (character scalar), or a piped \link{DafrQuery}.}
+\item{...}{Optional piped \link{DafrQuery}.}
 }
 \value{
 A \link{DafrQuery}.

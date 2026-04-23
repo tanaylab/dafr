@@ -7,10 +7,10 @@
 GroupBy(value, ...)
 }
 \arguments{
-\item{...}{Optional piped \link{DafrQuery}.}
-
-\item{property}{Property name to group by (character scalar), or a
+\item{value}{Property name to group by (character scalar), or a
 piped \link{DafrQuery}.}
+
+\item{...}{Optional piped \link{DafrQuery}.}
 }
 \value{
 A \link{DafrQuery}.

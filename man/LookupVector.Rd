@@ -7,10 +7,10 @@
 LookupVector(value = NULL, ...)
 }
 \arguments{
-\item{...}{Optional piped \link{DafrQuery}.}
-
-\item{name}{Optional vector name (character scalar), or a piped
+\item{value}{Optional vector name (character scalar), or a piped
 \link{DafrQuery}.}
+
+\item{...}{Optional piped \link{DafrQuery}.}
 }
 \value{
 A \link{DafrQuery}.

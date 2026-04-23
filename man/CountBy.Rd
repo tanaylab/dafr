@@ -7,9 +7,9 @@
 CountBy(value, ...)
 }
 \arguments{
-\item{...}{Optional piped \link{DafrQuery}.}
+\item{value}{Property name to count by, or a piped \link{DafrQuery}.}
 
-\item{property}{Property name to count by, or a piped \link{DafrQuery}.}
+\item{...}{Optional piped \link{DafrQuery}.}
 }
 \value{
 A \link{DafrQuery}.

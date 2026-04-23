@@ -7,10 +7,10 @@
 GroupColumnsBy(value, ...)
 }
 \arguments{
-\item{...}{Optional piped \link{DafrQuery}.}
-
-\item{property}{Property name to group columns by, or a piped
+\item{value}{Property name to group columns by, or a piped
 \link{DafrQuery}.}
+
+\item{...}{Optional piped \link{DafrQuery}.}
 }
 \value{
 A \link{DafrQuery}.

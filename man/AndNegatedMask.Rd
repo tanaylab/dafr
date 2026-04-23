@@ -7,10 +7,10 @@
 AndNegatedMask(value, ...)
 }
 \arguments{
-\item{...}{Optional piped \link{DafrQuery}.}
-
-\item{property}{Property name (character scalar), or a piped
+\item{value}{Property name (character scalar), or a piped
 \link{DafrQuery}.}
+
+\item{...}{Optional piped \link{DafrQuery}.}
 }
 \value{
 A \link{DafrQuery}.

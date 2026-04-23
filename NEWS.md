@@ -1,5 +1,58 @@
 # dafr (development version)
 
+## Slice 10a — Query builders (2026-04-23)
+
+### New exports (54)
+
+- **`DafrQuery`** S7 class: pipe-composable query object with `ast`
+  (parsed AST list) and `canonical` (canonical string) properties.
+  Methods: `print`, `format`, `as.character`, `length`.
+- **53 builder functions** producing `DafrQuery` objects:
+  - **Element-wise (7):** `Abs()`, `Clamp()`, `Convert()`, `Fraction()`,
+    `Log()`, `Round()`, `Significant()`.
+  - **Reductions (19):** `Count()`, `CountBy()`, `GeoMean()`, `GroupBy()`,
+    `GroupColumnsBy()`, `GroupRowsBy()`, `Max()`, `Mean()`, `Median()`,
+    `Min()`, `Mode()`, `Quantile()`, `ReduceToColumn()`, `ReduceToRow()`,
+    `Std()`, `StdN()`, `Sum()`, `Var()`, `VarN()`.
+  - **Selection/axis (13):** `Axis()`, `AsAxis()`, `BeginMask()`,
+    `BeginNegatedMask()`, `EndMask()`, `IfMissing()`, `IfNot()`,
+    `LookupMatrix()`, `LookupScalar()`, `LookupVector()`, `Names()`,
+    `SquareColumnIs()`, `SquareRowIs()`.
+  - **Logical masks (6):** `AndMask()`, `AndNegatedMask()`, `OrMask()`,
+    `OrNegatedMask()`, `XorMask()`, `XorNegatedMask()`.
+  - **Comparison (8):** `IsEqual()`, `IsGreater()`, `IsGreaterEqual()`,
+    `IsLess()`, `IsLessEqual()`, `IsMatch()`, `IsNotEqual()`,
+    `IsNotMatch()`.
+
+### Dispatch extension
+
+- `get_query()`, `has_query()`, and `[.DafReader` now accept either a
+  character-scalar query string or a `DafrQuery` object. Character
+  queries behave exactly as before.
+
+### Usage
+
+```r
+daf[Axis("cell") |> LookupVector("age") |> IsGreater(2)]
+# equivalent to
+daf["@ cell : age > 2"]
+```
+
+### Known limitations
+
+- Value-op builders (`IsGreater(2)`, `IfMissing(42)`, `SquareColumnIs(7)`)
+  store raw numeric values in the AST, while `parse_query()` parses the
+  same canonical string into a character value. Round-trip holds at the
+  canonical-string level but not at the AST level when numeric literals
+  are passed. Workaround: compare via `canonical_query(q@canonical)`.
+
+### Fixed pre-existing bugs
+
+- `.canonicalise_eltwise` was wrapping parameter lists in parentheses
+  that the parser rejected. Switched to space-separated form so that
+  `parse_query(canonical_query(q)) == q` round-trip holds for every
+  eltwise node.
+
 ## Slice 10c — Wrapper-parity surface (2026-04-23)
 
 ### New exports (25)

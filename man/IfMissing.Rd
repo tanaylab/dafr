@@ -7,10 +7,10 @@
 IfMissing(value, ...)
 }
 \arguments{
-\item{...}{Optional piped \link{DafrQuery}.}
-
-\item{default}{Default value (character or numeric scalar), or a
+\item{value}{Default value (character or numeric scalar), or a
 piped \link{DafrQuery}.}
+
+\item{...}{Optional piped \link{DafrQuery}.}
 }
 \value{
 A \link{DafrQuery}.

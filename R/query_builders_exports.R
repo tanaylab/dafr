@@ -311,7 +311,7 @@ VarN <- .make_typed_reduction("VarN", .qop_var_n)
 #' entries by `property` and then expects a subsequent reduction
 #' (`Sum()`, `Mean()`, ...).
 #'
-#' @param property Property name to group by (character scalar), or a
+#' @param value Property name to group by (character scalar), or a
 #'   piped [DafrQuery].
 #' @param ... Optional piped [DafrQuery].
 #' @return A [DafrQuery].
@@ -326,7 +326,7 @@ GroupBy <- .make_string_op("GroupBy", .qop_group_by)
 #' Builds a `-/ <property>` query fragment. Groups rows of a matrix by
 #' `property`; typically followed by [ReduceToRow()].
 #'
-#' @param property Property name to group rows by, or a piped
+#' @param value Property name to group rows by, or a piped
 #'   [DafrQuery].
 #' @param ... Optional piped [DafrQuery].
 #' @return A [DafrQuery].
@@ -341,7 +341,7 @@ GroupRowsBy <- .make_string_op("GroupRowsBy", .qop_group_rows_by)
 #' Builds a `|/ <property>` query fragment. Groups columns of a matrix
 #' by `property`; typically followed by [ReduceToColumn()].
 #'
-#' @param property Property name to group columns by, or a piped
+#' @param value Property name to group columns by, or a piped
 #'   [DafrQuery].
 #' @param ... Optional piped [DafrQuery].
 #' @return A [DafrQuery].
@@ -356,7 +356,7 @@ GroupColumnsBy <- .make_string_op("GroupColumnsBy", .qop_group_columns_by)
 #' Builds a `* <property>` query fragment. Counts entries of the prior
 #' axis, grouped by `property`.
 #'
-#' @param property Property name to count by, or a piped [DafrQuery].
+#' @param value Property name to count by, or a piped [DafrQuery].
 #' @param ... Optional piped [DafrQuery].
 #' @return A [DafrQuery].
 #' @examples
@@ -409,7 +409,7 @@ ReduceToRow <- .make_reduce_to("ReduceToRow", .qop_reduce_to_row)
 #' Builds an `@ <axis_name>` query fragment, selecting the named axis
 #' as the next input to the query.
 #'
-#' @param axis_name Axis name (character scalar), or a piped [DafrQuery].
+#' @param value Axis name (character scalar), or a piped [DafrQuery].
 #' @param ... Optional piped [DafrQuery].
 #' @return A [DafrQuery].
 #' @examples
@@ -424,7 +424,7 @@ Axis <- .make_string_op("Axis", .qop_axis, param_name = "axis_name")
 #' Builds a `[ <property>` query fragment that opens a masked subquery
 #' against `property`. Close the mask with [EndMask()].
 #'
-#' @param property Property name (character scalar), or a piped
+#' @param value Property name (character scalar), or a piped
 #'   [DafrQuery].
 #' @param ... Optional piped [DafrQuery].
 #' @return A [DafrQuery].
@@ -443,7 +443,7 @@ BeginMask <- .make_string_op(
 #' Builds a `[ ! <property>` query fragment that opens a negated masked
 #' subquery against `property`. Close the mask with [EndMask()].
 #'
-#' @param property Property name (character scalar), or a piped
+#' @param value Property name (character scalar), or a piped
 #'   [DafrQuery].
 #' @param ... Optional piped [DafrQuery].
 #' @return A [DafrQuery].
@@ -488,7 +488,7 @@ Names <- .make_nullary("Names", .qop_names)
 #' Builds a `|| <default>` query fragment, providing a default value
 #' for entries missing from the prior lookup.
 #'
-#' @param default Default value (character or numeric scalar), or a
+#' @param value Default value (character or numeric scalar), or a
 #'   piped [DafrQuery].
 #' @param ... Optional piped [DafrQuery].
 #' @return A [DafrQuery].
@@ -538,7 +538,7 @@ SquareRowIs <- .make_value_op("SquareRowIs", .qop_square_row_is)
 #' Builds a `=@` (optionally `=@ <axis_name>`) query fragment, treating
 #' the prior vector's values as entries of an axis.
 #'
-#' @param axis_name Optional axis name (character scalar), or a piped
+#' @param value Optional axis name (character scalar), or a piped
 #'   [DafrQuery].
 #' @param ... Optional piped [DafrQuery].
 #' @return A [DafrQuery].
@@ -574,7 +574,7 @@ IfNot <- .make_optional_string_op("IfNot", .qop_if_not)
 #' Builds a `.` (optionally `. <name>`) query fragment, looking up the
 #' named scalar property.
 #'
-#' @param name Optional scalar name (character scalar), or a piped
+#' @param value Optional scalar name (character scalar), or a piped
 #'   [DafrQuery].
 #' @param ... Optional piped [DafrQuery].
 #' @return A [DafrQuery].
@@ -593,7 +593,7 @@ LookupScalar <- .make_optional_string_op(
 #' Builds a `:` (optionally `: <name>`) query fragment, looking up the
 #' named vector property of the prior axis.
 #'
-#' @param name Optional vector name (character scalar), or a piped
+#' @param value Optional vector name (character scalar), or a piped
 #'   [DafrQuery].
 #' @param ... Optional piped [DafrQuery].
 #' @return A [DafrQuery].
@@ -613,7 +613,7 @@ LookupVector <- .make_optional_string_op(
 #' Builds a `::` (optionally `:: <name>`) query fragment, looking up
 #' the named matrix property indexed by the prior two axes.
 #'
-#' @param name Optional matrix name (character scalar), or a piped
+#' @param value Optional matrix name (character scalar), or a piped
 #'   [DafrQuery].
 #' @param ... Optional piped [DafrQuery].
 #' @return A [DafrQuery].
@@ -634,7 +634,7 @@ LookupMatrix <- .make_optional_string_op(
 #' condition into an open mask subquery. Use after [BeginMask()] or another
 #' mask combinator; close the mask with [EndMask()].
 #'
-#' @param property Property name (character scalar), or a piped
+#' @param value Property name (character scalar), or a piped
 #'   [DafrQuery].
 #' @param ... Optional piped [DafrQuery].
 #' @return A [DafrQuery].
@@ -653,7 +653,7 @@ AndMask <- .make_string_op(
 #' Builds a `& ! <property>` query fragment that chains a logical AND NOT
 #' condition into an open mask subquery.
 #'
-#' @param property Property name (character scalar), or a piped
+#' @param value Property name (character scalar), or a piped
 #'   [DafrQuery].
 #' @param ... Optional piped [DafrQuery].
 #' @return A [DafrQuery].
@@ -672,7 +672,7 @@ AndNegatedMask <- .make_string_op(
 #' Builds a `| <property>` query fragment that chains a logical OR
 #' condition into an open mask subquery.
 #'
-#' @param property Property name (character scalar), or a piped
+#' @param value Property name (character scalar), or a piped
 #'   [DafrQuery].
 #' @param ... Optional piped [DafrQuery].
 #' @return A [DafrQuery].
@@ -691,7 +691,7 @@ OrMask <- .make_string_op(
 #' Builds a `| ! <property>` query fragment that chains a logical OR NOT
 #' condition into an open mask subquery.
 #'
-#' @param property Property name (character scalar), or a piped
+#' @param value Property name (character scalar), or a piped
 #'   [DafrQuery].
 #' @param ... Optional piped [DafrQuery].
 #' @return A [DafrQuery].
@@ -710,7 +710,7 @@ OrNegatedMask <- .make_string_op(
 #' Builds a `^ <property>` query fragment that chains a logical XOR
 #' condition into an open mask subquery.
 #'
-#' @param property Property name (character scalar), or a piped
+#' @param value Property name (character scalar), or a piped
 #'   [DafrQuery].
 #' @param ... Optional piped [DafrQuery].
 #' @return A [DafrQuery].
@@ -729,7 +729,7 @@ XorMask <- .make_string_op(
 #' Builds a `^ ! <property>` query fragment that chains a logical XOR NOT
 #' condition into an open mask subquery.
 #'
-#' @param property Property name (character scalar), or a piped
+#' @param value Property name (character scalar), or a piped
 #'   [DafrQuery].
 #' @param ... Optional piped [DafrQuery].
 #' @return A [DafrQuery].
