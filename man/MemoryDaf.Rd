@@ -35,3 +35,7 @@ mutation counters.}
 Use \code{memory_daf()} to construct instances — the S7 constructor is
 exported only for \code{isVirtualClass}-style checks.
 }
+\examples{
+d <- memory_daf()
+inherits(d, "dafr::MemoryDaf")
+}

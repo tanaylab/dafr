@@ -18,3 +18,10 @@ Contract(name = "", is_relaxed = FALSE, axes = list(), data = list())
 \description{
 A contract describing a computation's inputs and outputs.
 }
+\examples{
+ct <- create_contract(
+    scalars = list(contract_scalar("organism", RequiredInput, "character",
+                                   "Species name."))
+)
+inherits(ct, "dafr::Contract")
+}

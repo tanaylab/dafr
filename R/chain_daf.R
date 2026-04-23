@@ -7,6 +7,11 @@ NULL
 #' chain in reverse order (last wins); writes raise.
 #' @inheritParams DafReader
 #' @param dafs Ordered list of base `DafReader`s.
+#' @examples
+#' base <- memory_daf(name = "base")
+#' overlay <- memory_daf(name = "overlay")
+#' ch <- chain_reader(list(base, overlay))
+#' inherits(ch, "dafr::ReadOnlyChainDaf")
 #' @export
 ReadOnlyChainDaf <- S7::new_class(
     name = "ReadOnlyChainDaf",
@@ -23,6 +28,11 @@ ReadOnlyChainDaf <- S7::new_class(
 #' @inheritParams DafReader
 #' @param dafs Ordered list of base `DafReader`s.
 #' @param writer The final `DafWriter` (== `dafs[[length(dafs)]]`).
+#' @examples
+#' base <- memory_daf(name = "base")
+#' writer <- memory_daf(name = "writer")
+#' ch <- chain_writer(list(base, writer))
+#' inherits(ch, "dafr::WriteChainDaf")
 #' @export
 WriteChainDaf <- S7::new_class(
     name = "WriteChainDaf",

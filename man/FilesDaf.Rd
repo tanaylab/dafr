@@ -36,3 +36,9 @@ Concrete \code{DafWriter} subclass instantiated by \code{\link[=files_daf]{files
 for writing (modes \code{"r+"}, \code{"w"}, or \code{"w+"}). Use \code{\link[=files_daf]{files_daf()}} to
 construct instances.
 }
+\examples{
+\dontrun{
+d <- files_daf(tempfile("dafr-"), mode = "w")
+inherits(d, "dafr::FilesDaf")
+}
+}

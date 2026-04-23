@@ -14,6 +14,11 @@ VIEW_ALL_MATRICES
 A pre-built \code{data} item for \code{viewer()} that exposes every matrix of the base
 daf unchanged.
 }
+\examples{
+d <- example_cells_daf()
+v <- viewer(d, data = VIEW_ALL_MATRICES)
+matrices_set(v, "cell", "gene")
+}
 \seealso{
 \code{\link[=viewer]{viewer()}}, \link{ALL_MATRICES}
 }

@@ -15,6 +15,9 @@
 #'   mutation counters.
 #' @param matrix_version_counter Environment tracking per-matrix
 #'   mutation counters.
+#' @examples
+#' d <- memory_daf()
+#' inherits(d, "dafr::DafReader")
 #' @export
 DafReader <- S7::new_class(
     name = "DafReader",
@@ -33,6 +36,10 @@ DafReader <- S7::new_class(
 #' Abstract read-only reader class.
 #'
 #' @inheritParams DafReader
+#' @examples
+#' d <- memory_daf()
+#' ro <- read_only(d)
+#' inherits(ro, "dafr::DafReadOnly")
 #' @export
 DafReadOnly <- S7::new_class(
     name = "DafReadOnly",
@@ -44,6 +51,9 @@ DafReadOnly <- S7::new_class(
 #' Abstract writer class.
 #'
 #' @inheritParams DafReader
+#' @examples
+#' d <- memory_daf()
+#' inherits(d, "dafr::DafWriter")
 #' @export
 DafWriter <- S7::new_class(
     name = "DafWriter",

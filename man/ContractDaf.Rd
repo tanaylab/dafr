@@ -62,6 +62,17 @@ S7 class returned by \code{\link[=contractor]{contractor()}} when enforcement is
 Intercepts \verb{format_*} reads/writes on an underlying \link{DafReader}
 to track access and reject operations outside the contract.
 }
+\examples{
+withr::with_options(list(dafr.enforce_contracts = TRUE), {
+    d <- memory_daf()
+    set_scalar(d, "organism", "human")
+    ct <- create_contract(scalars = list(
+        contract_scalar("organism", RequiredInput, "character", "species")
+    ))
+    guarded <- contractor("demo_comp", ct, d)
+    inherits(guarded, "dafr::ContractDaf")
+})
+}
 \seealso{
 \code{\link[=contractor]{contractor()}}, \code{\link[=verify_input]{verify_input()}}, \code{\link[=verify_output]{verify_output()}}.
 }

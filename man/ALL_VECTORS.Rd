@@ -13,4 +13,9 @@ ALL_VECTORS
 \description{
 Wildcard for all vectors.
 }
+\examples{
+d <- example_cells_daf()
+v <- viewer(d, data = list(list(ALL_VECTORS, "=")))
+vectors_set(v, "cell")
+}
 \keyword{datasets}

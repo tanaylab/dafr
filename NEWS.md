@@ -1,4 +1,62 @@
-# dafr (development version)
+# dafr 0.1.0 (2026-04-23)
+
+First public release.
+
+## Headline features
+
+- **Full Daf data model** — scalars, per-axis vectors, per-axis-pair
+  matrices, axis entries, cache invalidation, disk persistence.
+- **Query DSL** — string form (`daf["@ cell : donor"]`) and
+  pipe-chain builders (`daf[Axis("cell") |> LookupVector("donor")]`).
+  53 exported builders covering 5 categories (element-wise, reductions,
+  selection, logical masks, comparison).
+- **mmap-backed reads** — vectors and sparse matrices from a read-only
+  FilesDaf are mmap'd with zero-copy access.
+- **OpenMP-parallel kernels** — Sum, Mean, Var, Mode, Quantile, GeoMean
+  dispatch to parallel C++ for large inputs.
+- **AnnData interop** — `DafAnnData` R6 facade + `h5ad_as_daf` /
+  `daf_as_h5ad` for round-trip I/O.
+- **Contracts** — `contract_scalar` / `contract_vector` /
+  `contract_matrix` / `tensor_contract` / `axis_contract` +
+  `create_contract` + `verify_contract` for computation validation.
+- **Class-surface sugar** — `is_daf`, `daf_name`, `complete_path`,
+  `read_only`, `axis_version_counter` / `vector_version_counter` /
+  `matrix_version_counter`, group helpers (`compact_groups`,
+  `collect_group_members`, `group_names`), and DataFrame helpers
+  (`get_dataframe`, `get_dataframe_query`, `get_tidy`).
+
+## Known gaps
+
+- `h5df` HDF5-backed Daf store (post-0.1.0).
+- Sparse-matrix h5ad encoding, categorical obs/var columns, nested
+  `uns` groups — currently skipped via the unsupported-feature
+  handler (warn by default).
+- `verify_contract` tracker-marker workaround (static-check
+  semantics) — proper static flag deferred to post-0.1.0.
+- `get_dataframe_query` dropped the wrapper's `columns` kwarg.
+- `[filter] : vector` query form — filter is not applied to the
+  vector lookup. Builder round-trips to correct canonical but
+  evaluation skips the mask. Post-0.1.0 fix.
+- CRAN submission pending installed-size and benchmarks-dir NOTE
+  burn-down.
+
+## Breaking changes vs. `dafJuliaWrapper` (Julia-facade)
+
+- `get_frame` renamed to `get_dataframe_query`.
+- `create_contract` takes typed per-category args, not a flat `data`
+  list.
+- `tensor_contract` parameter is now `type`, not `dtype`.
+- Version counters return `integer`, not stringified UInt32.
+- `read_only()` implemented via 1-element `chain_reader`, not a
+  new S7 class.
+
+---
+
+# dafr 0.1.0 — Development history
+
+The remainder of this file is the internal slice-by-slice ledger
+preserved as historical record. See `git log` for the source-level
+narrative.
 
 ## Slice 10b — AnnData + h5ad round-trip (2026-04-23)
 

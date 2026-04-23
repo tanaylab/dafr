@@ -14,6 +14,12 @@ VIEW_ALL_SCALARS
 A pre-built \code{data} item for \code{viewer()} that exposes every scalar of the base
 daf unchanged. Equivalent to \code{list(list(ALL_SCALARS, "="))}.
 }
+\examples{
+d <- memory_daf()
+set_scalar(d, "organism", "human")
+v <- viewer(d, data = list(VIEW_ALL_SCALARS))
+scalars_set(v)
+}
 \seealso{
 \code{\link[=viewer]{viewer()}}, \link{ALL_SCALARS}
 }

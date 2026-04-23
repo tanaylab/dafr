@@ -53,6 +53,12 @@ OptionalOutput <- "OptionalOutput"
 #' @param is_relaxed If TRUE, unknown properties don't error.
 #' @param axes Named list: axis -> list(expectation, description).
 #' @param data List of contract_scalar()/contract_vector()/contract_matrix() records.
+#' @examples
+#' ct <- create_contract(
+#'     scalars = list(contract_scalar("organism", RequiredInput, "character",
+#'                                    "Species name."))
+#' )
+#' inherits(ct, "dafr::Contract")
 #' @export
 Contract <- S7::new_class(
     name = "Contract",
@@ -177,6 +183,16 @@ contract_matrix <- function(rows_axis, columns_axis, name, expectation, type, de
 #' @return An S7 class object; users normally obtain instances via
 #'   [contractor()] rather than calling the constructor directly.
 #' @seealso [contractor()], [verify_input()], [verify_output()].
+#' @examples
+#' withr::with_options(list(dafr.enforce_contracts = TRUE), {
+#'     d <- memory_daf()
+#'     set_scalar(d, "organism", "human")
+#'     ct <- create_contract(scalars = list(
+#'         contract_scalar("organism", RequiredInput, "character", "species")
+#'     ))
+#'     guarded <- contractor("demo_comp", ct, d)
+#'     inherits(guarded, "dafr::ContractDaf")
+#' })
 #' @export
 ContractDaf <- S7::new_class(
     name = "ContractDaf",

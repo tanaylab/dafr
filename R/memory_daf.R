@@ -39,6 +39,9 @@ memory_daf <- function(name = "memory") {
 #' exported only for `isVirtualClass`-style checks.
 #'
 #' @inheritParams DafReader
+#' @examples
+#' d <- memory_daf()
+#' inherits(d, "dafr::MemoryDaf")
 #' @export
 MemoryDaf <- S7::new_class(
     name    = "MemoryDaf",

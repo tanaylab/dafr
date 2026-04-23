@@ -36,3 +36,9 @@ Concrete \code{DafReadOnly} subclass instantiated by \code{\link[=files_daf]{fil
 opened with mode \code{"r"}. All mutating \verb{format_*} generics reject calls on
 this class with a clear "store opened read-only" error.
 }
+\examples{
+\dontrun{
+d <- files_daf("/path/to/existing/store", mode = "r")
+inherits(d, "dafr::FilesDafReadOnly")
+}
+}

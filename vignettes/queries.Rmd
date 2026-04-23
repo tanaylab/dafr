@@ -1,0 +1,70 @@
+---
+title: "Query DSL"
+output: rmarkdown::html_vignette
+vignette: >
+  %\VignetteIndexEntry{Query DSL}
+  %\VignetteEngine{knitr::rmarkdown}
+  %\VignetteEncoding{UTF-8}
+---
+
+```{r setup, include = FALSE}
+knitr::opts_chunk$set(collapse = TRUE, comment = "#>")
+library(dafr)
+d <- example_cells_daf()
+```
+
+# Two equivalent forms
+
+Queries can be written as strings or as pipe-chain builder objects.
+The following two expressions are equivalent:
+
+```{r}
+head(d["@ cell : donor"])
+head(d[Axis("cell") |> LookupVector("donor")])
+```
+
+# String form
+
+```{r}
+# Scalar
+d[". organism"]
+# Axis entries
+head(d["@ cell"])
+# Vector on axis
+head(d["@ cell : donor"])
+# Matrix
+dim(d["@ cell @ gene :: UMIs"])
+```
+
+# Builder form
+
+```{r}
+# Filtered axis entries — cells whose donor is "N89"
+q <- Axis("cell") |> BeginMask("donor") |> IsEqual("N89") |> EndMask()
+length(d[q])
+```
+
+# Reductions
+
+```{r}
+# Per-gene mean UMI — reduce across the cell axis
+per_gene_mean <- d[Axis("gene") |> Axis("cell") |> LookupMatrix("UMIs") |> ReduceToRow(Mean())]
+head(per_gene_mean)
+```
+
+The equivalent string form uses `>-` (reduce-to-row) or `>|`
+(reduce-to-column):
+
+```{r}
+head(d["@ gene @ cell :: UMIs >- Mean"])
+```
+
+# Comparison + mask composition
+
+```{r}
+# Donors older than 30 (the `age` vector lives on the `donor` axis)
+q <- Axis("donor") |> BeginMask("age") |> IsGreater(30) |> EndMask()
+length(d[q])
+```
+
+# See `?Axis`, `?LookupVector`, `?IsGreater` for the full builder list.

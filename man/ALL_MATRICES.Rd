@@ -13,4 +13,9 @@ ALL_MATRICES
 \description{
 Wildcard for all matrices.
 }
+\examples{
+d <- example_cells_daf()
+v <- viewer(d, data = list(list(ALL_MATRICES, "=")))
+matrices_set(v, "cell", "gene")
+}
 \keyword{datasets}
