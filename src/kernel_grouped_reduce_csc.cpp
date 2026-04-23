@@ -31,7 +31,6 @@ cpp11::writable::doubles_matrix<cpp11::by_column> kernel_grouped_reduce_csc_cpp(
     int threshold
 ) {
     using dafr_grouped::Acc;
-    using dafr_grouped::acc_merge;
     using dafr_grouped::derive_op;
 
     const double *px = REAL(x.data());
