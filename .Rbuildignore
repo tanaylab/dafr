@@ -14,3 +14,5 @@
 ^LICENSE\.md$
 ^benchmarks/fixture/data$
 ^benchmarks/.*\.cache$
+^doc$
+^Meta$

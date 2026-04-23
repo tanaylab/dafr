@@ -20,3 +20,5 @@ dev/
 # testthat recovery artifacts (written on test failure, not source-controlled)
 tests/testthat/_problems/
 tests/testthat/testthat-problems.rds
+/doc/
+/Meta/

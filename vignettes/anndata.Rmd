@@ -1,0 +1,64 @@
+---
+title: "AnnData interop"
+output: rmarkdown::html_vignette
+vignette: >
+  %\VignetteIndexEntry{AnnData interop}
+  %\VignetteEngine{knitr::rmarkdown}
+  %\VignetteEncoding{UTF-8}
+---
+
+```{r setup, include = FALSE}
+knitr::opts_chunk$set(collapse = TRUE, comment = "#>")
+library(dafr)
+```
+
+# DafAnnData facade
+
+If you've been using `anndata` / `scanpy` / `Seurat`, the facade
+exposes a Daf with familiar property names:
+
+```{r}
+d <- example_cells_daf()
+ann <- as_anndata(d)
+ann$n_obs
+ann$n_vars
+head(ann$obs_names)
+dim(ann$X)
+```
+
+The facade is read-only: `ann$X <- ...` errors. To modify data, write
+to the underlying Daf: `set_matrix(d, ...)`.
+
+# Loading h5ad
+
+```{r, eval = FALSE}
+d <- h5ad_as_daf("path/to/file.h5ad")
+```
+
+Requires `hdf5r` (a Suggests dep): `install.packages("hdf5r")`.
+
+# Writing h5ad
+
+```{r, eval = FALSE}
+daf_as_h5ad(d, "out.h5ad", overwrite = TRUE)
+```
+
+# Fixture round-trip
+
+```{r}
+fixture <- system.file("extdata", "small_test.h5ad", package = "dafr")
+if (file.exists(fixture) && requireNamespace("hdf5r", quietly = TRUE)) {
+    d <- h5ad_as_daf(fixture)
+    cat("loaded:", daf_name(d), "\n")
+    cat("n_obs:", length(axis_entries(d, "obs")), "\n")
+    cat("n_vars:", length(axis_entries(d, "var")), "\n")
+}
+```
+
+# Limitations (0.1.0)
+
+- Sparse matrix h5ad encoding (`csr_matrix` / `csc_matrix`) not yet
+  translated; read path warns and skips.
+- Categorical (factor) columns skipped on read.
+- Nested `uns` groups skipped.
+- `varm` / `obsm` / `obsp` / `varp` / `raw` not translated.
