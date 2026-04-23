@@ -20,10 +20,6 @@ kernel_csc_colsums_cpp <- function(x, p, ncol, threshold) {
   .Call(`_dafr_kernel_csc_colsums_cpp`, x, p, ncol, threshold)
 }
 
-kernel_csc_to_csr_cpp <- function(x, i, p, nrow, ncol) {
-  .Call(`_dafr_kernel_csc_to_csr_cpp`, x, i, p, nrow, ncol)
-}
-
 kernel_log_add_cpp <- function(x, y, threshold) {
   .Call(`_dafr_kernel_log_add_cpp`, x, y, threshold)
 }
