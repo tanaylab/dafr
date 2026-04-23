@@ -1,6 +1,6 @@
 // src/kernel_grouped_minmax_dense.cpp
 // Grouped Min or Max on a dense INTSXP/REALSXP matrix.  Sibling of
-// kernel_grouped_rowsum_dense.cpp (Slice 9b).  Single-threaded, NA-safe.
+// kernel_grouped_rowsum_dense.cpp (Slice 9b).  NA-safe.
 //
 // Design (spec §4.3):
 //   - Accumulator init per (i, g): +inf (Min) or -inf (Max).
@@ -14,8 +14,17 @@
 //   axis == 3 (G3, col-grouped):  output is nrow    x ngroups.
 //
 // Variant: 0 = Min, 1 = Max.
+//
+// Parallelism:
+//   axis == 2: column-parallel — each column's (na_flag, out column) state
+//     is independent, so splitting ncol across threads is trivially safe.
+//   axis == 3: row-partition — output nrow x ngroups has writes keyed by
+//     row index i, so each thread owns a disjoint [i0, i1) range and never
+//     touches another thread's slots.
 
 #include <cpp11.hpp>
+#include "openmp_shim.h"
+#include <algorithm>
 #include <cmath>
 #include <limits>
 #include <vector>
@@ -29,7 +38,8 @@ kernel_grouped_minmax_dense_cpp(
     cpp11::integers groups,
     int ngroups,
     int axis,
-    int variant)
+    int variant,
+    int threshold)
 {
     const int* pg = INTEGER(groups);
     const bool is_int = (TYPEOF(mat) == INTSXP);
@@ -47,41 +57,48 @@ kernel_grouped_minmax_dense_cpp(
 
     if (axis == 2) {
         // G2: groups along rows -> output ngroups x ncol.
+        // Column-parallel: each column's na_flag and out column are
+        // independent, so splitting ncol across threads is race-free.
         cpp11::writable::doubles_matrix<cpp11::by_column> out(ngroups, ncol);
-        std::vector<bool> na_flag(ngroups, false);
 
-        for (int j = 0; j < ncol; ++j) {
-            // Reset per-column state.
-            std::fill(na_flag.begin(), na_flag.end(), false);
-            for (int g = 0; g < ngroups; ++g) out(g, j) = sentinel;
+        DAFR_OMP_PARALLEL_IF(ncol >= threshold)
+        {
+            const int tid = dafr_omp_get_thread_num();
+            const int nt  = dafr_omp_get_num_threads();
+            const int chunk = (ncol + nt - 1) / nt;
+            const int j0 = std::min(ncol, tid * chunk);
+            const int j1 = std::min(ncol, j0 + chunk);
+            std::vector<bool> na_flag(ngroups, false);
 
-            const int col_offset = j * nrow;
-            for (int i = 0; i < nrow; ++i) {
-                const int g = pg[i] - 1;
-                double v;
-                bool is_na;
-                if (is_int) {
-                    const int vi = xint[col_offset + i];
-                    is_na = (vi == NA_INTEGER);
-                    v = is_na ? 0.0 : static_cast<double>(vi);
-                } else {
-                    // Use ISNAN (not ISNA) so that plain NaN (not just NA_REAL) also triggers
-                    // NA propagation.  IEEE-754 comparisons with NaN always return false, so
-                    // without this, NaN would silently vanish from the min/max accumulator.
-                    v = xdbl[col_offset + i];
-                    is_na = ISNAN(v);
-                }
+            for (int j = j0; j < j1; ++j) {
+                std::fill(na_flag.begin(), na_flag.end(), false);
+                for (int g = 0; g < ngroups; ++g) out(g, j) = sentinel;
 
-                if (na_flag[g]) continue;
-                if (is_na) {
-                    na_flag[g] = true;
-                    out(g, j) = NA_REAL;
-                    continue;
-                }
-                if (is_max) {
-                    if (v > out(g, j)) out(g, j) = v;
-                } else {
-                    if (v < out(g, j)) out(g, j) = v;
+                const int col_offset = j * nrow;
+                for (int i = 0; i < nrow; ++i) {
+                    const int g = pg[i] - 1;
+                    double v;
+                    bool is_na;
+                    if (is_int) {
+                        const int vi = xint[col_offset + i];
+                        is_na = (vi == NA_INTEGER);
+                        v = is_na ? 0.0 : static_cast<double>(vi);
+                    } else {
+                        v = xdbl[col_offset + i];
+                        is_na = ISNAN(v);
+                    }
+
+                    if (na_flag[g]) continue;
+                    if (is_na) {
+                        na_flag[g] = true;
+                        out(g, j) = NA_REAL;
+                        continue;
+                    }
+                    if (is_max) {
+                        if (v > out(g, j)) out(g, j) = v;
+                    } else {
+                        if (v < out(g, j)) out(g, j) = v;
+                    }
                 }
             }
         }
@@ -89,42 +106,55 @@ kernel_grouped_minmax_dense_cpp(
     }
 
     // axis == 3: G3 -- groups along cols -> output nrow x ngroups.
+    // Row-partition: each thread owns a disjoint row range [i0, i1). All
+    // writes to out(i, g) and na_flag[g*nrow + i] for i in that range are
+    // race-free because slot ownership is fixed by i.
     cpp11::writable::doubles_matrix<cpp11::by_column> out(nrow, ngroups);
     std::vector<bool> na_flag(static_cast<size_t>(nrow) * ngroups, false);
 
-    // Initialize all output cells to sentinel.
-    for (int g = 0; g < ngroups; ++g) {
-        for (int i = 0; i < nrow; ++i) {
-            out(i, g) = sentinel;
+    DAFR_OMP_PARALLEL_IF(nrow >= threshold)
+    {
+        const int tid = dafr_omp_get_thread_num();
+        const int nt  = dafr_omp_get_num_threads();
+        const int chunk = (nrow + nt - 1) / nt;
+        const int i0 = std::min(nrow, tid * chunk);
+        const int i1 = std::min(nrow, i0 + chunk);
+
+        // Initialize [i0, i1) rows to sentinel across all groups.
+        for (int g = 0; g < ngroups; ++g) {
+            for (int i = i0; i < i1; ++i) {
+                out(i, g) = sentinel;
+            }
         }
-    }
 
-    for (int j = 0; j < ncol; ++j) {
-        const int g = pg[j] - 1;
-        const int col_offset = j * nrow;
-        for (int i = 0; i < nrow; ++i) {
-            double v;
-            bool is_na;
-            if (is_int) {
-                const int vi = xint[col_offset + i];
-                is_na = (vi == NA_INTEGER);
-                v = is_na ? 0.0 : static_cast<double>(vi);
-            } else {
-                v = xdbl[col_offset + i];
-                is_na = ISNAN(v);
-            }
+        // Scan every column; filter by row-range.
+        for (int j = 0; j < ncol; ++j) {
+            const int g = pg[j] - 1;
+            const int col_offset = j * nrow;
+            for (int i = i0; i < i1; ++i) {
+                double v;
+                bool is_na;
+                if (is_int) {
+                    const int vi = xint[col_offset + i];
+                    is_na = (vi == NA_INTEGER);
+                    v = is_na ? 0.0 : static_cast<double>(vi);
+                } else {
+                    v = xdbl[col_offset + i];
+                    is_na = ISNAN(v);
+                }
 
-            const size_t idx = static_cast<size_t>(g) * nrow + i;
-            if (na_flag[idx]) continue;
-            if (is_na) {
-                na_flag[idx] = true;
-                out(i, g) = NA_REAL;
-                continue;
-            }
-            if (is_max) {
-                if (v > out(i, g)) out(i, g) = v;
-            } else {
-                if (v < out(i, g)) out(i, g) = v;
+                const size_t idx = static_cast<size_t>(g) * nrow + i;
+                if (na_flag[idx]) continue;
+                if (is_na) {
+                    na_flag[idx] = true;
+                    out(i, g) = NA_REAL;
+                    continue;
+                }
+                if (is_max) {
+                    if (v > out(i, g)) out(i, g) = v;
+                } else {
+                    if (v < out(i, g)) out(i, g) = v;
+                }
             }
         }
     }

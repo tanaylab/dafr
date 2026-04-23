@@ -1101,7 +1101,8 @@ NULL
     if (axis == 2L) {
         # G2: groups along rows.  Output: ngroups x ncol.
         if (use_kernel) {
-            res <- kernel_grouped_rowsum_dense_cpp(m, gi, ngroups, need_sq, axis)
+            res <- kernel_grouped_rowsum_dense_cpp(m, gi, ngroups, need_sq, axis,
+                threshold = .dafr_kernel_threshold())
             rs  <- res$sum
             return(switch(label,
                 Sum  = rs,
@@ -1123,11 +1124,13 @@ NULL
         switch(label,
             Max = .minmax_empty_to_na(
                 kernel_grouped_minmax_dense_cpp(m, groups = gi, ngroups = ngroups,
-                    axis = 2L, variant = 1L),
+                    axis = 2L, variant = 1L,
+                    threshold = .dafr_kernel_threshold()),
                 gi, ngroups, axis = 2L),
             Min = .minmax_empty_to_na(
                 kernel_grouped_minmax_dense_cpp(m, groups = gi, ngroups = ngroups,
-                    axis = 2L, variant = 0L),
+                    axis = 2L, variant = 0L,
+                    threshold = .dafr_kernel_threshold()),
                 gi, ngroups, axis = 2L),
             # Fallback for unknown ops
             kernel_grouped_reduce_dense_cpp(
@@ -1139,7 +1142,8 @@ NULL
     } else {
         # G3 (axis == 3): groups along cols.  Output: nrow(m) x ngroups.
         if (use_kernel) {
-            res <- kernel_grouped_rowsum_dense_cpp(m, gi, ngroups, need_sq, axis)
+            res <- kernel_grouped_rowsum_dense_cpp(m, gi, ngroups, need_sq, axis,
+                threshold = .dafr_kernel_threshold())
             rs  <- res$sum
             return(switch(label,
                 Sum  = rs,
@@ -1161,11 +1165,13 @@ NULL
         switch(label,
             Max = .minmax_empty_to_na(
                 kernel_grouped_minmax_dense_cpp(m, groups = gi, ngroups = ngroups,
-                    axis = 3L, variant = 1L),
+                    axis = 3L, variant = 1L,
+                    threshold = .dafr_kernel_threshold()),
                 gi, ngroups, axis = 3L),
             Min = .minmax_empty_to_na(
                 kernel_grouped_minmax_dense_cpp(m, groups = gi, ngroups = ngroups,
-                    axis = 3L, variant = 0L),
+                    axis = 3L, variant = 0L,
+                    threshold = .dafr_kernel_threshold()),
                 gi, ngroups, axis = 3L),
             # Fallback for unknown ops
             kernel_grouped_reduce_dense_cpp(
