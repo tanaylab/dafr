@@ -161,3 +161,26 @@ filter_daf_axis_tbl <- function(.data, ..., .by = NULL) {
     }
     .data
 }
+
+# ---- mutate ----------------------------------------------------------------
+
+#' @noRd
+mutate_daf_axis_tbl <- function(.data, ...) {
+    df <- .realize(.data)
+    if (inherits(df, "grouped_df")) {
+        df2 <- dplyr::ungroup(dplyr::mutate(df, ...))
+        df <- dplyr::ungroup(df)
+    } else {
+        df2 <- dplyr::mutate(df, ...)
+    }
+    old_names <- colnames(df)
+    new_or_changed <- setdiff(colnames(df2), "name")
+    overrides <- attr(.data, "overrides")
+    for (nm in new_or_changed) {
+        if (!(nm %in% old_names) || !identical(df[[nm]], df2[[nm]])) {
+            overrides[[nm]] <- df2[[nm]]
+        }
+    }
+    attr(.data, "overrides") <- overrides
+    .data
+}

@@ -65,3 +65,40 @@ test_that("filter() supports multi-variable predicates", {
         dplyr::collect()
     expect_identical(df$name, "c3")
 })
+
+test_that("mutate() adds a computed column visible to later verbs", {
+    skip_if_not_installed("dplyr")
+    d <- memory_daf()
+    add_axis(d, "cell", c("c1", "c2", "c3"))
+    set_vector(d, "cell", "a", c(1, 2, 3))
+    set_vector(d, "cell", "b", c(10, 20, 30))
+    df <- dplyr::tbl(d, "cell") |>
+        dplyr::mutate(s = a + b) |>
+        dplyr::collect()
+    expect_identical(df$s, c(11, 22, 33))
+})
+
+test_that("mutate() chains — later expressions see earlier ones", {
+    skip_if_not_installed("dplyr")
+    d <- memory_daf()
+    add_axis(d, "cell", c("c1", "c2"))
+    set_vector(d, "cell", "a", c(1, 2))
+    df <- dplyr::tbl(d, "cell") |>
+        dplyr::mutate(b = a * 2, c = b + 1) |>
+        dplyr::collect()
+    expect_identical(df$b, c(2, 4))
+    expect_identical(df$c, c(3, 5))
+})
+
+test_that("mutate() before filter() survives the filter", {
+    skip_if_not_installed("dplyr")
+    d <- memory_daf()
+    add_axis(d, "cell", c("c1", "c2", "c3"))
+    set_vector(d, "cell", "a", c(1, 2, 3))
+    df <- dplyr::tbl(d, "cell") |>
+        dplyr::mutate(sq = a * a) |>
+        dplyr::filter(sq > 1) |>
+        dplyr::collect()
+    expect_identical(df$name, c("c2", "c3"))
+    expect_identical(df$sq, c(4, 9))
+})
