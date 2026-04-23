@@ -230,6 +230,75 @@ ungroup_daf_axis_tbl <- function(x, ...) {
     x
 }
 
+# ---- compute() — explicit write-back --------------------------------------
+
+#' Persist `mutate()`-produced columns as daf vectors.
+#'
+#' `compute()` is the explicit write-back step for a `daf_axis_tbl`.
+#' It accepts only columns that currently exist in the tbl's
+#' overrides (i.e. introduced by [dplyr::mutate()]) and writes each as
+#' a vector on the tbl's axis via [set_vector()].
+#'
+#' Write-back requires **full row coverage** of the axis. If the tbl
+#' has been [dplyr::filter()]ed (partial row mask), `compute()` errors
+#' rather than silently persist partial data. A permuted-but-full row
+#' mask (e.g. after [dplyr::arrange()]) is un-permuted to axis order
+#' before writing.
+#'
+#' @param x A `daf_axis_tbl`.
+#' @param vectors Character vector of override column names to persist.
+#'   Required — passing `NULL` errors, by design, to avoid silent
+#'   whole-tbl writes.
+#' @param overwrite Passed to [set_vector()]. Defaults to `FALSE`.
+#' @return Invisibly, `x`.
+#' @examples
+#' d <- memory_daf()
+#' add_axis(d, "cell", c("c1", "c2", "c3"))
+#' set_vector(d, "cell", "n", c(10, 20, 30))
+#' if (requireNamespace("dplyr", quietly = TRUE)) {
+#'     t <- dplyr::tbl(d, "cell") |> dplyr::mutate(log_n = log10(n))
+#'     compute(t, vectors = "log_n")
+#'     has_vector(d, "cell", "log_n")  # TRUE
+#' }
+#' @export
+compute <- function(x, vectors = NULL, overwrite = FALSE) {
+    UseMethod("compute")
+}
+
+#' @export
+compute.daf_axis_tbl <- function(x, vectors = NULL, overwrite = FALSE) {
+    if (is.null(vectors) || !length(vectors)) {
+        stop("compute(): `vectors` must name override columns to persist",
+             call. = FALSE)
+    }
+    overrides <- attr(x, "overrides")
+    missing <- setdiff(vectors, names(overrides))
+    if (length(missing)) {
+        stop(sprintf(
+            "compute(): not present as an override: %s. Create with mutate().",
+            paste(sQuote(missing), collapse = ", ")
+        ), call. = FALSE)
+    }
+    daf <- attr(x, "daf")
+    axis <- attr(x, "axis")
+    rm <- attr(x, "row_mask")
+    n <- axis_length(daf, axis)
+    if (is.null(rm)) {
+        reorder_idx <- NULL
+    } else if (length(rm) == n && !anyDuplicated(rm)) {
+        reorder_idx <- order(rm)
+    } else {
+        stop("compute(): tbl has a partial row mask (filtered/reduced); cannot write back a full vector. Undo the filter or explicitly extend.",
+             call. = FALSE)
+    }
+    for (nm in vectors) {
+        v <- overrides[[nm]]
+        if (!is.null(reorder_idx)) v <- v[reorder_idx]
+        set_vector(daf, axis, nm, v, overwrite = overwrite)
+    }
+    invisible(x)
+}
+
 #' @noRd
 summarise_daf_axis_tbl <- function(.data, ..., .by = NULL, .groups = NULL) {
     df <- .realize(.data)
