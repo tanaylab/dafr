@@ -23,14 +23,14 @@ translate (default \link[=handler-constants]{WARN_HANDLER}). Accepts
 A \code{\link[=memory_daf]{memory_daf()}} populated with the h5ad contents.
 }
 \description{
-Minimal-viable h5ad reader covering dense \verb{/X}, \verb{/obs} and \verb{/var}
-column groups with \verb{_index}, flat scalar \verb{/uns} entries, and
-dense \verb{/layers}. Sparse matrices, categorical/factor columns,
-\code{varm} / \code{obsm} / \code{obsp} / \code{varp}, \code{raw}, and nested \code{uns} groups
-are escalated through \code{unsupported_handler} and skipped.
+Loads dense or sparse \verb{/X}, \verb{/obs} and \verb{/var} column groups (dense
+scalar columns and categorical columns), flat + nested \verb{/uns} scalar
+entries (nested keys are flattened via \verb{_}), and dense \verb{/layers}.
+\code{varm} / \code{obsm} / \code{obsp} / \code{varp} and \code{raw} are still escalated
+through \code{unsupported_handler} and skipped.
 }
 \details{
-Requires the \code{hdf5r} package (a Suggests dependency).
+Requires the \code{hdf5r} and \code{Matrix} packages.
 }
 \examples{
 \dontrun{

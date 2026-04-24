@@ -2,6 +2,24 @@
 
 ## New features
 
+- **Full h5ad feature coverage.** `h5ad_as_daf()` / `daf_as_h5ad()`
+  (slice-10b) now handle three previously-skipped h5ad feature
+  categories instead of warn-and-skipping them:
+    * **Sparse `/X` and `/layers/*`.** CSR and CSC encoded sparse
+      matrices round-trip as `Matrix::dgCMatrix`. On write, sparse Daf
+      matrices are emitted as h5ad CSC groups — no more densify-on-write
+      warning.
+    * **Categorical obs/var columns.** A categorical group (`codes` +
+      `categories` + `ordered`) reads as an R `factor` (ordered if the
+      on-disk flag is set). On write, factor vectors are emitted as
+      categorical groups.
+    * **Nested `/uns` groups.** Nested scalar leaves are flattened on
+      read with `_` as the separator (e.g. `uns/params/seed` becomes
+      Daf scalar `params_seed`). The write path remains flat — Daf has
+      no tree-of-scalars concept — so a nested-uns round-trip emits
+      flat dotted keys on the resulting Daf (documented asymmetry).
+  New fixture: `inst/extdata/sparse_test.h5ad` (50 x 20 CSR `/X`, a
+  categorical `celltype` obs column, nested `uns/params/*`).
 - **dplyr backend.** `tbl(daf, axis)` returns a lazy `daf_axis_tbl`
   supporting `filter`, `select`, `mutate`, `arrange`, `summarise`,
   `group_by`, `ungroup`, `distinct`, `pull`, and `collect`. Grouped
