@@ -57,16 +57,16 @@ test_that(".load_axis_file respects the cells/metacells/shared kind filter", {
     meta_daf <- memory_daf(name = "meta-filter-test")
     dir <- dafr:::.example_data_dir()
 
-    # mc.cell.txt should load for both "c" and "m" (mc contains both)
-    dafr:::.load_axis_file(cells_daf, "c", file.path(dir, "axes", "mc.cell.txt"))
-    dafr:::.load_axis_file(meta_daf, "m", file.path(dir, "axes", "mc.cell.txt"))
+    # mc.cell should load for both "c" and "m" (mc contains both)
+    dafr:::.load_axis_file(cells_daf, "c", file.path(dir, "axes", "mc.cell.rds"))
+    dafr:::.load_axis_file(meta_daf, "m", file.path(dir, "axes", "mc.cell.rds"))
 
     expect_equal(length(axis_vector(cells_daf, "cell")), 856L)
     expect_equal(length(axis_vector(meta_daf, "cell")), 856L)
 
-    # c.donor.txt should load for "c" only, not "m"
-    dafr:::.load_axis_file(cells_daf, "c", file.path(dir, "axes", "c.donor.txt"))
-    dafr:::.load_axis_file(meta_daf, "m", file.path(dir, "axes", "c.donor.txt"))
+    # c.donor should load for "c" only, not "m"
+    dafr:::.load_axis_file(cells_daf, "c", file.path(dir, "axes", "c.donor.rds"))
+    dafr:::.load_axis_file(meta_daf, "m", file.path(dir, "axes", "c.donor.rds"))
 
     expect_equal(length(axis_vector(cells_daf, "donor")), 95L)
     expect_null(axis_vector(meta_daf, "donor", null_if_missing = TRUE))

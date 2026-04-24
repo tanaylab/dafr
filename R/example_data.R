@@ -42,10 +42,10 @@ NULL
     stopifnot(length(parts) == 3L)
     kind <- parts[[1L]]
     axis <- parts[[2L]]
-    # suffix == parts[[3L]] == "txt"
+    # suffix == parts[[3L]] == "rds"
 
     if (grepl(which, kind, fixed = TRUE)) {
-        entries <- readLines(file_path, warn = FALSE)
+        entries <- readRDS(file_path)
         add_axis(daf, axis, entries)
     }
     invisible(daf)
@@ -58,10 +58,10 @@ NULL
     kind <- parts[[1L]]
     axis <- parts[[2L]]
     prop <- parts[[3L]]
-    # suffix == parts[[4L]] == "txt"
+    # suffix == parts[[4L]] == "rds"
 
     if (grepl(which, kind, fixed = TRUE)) {
-        strs <- readLines(file_path, warn = FALSE)
+        strs <- readRDS(file_path)
         vec <- .cast_vector(strs)
         names(vec) <- axis_vector(daf, axis)
         set_vector(daf, axis, prop, vec)
@@ -77,17 +77,10 @@ NULL
     lines_axis <- parts[[2L]]
     vals_axis <- parts[[3L]]
     prop <- parts[[4L]]
-    # suffix == parts[[5L]] == "csv"
+    # suffix == parts[[5L]] == "rds"
 
     if (grepl(which, kind, fixed = TRUE)) {
-        lines <- readLines(file_path, warn = FALSE)
-        n_lines <- length(lines)
-        n_values <- length(strsplit(lines[[1L]], ",", fixed = TRUE)[[1L]])
-
-        m <- matrix(0, nrow = n_values, ncol = n_lines)
-        for (j in seq_along(lines)) {
-            m[, j] <- as.numeric(strsplit(lines[[j]], ",", fixed = TRUE)[[1L]])
-        }
+        m <- readRDS(file_path)
         m <- .cast_matrix(m)
 
         set_matrix(daf, vals_axis, lines_axis, prop, m)
