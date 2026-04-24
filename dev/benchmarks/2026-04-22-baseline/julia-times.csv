@@ -1,0 +1,87 @@
+# runner: Julia
+# dafr_commit: 2cc134867dcc16e3607e516e37789b809b02072c
+# julia_version: 1.12.5
+# platform: x86_64-conda-linux-gnu
+# JULIA_NUM_THREADS: default
+# BLAS: LBTConfig([ILP64] libopenblas64_.so)
+# fixtures: big_sparse=112972aa279bf184; cells_daf=892948c6ec288d6c; chain_triple=9f75f5a89bf4ba5f; mmap_reopen=892948c6ec288d6c
+query_id,query_text,category,fixture,median_time_ns,min_time_ns,gc_count,allocations,n_iter
+julia_queries_001,. ?,light,cells_daf,379449.0,364706.0,0,1089.0,50
+julia_queries_002,. organism,light,cells_daf,504276.0,472889.0,0,1454.0,50
+julia_queries_003,. reference,light,cells_daf,491822.0,466699.0,0,1454.0,50
+julia_queries_004,@ ?,light,cells_daf,380831.0,357266.0,0,1087.0,50
+julia_queries_005,@ cell,light,cells_daf,622788.5,609834.0,0,1469.0,50
+julia_queries_006,@ donor,light,cells_daf,557816.0,549563.0,0,1451.0,50
+julia_queries_007,@ cell : ?,light,cells_daf,393234.5,362714.0,0,1189.0,50
+julia_queries_008,@ donor : age,light,cells_daf,1.004305e6,986548.0,0,3189.0,50
+julia_queries_009,@ donor : sex,light,cells_daf,1.137049e6,1.104174e6,0,3288.0,50
+julia_queries_010,@ gene : is_lateral,light,cells_daf,1.252832e6,1.233238e6,0,7736.0,50
+julia_queries_011,@ cell : donor,light,cells_daf,1.377239e6,1.339116e6,0,7519.0,50
+julia_queries_012,@ donor [ age > 60 ],light,cells_daf,1.56183e6,1.539887e6,0,3851.0,50
+julia_queries_013,@ donor [ sex = M ],light,cells_daf,1.640473e6,1.606497e6,0,3927.0,50
+julia_queries_014,@ cell @ gene :: UMIs,light,cells_daf,1.506272e6,1.464654e6,0,13025.0,50
+julia_queries_015,@ cell @ gene :: UMIs >| Sum,light,cells_daf,2.084889e6,2.009451e6,0,13230.0,50
+julia_queries_016,@ cell @ gene :: UMIs >- Sum,light,cells_daf,1.687358e6,1.64881e6,0,13239.0,50
+julia_queries_017,@ donor : age % Log base 2.0 eps 1.0,light,cells_daf,1.2336535e6,1.191836e6,0,3484.0,50
+julia_queries_018,@ donor : age % Clamp min 20 max 60,light,cells_daf,1.2405735e6,1.207098e6,0,3571.0,50
+julia_queries_019,@ donor : age % Fraction,light,cells_daf,1.2075245e6,1.177685e6,0,3436.0,50
+julia_queries_020,@ donor : age % Log base 2.0 eps 1.0 % Significant high 6,light,cells_daf,1.457914e6,1.420438e6,0,3773.0,50
+julia_queries_021,@ cell @ gene :: UMIs >| Var,light,cells_daf,2.4839915e6,2.418133e6,0,13230.0,50
+julia_queries_022,@ cell @ gene :: UMIs >| Std,light,cells_daf,2.4508775e6,2.380327e6,0,13230.0,50
+julia_queries_023,@ cell @ gene :: UMIs >| VarN eps 1,light,cells_daf,2.8042415e6,2.750682e6,0,13259.0,50
+julia_queries_024,@ cell @ gene :: UMIs >| StdN eps 1,light,cells_daf,2.801978e6,2.747637e6,0,13259.0,50
+julia_queries_025,@ cell @ gene :: UMIs >| Median,light,cells_daf,6.5145705e6,5.046391e6,1,19558.0,50
+julia_queries_026,@ cell @ gene :: UMIs >| Quantile p 0.5,light,cells_daf,6.0125485e6,5.493671e6,0,15829.0,50
+julia_queries_027,@ cell @ gene :: UMIs >| GeoMean eps 1,light,cells_daf,7.457253e6,7.398125e6,1,15829.0,50
+julia_queries_028,@ cell @ gene :: UMIs >| Mode,light,cells_daf,8.755954e6,8.695498e6,0,19349.0,50
+julia_queries_029,@ donor : age / sex >> Sum,light,cells_daf,1.7942685e6,1.776562e6,0,4904.0,50
+julia_queries_030,@ donor : age / sex >> Mean,light,cells_daf,1.862896e6,1.797013e6,0,4904.0,50
+julia_queries_031,@ donor : age / sex >> Min,light,cells_daf,1.8349895e6,1.780478e6,0,4882.0,50
+julia_queries_032,@ donor : age / sex >> Max,light,cells_daf,1.859837e6,1.783562e6,0,4882.0,50
+julia_queries_033,@ donor : age / sex >> Median,light,cells_daf,1.8316745e6,1.787649e6,0,4912.0,50
+julia_queries_034,@ donor : age / sex >> Quantile p 0.25,light,cells_daf,1.8125905e6,1.787699e6,0,4936.0,50
+julia_queries_035,@ donor : age / sex >> Var,light,cells_daf,1.846342e6,1.808289e6,0,4904.0,50
+julia_queries_036,@ donor : age / sex >> Std,light,cells_daf,1.842851e6,1.807048e6,0,4904.0,50
+julia_queries_037,@ donor : age / sex >> VarN eps 0.1,light,cells_daf,1.8346485e6,1.783853e6,0,4938.0,50
+julia_queries_038,@ donor : age / sex >> StdN eps 0.1,light,cells_daf,1.876061e6,1.82901e6,0,4938.0,50
+julia_queries_039,@ donor : age / sex >> GeoMean,light,cells_daf,1.8221705e6,1.787378e6,0,4912.0,50
+julia_queries_040,@ cell : experiment / donor >> Mode,light,cells_daf,3.0419075e6,2.955158e6,0,11156.0,50
+julia_queries_041,@ cell @ gene :: UMIs -/ experiment >- Sum,light,cells_daf,5.6171115e6,4.166503e6,1,47723.0,50
+julia_queries_042,@ cell @ gene :: UMIs -/ experiment >- Mean,light,cells_daf,4.8817095e6,4.09106e6,1,47723.0,50
+julia_queries_043,@ cell @ gene :: UMIs -/ experiment >- Max,light,cells_daf,4.885961e6,3.902547e6,1,47599.0,50
+julia_queries_044,@ cell @ gene :: UMIs -/ experiment >- Var,light,cells_daf,5.5640615e6,4.767584e6,1,47723.0,50
+julia_queries_045,@ gene @ cell :: UMIs |/ experiment >| Sum,light,cells_daf,5.2709375e6,4.134736e6,1,47721.0,50
+julia_queries_046,@ gene @ cell :: UMIs |/ experiment >| Mean,light,cells_daf,5.620206e6,4.388695e6,1,47721.0,50
+julia_queries_047,@ gene @ cell :: UMIs |/ experiment >| Max,light,cells_daf,4.8028215e6,4.107534e6,1,47597.0,50
+julia_queries_048,@ gene @ cell :: UMIs % Convert type Int32,light,cells_daf,2.395905e6,1.735731e6,0,13231.0,50
+julia_queries_049,@ donor : age % Convert type Int64,light,cells_daf,1.242772e6,1.209913e6,0,3460.0,50
+julia_queries_050,@ gene : is_lateral % Convert type Int32,light,cells_daf,1.466933e6,1.425225e6,0,8010.0,50
+julia_queries_051,@ gene @ cell :: UMIs % Convert type Int64,light,cells_daf,1.877844e6,1.802861e6,1,13231.0,50
+kernel_sum_row,@ row @ col :: value >| Sum,kernel,big_sparse,2.761355451e9,2.759647146e9,0,108489.0,2
+kernel_sum_col,@ row @ col :: value >- Sum,kernel,big_sparse,6.29918247e8,6.22889805e8,0,108497.0,8
+kernel_mean_row,@ row @ col :: value >| Mean,kernel,big_sparse,2.7397910775e9,2.73904196e9,0,108488.0,2
+kernel_mean_col,@ row @ col :: value >- Mean,kernel,big_sparse,6.51263652e8,6.34528915e8,0,108497.0,8
+kernel_var_row,@ row @ col :: value >| Var,kernel,big_sparse,5.79256974e9,5.79256974e9,0,108489.0,1
+kernel_max_row,@ row @ col :: value >| Max,kernel,big_sparse,2.936258568e9,2.928400383e9,0,108478.0,2
+kernel_max_col,@ row @ col :: value >- Max,kernel,big_sparse,6.849369595e8,6.77650501e8,0,108487.0,8
+kernel_median_row,@ row @ col :: value >| Median,kernel,big_sparse,3.5316650645e9,3.529794797e9,2,198489.0,2
+kernel_mode_row,@ row @ col :: value >| Mode,kernel,big_sparse,6.291025601e9,6.291025601e9,1,284120.0,1
+kernel_geomean_row,@ row @ col :: value >| GeoMean eps 1,kernel,big_sparse,3.45260111e9,3.438857745e9,2,138520.0,2
+kernel_std_row,@ row @ col :: value >| Std,kernel,big_sparse,5.810640141e9,5.810640141e9,0,108488.0,1
+kernel_quantile_row,@ row @ col :: value >| Quantile p 0.5,kernel,big_sparse,3.225596048e9,3.211022439e9,2,138520.0,2
+grouped_g2_sum_100,@ row @ col :: value -/ group_100 >- Sum,grouped,big_sparse,2.932549099e9,2.909702246e9,2,2.131488e6,2
+grouped_g2_mean_100,@ row @ col :: value -/ group_100 >- Mean,grouped,big_sparse,2.929817921e9,2.69530299e9,2,2.131488e6,2
+grouped_g2_mean_1000,@ row @ col :: value -/ group_1000 >- Mean,grouped,big_sparse,3.9019480875e9,3.86926838e9,2,2.0165803e7,2
+grouped_g2_max_100,@ row @ col :: value -/ group_100 >- Max,grouped,big_sparse,3.2297280615e9,3.204940805e9,2,2.130979e6,2
+grouped_g3_sum_100,@ col @ row :: value |/ group_100 >| Sum,grouped,big_sparse,2.117719112e9,2.062013721e9,3,2.131486e6,3
+grouped_g3_mean_100,@ col @ row :: value |/ group_100 >| Mean,grouped,big_sparse,2.146109171e9,2.126349192e9,3,2.131486e6,3
+grouped_g3_mean_1000,@ col @ row :: value |/ group_1000 >| Mean,grouped,big_sparse,2.067930014e9,2.031272779e9,3,2.0165801e7,3
+grouped_g3_max_100,@ col @ row :: value |/ group_100 >| Max,grouped,big_sparse,2.08725128e9,1.782232718e9,3,2.130977e6,3
+mmap_open_read_matrix,@ cell @ gene :: UMIs,mmap,mmap_reopen,1.6773105e6,1.622343e6,0,13053.0,50
+mmap_open_read_vector,@ cell : donor,mmap,mmap_reopen,1.56348e6,1.500801e6,0,7555.0,50
+mmap_open_read_scalar,. organism,mmap,mmap_reopen,642498.0,622924.0,0,1490.0,50
+mmap_open_read_axis,@ cell,mmap,mmap_reopen,810760.5,776274.0,0,1505.0,50
+chain_read_scalar,. organism,chain,chain_triple,398141.5,391938.0,0,2352.0,50
+chain_read_vector,@ cell : donor,chain,chain_triple,1.1388325e6,1.125779e6,0,4971.0,50
+chain_read_matrix,@ cell @ gene :: UMIs,chain,chain_triple,1.08698e6,1.071626e6,0,6062.0,50
+chain_reduce,@ cell @ gene :: UMIs >| Sum,chain,chain_triple,1.663775e6,1.632548e6,0,6275.0,50

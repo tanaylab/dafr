@@ -1,0 +1,7 @@
+# R build artifacts in scratch/dev packages
+*.o
+*.so
+*.dll
+*.rds
+.Rhistory
+.RData

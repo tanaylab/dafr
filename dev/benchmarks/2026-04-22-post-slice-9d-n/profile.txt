@@ -1,0 +1,35 @@
+Fixture: nr=100000 nc=5000 density=0.020 nnz=10000000
+OMP_NUM_THREADS (env)     : <unset>
+parallel::detectCores()   : 128
+dafr.kernel_threshold     : 1024
+kernel_var_csc (Var, axis=0)              wall=  0.026s  RSS_delta=  672.0 MB  len=100000
+kernel_minmax_csc (Max, axis=0)           wall=  0.024s  RSS_delta=    0.0 MB  len=100000
+kernel_log_reduce (Sum, axis=0)           wall=  0.028s  RSS_delta=    0.0 MB  len=100000
+kernel_geomean_csc (axis=0)               wall=  0.024s  RSS_delta=    0.0 MB  len=100000
+kernel_mode_csc (axis=0)                  wall=  0.108s  RSS_delta= 8250.9 MB  len=100000
+kernel_quantile_csc (q=0.5, axis=0)       wall=  0.044s  RSS_delta=    0.0 MB  len=100000
+
+Done.
+	Command being timed: "Rscript dev/scripts/stress-9d-n-memory.R"
+	User time (seconds): 22.03
+	System time (seconds): 0.89
+	Percent of CPU this job got: 521%
+	Elapsed (wall clock) time (h:mm:ss or m:ss): 0:04.39
+	Average shared text size (kbytes): 0
+	Average unshared data size (kbytes): 0
+	Average stack size (kbytes): 0
+	Average total size (kbytes): 0
+	Maximum resident set size (kbytes): 694576
+	Average resident set size (kbytes): 0
+	Major (requiring I/O) page faults: 0
+	Minor (reclaiming a frame) page faults: 287114
+	Voluntary context switches: 9568
+	Involuntary context switches: 230
+	Swaps: 0
+	File system inputs: 0
+	File system outputs: 232
+	Socket messages sent: 0
+	Socket messages received: 0
+	Signals delivered: 0
+	Page size (bytes): 4096
+	Exit status: 0

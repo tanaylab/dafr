@@ -1,0 +1,54 @@
+==============================================================
+OMP_NUM_THREADS=1
+==============================================================
+nrow=10000 ncol=10000 ngroups=100 nnz=1000000 threads=1
+[threads=1] reduce_csc_Sum      wall = 0.106 s
+[threads=1] reduce_csc_Var      wall = 0.105 s
+[threads=1] mode_csc            wall = 0.375 s
+[threads=1] quantile_csc_p50    wall = 0.163 s
+wrote results-threads-1.csv
+	User time (seconds): 3.20
+	System time (seconds): 0.74
+	Elapsed (wall clock) time (h:mm:ss or m:ss): 0:04.69
+	Maximum resident set size (kbytes): 396936
+==============================================================
+OMP_NUM_THREADS=8
+==============================================================
+nrow=10000 ncol=10000 ngroups=100 nnz=1000000 threads=8
+[threads=8] reduce_csc_Sum      wall = 0.273 s
+[threads=8] reduce_csc_Var      wall = 0.369 s
+[threads=8] mode_csc            wall = 0.304 s
+[threads=8] quantile_csc_p50    wall = 0.272 s
+wrote results-threads-8.csv
+	User time (seconds): 5.15
+	System time (seconds): 1.78
+	Elapsed (wall clock) time (h:mm:ss or m:ss): 0:05.11
+	Maximum resident set size (kbytes): 778988
+==============================================================
+OMP_NUM_THREADS=32
+==============================================================
+nrow=10000 ncol=10000 ngroups=100 nnz=1000000 threads=32
+[threads=32] reduce_csc_Sum      wall = 0.948 s
+[threads=32] reduce_csc_Var      wall = 0.842 s
+[threads=32] mode_csc            wall = 0.567 s
+[threads=32] quantile_csc_p50    wall = 0.566 s
+wrote results-threads-32.csv
+	User time (seconds): 9.54
+	System time (seconds): 4.69
+	Elapsed (wall clock) time (h:mm:ss or m:ss): 0:08.54
+	Maximum resident set size (kbytes): 2089508
+==============================================================
+OMP_NUM_THREADS=128
+==============================================================
+nrow=10000 ncol=10000 ngroups=100 nnz=1000000 threads=128
+[threads=128] reduce_csc_Sum      wall = 3.177 s
+[threads=128] reduce_csc_Var      wall = 3.519 s
+[threads=128] mode_csc            wall = 3.615 s
+[threads=128] quantile_csc_p50    wall = 1.690 s
+wrote results-threads-128.csv
+	User time (seconds): 31.60
+	System time (seconds): 23.90
+	Elapsed (wall clock) time (h:mm:ss or m:ss): 0:25.77
+	Maximum resident set size (kbytes): 7339100
+
+done; per-thread CSV + rusage files written to /home/aviezerl/src/dafr-native/dev/benchmarks/2026-04-22-pre-slice-9d-m-baseline

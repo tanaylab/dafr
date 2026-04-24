@@ -1,0 +1,6 @@
+"benchmark","expression","median_s"
+"open_cold","mmap",0.00257914344547316
+"colSums","native",0.00252824707422405
+"colSums","mmap",0.00249959947541356
+"transpose","native",0.00645935104694217
+"transpose","mmap",0.00396474404260516

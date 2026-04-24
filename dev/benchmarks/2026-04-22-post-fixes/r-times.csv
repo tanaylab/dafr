@@ -1,0 +1,87 @@
+# runner: R
+# dafr_commit: 365c1a08117af55d010b4e81509b33f0af75f355
+# R_version: 4.4.1
+# platform: x86_64-pc-linux-gnu
+# OMP_NUM_THREADS: 1
+# BLAS: /net/mraid20/ifs/wisdom/tanay_lab/data/users/eladch/tools/CO8/mkl/2024.1/lib/libmkl_gf_lp64.so.2
+# fixtures: big_sparse=112972aa279bf184; cells_daf=892948c6ec288d6c; chain_triple=9f75f5a89bf4ba5f; mmap_reopen=892948c6ec288d6c
+"query_id","query_text","category","fixture","median_time_ns","min_time_ns","gc_count","allocations","n_iter"
+"julia_queries_001",". ?","light","cells_daf",409374.013543129,343674.095347524,4,0,1019
+"julia_queries_002",". organism","light","cells_daf",526018.091477454,494881.067425013,5,0,863
+"julia_queries_003",". reference","light","cells_daf",547210.103832185,502162.030898035,5,0,885
+"julia_queries_004","@ ?","light","cells_daf",360871.08310312,327962.101437151,5,0,1334
+"julia_queries_005","@ cell","light","cells_daf",244116.061367094,230325.036682189,8,0,1931
+"julia_queries_006","@ donor","light","cells_daf",232548.569329083,219639.041461051,9,0,2024
+"julia_queries_007","@ cell : ?","light","cells_daf",598516.54805243,521502.108313143,4,0,652
+"julia_queries_008","@ donor : age","light","cells_daf",970314.024016261,865267.124027014,5,0,389
+"julia_queries_009","@ donor : sex","light","cells_daf",1100243.06923151,974110.094830394,4,0,388
+"julia_queries_010","@ gene : is_lateral","light","cells_daf",1029081.99187368,890154.04228121,5,0,429
+"julia_queries_011","@ cell : donor","light","cells_daf",1170419.0983437,1023343.06575358,4,0,376
+"julia_queries_012","@ donor [ age > 60 ]","light","cells_daf",1137825.07833093,1023103.01735997,5,0,380
+"julia_queries_013","@ donor [ sex = M ]","light","cells_daf",1231885.57336107,1116363.09884489,5,0,336
+"julia_queries_014","@ cell @ gene :: UMIs","light","cells_daf",1164584.53703672,990964.123047888,2,0,258
+"julia_queries_015","@ cell @ gene :: UMIs >| Sum","light","cells_daf",3220124.17018414,3020415.08257389,7,0,129
+"julia_queries_016","@ cell @ gene :: UMIs >- Sum","light","cells_daf",2610662.13715822,2493345.17866373,7,0,119
+"julia_queries_017","@ donor : age % Log base 2.0 eps 1.0","light","cells_daf",1313302.60774121,1208321.07495517,2,0,326
+"julia_queries_018","@ donor : age % Clamp min 20 max 60","light","cells_daf",1384515.08246362,1217134.06406343,2,0,307
+"julia_queries_019","@ donor : age % Fraction","light","cells_daf",1042712.13058382,962803.023867309,3,0,469
+"julia_queries_020","@ donor : age % Log base 2.0 eps 1.0 % Significant high 6","light","cells_daf",1518575.1253739,1432596.12377733,3,0,323
+"julia_queries_021","@ cell @ gene :: UMIs >| Var","light","cells_daf",2920776.02352947,2799024.10693467,6,0,115
+"julia_queries_022","@ cell @ gene :: UMIs >| Std","light","cells_daf",2890796.05136067,2803741.13935977,5,0,124
+"julia_queries_023","@ cell @ gene :: UMIs >| VarN eps 1","light","cells_daf",4807371.99541181,4571208.03184807,5,0,101
+"julia_queries_024","@ cell @ gene :: UMIs >| StdN eps 1","light","cells_daf",4742806.07886612,4571419.09282655,3,0,79
+"julia_queries_025","@ cell @ gene :: UMIs >| Median","light","cells_daf",5116475.04754364,4873931.99000508,4,0,95
+"julia_queries_026","@ cell @ gene :: UMIs >| Quantile p 0.5","light","cells_daf",18279227.0788923,17630895.0176463,4,0,27
+"julia_queries_027","@ cell @ gene :: UMIs >| GeoMean eps 1","light","cells_daf",10498158.1680477,9979631.05328381,4,0,45
+"julia_queries_028","@ cell @ gene :: UMIs >| Mode","light","cells_daf",19933249.1029054,17770674.0796566,8,0,18
+"julia_queries_029","@ donor : age / sex >> Sum","light","cells_daf",1803166.05838016,1660658.0466032,2,0,270
+"julia_queries_030","@ donor : age / sex >> Mean","light","cells_daf",1803472.05605358,1651945.17467171,2,0,273
+"julia_queries_031","@ donor : age / sex >> Min","light","cells_daf",1745565.09591639,1639967.08579361,2,0,281
+"julia_queries_032","@ donor : age / sex >> Max","light","cells_daf",1775315.08961692,1632246.07240409,2,0,276
+"julia_queries_033","@ donor : age / sex >> Median","light","cells_daf",1857193.07046384,1719215.06989747,3,0,261
+"julia_queries_034","@ donor : age / sex >> Quantile p 0.25","light","cells_daf",2009000.04711002,1854798.98937047,2,0,245
+"julia_queries_035","@ donor : age / sex >> Var","light","cells_daf",1806617.07418039,1680888.11915368,2,0,272
+"julia_queries_036","@ donor : age / sex >> Std","light","cells_daf",1830122.08435684,1663051.07995868,2,0,269
+"julia_queries_037","@ donor : age / sex >> VarN eps 0.1","light","cells_daf",1868499.09368902,1774279.05146033,3,0,261
+"julia_queries_038","@ donor : age / sex >> StdN eps 0.1","light","cells_daf",1923101.60491616,1805145.06064355,2,0,256
+"julia_queries_039","@ donor : age / sex >> GeoMean","light","cells_daf",1784223.01542014,1663732.10959136,2,0,273
+"julia_queries_040","@ cell : experiment / donor >> Mode","light","cells_daf",2896109.13023353,2504893.11292768,2,0,166
+"julia_queries_041","@ cell @ gene :: UMIs -/ experiment >- Sum","light","cells_daf",4199041.05365276,4006503.03345174,1,0,118
+"julia_queries_042","@ cell @ gene :: UMIs -/ experiment >- Mean","light","cells_daf",4246541.58996418,4057249.05431271,1,0,116
+"julia_queries_043","@ cell @ gene :: UMIs -/ experiment >- Max","light","cells_daf",10298359.0913936,9956717.02548862,2,0,47
+"julia_queries_044","@ cell @ gene :: UMIs -/ experiment >- Var","light","cells_daf",5182555.06176502,4968094.0574035,2,0,93
+"julia_queries_045","@ gene @ cell :: UMIs |/ experiment >| Sum","light","cells_daf",4038786.04993224,3921716.12475067,1,0,122
+"julia_queries_046","@ gene @ cell :: UMIs |/ experiment >| Mean","light","cells_daf",4139270.63345909,3920802.03164369,1,0,118
+"julia_queries_047","@ gene @ cell :: UMIs |/ experiment >| Max","light","cells_daf",10781267.5414607,10269011.0215917,2,0,46
+"julia_queries_048","@ gene @ cell :: UMIs % Convert type Int32","light","cells_daf",1449281.11694753,1355260.14491916,2,0,337
+"julia_queries_049","@ donor : age % Convert type Int64","light","cells_daf",1220598.06017205,1158916.15860164,3,0,396
+"julia_queries_050","@ gene : is_lateral % Convert type Int32","light","cells_daf",1240508.04879516,1167919.02109981,3,0,391
+"julia_queries_051","@ gene @ cell :: UMIs % Convert type Int64","light","cells_daf",2078223.04219007,1890021.14348114,15,0,137
+"kernel_sum_row","@ row @ col :: value >| Sum","kernel","big_sparse",164722469.053231,158324006.013572,5,0,5
+"kernel_sum_col","@ row @ col :: value >- Sum","kernel","big_sparse",176435612.142086,175498759.024777,5,0,5
+"kernel_mean_row","@ row @ col :: value >| Mean","kernel","big_sparse",164066827.157512,163123995.065689,5,0,5
+"kernel_mean_col","@ row @ col :: value >- Mean","kernel","big_sparse",173380086.082034,173200627.090409,5,0,5
+"kernel_var_row","@ row @ col :: value >| Var","kernel","big_sparse",167996092.000976,166461604.065262,5,0,5
+"kernel_max_row","@ row @ col :: value >| Max","kernel","big_sparse",167866097.996011,166059361.072257,5,0,5
+"kernel_max_col","@ row @ col :: value >- Max","kernel","big_sparse",161393152.084202,159472416.15504,5,0,5
+"kernel_median_row","@ row @ col :: value >| Median","kernel","big_sparse",199473517.131992,197995984.111913,5,0,5
+"kernel_mode_row","@ row @ col :: value >| Mode","kernel","big_sparse",870369725.162163,860944518.120959,5,0,5
+"kernel_geomean_row","@ row @ col :: value >| GeoMean eps 1","kernel","big_sparse",236488135.065883,235740194.097161,5,0,5
+"kernel_std_row","@ row @ col :: value >| Std","kernel","big_sparse",166475765.057839,165550389.094278,5,0,5
+"kernel_quantile_row","@ row @ col :: value >| Quantile p 0.5","kernel","big_sparse",199090413.050726,198268352.076411,5,0,5
+"grouped_g2_sum_100","@ row @ col :: value -/ group_100 >- Sum","grouped","big_sparse",224800820.11316,105031508.137472,9,0,5
+"grouped_g2_mean_100","@ row @ col :: value -/ group_100 >- Mean","grouped","big_sparse",223659370.094538,223143578.041345,10,0,5
+"grouped_g2_mean_1000","@ row @ col :: value -/ group_1000 >- Mean","grouped","big_sparse",290627220.06347,289808313.12947,13,0,5
+"grouped_g2_max_100","@ row @ col :: value -/ group_100 >- Max","grouped","big_sparse",102432907.093316,96966930.0829992,3,0,5
+"grouped_g3_sum_100","@ col @ row :: value |/ group_100 >| Sum","grouped","big_sparse",165311872.14423,161389667.075127,4,0,5
+"grouped_g3_mean_100","@ col @ row :: value |/ group_100 >| Mean","grouped","big_sparse",166037528.07714,141966147.115454,4,0,5
+"grouped_g3_mean_1000","@ col @ row :: value |/ group_1000 >| Mean","grouped","big_sparse",1062225231.0859,936316395.062022,8,0,5
+"grouped_g3_max_100","@ col @ row :: value |/ group_100 >| Max","grouped","big_sparse",182262859.074399,140772388.08386,4,0,5
+"mmap_open_read_matrix","@ cell @ gene :: UMIs","mmap","mmap_reopen",4018890.08935541,3775535.15136242,3,0,121
+"mmap_open_read_vector","@ cell : donor","mmap","mmap_reopen",2890709.0309076,2740895.02636343,4,0,168
+"mmap_open_read_scalar",". organism","mmap","mmap_reopen",983964.069746435,926708.104088902,2,0,497
+"mmap_open_read_axis","@ cell","mmap","mmap_reopen",2107406.03506565,2010071.06807083,4,0,229
+"chain_read_scalar",". organism","chain","chain_triple",642383.121885359,610153.074376285,3,0,748
+"chain_read_vector","@ cell : donor","chain","chain_triple",691060.093231499,657794.997096062,4,0,684
+"chain_read_matrix","@ cell @ gene :: UMIs","chain","chain_triple",927654.094994068,887309.084646404,5,0,508
+"chain_reduce","@ cell @ gene :: UMIs >| Sum","chain","chain_triple",2788606.09978437,2746314.04317915,1,0,177

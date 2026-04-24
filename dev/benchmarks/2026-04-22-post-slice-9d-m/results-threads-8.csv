@@ -1,0 +1,5 @@
+"threads","kernel","wall_s"
+8,"reduce_csc_Sum",0.0369999999999999
+8,"reduce_csc_Var",0.0309999999999997
+8,"mode_csc",0.0880000000000001
+8,"quantile_csc_p50",0.0630000000000002

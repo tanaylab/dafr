@@ -1,0 +1,3 @@
+useDynLib(dafrBakeoffEigen, .registration = TRUE)
+importFrom(Rcpp, sourceCpp)
+export(eigen_log_add, eigen_csc_colsums, eigen_csc_to_csr)

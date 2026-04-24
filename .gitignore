@@ -8,8 +8,10 @@
 src/symbols.rds
 .DS_Store
 
-# dev/ has its own git repo (design docs, specs, plans, benchmarks, scripts)
-dev/
+# dev/ is tracked on the `dev` branch and stripped by the ship script
+# before promotion to `main`. The outer .gitignore intentionally does
+# not hide dev/ here so its contents live alongside package sources on
+# the dev branch.
 
 # babysitter/a5c runs and state
 .a5c/

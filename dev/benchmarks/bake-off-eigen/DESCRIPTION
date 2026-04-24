@@ -1,0 +1,9 @@
+Package: dafrBakeoffEigen
+Version: 0.0.0
+Title: Eigen-based arm of the dafr Slice 0 bake-off
+License: MIT + file LICENSE
+Depends: R (>= 4.4.0)
+LinkingTo: Rcpp, RcppEigen
+Imports: Rcpp
+SystemRequirements: C++17
+Encoding: UTF-8

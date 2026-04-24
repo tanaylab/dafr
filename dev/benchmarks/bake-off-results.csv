@@ -1,0 +1,7 @@
+"expression","kernel","median_s"
+D_cpp11,"log_add",0.0202398120891303
+B_eigen,"log_add",0.134192027966492
+D_cpp11,"colsums",0.0105825260980055
+B_eigen,"colsums",0.000132810091599822
+D_cpp11,"transpose",0.00181576702743769
+B_eigen,"transpose",0.0012120611499995
