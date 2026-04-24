@@ -740,6 +740,20 @@ SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 - [`get_reduction()`](https://tanaylab.github.io/dafr/reference/get_reduction.md)
   : Retrieve a registered reduction operation by name.
 
+## Fast kernels
+
+OpenMP-parallel kernels callable directly on in-memory data, bypassing
+the DSL overhead. Intended for downstream packages with their own
+session-level caches.
+
+- [`fast_log()`](https://tanaylab.github.io/dafr/reference/fast_log.md)
+  :
+
+  Parallel `log(x + eps) / log(base)` on dense numeric input.
+
+- [`top_k_per_col()`](https://tanaylab.github.io/dafr/reference/top_k_per_col.md)
+  : Per-column bounded top-K with OpenMP.
+
 ## Handlers
 
 - [`register_dafr_handler()`](https://tanaylab.github.io/dafr/reference/register_dafr_handler.md)
@@ -854,13 +868,23 @@ auto-capped to two cores on package load.
 
 # Articles
 
-### All vignettes
+### Getting started
 
-- [AnnData
-  interop](https://tanaylab.github.io/dafr/articles/anndata.md):
 - [Getting Started with
   dafr](https://tanaylab.github.io/dafr/articles/dafr.md):
+- [Query DSL](https://tanaylab.github.io/dafr/articles/queries.md):
 - [dplyr backend](https://tanaylab.github.io/dafr/articles/dplyr.md):
+- [AnnData
+  interop](https://tanaylab.github.io/dafr/articles/anndata.md):
 - [Native performance and mmap
   readers](https://tanaylab.github.io/dafr/articles/native-performance.md):
-- [Query DSL](https://tanaylab.github.io/dafr/articles/queries.md):
+
+### Reference specifications
+
+Normative references for the query language and the on-disk store. Not
+shipped with the CRAN tarball; rendered on the pkgdown site only.
+
+- [Query DSL
+  reference](https://tanaylab.github.io/dafr/articles/query-dsl-reference.md):
+- [FilesDaf on-disk
+  format](https://tanaylab.github.io/dafr/articles/files-daf-format.md):

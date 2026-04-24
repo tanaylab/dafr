@@ -16,14 +16,18 @@
 
     <div id="navbar" class="collapse navbar-collapse ms-3">
       <ul class="navbar-nav me-auto"><li class="nav-item"><a class="nav-link" href="../articles/dafr.html">Get started</a></li>
-<li class="nav-item"><a class="nav-link" href="../reference/index.html">Reference</a></li>
 <li class="nav-item dropdown">
   <button class="nav-link dropdown-toggle" type="button" id="dropdown-articles" data-bs-toggle="dropdown" aria-expanded="false" aria-haspopup="true">Articles</button>
-  <ul class="dropdown-menu" aria-labelledby="dropdown-articles"><li><a class="dropdown-item" href="../articles/anndata.html">AnnData interop</a></li>
+  <ul class="dropdown-menu" aria-labelledby="dropdown-articles"><li><a class="dropdown-item" href="../articles/queries.html">Query DSL</a></li>
     <li><a class="dropdown-item" href="../articles/dplyr.html">dplyr backend</a></li>
+    <li><a class="dropdown-item" href="../articles/anndata.html">AnnData interop</a></li>
     <li><a class="dropdown-item" href="../articles/native-performance.html">Native performance and mmap readers</a></li>
-    <li><a class="dropdown-item" href="../articles/queries.html">Query DSL</a></li>
+    <li><hr class="dropdown-divider"></li>
+    <li><h6 class="dropdown-header" data-toc-skip>Reference specs</h6></li>
+    <li><a class="dropdown-item" href="../articles/query-dsl-reference.html">Query DSL reference</a></li>
+    <li><a class="dropdown-item" href="../articles/files-daf-format.html">FilesDaf on-disk format</a></li>
   </ul></li>
+<li class="nav-item"><a class="nav-link" href="../reference/index.html">Reference</a></li>
 <li class="active nav-item"><a class="nav-link" href="../news/index.html">Changelog</a></li>
       </ul><ul class="navbar-nav"><li class="nav-item"><form class="form-inline" role="search">
  <input class="form-control" type="search" name="search-input" id="search-input" autocomplete="off" aria-label="Search site" placeholder="Search for" data-search-index="../search.json"></form></li>
@@ -40,6 +44,21 @@
       <small>Source: <a href="https://github.com/tanaylab/dafr/blob/main/NEWS.md" class="external-link"><code>NEWS.md</code></a></small>
     </div>
 
+    <div class="section level2">
+<h2 class="pkg-version" data-toc-text="0.1.0" id="dafr-010-development">dafr 0.1.0 (development)<a class="anchor" aria-label="anchor" href="#dafr-010-development"></a></h2>
+<div class="section level3">
+<h3 id="query-dsl-julia-parity-parser-additions-0-1-0">Query DSL: Julia-parity parser additions<a class="anchor" aria-label="anchor" href="#query-dsl-julia-parity-parser-additions-0-1-0"></a></h3>
+<p>Three DataAxesFormats.jl query-DSL features that were previously missing have been implemented, closing the last semantic gaps between <code>dafr</code> and the upstream Julia package:</p>
+<ul><li>
+<code>&gt;&gt; Reduction</code> reduces a vector or matrix to a scalar (e.g. <code>@ gene : is_lateral &gt;&gt; Sum type Int64</code>, or <code>@ cell @ gene :: UMIs &gt;&gt; Sum</code>). <code>&gt;&gt;</code> is no longer silently aliased to <code>&gt;|</code>; on a grouped input (<code>... / g &gt;&gt; Sum</code>) it continues to produce a per-group vector, as before.</li>
+<li>
+<code>@ axis = entry</code> picks one entry from a vector (<code>@ cell : age @ cell = N89</code>) or one cell from a matrix (<code>@ cell @ gene :: UMIs @ cell = C @ gene = X</code>). Two successive picks collapse a matrix to a scalar.</li>
+<li>
+<code>|| value type T</code> attaches a Julia-style dtype (<code>Bool</code>, <code>Int8</code>..<code>Int64</code>, <code>UInt8</code>..<code>UInt64</code>, <code>Float32</code>, <code>Float64</code>, <code>String</code>) to a scalar-lookup default, matching the existing behaviour of the same suffix inside reductions and element-wise ops.</li>
+<li>
+<code><a href="../reference/IfMissing.html">IfMissing()</a></code> builder gains an optional <code>type</code> kwarg (<code>IfMissing(0, type = "Int64")</code>).</li>
+</ul></div>
+</div>
     <div class="section level2">
 <h2 class="pkg-version" data-toc-text="0.1.0" id="dafr-010">dafr 0.1.0<a class="anchor" aria-label="anchor" href="#dafr-010"></a></h2>
 <p>First public release.</p>

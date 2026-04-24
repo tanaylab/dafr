@@ -419,6 +419,20 @@
 - [`get_reduction()`](https://tanaylab.github.io/dafr/reference/get_reduction.md)
   : Retrieve a registered reduction operation by name.
 
+## Fast kernels
+
+OpenMP-parallel kernels callable directly on in-memory data, bypassing
+the DSL overhead. Intended for downstream packages with their own
+session-level caches.
+
+- [`fast_log()`](https://tanaylab.github.io/dafr/reference/fast_log.md)
+  :
+
+  Parallel `log(x + eps) / log(base)` on dense numeric input.
+
+- [`top_k_per_col()`](https://tanaylab.github.io/dafr/reference/top_k_per_col.md)
+  : Per-column bounded top-K with OpenMP.
+
 ## Handlers
 
 - [`register_dafr_handler()`](https://tanaylab.github.io/dafr/reference/register_dafr_handler.md)

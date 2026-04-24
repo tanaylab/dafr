@@ -1,15 +1,25 @@
-# dafr: Multi-Dimensional Data Along Arbitrary Axes
+# dafr: Data in Axes in Formats (DAF) for R
 
-A native R implementation of the DataAxesFormats (DAF) data model for
-multi-dimensional data along arbitrary axes. Provides the MemoryDaf and
-FilesDaf storage backends, a query DSL, views, chains, contracts,
-computations, adapters, and operations. Designed for efficiency on large
-single-cell datasets via memory-mapped file access (ALTREP), hand-tuned
-C++ kernels, and optional OpenMP parallelism.
+A native R implementation of the 'DataAxesFormats.jl'
+<https://github.com/tanaylab/DataAxesFormats.jl> data model, providing a
+uniform interface for accessing 1D and 2D data arranged along arbitrary
+axes. This generalizes and extends 'AnnData'-like functionality,
+supporting both scalars and multiple data modalities (e.g. RNA-seq,
+ATAC-seq), efficient memory management via memory-mapped reads, and a
+composable query DSL. Unlike the 'dafJuliaWrapper'
+<https://github.com/tanaylab/dafJuliaWrapper> interface, 'dafr' has no
+'Julia' dependency; storage, query evaluation, and reductions are
+implemented directly in R and C++ with optional 'OpenMP' parallelism.
+The package ships in-memory ('MemoryDaf') and file-backed ('FilesDaf')
+storage, an 'AnnData' facade with h5ad read/write, computation contracts
+for pre/post-condition validation, and a 'dplyr' backend for tidy-verbs
+access to axis data.
 
 ## See also
 
 Useful links:
+
+- <https://tanaylab.github.io/dafr/>
 
 - <https://github.com/tanaylab/dafr>
 

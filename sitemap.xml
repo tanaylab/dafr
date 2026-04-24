@@ -5,9 +5,11 @@
 <url><loc>https://tanaylab.github.io/dafr/articles/anndata.html</loc></url>
 <url><loc>https://tanaylab.github.io/dafr/articles/dafr.html</loc></url>
 <url><loc>https://tanaylab.github.io/dafr/articles/dplyr.html</loc></url>
+<url><loc>https://tanaylab.github.io/dafr/articles/files-daf-format.html</loc></url>
 <url><loc>https://tanaylab.github.io/dafr/articles/index.html</loc></url>
 <url><loc>https://tanaylab.github.io/dafr/articles/native-performance.html</loc></url>
 <url><loc>https://tanaylab.github.io/dafr/articles/queries.html</loc></url>
+<url><loc>https://tanaylab.github.io/dafr/articles/query-dsl-reference.html</loc></url>
 <url><loc>https://tanaylab.github.io/dafr/authors.html</loc></url>
 <url><loc>https://tanaylab.github.io/dafr/index.html</loc></url>
 <url><loc>https://tanaylab.github.io/dafr/news/index.html</loc></url>
@@ -133,6 +135,7 @@
 <url><loc>https://tanaylab.github.io/dafr/reference/example_chain_daf.html</loc></url>
 <url><loc>https://tanaylab.github.io/dafr/reference/example_metacells_daf.html</loc></url>
 <url><loc>https://tanaylab.github.io/dafr/reference/expectation-constants.html</loc></url>
+<url><loc>https://tanaylab.github.io/dafr/reference/fast_log.html</loc></url>
 <url><loc>https://tanaylab.github.io/dafr/reference/files_daf.html</loc></url>
 <url><loc>https://tanaylab.github.io/dafr/reference/function_contract.html</loc></url>
 <url><loc>https://tanaylab.github.io/dafr/reference/get_dataframe.html</loc></url>
@@ -182,6 +185,7 @@
 <url><loc>https://tanaylab.github.io/dafr/reference/set_scalar.html</loc></url>
 <url><loc>https://tanaylab.github.io/dafr/reference/set_vector.html</loc></url>
 <url><loc>https://tanaylab.github.io/dafr/reference/tensor_contract.html</loc></url>
+<url><loc>https://tanaylab.github.io/dafr/reference/top_k_per_col.html</loc></url>
 <url><loc>https://tanaylab.github.io/dafr/reference/unescape_value.html</loc></url>
 <url><loc>https://tanaylab.github.io/dafr/reference/vector_version_counter.html</loc></url>
 <url><loc>https://tanaylab.github.io/dafr/reference/vectors_set.html</loc></url>

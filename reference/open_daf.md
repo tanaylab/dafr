@@ -35,10 +35,10 @@ tmp <- tempfile(); dir.create(tmp)
 files_daf(tmp, name = "tmp", mode = "w+")
 #> <dafr::FilesDaf>
 #>  @ name                  : chr "tmp"
-#>  @ internal              :<environment: 0x55fd3b5be198> 
-#>  @ cache                 :<environment: 0x55fd3b5bae90> 
-#>  @ axis_version_counter  :<environment: 0x55fd3b5b8b80> 
-#>  @ vector_version_counter:<environment: 0x55fd3b5b8e58> 
-#>  @ matrix_version_counter:<environment: 0x55fd3b5b9130> 
+#>  @ internal              :<environment: 0x56540f36ec70> 
+#>  @ cache                 :<environment: 0x56540f36cb58> 
+#>  @ axis_version_counter  :<environment: 0x56540f366ea0> 
+#>  @ vector_version_counter:<environment: 0x56540f3637e0> 
+#>  @ matrix_version_counter:<environment: 0x56540f3642d0> 
 d <- open_daf(tmp, "r")
 ```
