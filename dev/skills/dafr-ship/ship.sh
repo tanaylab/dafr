@@ -69,7 +69,12 @@ git read-tree --reset -u "$DEV_BRANCH"
 for path in "${DEV_ONLY_PATHS[@]}"; do
     if git ls-files --error-unmatch "$path" >/dev/null 2>&1 || [[ -e "$path" ]]; then
         info "Removing dev-only: $path"
-        git rm -rf "$path" 2>/dev/null || rm -rf "$path"
+        # Drop from the index regardless of on-disk removability.
+        git rm -rf --cached "$path" >/dev/null 2>&1 || true
+        # Try to remove from the working tree but tolerate live-session
+        # locks (e.g. .claude/.nfs* on mounted filesystems). These are
+        # already ignored on main and will be re-excluded on next ship.
+        rm -rf "$path" 2>/dev/null || true
     fi
 done
 
