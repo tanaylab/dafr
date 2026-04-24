@@ -91,6 +91,7 @@ NULL
         CountBy = paste0("* ", .escape_value(n$property)),
         ReduceToColumn = .canonicalise_reduction(">|", n$reduction, n$params),
         ReduceToRow = .canonicalise_reduction(">-", n$reduction, n$params),
+        ReduceToScalar = .canonicalise_reduction(">>", n$reduction, n$params),
         Eltwise = .canonicalise_eltwise(n$name, n$params),
         stop(sprintf("no canonicaliser for %s", n$op), call. = FALSE)
     )
@@ -211,6 +212,9 @@ unescape_value <- function(s) {
 }
 .qop_reduce_to_row <- function(reduction, params = list()) {
     .qop("ReduceToRow", reduction = reduction, params = params)
+}
+.qop_reduce_to_scalar <- function(reduction, params = list()) {
+    .qop("ReduceToScalar", reduction = reduction, params = params)
 }
 
 .qop_eltwise <- function(name, params = list()) {

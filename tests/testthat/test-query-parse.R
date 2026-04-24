@@ -161,14 +161,22 @@ test_that("has_query returns FALSE for missing data", {
     expect_true(has_query(d, ". organism"))
 })
 
-test_that(">> parses identically to >| (G1 Julia-parity alias)", {
+test_that(">> parses to ReduceToScalar (distinct from >| -> ReduceToColumn)", {
+    # Before Slice "parser" 2026-04-24, `>>` was aliased to `>|` for Julia
+    # G1 parity. Julia semantics actually use `>>` as `ReductionOperation`
+    # (vector/matrix -> scalar; grouped inputs -> per-group reduction),
+    # so `>>` now has its own AST node. Both still reduce per-group on
+    # grouped inputs — see test-query-reduce-to-scalar.R for the grouped
+    # equivalence check.
     a <- parse_query("@ ax : x / g >> Sum")
     b <- parse_query("@ ax : x / g >| Sum")
-    expect_identical(a, b)
+    expect_equal(a[[length(a)]]$op, "ReduceToScalar")
+    expect_equal(b[[length(b)]]$op, "ReduceToColumn")
+    expect_equal(a[[length(a)]]$reduction, b[[length(b)]]$reduction)
 })
 
-test_that(">> alias works for Mode on character (Julia-parity G1)", {
+test_that(">> Mode parses as ReduceToScalar on character data", {
     a <- parse_query("@ ax : color / g >> Mode")
-    b <- parse_query("@ ax : color / g >| Mode")
-    expect_identical(a, b)
+    expect_equal(a[[length(a)]]$op, "ReduceToScalar")
+    expect_equal(a[[length(a)]]$reduction, "Mode")
 })

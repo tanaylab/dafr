@@ -505,7 +505,12 @@ Names <- .make_nullary("Names", .qop_names)
 #' Axis("cell") |> LookupVector("age") |> IfMissing(0, type = "Int64")
 #' @seealso [IfNot()]
 #' @export
-IfMissing <- function(value, type = NULL, ...) {
+IfMissing <- function(value, ..., type = NULL) {
+    # `type` comes after `...` so that the piped form
+    #   prior_query |> IfMissing(0)
+    # still binds `0` to `value` (when no prior is present) or to the first
+    # dot argument (when prior is piped in as `value`). Requiring `type` to
+    # be passed by name mirrors the Julia `IfMissing(value; type)` kwarg.
     res <- .extract_query_and_value(
         value, missing(value), list(...),
         required = TRUE

@@ -123,7 +123,8 @@ NULL
         SquareRowIs = ,
         SquareColumnIs = .apply_square_slice,
         ReduceToColumn = ,
-        ReduceToRow = .apply_reduction,
+        ReduceToRow = ,
+        ReduceToScalar = .apply_reduction,
         Eltwise = .apply_eltwise,
         GroupBy = ,
         GroupRowsBy = ,
@@ -692,6 +693,11 @@ NULL
     if (identical(state$kind, "grouped_matrix_cols")) {
         return(.apply_reduction_grouped_matrix(node, state, daf, by = "cols"))
     }
+    # ReduceToScalar accepts plain vector or matrix inputs (Julia parity).
+    if (identical(node$op, "ReduceToScalar") &&
+        state$kind %in% c("vector", "matrix")) {
+        return(.apply_reduction_to_scalar(node, state, daf))
+    }
     if (!identical(state$kind, "matrix")) {
         stop(sprintf("%s requires a matrix or grouped scope", node$op),
             call. = FALSE
@@ -708,6 +714,34 @@ NULL
     }
 
     .apply_reduction_slow(node, state, fn, params, daf)
+}
+
+# `>>` ReductionOperation reducing a plain vector or matrix to one scalar.
+# Julia parity — `DataAxesFormats.jl` queries.jl ReductionOperation.
+# For a matrix we materialise the data as a dense flat vector so that
+# reductions whose result is non-associative (Var, Mode, Median, Quantile, ...)
+# produce the same answer as in Julia.
+.apply_reduction_to_scalar <- function(node, state, daf) {
+    fn <- get_reduction(node$reduction)
+    params <- .coerce_params(node$params)
+    v <- switch(state$kind,
+        vector = state$value,
+        matrix = {
+            m <- state$value
+            if (methods::is(m, "Matrix")) {
+                as.vector(as.matrix(m))
+            } else {
+                as.vector(m)
+            }
+        },
+        stop(sprintf(
+            "'>>' requires a vector or matrix in scope (got %s)",
+            state$kind
+        ), call. = FALSE)
+    )
+    out <- do.call(fn, c(list(v), params))
+    if (length(out) == 1L) names(out) <- NULL
+    list(kind = "scalar", value = out)
 }
 
 .dafr_kernel_threshold <- function() dafr_opt("dafr.kernel_threshold")
