@@ -4,25 +4,33 @@
 \alias{IfMissing}
 \title{If-missing query operation.}
 \usage{
-IfMissing(value, ...)
+IfMissing(value, ..., type = NULL)
 }
 \arguments{
 \item{value}{Default value (character or numeric scalar), or a
 piped \link{DafrQuery}.}
 
 \item{...}{Optional piped \link{DafrQuery}.}
+
+\item{type}{Optional Julia-style dtype name (character scalar) to
+coerce the default to when it is actually used. \code{NULL} leaves the
+default as whatever the string parser emitted.}
 }
 \value{
 A \link{DafrQuery}.
 }
 \description{
 Builds a \verb{|| <default>} query fragment, providing a default value
-for entries missing from the prior lookup.
+for entries missing from the prior lookup. An optional \code{type} pins
+the Julia-style dtype the default is coerced to when the lookup
+falls back (\code{Int8}..\code{Int64}, \code{UInt8}..\code{UInt64}, \code{Float32}, \code{Float64},
+\code{Bool}, \code{String}).
 }
 \examples{
 IfMissing("N/A")
 IfMissing(0)
-Axis("cell") |> LookupVector("age") |> IfMissing(0)
+IfMissing(0, type = "Int64")
+Axis("cell") |> LookupVector("age") |> IfMissing(0, type = "Int64")
 }
 \seealso{
 \code{\link[=IfNot]{IfNot()}}
