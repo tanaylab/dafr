@@ -3,6 +3,7 @@
     .register_default_ops()
     S7::methods_register()
     .register_dplyr_methods()
+    .dafr_apply_cran_thread_cap()
     invisible()
 }
 

@@ -152,9 +152,26 @@ extern "C" SEXP _dafr_kernel_var_csc_cpp(SEXP x, SEXP i, SEXP p, SEXP nrow, SEXP
     return cpp11::as_sexp(kernel_var_csc_cpp(cpp11::as_cpp<cpp11::decay_t<cpp11::doubles>>(x), cpp11::as_cpp<cpp11::decay_t<cpp11::integers>>(i), cpp11::as_cpp<cpp11::decay_t<cpp11::integers>>(p), cpp11::as_cpp<cpp11::decay_t<int>>(nrow), cpp11::as_cpp<cpp11::decay_t<int>>(ncol), cpp11::as_cpp<cpp11::decay_t<int>>(axis), cpp11::as_cpp<cpp11::decay_t<std::string>>(variant), cpp11::as_cpp<cpp11::decay_t<double>>(eps), cpp11::as_cpp<cpp11::decay_t<int>>(threshold)));
   END_CPP11
 }
+// thread_control.cpp
+void dafr_set_num_threads(int n);
+extern "C" SEXP _dafr_dafr_set_num_threads(SEXP n) {
+  BEGIN_CPP11
+    dafr_set_num_threads(cpp11::as_cpp<cpp11::decay_t<int>>(n));
+    return R_NilValue;
+  END_CPP11
+}
+// thread_control.cpp
+int dafr_get_max_threads();
+extern "C" SEXP _dafr_dafr_get_max_threads() {
+  BEGIN_CPP11
+    return cpp11::as_sexp(dafr_get_max_threads());
+  END_CPP11
+}
 
 extern "C" {
 static const R_CallMethodDef CallEntries[] = {
+    {"_dafr_dafr_get_max_threads",            (DL_FUNC) &_dafr_dafr_get_max_threads,             0},
+    {"_dafr_dafr_set_num_threads",            (DL_FUNC) &_dafr_dafr_set_num_threads,             1},
     {"_dafr_is_altrep_cpp",                   (DL_FUNC) &_dafr_is_altrep_cpp,                    1},
     {"_dafr_kernel_csc_colsums_cpp",          (DL_FUNC) &_dafr_kernel_csc_colsums_cpp,           4},
     {"_dafr_kernel_geomean_csc_cpp",          (DL_FUNC) &_dafr_kernel_geomean_csc_cpp,           8},
