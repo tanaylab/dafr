@@ -373,13 +373,18 @@ reframe_daf_axis_tbl <- function(.data, ..., .by = NULL) {
 # ---- mutate ----------------------------------------------------------------
 
 #' @noRd
-mutate_daf_axis_tbl <- function(.data, ...) {
+mutate_daf_axis_tbl <- function(.data, ..., .by = NULL,
+                                .keep = c("all", "used", "unused", "none"),
+                                .before = NULL, .after = NULL) {
+    .keep <- match.arg(.keep)
     df <- .realize(.data)
     if (inherits(df, "grouped_df")) {
-        df2 <- dplyr::ungroup(dplyr::mutate(df, ...))
+        df2 <- dplyr::ungroup(dplyr::mutate(df, ..., .by = {{ .by }},
+            .keep = .keep, .before = {{ .before }}, .after = {{ .after }}))
         df <- dplyr::ungroup(df)
     } else {
-        df2 <- dplyr::mutate(df, ...)
+        df2 <- dplyr::mutate(df, ..., .by = {{ .by }},
+            .keep = .keep, .before = {{ .before }}, .after = {{ .after }})
     }
     old_names <- colnames(df)
     new_or_changed <- setdiff(colnames(df2), "name")
@@ -484,16 +489,43 @@ compute_daf_axis_tbl <- function(x, ..., vectors = NULL, overwrite = FALSE) {
 #' @noRd
 summarise_daf_axis_tbl <- function(.data, ..., .by = NULL, .groups = NULL) {
     df <- .realize(.data)
-    grps <- attr(.data, "groups")
-    if (length(grps) == 0) {
+    # Resolve grouping source: either persistent groups (from group_by)
+    # or a per-call .by. We can't use both.
+    by_quo <- rlang::enquo(.by)
+    has_by <- !rlang::quo_is_null(by_quo)
+    persistent_grps <- attr(.data, "groups")
+    if (has_by && length(persistent_grps) > 0) {
+        stop("summarise() can't use both group_by() and `.by` on the same call",
+             call. = FALSE)
+    }
+    effective_grps <- if (has_by) {
+        # Extract names of .by expression(s) — can be a single name or c(a, b).
+        by_expr <- rlang::quo_get_expr(by_quo)
+        if (rlang::is_call(by_expr, "c")) {
+            vapply(rlang::call_args(by_expr), rlang::as_string, character(1))
+        } else {
+            rlang::as_string(by_expr)
+        }
+    } else {
+        persistent_grps
+    }
+
+    if (length(effective_grps) == 0) {
         if (inherits(df, "grouped_df")) df <- dplyr::ungroup(df)
         return(dplyr::summarise(df, ...))
     }
-    result <- dplyr::summarise(df, ..., .groups = "drop")
+    # Route through dplyr: if using .by, pass it; else rely on the
+    # grouped_df from .realize.
+    if (has_by) {
+        if (inherits(df, "grouped_df")) df <- dplyr::ungroup(df)
+        result <- dplyr::summarise(df, ..., .by = !!by_quo)
+    } else {
+        result <- dplyr::summarise(df, ..., .groups = "drop")
+    }
     daf <- attr(.data, "daf")
     # Auto-tie-back: single group var, that var names an axis in the daf.
-    if (length(grps) == 1L && has_axis(daf, grps)) {
-        axis_name <- grps
+    if (length(effective_grps) == 1L && has_axis(daf, effective_grps)) {
+        axis_name <- effective_grps
         all_entries <- axis_entries(daf, axis_name)
         group_col <- result[[axis_name]]
         if (is.character(group_col) && all(group_col %in% all_entries)) {
