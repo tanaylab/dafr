@@ -52,6 +52,12 @@ None. This is a new package with no reverse dependencies on CRAN.
   data. All cheap examples run by default and pass under `--run-donttest`.
 - `hdf5r` is in Suggests (gated via `rlang::check_installed()` at each
   h5ad entry point). Core Daf functionality has no HDF5 dependency.
+- **Thread compliance:** `.onLoad()` detects CRAN's check harness via
+  `_R_CHECK_LIMIT_CORES_` and `OMP_THREAD_LIMIT`, and auto-caps OpenMP
+  thread usage to 2 cores via `omp_set_num_threads(2)`. Users can
+  override at any time via `set_num_threads(n)` or
+  `options(dafr.num_threads = n)`. Examples, tests and vignettes
+  therefore respect CRAN's 2-core limit without any author action.
 
 ## Example runtime
 
