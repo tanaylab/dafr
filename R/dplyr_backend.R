@@ -68,18 +68,26 @@ tbl_DafReader_axis <- function(src, axis, ...) {
     overrides <- attr(x, "overrides")
 
     cols <- list()
-    cols[["name"]] <- entries[rm]
-    for (nm in sel) {
-        if (nm %in% names(overrides)) {
-            cols[[nm]] <- unname(overrides[[nm]])
+    emit <- function(nm) {
+        if (nm == "name") {
+            cols[["name"]] <<- entries[rm]
+        } else if (nm %in% names(overrides)) {
+            cols[[nm]] <<- unname(overrides[[nm]])
         } else if (nm %in% stored_cols) {
-            v <- get_vector(daf, axis, nm)
-            cols[[nm]] <- unname(v[rm])
+            cols[[nm]] <<- unname(get_vector(daf, axis, nm)[rm])
         }
     }
-    if (!sel_explicit) {
+    if (sel_explicit) {
+        # Explicit sel defines the full output including where "name"
+        # lands. If user didn't include "name", it goes first.
+        if (!("name" %in% sel)) emit("name")
+        for (nm in sel) emit(nm)
+    } else {
+        # Default: name first, then stored cols, then extra overrides.
+        emit("name")
+        for (nm in sel) emit(nm)
         extra <- setdiff(names(overrides), c(sel, "name"))
-        for (nm in extra) cols[[nm]] <- unname(overrides[[nm]])
+        for (nm in extra) emit(nm)
     }
 
     out <- tibble::as_tibble(cols)
@@ -89,6 +97,30 @@ tbl_DafReader_axis <- function(src, axis, ...) {
 
     out
 }
+
+# ---- dplyr infrastructure methods ------------------------------------------
+
+# tbl_vars reports the column names — used by many dplyr internals
+# (e.g. check_n_name in add_tally). We report name + all currently
+# visible columns (honoring col_select).
+#' @noRd
+tbl_vars_daf_axis_tbl <- function(x) {
+    daf <- attr(x, "daf")
+    axis <- attr(x, "axis")
+    stored <- vectors_set(daf, axis)
+    overrides <- attr(x, "overrides")
+    sel <- attr(x, "col_select")
+    if (is.null(sel)) {
+        out <- c("name", stored, setdiff(names(overrides), stored))
+    } else {
+        out <- if ("name" %in% sel) sel else c("name", sel)
+    }
+    unique(out)
+}
+
+# group_vars: which columns are grouping variables.
+#' @noRd
+group_vars_daf_axis_tbl <- function(x) attr(x, "groups") %||% character()
 
 # ---- collect / as_tibble / print -------------------------------------------
 #
@@ -123,15 +155,31 @@ print_daf_axis_tbl <- function(x, n = 6L, ...) {
 
 #' @noRd
 select_daf_axis_tbl <- function(.data, ...) {
-    daf <- attr(.data, "daf")
-    axis <- attr(.data, "axis")
-    available <- c(vectors_set(daf, axis), names(attr(.data, "overrides")))
-    chosen <- tidyselect::eval_select(
-        rlang::expr(c(...)),
-        stats::setNames(seq_along(available), available)
-    )
-    attr(.data, "col_select") <- names(chosen)
-    .data
+    # Realize to a typed tibble so tidyselect predicates like
+    # `where(is.integer)` can inspect column types. If the selection
+    # only reorders/subsets columns without renaming, we just update
+    # col_select; if it renames, we materialize as overrides.
+    df <- .realize(.data)
+    if (inherits(df, "grouped_df")) df <- dplyr::ungroup(df)
+    chosen <- tidyselect::eval_select(rlang::expr(c(...)), df)
+    selected_orig <- colnames(df)[chosen]
+    selected_new <- names(chosen)
+    if (identical(selected_orig, selected_new)) {
+        attr(.data, "col_select") <- selected_new
+        .data
+    } else {
+        overrides <- as.list(df[, chosen, drop = FALSE])
+        names(overrides) <- selected_new
+        overrides[["name"]] <- NULL
+        new_daf_axis_tbl(
+            daf = attr(.data, "daf"),
+            axis = attr(.data, "axis"),
+            row_mask = attr(.data, "row_mask"),
+            col_select = setdiff(selected_new, "name"),
+            overrides = overrides,
+            groups = attr(.data, "groups")
+        )
+    }
 }
 
 #' @noRd
@@ -141,37 +189,266 @@ pull_daf_axis_tbl <- function(.data, var = -1, name = NULL, ...) {
     dplyr::pull(df, {{ var }}, name = {{ name }})
 }
 
-# ---- filter ----------------------------------------------------------------
+# ---- row-reduction helper (shared by filter, slice*) -----------------------
 
-#' @noRd
-filter_daf_axis_tbl <- function(.data, ..., .by = NULL) {
+# Apply a `reducer(df) -> kept_df` on the realized tibble, then
+# reindex row_mask and overrides to the kept rows.
+.apply_row_reducer <- function(.data, reducer) {
     df <- .realize(.data)
     if (inherits(df, "grouped_df")) df <- dplyr::ungroup(df)
-    keep <- dplyr::filter(df, ...)
+    kept <- reducer(df)
+    if (inherits(kept, "grouped_df")) kept <- dplyr::ungroup(kept)
     daf <- attr(.data, "daf")
     axis <- attr(.data, "axis")
-    # New row_mask: positions in the full axis of the kept entries.
-    attr(.data, "row_mask") <- match(keep$name, axis_entries(daf, axis))
-    # Reindex overrides (aligned to previous row_mask order) to match
-    # the new row_mask order.
+    attr(.data, "row_mask") <- match(kept$name, axis_entries(daf, axis))
     overrides <- attr(.data, "overrides")
     if (length(overrides)) {
-        local_idx <- match(keep$name, df$name)
+        local_idx <- match(kept$name, df$name)
         attr(.data, "overrides") <- lapply(overrides, function(v) v[local_idx])
     }
     .data
 }
 
+# ---- filter ----------------------------------------------------------------
+
+#' @noRd
+filter_daf_axis_tbl <- function(.data, ..., .by = NULL) {
+    .apply_row_reducer(.data, function(df) dplyr::filter(df, ..., .by = {{ .by }}))
+}
+
+# ---- slice family ----------------------------------------------------------
+
+#' @noRd
+slice_daf_axis_tbl <- function(.data, ..., .by = NULL, .preserve = FALSE) {
+    .apply_row_reducer(.data, function(df) dplyr::slice(df, ..., .by = {{ .by }}))
+}
+
+#' @noRd
+slice_head_daf_axis_tbl <- function(.data, ..., by = NULL) {
+    .apply_row_reducer(.data, function(df) dplyr::slice_head(df, ..., by = {{ by }}))
+}
+
+#' @noRd
+slice_tail_daf_axis_tbl <- function(.data, ..., by = NULL) {
+    .apply_row_reducer(.data, function(df) dplyr::slice_tail(df, ..., by = {{ by }}))
+}
+
+#' @noRd
+slice_min_daf_axis_tbl <- function(.data, order_by, ..., by = NULL) {
+    .apply_row_reducer(.data, function(df) {
+        dplyr::slice_min(df, order_by = {{ order_by }}, ..., by = {{ by }})
+    })
+}
+
+#' @noRd
+slice_max_daf_axis_tbl <- function(.data, order_by, ..., by = NULL) {
+    .apply_row_reducer(.data, function(df) {
+        dplyr::slice_max(df, order_by = {{ order_by }}, ..., by = {{ by }})
+    })
+}
+
+#' @noRd
+slice_sample_daf_axis_tbl <- function(.data, ..., by = NULL) {
+    .apply_row_reducer(.data, function(df) dplyr::slice_sample(df, ..., by = {{ by }}))
+}
+
+# ---- rename / relocate -----------------------------------------------------
+
+# rename is implemented by realizing the tbl, applying dplyr::rename,
+# and rebuilding the daf_axis_tbl with all columns now as overrides
+# (so the rename sticks — stored columns are keyed by their daf name
+# and can't be "renamed at source").
+
+#' @noRd
+rename_daf_axis_tbl <- function(.data, ...) {
+    df <- .realize(.data)
+    if (inherits(df, "grouped_df")) df <- dplyr::ungroup(df)
+    renamed <- dplyr::rename(df, ...)
+    daf <- attr(.data, "daf")
+    axis <- attr(.data, "axis")
+    overrides <- as.list(
+        renamed[, setdiff(colnames(renamed), "name"), drop = FALSE]
+    )
+    new_daf_axis_tbl(
+        daf = daf,
+        axis = axis,
+        row_mask = attr(.data, "row_mask"),
+        col_select = names(overrides),
+        overrides = overrides,
+        groups = attr(.data, "groups")
+    )
+}
+
+#' @noRd
+relocate_daf_axis_tbl <- function(.data, ..., .before = NULL, .after = NULL) {
+    df <- .realize(.data)
+    if (inherits(df, "grouped_df")) df <- dplyr::ungroup(df)
+    reordered <- dplyr::relocate(df, ...,
+        .before = {{ .before }}, .after = {{ .after }})
+    attr(.data, "col_select") <- colnames(reordered)
+    .data
+}
+
+# ---- count / tally / add_count / add_tally --------------------------------
+#
+# These are thin sugar over group_by + summarise/mutate and inherit
+# our existing tie-back behavior. `wt = ...` (weighted counting) is
+# not supported in v1.1.
+
+.check_no_wt <- function(wt) {
+    wt_expr <- rlang::enquo(wt)
+    if (!rlang::quo_is_null(wt_expr)) {
+        warning("count()/tally() `wt =` is not supported on daf_axis_tbl; ignoring.",
+                call. = FALSE)
+    }
+}
+
+#' @noRd
+count_daf_axis_tbl <- function(x, ..., wt = NULL, sort = FALSE, name = NULL) {
+    .check_no_wt({{ wt }})
+    nm <- if (is.null(name)) "n" else name
+    grouped <- dplyr::group_by(x, ..., .add = FALSE)
+    result <- dplyr::summarise(grouped, !!nm := dplyr::n())
+    if (isTRUE(sort)) {
+        result <- dplyr::arrange(result, dplyr::desc(.data[[nm]]))
+    }
+    result
+}
+
+#' @noRd
+tally_daf_axis_tbl <- function(x, wt = NULL, sort = FALSE, name = NULL) {
+    .check_no_wt({{ wt }})
+    nm <- if (is.null(name)) "n" else name
+    result <- dplyr::summarise(x, !!nm := dplyr::n())
+    if (isTRUE(sort)) {
+        result <- dplyr::arrange(result, dplyr::desc(.data[[nm]]))
+    }
+    result
+}
+
+#' @noRd
+add_count_daf_axis_tbl <- function(x, ..., wt = NULL, sort = FALSE, name = NULL) {
+    .check_no_wt({{ wt }})
+    nm <- if (is.null(name)) "n" else name
+    grouped <- dplyr::group_by(x, ..., .add = TRUE)
+    result <- dplyr::mutate(grouped, !!nm := dplyr::n())
+    result <- dplyr::ungroup(result)
+    if (isTRUE(sort)) {
+        result <- dplyr::arrange(result, dplyr::desc(.data[[nm]]))
+    }
+    result
+}
+
+#' @noRd
+add_tally_daf_axis_tbl <- function(x, wt = NULL, sort = FALSE, name = NULL) {
+    .check_no_wt({{ wt }})
+    nm <- if (is.null(name)) "n" else name
+    result <- dplyr::mutate(x, !!nm := dplyr::n())
+    if (isTRUE(sort)) {
+        result <- dplyr::arrange(result, dplyr::desc(.data[[nm]]))
+    }
+    result
+}
+
+# ---- transmute / reframe --------------------------------------------------
+
+# transmute is mutate-then-drop-everything-except-new-columns. We keep
+# the axis "name" column automatically (it's the row identity), so
+# transmute's dropping applies to stored cols and pre-existing
+# overrides.
+
+#' @noRd
+transmute_daf_axis_tbl <- function(.data, ...) {
+    df <- .realize(.data)
+    if (inherits(df, "grouped_df")) df <- dplyr::ungroup(df)
+    result <- dplyr::transmute(df, ...)
+    daf <- attr(.data, "daf")
+    axis <- attr(.data, "axis")
+    overrides <- as.list(
+        result[, setdiff(colnames(result), "name"), drop = FALSE]
+    )
+    new_daf_axis_tbl(
+        daf = daf,
+        axis = axis,
+        row_mask = attr(.data, "row_mask"),
+        col_select = names(overrides),
+        overrides = overrides,
+        groups = attr(.data, "groups")
+    )
+}
+
+# reframe allows multi-row-per-group output, so it always exits the
+# daf_axis_tbl world (row count doesn't match the axis).
+
+#' @noRd
+reframe_daf_axis_tbl <- function(.data, ..., .by = NULL) {
+    df <- .realize(.data)
+    dplyr::reframe(df, ..., .by = {{ .by }})
+}
+
+# ---- unsupported-verb stubs -----------------------------------------------
+#
+# Joins, set operations, and rowwise aren't in v1 of the backend.
+# Without explicit methods, users get R's generic "no applicable
+# method" error, which doesn't explain *why* it's unsupported or how
+# to work around it. These stubs replace that with a targeted
+# message pointing users at `dplyr::collect()`.
+
+.daf_axis_tbl_unsupported <- function(verb,
+    hint = "Use `dplyr::collect()` to materialize a tibble first, then apply this verb.") {
+    stop(sprintf(
+        "`%s()` is not supported on a daf_axis_tbl.\n%s",
+        verb, hint
+    ), call. = FALSE)
+}
+
+#' @noRd
+inner_join_daf_axis_tbl  <- function(x, y, ...) .daf_axis_tbl_unsupported("inner_join")
+#' @noRd
+left_join_daf_axis_tbl   <- function(x, y, ...) .daf_axis_tbl_unsupported("left_join")
+#' @noRd
+right_join_daf_axis_tbl  <- function(x, y, ...) .daf_axis_tbl_unsupported("right_join")
+#' @noRd
+full_join_daf_axis_tbl   <- function(x, y, ...) .daf_axis_tbl_unsupported("full_join")
+#' @noRd
+semi_join_daf_axis_tbl   <- function(x, y, ...) .daf_axis_tbl_unsupported("semi_join")
+#' @noRd
+anti_join_daf_axis_tbl   <- function(x, y, ...) .daf_axis_tbl_unsupported("anti_join")
+#' @noRd
+cross_join_daf_axis_tbl  <- function(x, y, ...) .daf_axis_tbl_unsupported("cross_join")
+#' @noRd
+nest_join_daf_axis_tbl   <- function(x, y, ...) .daf_axis_tbl_unsupported("nest_join")
+#' @noRd
+union_daf_axis_tbl       <- function(x, y, ...) .daf_axis_tbl_unsupported("union")
+#' @noRd
+union_all_daf_axis_tbl   <- function(x, y, ...) .daf_axis_tbl_unsupported("union_all")
+#' @noRd
+intersect_daf_axis_tbl   <- function(x, y, ...) .daf_axis_tbl_unsupported("intersect")
+#' @noRd
+setdiff_daf_axis_tbl     <- function(x, y, ...) .daf_axis_tbl_unsupported("setdiff")
+#' @noRd
+rowwise_daf_axis_tbl <- function(data, ...) {
+    .daf_axis_tbl_unsupported(
+        "rowwise",
+        hint = "row-wise iteration over a daf_axis_tbl is not supported. Use `dplyr::collect()` first, or rewrite as a vectorized expression in `mutate()`."
+    )
+}
+
 # ---- mutate ----------------------------------------------------------------
 
 #' @noRd
-mutate_daf_axis_tbl <- function(.data, ...) {
+mutate_daf_axis_tbl <- function(.data, ..., .by = NULL,
+                                .keep = c("all", "used", "unused", "none"),
+                                .before = NULL, .after = NULL) {
+    .keep <- match.arg(.keep)
     df <- .realize(.data)
     if (inherits(df, "grouped_df")) {
-        df2 <- dplyr::ungroup(dplyr::mutate(df, ...))
+        df2 <- dplyr::ungroup(dplyr::mutate(df, ..., .by = {{ .by }},
+            .keep = .keep, .before = {{ .before }}, .after = {{ .after }}))
         df <- dplyr::ungroup(df)
     } else {
-        df2 <- dplyr::mutate(df, ...)
+        df2 <- dplyr::mutate(df, ..., .by = {{ .by }},
+            .keep = .keep, .before = {{ .before }}, .after = {{ .after }})
     }
     old_names <- colnames(df)
     new_or_changed <- setdiff(colnames(df2), "name")
@@ -182,6 +459,11 @@ mutate_daf_axis_tbl <- function(.data, ...) {
         }
     }
     attr(.data, "overrides") <- overrides
+    # When .keep != "all", dplyr::mutate returns only a subset of
+    # columns. Restrict col_select so our tbl displays the same subset.
+    if (.keep != "all") {
+        attr(.data, "col_select") <- setdiff(colnames(df2), "name")
+    }
     .data
 }
 
@@ -276,16 +558,43 @@ compute_daf_axis_tbl <- function(x, ..., vectors = NULL, overwrite = FALSE) {
 #' @noRd
 summarise_daf_axis_tbl <- function(.data, ..., .by = NULL, .groups = NULL) {
     df <- .realize(.data)
-    grps <- attr(.data, "groups")
-    if (length(grps) == 0) {
+    # Resolve grouping source: either persistent groups (from group_by)
+    # or a per-call .by. We can't use both.
+    by_quo <- rlang::enquo(.by)
+    has_by <- !rlang::quo_is_null(by_quo)
+    persistent_grps <- attr(.data, "groups")
+    if (has_by && length(persistent_grps) > 0) {
+        stop("summarise() can't use both group_by() and `.by` on the same call",
+             call. = FALSE)
+    }
+    effective_grps <- if (has_by) {
+        # Extract names of .by expression(s) — can be a single name or c(a, b).
+        by_expr <- rlang::quo_get_expr(by_quo)
+        if (rlang::is_call(by_expr, "c")) {
+            vapply(rlang::call_args(by_expr), rlang::as_string, character(1))
+        } else {
+            rlang::as_string(by_expr)
+        }
+    } else {
+        persistent_grps
+    }
+
+    if (length(effective_grps) == 0) {
         if (inherits(df, "grouped_df")) df <- dplyr::ungroup(df)
         return(dplyr::summarise(df, ...))
     }
-    result <- dplyr::summarise(df, ..., .groups = "drop")
+    # Route through dplyr: if using .by, pass it; else rely on the
+    # grouped_df from .realize.
+    if (has_by) {
+        if (inherits(df, "grouped_df")) df <- dplyr::ungroup(df)
+        result <- dplyr::summarise(df, ..., .by = !!by_quo)
+    } else {
+        result <- dplyr::summarise(df, ..., .groups = "drop")
+    }
     daf <- attr(.data, "daf")
     # Auto-tie-back: single group var, that var names an axis in the daf.
-    if (length(grps) == 1L && has_axis(daf, grps)) {
-        axis_name <- grps
+    if (length(effective_grps) == 1L && has_axis(daf, effective_grps)) {
+        axis_name <- effective_grps
         all_entries <- axis_entries(daf, axis_name)
         group_col <- result[[axis_name]]
         if (is.character(group_col) && all(group_col %in% all_entries)) {

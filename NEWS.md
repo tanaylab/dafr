@@ -31,6 +31,17 @@
   `vignette("dplyr", package = "dafr")`. `dplyr` / `tibble` /
   `tidyselect` are Suggests — methods are registered conditionally
   in `.onLoad`, so dafr still installs without them.
+- **dplyr backend v1.1 — more verbs.** `slice` + `slice_head` /
+  `slice_tail` / `slice_min` / `slice_max` / `slice_sample`,
+  `rename`, `relocate`, `count` / `tally` / `add_count` /
+  `add_tally`, `transmute`, `reframe`. `.by = ...` (dplyr 1.1+) is
+  wired through `filter` / `mutate` / `summarise`; `summarise`
+  auto-ties-back on a single-axis `.by`. `mutate(.keep = ...)` is
+  respected. `tbl_vars` / `group_vars` infrastructure methods are
+  registered so dplyr internals (e.g. `check_n_name`) can inspect
+  columns. Joins, set operations, and `rowwise()` are still
+  unsupported but now raise a helpful error pointing users at
+  `dplyr::collect()` instead of R's generic "no applicable method".
 
 # dafr 0.1.0 (2026-04-23)
 
