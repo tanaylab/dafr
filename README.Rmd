@@ -190,16 +190,27 @@ tbl(d, "cell") |>
     head()
 
 tbl(d, "cell") |>
-    count(donor, sort = TRUE) |>
+    count(experiment, sort = TRUE) |>
     collect() |>
     head()
 ```
 
 Supported verbs: `filter`, `select`, `mutate`, `arrange`, `summarise`,
 `group_by` / `ungroup`, `distinct`, `pull`, `collect`, `as_tibble`,
-`count` / `tally` / `add_count` / `add_tally`. Grouped `summarise()`
-whose grouping variable names another axis in the daf auto-ties-back
-to a `daf_axis_tbl` on that axis.
+`count` / `tally` / `add_count` / `add_tally`.
+
+When a grouping variable names another axis already in the daf,
+`summarise()` and `count()` **auto-tie-back** to a lazy
+`daf_axis_tbl` on that axis — so the pipeline can continue.
+Axis entries then appear in the `name` column (the convention for the
+axis-identity column). Example:
+
+```{r dplyr_tie_back}
+# `donor` is an axis of example_cells_daf(); count() re-anchors onto it.
+tbl(d, "cell") |>
+    count(donor, sort = TRUE) |>
+    class()   # daf_axis_tbl + tbl_df
+```
 
 Mutations are accumulated lazily and can be written back with
 `dplyr::compute(tbl, vectors = c(...))`:

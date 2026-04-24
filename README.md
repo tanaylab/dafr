@@ -229,24 +229,36 @@ tbl(d, "cell") |>
 #> 6 demux_07_12_20_1_GAAGGGTGTCCCTGAG-1   N89 demux_07_12_20_1
 
 tbl(d, "cell") |>
-    count(donor, sort = TRUE) |>
+    count(experiment, sort = TRUE) |>
     collect() |>
     head()
 #> # A tibble: 6 x 2
-#>   name  n
-#> 1 N104 34
-#> 2  N99 27
-#> 3  N96 21
-#> 4 N118 20
-#> 5 N113 19
-#> 6 N159 19
+#>               name  n
+#> 1 demux_28_12_20_2 72
+#> 2 demux_28_12_20_1 58
+#> 3 demux_21_02_21_2 51
+#> 4 demux_22_02_21_2 47
+#> 5 demux_01_03_21_1 45
+#> 6 demux_07_12_20_2 42
 ```
 
 Supported verbs: `filter`, `select`, `mutate`, `arrange`, `summarise`,
 `group_by` / `ungroup`, `distinct`, `pull`, `collect`, `as_tibble`,
-`count` / `tally` / `add_count` / `add_tally`. Grouped `summarise()`
-whose grouping variable names another axis in the daf auto-ties-back to
-a `daf_axis_tbl` on that axis.
+`count` / `tally` / `add_count` / `add_tally`.
+
+When a grouping variable names another axis already in the daf,
+`summarise()` and `count()` **auto-tie-back** to a lazy `daf_axis_tbl`
+on that axis — so the pipeline can continue. Axis entries then appear in
+the `name` column (the convention for the axis-identity column).
+Example:
+
+``` r
+# `donor` is an axis of example_cells_daf(); count() re-anchors onto it.
+tbl(d, "cell") |>
+    count(donor, sort = TRUE) |>
+    class()   # daf_axis_tbl + tbl_df
+#> [1] "daf_axis_tbl"
+```
 
 Mutations are accumulated lazily and can be written back with
 `dplyr::compute(tbl, vectors = c(...))`:
