@@ -98,4 +98,5 @@ Collate:
     'query_builders.R'
     'query_builders_exports.R'
     'reconstruction.R'
+    'threads.R'
     'zzz.R'

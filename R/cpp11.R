@@ -83,3 +83,11 @@ kernel_quantile_dense_cpp <- function(mat, axis, q, threshold) {
 kernel_var_csc_cpp <- function(x, i, p, nrow, ncol, axis, variant, eps, threshold) {
   .Call(`_dafr_kernel_var_csc_cpp`, x, i, p, nrow, ncol, axis, variant, eps, threshold)
 }
+
+dafr_set_num_threads <- function(n) {
+  invisible(.Call(`_dafr_dafr_set_num_threads`, n))
+}
+
+dafr_get_max_threads <- function() {
+  .Call(`_dafr_dafr_get_max_threads`)
+}
