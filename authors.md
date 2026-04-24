@@ -14,14 +14,13 @@
 Source:
 [`DESCRIPTION`](https://github.com/tanaylab/dafr/blob/main/DESCRIPTION)
 
-Lifshitz A, Ben-Kiki O (2026). *dafr: Multi-Dimensional Data Along
-Arbitrary Axes*. R package version 0.1.0,
-<https://github.com/tanaylab/dafr>.
+Lifshitz A, Ben-Kiki O (2026). *dafr: Data in Axes in Formats (DAF) for
+R*. R package version 0.1.0, <https://tanaylab.github.io/dafr/>.
 
     @Manual{,
-      title = {dafr: Multi-Dimensional Data Along Arbitrary Axes},
+      title = {dafr: Data in Axes in Formats (DAF) for R},
       author = {Aviezer Lifshitz and Oren Ben-Kiki},
       year = {2026},
       note = {R package version 0.1.0},
-      url = {https://github.com/tanaylab/dafr},
+      url = {https://tanaylab.github.io/dafr/},
     }

@@ -159,17 +159,65 @@ axis.</p>
 <code><a href="https://dplyr.tidyverse.org/reference/summarise.html" class="external-link">summarise()</a></code> returns a plain tibble.</p>
 </div>
 <div class="section level2">
-<h2 id="out-of-scope-for-v1">Out of scope for v1<a class="anchor" aria-label="anchor" href="#out-of-scope-for-v1"></a>
+<h2 id="more-verbs">More verbs<a class="anchor" aria-label="anchor" href="#more-verbs"></a>
+</h2>
+<p>Beyond the core set above, the backend also supports
+<code>slice</code> and the <code>slice_head</code> /
+<code>slice_tail</code> / <code>slice_min</code> /
+<code>slice_max</code> / <code>slice_sample</code> family;
+<code>rename</code> and <code>relocate</code>; <code>count</code> /
+<code>tally</code> / <code>add_count</code> / <code>add_tally</code>;
+<code>transmute</code> and <code>reframe</code>. Inside
+<code><a href="https://dplyr.tidyverse.org/reference/mutate.html" class="external-link">mutate()</a></code> and <code><a href="https://dplyr.tidyverse.org/reference/summarise.html" class="external-link">summarise()</a></code>, common dplyr helpers
+work via delegation:</p>
+<ul>
+<li>Window functions: <code>lag</code>, <code>lead</code>,
+<code>cumsum</code>, <code>row_number</code>, <code>min_rank</code>,
+<code>dense_rank</code>, <code>ntile</code>,
+<code>percent_rank</code>.</li>
+<li>Scalar helpers: <code>if_else</code>, <code>case_when</code>,
+<code>coalesce</code>, <code>n_distinct</code>, <code>first</code>,
+<code>last</code>, <code>nth</code>.</li>
+<li>
+<code>across(where(is.numeric), mean)</code>-style column-wise
+ops.</li>
+<li>Tidyselect helpers in <code><a href="https://dplyr.tidyverse.org/reference/select.html" class="external-link">select()</a></code>:
+<code>starts_with</code>, <code>contains</code>, <code>matches</code>,
+<code>where</code>.</li>
+</ul>
+<p><code>.by = ...</code> (dplyr 1.1+) works on <code><a href="https://dplyr.tidyverse.org/reference/filter.html" class="external-link">filter()</a></code> /
+<code><a href="https://dplyr.tidyverse.org/reference/mutate.html" class="external-link">mutate()</a></code> / <code><a href="https://dplyr.tidyverse.org/reference/summarise.html" class="external-link">summarise()</a></code>; a single-axis
+<code>.by</code> on <code><a href="https://dplyr.tidyverse.org/reference/summarise.html" class="external-link">summarise()</a></code> ties back the same way
+group_by does. <code>mutate(.keep = "none")</code> is respected.</p>
+</div>
+<div class="section level2">
+<h2 id="not-supported-yet">Not supported (yet)<a class="anchor" aria-label="anchor" href="#not-supported-yet"></a>
 </h2>
 <ul>
-<li>Matrices. Use <code>Axis(...) |&gt; LookupMatrix(...)</code> from
-the query DSL.</li>
-<li>Joins across axes.</li>
-<li>Window functions (<code>lag</code>, <code>cumsum</code>, etc.).</li>
-<li>DSL pushdown for <code>filter</code> / <code>summarise</code>
-(planned follow-up — verbs currently materialize via
+<li><p><strong>Matrices.</strong> Use
+<code>Axis(...) |&gt; LookupMatrix(...)</code> from the query
+DSL.</p></li>
+<li>
+<p><strong>Joins</strong> (<code>inner_join</code>,
+<code>left_join</code>, <code>right_join</code>, <code>full_join</code>,
+<code>semi_join</code>, <code>anti_join</code>, <code>cross_join</code>,
+<code>nest_join</code>). A daf_axis_tbl has no meaningful join semantics
+against another table in v1. Calling any of these produces a helpful
+error pointing you at <code><a href="https://dplyr.tidyverse.org/reference/compute.html" class="external-link">dplyr::collect()</a></code>:</p>
+<div class="sourceCode" id="cb5"><pre class="downlit sourceCode r">
+<code class="sourceCode R"><span><span class="fu"><a href="https://dplyr.tidyverse.org/reference/tbl.html" class="external-link">tbl</a></span><span class="op">(</span><span class="va">d</span>, <span class="st">"cell"</span><span class="op">)</span> <span class="op">|&gt;</span> <span class="fu"><a href="https://dplyr.tidyverse.org/reference/mutate-joins.html" class="external-link">left_join</a></span><span class="op">(</span><span class="va">other</span><span class="op">)</span></span>
+<span><span class="co">#&gt; Error: `left_join()` is not supported on a daf_axis_tbl.</span></span>
+<span><span class="co">#&gt; Use `dplyr::collect()` to materialize a tibble first, then apply this verb.</span></span></code></pre></div>
+</li>
+<li><p><strong>Set operations</strong> (<code>union</code>,
+<code>union_all</code>, <code>intersect</code>, <code>setdiff</code>) —
+same story.</p></li>
+<li><p><strong><code><a href="https://dplyr.tidyverse.org/reference/rowwise.html" class="external-link">rowwise()</a></code></strong> — collect or rewrite as a
+vectorized <code><a href="https://dplyr.tidyverse.org/reference/mutate.html" class="external-link">mutate()</a></code>.</p></li>
+<li><p><strong>DSL pushdown</strong> for <code>filter</code> /
+<code>summarise</code>. Verbs currently materialize via
 <code>get_vector</code>, which is cheap for memory daf but not optimal
-for large <code>FilesDaf</code> with selective filters).</li>
+for large <code>FilesDaf</code> with selective filters.</p></li>
 </ul>
 </div>
   </main><aside class="col-md-3"><nav id="toc" aria-label="Table of contents"><h2>On this page</h2>

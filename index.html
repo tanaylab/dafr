@@ -5,14 +5,14 @@
 <meta charset="utf-8">
 <meta http-equiv="X-UA-Compatible" content="IE=edge">
 <meta name="viewport" content="width=device-width, initial-scale=1, shrink-to-fit=no">
-<title>Multi-Dimensional Data Along Arbitrary Axes • dafr</title>
+<title>Data in Axes in Formats (DAF) for R • dafr</title>
 <script src="deps/jquery-3.6.0/jquery-3.6.0.min.js"></script><meta name="viewport" content="width=device-width, initial-scale=1, shrink-to-fit=no">
 <link href="deps/bootstrap-5.3.1/bootstrap.min.css" rel="stylesheet">
 <script src="deps/bootstrap-5.3.1/bootstrap.bundle.min.js"></script><link href="deps/font-awesome-6.5.2/css/all.min.css" rel="stylesheet">
 <link href="deps/font-awesome-6.5.2/css/v4-shims.min.css" rel="stylesheet">
-<script src="deps/headroom-0.11.0/headroom.min.js"></script><script src="deps/headroom-0.11.0/jQuery.headroom.min.js"></script><script src="deps/bootstrap-toc-1.0.1/bootstrap-toc.min.js"></script><script src="deps/clipboard.js-2.0.11/clipboard.min.js"></script><script src="deps/search-1.0.0/autocomplete.jquery.min.js"></script><script src="deps/search-1.0.0/fuse.min.js"></script><script src="deps/search-1.0.0/mark.min.js"></script><!-- pkgdown --><script src="pkgdown.js"></script><meta property="og:title" content="Multi-Dimensional Data Along Arbitrary Axes">
-<meta name="description" content="A native R implementation of the DataAxesFormats (DAF) data model for multi-dimensional data along arbitrary axes. Provides the MemoryDaf and FilesDaf storage backends, a query DSL, views, chains, contracts, computations, adapters, and operations. Designed for efficiency on large single-cell datasets via memory-mapped file access (ALTREP), hand-tuned C++ kernels, and optional OpenMP parallelism.">
-<meta property="og:description" content="A native R implementation of the DataAxesFormats (DAF) data model for multi-dimensional data along arbitrary axes. Provides the MemoryDaf and FilesDaf storage backends, a query DSL, views, chains, contracts, computations, adapters, and operations. Designed for efficiency on large single-cell datasets via memory-mapped file access (ALTREP), hand-tuned C++ kernels, and optional OpenMP parallelism.">
+<script src="deps/headroom-0.11.0/headroom.min.js"></script><script src="deps/headroom-0.11.0/jQuery.headroom.min.js"></script><script src="deps/bootstrap-toc-1.0.1/bootstrap-toc.min.js"></script><script src="deps/clipboard.js-2.0.11/clipboard.min.js"></script><script src="deps/search-1.0.0/autocomplete.jquery.min.js"></script><script src="deps/search-1.0.0/fuse.min.js"></script><script src="deps/search-1.0.0/mark.min.js"></script><!-- pkgdown --><script src="pkgdown.js"></script><meta property="og:title" content="Data in Axes in Formats (DAF) for R">
+<meta name="description" content="A native R implementation of the DataAxesFormats.jl &lt;https://github.com/tanaylab/DataAxesFormats.jl&gt; data model, providing a uniform interface for accessing 1D and 2D data arranged along arbitrary axes. This generalizes and extends AnnData-like functionality, supporting both scalars and multiple data modalities (e.g. RNA-seq, ATAC-seq), efficient memory management via memory-mapped reads, and a composable query DSL. Unlike the dafJuliaWrapper &lt;https://github.com/tanaylab/dafJuliaWrapper&gt; interface, dafr has no Julia dependency; storage, query evaluation, and reductions are implemented directly in R and C++ with optional OpenMP parallelism. The package ships in-memory (MemoryDaf) and file-backed (FilesDaf) storage, an AnnData facade with h5ad read/write, computation contracts for pre/post-condition validation, and a dplyr backend for tidy-verbs access to axis data.">
+<meta property="og:description" content="A native R implementation of the DataAxesFormats.jl &lt;https://github.com/tanaylab/DataAxesFormats.jl&gt; data model, providing a uniform interface for accessing 1D and 2D data arranged along arbitrary axes. This generalizes and extends AnnData-like functionality, supporting both scalars and multiple data modalities (e.g. RNA-seq, ATAC-seq), efficient memory management via memory-mapped reads, and a composable query DSL. Unlike the dafJuliaWrapper &lt;https://github.com/tanaylab/dafJuliaWrapper&gt; interface, dafr has no Julia dependency; storage, query evaluation, and reductions are implemented directly in R and C++ with optional OpenMP parallelism. The package ships in-memory (MemoryDaf) and file-backed (FilesDaf) storage, an AnnData facade with h5ad read/write, computation contracts for pre/post-condition validation, and a dplyr backend for tidy-verbs access to axis data.">
 </head>
 <body>
     <a href="#main" class="visually-hidden-focusable">Skip to contents</a>
@@ -60,7 +60,7 @@
 <div class="page-header"><h1 id="dafr---data-in-axes-in-formats-for-r-native">dafr - Data in Axes in Formats for R (native)<a class="anchor" aria-label="anchor" href="#dafr---data-in-axes-in-formats-for-r-native"></a>
 </h1></div>
 <!-- badges: start -->
-<!-- badges: end -->
+
 <p><code>dafr</code> is a native R + C++ implementation of the <a href="https://github.com/tanaylab/DataAxesFormats.jl" class="external-link">DataAxesFormats</a> (DAF) data model: a uniform, self-describing container for 1D and 2D data arranged along a set of named axes. Think of it as a generalisation of <a href="https://github.com/scverse/anndata" class="external-link">AnnData</a> with scalars, per-axis vectors, per-axis-pair matrices, disk-backed persistence, and a composable query DSL.</p>
 <p>This package is a pure R + C++ port of the Julia reference implementation — <strong>no Julia install is required</strong>.</p>
 <div class="section level2">
@@ -91,7 +91,7 @@
 <h2 id="usage">Usage<a class="anchor" aria-label="anchor" href="#usage"></a>
 </h2>
 <div class="sourceCode" id="cb2"><pre class="downlit sourceCode r">
-<code class="sourceCode R"><span><span class="kw"><a href="https://rdrr.io/r/base/library.html" class="external-link">library</a></span><span class="op">(</span><span class="va"><a href="https://github.com/tanaylab/dafr" class="external-link">dafr</a></span><span class="op">)</span></span>
+<code class="sourceCode R"><span><span class="kw"><a href="https://rdrr.io/r/base/library.html" class="external-link">library</a></span><span class="op">(</span><span class="va"><a href="https://tanaylab.github.io/dafr/">dafr</a></span><span class="op">)</span></span>
 <span><span class="co">#&gt; </span></span>
 <span><span class="co">#&gt; Attaching package: 'dafr'</span></span>
 <span><span class="co">#&gt; The following object is masked from 'package:graphics':</span></span>
@@ -206,19 +206,87 @@
 <div class="section level2">
 <h2 id="anndata-interop">AnnData interop<a class="anchor" aria-label="anchor" href="#anndata-interop"></a>
 </h2>
+<p>A Daf object can be exposed as an <code>AnnData</code>-shaped facade with the familiar <code>X</code> / <code>obs</code> / <code>var</code> / <code>layers</code> / <code>uns</code> / <code>obs_names</code> / <code>var_names</code> / <code>shape</code> properties:</p>
 <div class="sourceCode" id="cb4"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span><span class="va">d</span> <span class="op">&lt;-</span> <span class="fu"><a href="reference/example_cells_daf.html">example_cells_daf</a></span><span class="op">(</span><span class="op">)</span></span>
 <span><span class="va">ann</span> <span class="op">&lt;-</span> <span class="fu"><a href="reference/as_anndata.html">as_anndata</a></span><span class="op">(</span><span class="va">d</span><span class="op">)</span></span>
+<span></span>
 <span><span class="va">ann</span><span class="op">$</span><span class="va">n_obs</span></span>
 <span><span class="co">#&gt; [1] 856</span></span>
 <span><span class="va">ann</span><span class="op">$</span><span class="va">n_vars</span></span>
 <span><span class="co">#&gt; [1] 683</span></span>
 <span><span class="fu"><a href="https://rdrr.io/r/base/dim.html" class="external-link">dim</a></span><span class="op">(</span><span class="va">ann</span><span class="op">$</span><span class="va">X</span><span class="op">)</span></span>
-<span><span class="co">#&gt; [1] 856 683</span></span></code></pre></div>
-<p>Round-trip h5ad I/O is supported (requires the <code>hdf5r</code> Suggests dep):</p>
+<span><span class="co">#&gt; [1] 856 683</span></span>
+<span><span class="fu"><a href="https://rdrr.io/r/utils/head.html" class="external-link">head</a></span><span class="op">(</span><span class="va">ann</span><span class="op">$</span><span class="va">obs_names</span><span class="op">)</span></span>
+<span><span class="co">#&gt; [1] "demux_07_12_20_1_AACAAGATCCATTTCA-1" "demux_07_12_20_1_AACGAAAGTCCAATCA-1"</span></span>
+<span><span class="co">#&gt; [3] "demux_07_12_20_1_AAGACAAAGTTCCGTA-1" "demux_07_12_20_1_AGACTCATCTATTGTC-1"</span></span>
+<span><span class="co">#&gt; [5] "demux_07_12_20_1_AGATAGACATTCCTCG-1" "demux_07_12_20_1_ATCGTAGTCCAGTGCG-1"</span></span>
+<span><span class="fu"><a href="https://rdrr.io/r/utils/head.html" class="external-link">head</a></span><span class="op">(</span><span class="va">ann</span><span class="op">$</span><span class="va">obs</span><span class="op">)</span></span>
+<span><span class="co">#&gt;                                     donor       experiment</span></span>
+<span><span class="co">#&gt; demux_07_12_20_1_AACAAGATCCATTTCA-1   N89 demux_07_12_20_1</span></span>
+<span><span class="co">#&gt; demux_07_12_20_1_AACGAAAGTCCAATCA-1   N84 demux_07_12_20_1</span></span>
+<span><span class="co">#&gt; demux_07_12_20_1_AAGACAAAGTTCCGTA-1   N86 demux_07_12_20_1</span></span>
+<span><span class="co">#&gt; demux_07_12_20_1_AGACTCATCTATTGTC-1   N84 demux_07_12_20_1</span></span>
+<span><span class="co">#&gt; demux_07_12_20_1_AGATAGACATTCCTCG-1   N89 demux_07_12_20_1</span></span>
+<span><span class="co">#&gt; demux_07_12_20_1_ATCGTAGTCCAGTGCG-1   N89 demux_07_12_20_1</span></span></code></pre></div>
+<p>The facade is read-only; writes (<code>ann$X &lt;- ...</code>) raise an error. Modify the underlying Daf directly if you need to change data.</p>
+<p>Round-trip h5ad I/O is supported (requires the <code>hdf5r</code> Suggests dep). Sparse <code>X</code>, categorical <code>obs</code> / <code>var</code> columns, nested <code>uns</code>, and <code>obsm</code> / <code>varm</code> all round-trip:</p>
 <div class="sourceCode" id="cb5"><pre class="downlit sourceCode r">
-<code class="sourceCode R"><span><span class="va">d</span> <span class="op">&lt;-</span> <span class="fu"><a href="reference/h5ad_as_daf.html">h5ad_as_daf</a></span><span class="op">(</span><span class="st">"path/to/file.h5ad"</span><span class="op">)</span></span>
+<code class="sourceCode R"><span><span class="va">d</span>  <span class="op">&lt;-</span> <span class="fu"><a href="reference/h5ad_as_daf.html">h5ad_as_daf</a></span><span class="op">(</span><span class="st">"path/to/file.h5ad"</span><span class="op">)</span></span>
 <span><span class="fu"><a href="reference/daf_as_h5ad.html">daf_as_h5ad</a></span><span class="op">(</span><span class="va">d</span>, <span class="st">"out.h5ad"</span>, overwrite <span class="op">=</span> <span class="cn">TRUE</span><span class="op">)</span></span></code></pre></div>
+</div>
+<div class="section level2">
+<h2 id="dplyr-backend">dplyr backend<a class="anchor" aria-label="anchor" href="#dplyr-backend"></a>
+</h2>
+<p><code>tbl(daf, axis)</code> returns a lazy <code>daf_axis_tbl</code> where rows are axis entries and columns are per-axis vectors. Most dplyr verbs work natively:</p>
+<div class="sourceCode" id="cb6"><pre class="downlit sourceCode r">
+<code class="sourceCode R"><span><span class="kw"><a href="https://rdrr.io/r/base/library.html" class="external-link">library</a></span><span class="op">(</span><span class="va"><a href="https://dplyr.tidyverse.org" class="external-link">dplyr</a></span><span class="op">)</span></span>
+<span></span>
+<span><span class="va">d</span> <span class="op">&lt;-</span> <span class="fu"><a href="reference/example_cells_daf.html">example_cells_daf</a></span><span class="op">(</span><span class="op">)</span></span>
+<span></span>
+<span><span class="fu"><a href="https://dplyr.tidyverse.org/reference/tbl.html" class="external-link">tbl</a></span><span class="op">(</span><span class="va">d</span>, <span class="st">"cell"</span><span class="op">)</span> <span class="op">|&gt;</span></span>
+<span>    <span class="fu"><a href="https://dplyr.tidyverse.org/reference/filter.html" class="external-link">filter</a></span><span class="op">(</span><span class="va">donor</span> <span class="op">==</span> <span class="st">"N89"</span><span class="op">)</span> <span class="op">|&gt;</span></span>
+<span>    <span class="fu"><a href="https://dplyr.tidyverse.org/reference/select.html" class="external-link">select</a></span><span class="op">(</span><span class="va">name</span>, <span class="va">donor</span>, <span class="va">experiment</span><span class="op">)</span> <span class="op">|&gt;</span></span>
+<span>    <span class="fu"><a href="https://dplyr.tidyverse.org/reference/compute.html" class="external-link">collect</a></span><span class="op">(</span><span class="op">)</span> <span class="op">|&gt;</span></span>
+<span>    <span class="fu"><a href="https://rdrr.io/r/utils/head.html" class="external-link">head</a></span><span class="op">(</span><span class="op">)</span></span>
+<span><span class="co">#&gt; # A tibble: 6 x 3</span></span>
+<span><span class="co">#&gt;                                  name donor       experiment</span></span>
+<span><span class="co">#&gt; 1 demux_07_12_20_1_AACAAGATCCATTTCA-1   N89 demux_07_12_20_1</span></span>
+<span><span class="co">#&gt; 2 demux_07_12_20_1_AGATAGACATTCCTCG-1   N89 demux_07_12_20_1</span></span>
+<span><span class="co">#&gt; 3 demux_07_12_20_1_ATCGTAGTCCAGTGCG-1   N89 demux_07_12_20_1</span></span>
+<span><span class="co">#&gt; 4 demux_07_12_20_1_CACAGGCGTCCTACAA-1   N89 demux_07_12_20_1</span></span>
+<span><span class="co">#&gt; 5 demux_07_12_20_1_CCTACGTAGCCAACCC-1   N89 demux_07_12_20_1</span></span>
+<span><span class="co">#&gt; 6 demux_07_12_20_1_GAAGGGTGTCCCTGAG-1   N89 demux_07_12_20_1</span></span>
+<span></span>
+<span><span class="fu"><a href="https://dplyr.tidyverse.org/reference/tbl.html" class="external-link">tbl</a></span><span class="op">(</span><span class="va">d</span>, <span class="st">"cell"</span><span class="op">)</span> <span class="op">|&gt;</span></span>
+<span>    <span class="fu"><a href="https://dplyr.tidyverse.org/reference/count.html" class="external-link">count</a></span><span class="op">(</span><span class="va">experiment</span>, sort <span class="op">=</span> <span class="cn">TRUE</span><span class="op">)</span> <span class="op">|&gt;</span></span>
+<span>    <span class="fu"><a href="https://dplyr.tidyverse.org/reference/compute.html" class="external-link">collect</a></span><span class="op">(</span><span class="op">)</span> <span class="op">|&gt;</span></span>
+<span>    <span class="fu"><a href="https://rdrr.io/r/utils/head.html" class="external-link">head</a></span><span class="op">(</span><span class="op">)</span></span>
+<span><span class="co">#&gt; # A tibble: 6 x 2</span></span>
+<span><span class="co">#&gt;               name  n</span></span>
+<span><span class="co">#&gt; 1 demux_28_12_20_2 72</span></span>
+<span><span class="co">#&gt; 2 demux_28_12_20_1 58</span></span>
+<span><span class="co">#&gt; 3 demux_21_02_21_2 51</span></span>
+<span><span class="co">#&gt; 4 demux_22_02_21_2 47</span></span>
+<span><span class="co">#&gt; 5 demux_01_03_21_1 45</span></span>
+<span><span class="co">#&gt; 6 demux_07_12_20_2 42</span></span></code></pre></div>
+<p>Supported verbs: <code>filter</code>, <code>select</code>, <code>mutate</code>, <code>arrange</code>, <code>summarise</code>, <code>group_by</code> / <code>ungroup</code>, <code>distinct</code>, <code>pull</code>, <code>collect</code>, <code>as_tibble</code>, <code>count</code> / <code>tally</code> / <code>add_count</code> / <code>add_tally</code>.</p>
+<p>When a grouping variable names another axis already in the daf, <code><a href="https://dplyr.tidyverse.org/reference/summarise.html" class="external-link">summarise()</a></code> and <code><a href="https://dplyr.tidyverse.org/reference/count.html" class="external-link">count()</a></code> <strong>auto-tie-back</strong> to a lazy <code>daf_axis_tbl</code> on that axis — so the pipeline can continue. Axis entries then appear in the <code>name</code> column (the convention for the axis-identity column). Example:</p>
+<div class="sourceCode" id="cb7"><pre class="downlit sourceCode r">
+<code class="sourceCode R"><span><span class="co"># `donor` is an axis of example_cells_daf(); count() re-anchors onto it.</span></span>
+<span><span class="fu"><a href="https://dplyr.tidyverse.org/reference/tbl.html" class="external-link">tbl</a></span><span class="op">(</span><span class="va">d</span>, <span class="st">"cell"</span><span class="op">)</span> <span class="op">|&gt;</span></span>
+<span>    <span class="fu"><a href="https://dplyr.tidyverse.org/reference/count.html" class="external-link">count</a></span><span class="op">(</span><span class="va">donor</span>, sort <span class="op">=</span> <span class="cn">TRUE</span><span class="op">)</span> <span class="op">|&gt;</span></span>
+<span>    <span class="fu"><a href="https://rdrr.io/r/base/class.html" class="external-link">class</a></span><span class="op">(</span><span class="op">)</span>   <span class="co"># daf_axis_tbl + tbl_df</span></span>
+<span><span class="co">#&gt; [1] "daf_axis_tbl"</span></span></code></pre></div>
+<p>Mutations are accumulated lazily and can be written back with <code>dplyr::compute(tbl, vectors = c(...))</code>:</p>
+<div class="sourceCode" id="cb8"><pre class="downlit sourceCode r">
+<code class="sourceCode R"><span><span class="co"># Lazy pipeline...</span></span>
+<span><span class="va">updated</span> <span class="op">&lt;-</span> <span class="fu"><a href="https://dplyr.tidyverse.org/reference/tbl.html" class="external-link">tbl</a></span><span class="op">(</span><span class="va">d</span>, <span class="st">"cell"</span><span class="op">)</span> <span class="op">|&gt;</span></span>
+<span>    <span class="fu"><a href="https://dplyr.tidyverse.org/reference/mutate.html" class="external-link">mutate</a></span><span class="op">(</span>donor_upper <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/chartr.html" class="external-link">toupper</a></span><span class="op">(</span><span class="va">donor</span><span class="op">)</span><span class="op">)</span></span>
+<span></span>
+<span><span class="co"># ...materialise the new vector on the underlying daf:</span></span>
+<span><span class="fu">dplyr</span><span class="fu">::</span><span class="fu"><a href="https://dplyr.tidyverse.org/reference/compute.html" class="external-link">compute</a></span><span class="op">(</span><span class="va">updated</span>, vectors <span class="op">=</span> <span class="st">"donor_upper"</span><span class="op">)</span></span></code></pre></div>
+<p>Matrices are out of scope — use the native query DSL for those.</p>
 </div>
 <div class="section level2">
 <h2 id="key-features">Key Features<a class="anchor" aria-label="anchor" href="#key-features"></a>
@@ -248,7 +316,6 @@
 <p>Tracked in <code>NEWS.md</code>. Notable near-term items:</p>
 <ul>
 <li>HDF5-backed <code>h5df</code> store.</li>
-<li>Sparse-matrix h5ad encoding, categorical obs / var columns, nested <code>uns</code> groups in the h5ad adapter.</li>
 <li>CRAN submission.</li>
 </ul>
 </div>
@@ -294,7 +361,13 @@
 </ul>
 </div>
 
-
+<div class="dev-status">
+<h2 data-toc-skip>Dev status</h2>
+<ul class="list-unstyled">
+<li><a href="https://github.com/tanaylab/dafr/actions/workflows/R-CMD-check.yaml" class="external-link"><img src="https://github.com/tanaylab/dafr/actions/workflows/R-CMD-check.yaml/badge.svg" alt="R-CMD-check"></a></li>
+<li><a href="https://lifecycle.r-lib.org/articles/stages.html#experimental" class="external-link"><img src="https://img.shields.io/badge/lifecycle-experimental-orange.svg" alt="Lifecycle: experimental"></a></li>
+</ul>
+</div>
 
   </aside>
 </div>

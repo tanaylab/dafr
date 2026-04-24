@@ -104,11 +104,57 @@ If the grouping variable is just a vector (not an axis),
 [`summarise()`](https://dplyr.tidyverse.org/reference/summarise.html)
 returns a plain tibble.
 
-## Out of scope for v1
+## More verbs
 
-- Matrices. Use `Axis(...) |> LookupMatrix(...)` from the query DSL.
-- Joins across axes.
-- Window functions (`lag`, `cumsum`, etc.).
-- DSL pushdown for `filter` / `summarise` (planned follow-up — verbs
-  currently materialize via `get_vector`, which is cheap for memory daf
-  but not optimal for large `FilesDaf` with selective filters).
+Beyond the core set above, the backend also supports `slice` and the
+`slice_head` / `slice_tail` / `slice_min` / `slice_max` / `slice_sample`
+family; `rename` and `relocate`; `count` / `tally` / `add_count` /
+`add_tally`; `transmute` and `reframe`. Inside
+[`mutate()`](https://dplyr.tidyverse.org/reference/mutate.html) and
+[`summarise()`](https://dplyr.tidyverse.org/reference/summarise.html),
+common dplyr helpers work via delegation:
+
+- Window functions: `lag`, `lead`, `cumsum`, `row_number`, `min_rank`,
+  `dense_rank`, `ntile`, `percent_rank`.
+- Scalar helpers: `if_else`, `case_when`, `coalesce`, `n_distinct`,
+  `first`, `last`, `nth`.
+- `across(where(is.numeric), mean)`-style column-wise ops.
+- Tidyselect helpers in
+  [`select()`](https://dplyr.tidyverse.org/reference/select.html):
+  `starts_with`, `contains`, `matches`, `where`.
+
+`.by = ...` (dplyr 1.1+) works on
+[`filter()`](https://dplyr.tidyverse.org/reference/filter.html) /
+[`mutate()`](https://dplyr.tidyverse.org/reference/mutate.html) /
+[`summarise()`](https://dplyr.tidyverse.org/reference/summarise.html); a
+single-axis `.by` on
+[`summarise()`](https://dplyr.tidyverse.org/reference/summarise.html)
+ties back the same way group_by does. `mutate(.keep = "none")` is
+respected.
+
+## Not supported (yet)
+
+- **Matrices.** Use `Axis(...) |> LookupMatrix(...)` from the query DSL.
+
+- **Joins** (`inner_join`, `left_join`, `right_join`, `full_join`,
+  `semi_join`, `anti_join`, `cross_join`, `nest_join`). A daf_axis_tbl
+  has no meaningful join semantics against another table in v1. Calling
+  any of these produces a helpful error pointing you at
+  [`dplyr::collect()`](https://dplyr.tidyverse.org/reference/compute.html):
+
+  ``` r
+  tbl(d, "cell") |> left_join(other)
+  #> Error: `left_join()` is not supported on a daf_axis_tbl.
+  #> Use `dplyr::collect()` to materialize a tibble first, then apply this verb.
+  ```
+
+- **Set operations** (`union`, `union_all`, `intersect`, `setdiff`) —
+  same story.
+
+- **[`rowwise()`](https://dplyr.tidyverse.org/reference/rowwise.html)**
+  — collect or rewrite as a vectorized
+  [`mutate()`](https://dplyr.tidyverse.org/reference/mutate.html).
+
+- **DSL pushdown** for `filter` / `summarise`. Verbs currently
+  materialize via `get_vector`, which is cheap for memory daf but not
+  optimal for large `FilesDaf` with selective filters.

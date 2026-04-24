@@ -434,6 +434,17 @@
   [`IGNORE_HANDLER`](https://tanaylab.github.io/dafr/reference/handler-constants.md)
   : Inefficient-action handler constants.
 
+## Threads
+
+OpenMP thread-count control. Kernels honour the value set via
+[`set_num_threads()`](https://tanaylab.github.io/dafr/reference/set_num_threads.md)
+(or the `dafr.num_threads` option). CRAN-like environments are
+auto-capped to two cores on package load.
+
+- [`set_num_threads()`](https://tanaylab.github.io/dafr/reference/set_num_threads.md)
+  [`get_num_threads()`](https://tanaylab.github.io/dafr/reference/set_num_threads.md)
+  : Control OpenMP thread count for dafr kernels.
+
 ## Version counters
 
 - [`axis_version_counter()`](https://tanaylab.github.io/dafr/reference/axis_version_counter.md)
