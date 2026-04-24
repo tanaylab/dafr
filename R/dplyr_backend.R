@@ -98,6 +98,30 @@ tbl_DafReader_axis <- function(src, axis, ...) {
     out
 }
 
+# ---- dplyr infrastructure methods ------------------------------------------
+
+# tbl_vars reports the column names — used by many dplyr internals
+# (e.g. check_n_name in add_tally). We report name + all currently
+# visible columns (honoring col_select).
+#' @noRd
+tbl_vars_daf_axis_tbl <- function(x) {
+    daf <- attr(x, "daf")
+    axis <- attr(x, "axis")
+    stored <- vectors_set(daf, axis)
+    overrides <- attr(x, "overrides")
+    sel <- attr(x, "col_select")
+    if (is.null(sel)) {
+        out <- c("name", stored, setdiff(names(overrides), stored))
+    } else {
+        out <- if ("name" %in% sel) sel else c("name", sel)
+    }
+    unique(out)
+}
+
+# group_vars: which columns are grouping variables.
+#' @noRd
+group_vars_daf_axis_tbl <- function(x) attr(x, "groups") %||% character()
+
 # ---- collect / as_tibble / print -------------------------------------------
 #
 # These S3 method bodies are named without dots so roxygen2 doesn't
@@ -247,6 +271,67 @@ relocate_daf_axis_tbl <- function(.data, ..., .before = NULL, .after = NULL) {
         .before = {{ .before }}, .after = {{ .after }})
     attr(.data, "col_select") <- colnames(reordered)
     .data
+}
+
+# ---- count / tally / add_count / add_tally --------------------------------
+#
+# These are thin sugar over group_by + summarise/mutate and inherit
+# our existing tie-back behavior. `wt = ...` (weighted counting) is
+# not supported in v1.1.
+
+.check_no_wt <- function(wt) {
+    wt_expr <- rlang::enquo(wt)
+    if (!rlang::quo_is_null(wt_expr)) {
+        warning("count()/tally() `wt =` is not supported on daf_axis_tbl; ignoring.",
+                call. = FALSE)
+    }
+}
+
+#' @noRd
+count_daf_axis_tbl <- function(x, ..., wt = NULL, sort = FALSE, name = NULL) {
+    .check_no_wt({{ wt }})
+    nm <- if (is.null(name)) "n" else name
+    grouped <- dplyr::group_by(x, ..., .add = FALSE)
+    result <- dplyr::summarise(grouped, !!nm := dplyr::n())
+    if (isTRUE(sort)) {
+        result <- dplyr::arrange(result, dplyr::desc(.data[[nm]]))
+    }
+    result
+}
+
+#' @noRd
+tally_daf_axis_tbl <- function(x, wt = NULL, sort = FALSE, name = NULL) {
+    .check_no_wt({{ wt }})
+    nm <- if (is.null(name)) "n" else name
+    result <- dplyr::summarise(x, !!nm := dplyr::n())
+    if (isTRUE(sort)) {
+        result <- dplyr::arrange(result, dplyr::desc(.data[[nm]]))
+    }
+    result
+}
+
+#' @noRd
+add_count_daf_axis_tbl <- function(x, ..., wt = NULL, sort = FALSE, name = NULL) {
+    .check_no_wt({{ wt }})
+    nm <- if (is.null(name)) "n" else name
+    grouped <- dplyr::group_by(x, ..., .add = TRUE)
+    result <- dplyr::mutate(grouped, !!nm := dplyr::n())
+    result <- dplyr::ungroup(result)
+    if (isTRUE(sort)) {
+        result <- dplyr::arrange(result, dplyr::desc(.data[[nm]]))
+    }
+    result
+}
+
+#' @noRd
+add_tally_daf_axis_tbl <- function(x, wt = NULL, sort = FALSE, name = NULL) {
+    .check_no_wt({{ wt }})
+    nm <- if (is.null(name)) "n" else name
+    result <- dplyr::mutate(x, !!nm := dplyr::n())
+    if (isTRUE(sort)) {
+        result <- dplyr::arrange(result, dplyr::desc(.data[[nm]]))
+    }
+    result
 }
 
 # ---- mutate ----------------------------------------------------------------
