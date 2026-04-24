@@ -203,6 +203,15 @@ reference:
       - IGNORE_HANDLER
       - WARN_HANDLER
 
+  - title: Threads
+    desc: >
+      OpenMP thread-count control. Kernels honour the value set via
+      `set_num_threads()` (or the `dafr.num_threads` option). CRAN-like
+      environments are auto-capped to two cores on package load.
+    contents:
+      - set_num_threads
+      - get_num_threads
+
   - title: Version counters
     contents:
       - axis_version_counter

@@ -1,10 +1,10 @@
 ALTREP
 AnnData
+args
 AST
 behaviour
 Bool
 Canonicalise
-canonicalise
 capitalised
 cloneable
 coercible
@@ -18,11 +18,10 @@ CSC
 CSR
 ctor
 daf
-Daf
-DAF
 DAF's
 daf's
 DafAnnData
+dafr's
 DafReaders
 dafs
 DafWriter
@@ -47,12 +46,11 @@ env
 falsy
 FilesDaf
 filesystem
-Filesystem
 generalisation
 GeoMean
 HDF
-INTSXP
 interop
+INTSXP
 jl
 JSON
 julia
@@ -67,7 +65,6 @@ metacell
 metacells
 misclassified
 mmap
-Mmap
 mmap'd
 Muon
 ncol
@@ -81,10 +78,8 @@ OMP
 OpenMP
 ORCID
 perf
-Perf
 pluggable
 pre
-Pre
 PRs
 pushdown
 REALSXP
@@ -102,6 +97,7 @@ sublicense
 subquery
 tbl
 tibble
+Tidyselect
 ubuntu
 UInt
 UMI
@@ -114,5 +110,4 @@ UX
 VarN
 vectorized
 ViewDaf
-args
 µs
