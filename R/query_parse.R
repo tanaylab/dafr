@@ -4,21 +4,11 @@ NULL
 # Parser: tokens -> AST. Hand-rolled state machine.
 # Reference: DataAxesFormats.jl queries.jl:2108 (parse_query).
 
-#' Parse a query string into an AST (list of `qop` nodes).
-#'
-#' @param query_string A character scalar.
-#' @return A list of AST node records.
-#' @examples
-#' # Most users call get_query() directly; parse_query() returns the AST.
-#' ast <- parse_query("@ cell : donor")
-#' is_axis_query("@ cell : donor")
-#' get_query(example_cells_daf(), "@ cell : donor") |> head()
 # Process-lifetime cache for parse_query results. Parsing is
 # side-effect-free given an identical input string, so memoising the
 # string → AST mapping is safe. The cache is size-capped via a simple
 # FIFO ring buffer in an environment to avoid unbounded memory growth
 # under long-running sessions that see many distinct queries.
-
 .parse_query_cache <- new.env(parent = emptyenv())
 .parse_query_cache$entries <- new.env(parent = emptyenv(), hash = TRUE)
 .parse_query_cache$order <- character(0L)
@@ -52,6 +42,15 @@ NULL
     invisible()
 }
 
+#' Parse a query string into an AST (list of `qop` nodes).
+#'
+#' @param query_string A character scalar.
+#' @return A list of AST node records.
+#' @examples
+#' # Most users call get_query() directly; parse_query() returns the AST.
+#' ast <- parse_query("@ cell : donor")
+#' is_axis_query("@ cell : donor")
+#' get_query(example_cells_daf(), "@ cell : donor") |> head()
 #' @export
 parse_query <- function(query_string) {
     stopifnot(
