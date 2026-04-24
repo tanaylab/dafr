@@ -22,7 +22,8 @@ ContractDaf(
   overwrite = logical(0),
   base = DafReader(),
   axes = new.env(parent = emptyenv()),
-  data = new.env(parent = emptyenv())
+  data = new.env(parent = emptyenv()),
+  tensor_index = new.env(parent = emptyenv())
 )
 ```
 
@@ -80,6 +81,12 @@ ContractDaf(
 
   Per-property access-tracking environment (keyed by
   `<kind>:<axes>:<name>`).
+
+- tensor_index:
+
+  Environment mapping `<rows_axis>:<columns_axis>:<mat_name>` → tensor
+  key in `data`, used to resolve per-entry matrix reads to their owning
+  tensor tracker.
 
 ## Value
 

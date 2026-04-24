@@ -65,7 +65,8 @@ to track access and reject operations outside the contract.</p>
 <span>  overwrite <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/logical.html" class="external-link">logical</a></span><span class="op">(</span><span class="fl">0</span><span class="op">)</span>,</span>
 <span>  base <span class="op">=</span> <span class="fu"><a href="DafReader.html">DafReader</a></span><span class="op">(</span><span class="op">)</span>,</span>
 <span>  axes <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/environment.html" class="external-link">new.env</a></span><span class="op">(</span>parent <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/environment.html" class="external-link">emptyenv</a></span><span class="op">(</span><span class="op">)</span><span class="op">)</span>,</span>
-<span>  data <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/environment.html" class="external-link">new.env</a></span><span class="op">(</span>parent <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/environment.html" class="external-link">emptyenv</a></span><span class="op">(</span><span class="op">)</span><span class="op">)</span></span>
+<span>  data <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/environment.html" class="external-link">new.env</a></span><span class="op">(</span>parent <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/environment.html" class="external-link">emptyenv</a></span><span class="op">(</span><span class="op">)</span><span class="op">)</span>,</span>
+<span>  tensor_index <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/environment.html" class="external-link">new.env</a></span><span class="op">(</span>parent <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/environment.html" class="external-link">emptyenv</a></span><span class="op">(</span><span class="op">)</span><span class="op">)</span></span>
 <span><span class="op">)</span></span></code></pre></div>
     </div>
 
@@ -128,6 +129,12 @@ name).</p></dd>
 <dt id="arg-data">data<a class="anchor" aria-label="anchor" href="#arg-data"></a></dt>
 <dd><p>Per-property access-tracking environment (keyed by
 <code>&lt;kind&gt;:&lt;axes&gt;:&lt;name&gt;</code>).</p></dd>
+
+
+<dt id="arg-tensor-index">tensor_index<a class="anchor" aria-label="anchor" href="#arg-tensor-index"></a></dt>
+<dd><p>Environment mapping <code>&lt;rows_axis&gt;:&lt;columns_axis&gt;:&lt;mat_name&gt;</code>
+→ tensor key in <code>data</code>, used to resolve per-entry matrix reads to their
+owning tensor tracker.</p></dd>
 
 </dl></div>
     <div class="section level2">

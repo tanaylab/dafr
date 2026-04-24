@@ -2,9 +2,10 @@
 
 Loads dense or sparse `/X`, `/obs` and `/var` column groups (dense
 scalar columns and categorical columns), flat + nested `/uns` scalar
-entries (nested keys are flattened via `_`), and dense `/layers`. `varm`
-/ `obsm` / `obsp` / `varp` and `raw` are still escalated through
-`unsupported_handler` and skipped.
+entries (nested keys are flattened via `_`), dense `/layers`, and
+`/obsm` / `/varm` dense matrices (each stored on a synthetic axis
+`obsm_<name>_dim` / `varm_<name>_dim`). `obsp` / `varp` and `raw` are
+still escalated through `unsupported_handler` and skipped.
 
 ## Usage
 
