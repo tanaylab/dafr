@@ -1,68 +1,25 @@
-## Release summary
-
-`dafr` is the first public release of a native R + C++ implementation
-of the DataAxesFormats (DAF) data model, originally implemented in Julia
-(`DataAxesFormats.jl`). The R port provides MemoryDaf and FilesDaf
-storage backends, a query DSL in both string and pipe-chain builder
-form, read-only h5ad interop, contracts, views, and a dplyr-backed
-tidy interface. This is **not** a revision of an existing CRAN package.
-
 ## Test environments
 
-- Local: Linux (x86_64, R 4.4+, gcc 12) — PASS
-- GitHub Actions:
-  - ubuntu-latest / R release — PASS
-  - ubuntu-latest / R devel — PASS (as of submission)
-  - ubuntu-latest / R oldrel-1 — PASS
-  - macos-latest / R release — PASS
-  - windows-latest / R release — PASS
+- Local: Linux (x86_64, R 4.4, gcc 13) — 0 errors, 0 warnings, 2 notes.
+- GitHub Actions (R-CMD-check.yaml matrix):
+  - ubuntu-latest on R r-devel
+  - ubuntu-latest on R r-release
+  - ubuntu-latest on R r-oldrel-1
+  - macos-latest on R r-release
+  - windows-latest on R r-release
 
-Full test suite: 2800+ testthat assertions across 45 test files.
+Full `testthat` suite: 2913 assertions.
 
-## R CMD check results
+## R CMD check notes worth justifying
 
-0 errors | 0 warnings | NOTEs below.
-
-### Installed package size
-
-Under the 5 MB target after fixture compression on CRAN's stripped
-install (compiled library strips from 3.5 MB to ~220 KB). Compiled
-libs before strip are ~3.4 MB (OpenMP-parallel C++ kernels for
-reductions, group-by, sparse I/O). Post-strip total sits comfortably
-under the CRAN 5 MB limit.
-
-### Non-standard files
-
-None in the built tarball; development-only directories
-(`dev/`, `benchmarks/`, `.claude/`, `.worktrees/`) are excluded via
-`.Rbuildignore`.
+- **Thread compliance.** `.onLoad()` detects CRAN's check harness
+  (via `_R_CHECK_LIMIT_CORES_` or `OMP_THREAD_LIMIT <= 2`) and caps
+  OpenMP threads to 2 via `set_num_threads()`. Users can override
+  with `options(dafr.num_threads = N)` or `set_num_threads(N)`.
+  Examples, tests, and vignettes all respect the 2-core policy.
+- **`hdf5r` in Suggests.** Gated via `rlang::check_installed()` at
+  each h5ad entry point. Core Daf functionality has no HDF5 dependency.
 
 ## Downstream dependencies
 
-None. This is a new package with no reverse dependencies on CRAN.
-
-## Additional notes
-
-- C++17 is declared in `SystemRequirements`. All compilation flags come
-  from R's build system (no hard-coded flags beyond `PKG_CXXFLAGS` and
-  `PKG_LIBS` pulling in `$(SHLIB_OPENMP_CXXFLAGS)`, `$(LAPACK_LIBS)`,
-  `$(BLAS_LIBS)`, `$(FLIBS)`).
-- Several examples are wrapped in `\dontrun{}` because they require
-  on-disk FilesDaf stores, h5ad files, or are tied to benchmark-scale
-  data. All cheap examples run by default and pass under `--run-donttest`.
-- `hdf5r` is in Suggests (gated via `rlang::check_installed()` at each
-  h5ad entry point). Core Daf functionality has no HDF5 dependency.
-- **Thread compliance:** `.onLoad()` detects CRAN's check harness via
-  `_R_CHECK_LIMIT_CORES_` and `OMP_THREAD_LIMIT`, and auto-caps OpenMP
-  thread usage to 2 cores via `omp_set_num_threads(2)`. Users can
-  override at any time via `set_num_threads(n)` or
-  `options(dafr.num_threads = n)`. Examples, tests and vignettes
-  therefore respect CRAN's 2-core limit without any author action.
-
-## Example runtime
-
-`devtools::run_examples(run_dontrun = FALSE, run_donttest = TRUE)`
-completes in well under the 5-minute CRAN ceiling on the developer
-machine. Individual examples that load bundled fixtures are kept
-fast by design (compressed RDS fixtures, no network, no disk writes);
-any example whose runtime approaches 5 s is wrapped in `\donttest{}`.
+None — new package.

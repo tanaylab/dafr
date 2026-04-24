@@ -16,6 +16,8 @@ knitr::opts_chunk$set(
 # dafr - Data in Axes in Formats for R (native)
 
 <!-- badges: start -->
+[![R-CMD-check](https://github.com/tanaylab/dafr/actions/workflows/R-CMD-check.yaml/badge.svg)](https://github.com/tanaylab/dafr/actions/workflows/R-CMD-check.yaml)
+[![Lifecycle: experimental](https://img.shields.io/badge/lifecycle-experimental-orange.svg)](https://lifecycle.r-lib.org/articles/stages.html#experimental)
 <!-- badges: end -->
 
 `dafr` is a native R + C++ implementation of the
@@ -143,20 +145,86 @@ semantically equivalent.
 
 ## AnnData interop
 
+A Daf object can be exposed as an `AnnData`-shaped facade with the
+familiar `X` / `obs` / `var` / `layers` / `uns` / `obs_names` /
+`var_names` / `shape` properties:
+
 ```{r anndata_demo}
 d <- example_cells_daf()
 ann <- as_anndata(d)
+
 ann$n_obs
 ann$n_vars
 dim(ann$X)
+head(ann$obs_names)
+head(ann$obs)
 ```
 
-Round-trip h5ad I/O is supported (requires the `hdf5r` Suggests dep):
+The facade is read-only; writes (`ann$X <- ...`) raise an error.
+Modify the underlying Daf directly if you need to change data.
+
+Round-trip h5ad I/O is supported (requires the `hdf5r` Suggests dep).
+Sparse `X`, categorical `obs` / `var` columns, nested `uns`, and
+`obsm` / `varm` all round-trip:
 
 ```{r h5ad_demo, eval = FALSE}
-d <- h5ad_as_daf("path/to/file.h5ad")
+d  <- h5ad_as_daf("path/to/file.h5ad")
 daf_as_h5ad(d, "out.h5ad", overwrite = TRUE)
 ```
+
+## dplyr backend
+
+`tbl(daf, axis)` returns a lazy `daf_axis_tbl` where rows are axis
+entries and columns are per-axis vectors. Most dplyr verbs work
+natively:
+
+```{r dplyr_demo, message = FALSE}
+library(dplyr)
+
+d <- example_cells_daf()
+
+tbl(d, "cell") |>
+    filter(donor == "N89") |>
+    select(name, donor, experiment) |>
+    collect() |>
+    head()
+
+tbl(d, "cell") |>
+    count(experiment, sort = TRUE) |>
+    collect() |>
+    head()
+```
+
+Supported verbs: `filter`, `select`, `mutate`, `arrange`, `summarise`,
+`group_by` / `ungroup`, `distinct`, `pull`, `collect`, `as_tibble`,
+`count` / `tally` / `add_count` / `add_tally`.
+
+When a grouping variable names another axis already in the daf,
+`summarise()` and `count()` **auto-tie-back** to a lazy
+`daf_axis_tbl` on that axis — so the pipeline can continue.
+Axis entries then appear in the `name` column (the convention for the
+axis-identity column). Example:
+
+```{r dplyr_tie_back}
+# `donor` is an axis of example_cells_daf(); count() re-anchors onto it.
+tbl(d, "cell") |>
+    count(donor, sort = TRUE) |>
+    class()   # daf_axis_tbl + tbl_df
+```
+
+Mutations are accumulated lazily and can be written back with
+`dplyr::compute(tbl, vectors = c(...))`:
+
+```{r dplyr_compute, eval = FALSE}
+# Lazy pipeline...
+updated <- tbl(d, "cell") |>
+    mutate(donor_upper = toupper(donor))
+
+# ...materialise the new vector on the underlying daf:
+dplyr::compute(updated, vectors = "donor_upper")
+```
+
+Matrices are out of scope — use the native query DSL for those.
 
 ## Key Features
 
@@ -187,8 +255,6 @@ and known gaps. Comments, bug reports, and PRs are welcome.
 Tracked in `NEWS.md`. Notable near-term items:
 
 - HDF5-backed `h5df` store.
-- Sparse-matrix h5ad encoding, categorical obs / var columns, nested
-  `uns` groups in the h5ad adapter.
 - CRAN submission.
 
 ## License (MIT)
