@@ -25,9 +25,10 @@ A \code{\link[=memory_daf]{memory_daf()}} populated with the h5ad contents.
 \description{
 Loads dense or sparse \verb{/X}, \verb{/obs} and \verb{/var} column groups (dense
 scalar columns and categorical columns), flat + nested \verb{/uns} scalar
-entries (nested keys are flattened via \verb{_}), and dense \verb{/layers}.
-\code{varm} / \code{obsm} / \code{obsp} / \code{varp} and \code{raw} are still escalated
-through \code{unsupported_handler} and skipped.
+entries (nested keys are flattened via \verb{_}), dense \verb{/layers}, and
+\verb{/obsm} / \verb{/varm} dense matrices (each stored on a synthetic axis
+\verb{obsm_<name>_dim} / \verb{varm_<name>_dim}). \code{obsp} / \code{varp} and \code{raw} are
+still escalated through \code{unsupported_handler} and skipped.
 }
 \details{
 Requires the \code{hdf5r} and \code{Matrix} packages.

@@ -425,6 +425,79 @@ test_that("nested uns: multi-level nesting flattens with '_'", {
     expect_identical(get_scalar(d, "top"), "t")
 })
 
+# ---- Slice 15: obsm / varm round-trip --------------------------------------
+
+test_that("h5ad_as_daf reads /obsm as a matrix on a synthetic dim axis", {
+    skip_if_not_installed("hdf5r")
+    p <- .sparse_fixture_path()
+    skip_if(p == "", "sparse fixture not available")
+    d <- h5ad_as_daf(p)
+    expect_true(has_axis(d, "obsm_X_umap_dim"))
+    expect_identical(axis_entries(d, "obsm_X_umap_dim"), c("1", "2"))
+    expect_true(has_matrix(d, "obs", "obsm_X_umap_dim", "X_umap"))
+    m <- get_matrix(d, "obs", "obsm_X_umap_dim", "X_umap")
+    expect_identical(dim(m), c(50L, 2L))
+    expect_type(m, "double")
+})
+
+test_that("h5ad_as_daf reads /varm as a matrix on a synthetic dim axis", {
+    skip_if_not_installed("hdf5r")
+    p <- .sparse_fixture_path()
+    skip_if(p == "", "sparse fixture not available")
+    d <- h5ad_as_daf(p)
+    expect_true(has_axis(d, "varm_PCs_dim"))
+    expect_identical(axis_entries(d, "varm_PCs_dim"), c("1", "2", "3"))
+    expect_true(has_matrix(d, "var", "varm_PCs_dim", "PCs"))
+    m <- get_matrix(d, "var", "varm_PCs_dim", "PCs")
+    expect_identical(dim(m), c(20L, 3L))
+})
+
+test_that("obsm/varm round-trip via daf_as_h5ad writes /obsm and /varm", {
+    skip_if_not_installed("hdf5r")
+    p <- .sparse_fixture_path()
+    skip_if(p == "", "sparse fixture not available")
+    d <- h5ad_as_daf(p)
+
+    tmp <- tempfile(fileext = ".h5ad")
+    on.exit(unlink(tmp), add = TRUE)
+    daf_as_h5ad(d, tmp, obs_axis = "obs", var_axis = "var")
+
+    # On-disk inspection — the round-tripped file has both groups.
+    h5 <- hdf5r::H5File$new(tmp, mode = "r")
+    expect_true(h5$exists("obsm"))
+    expect_true(h5$exists("varm"))
+    expect_true("X_umap" %in% h5[["obsm"]]$names)
+    expect_true("PCs" %in% h5[["varm"]]$names)
+    u <- h5[["obsm"]][["X_umap"]]$read()
+    expect_identical(dim(u), c(50L, 2L))
+    pc <- h5[["varm"]][["PCs"]]$read()
+    expect_identical(dim(pc), c(20L, 3L))
+    h5$close_all()
+
+    # Round-trip value-stability.
+    d2 <- h5ad_as_daf(tmp)
+    m_orig <- get_matrix(d, "obs", "obsm_X_umap_dim", "X_umap")
+    m_rt   <- get_matrix(d2, "obs", "obsm_X_umap_dim", "X_umap")
+    expect_identical(as.numeric(m_orig), as.numeric(m_rt))
+    p_orig <- get_matrix(d, "var", "varm_PCs_dim", "PCs")
+    p_rt   <- get_matrix(d2, "var", "varm_PCs_dim", "PCs")
+    expect_identical(as.numeric(p_orig), as.numeric(p_rt))
+})
+
+test_that("daf_as_h5ad omits /obsm/varm entries when there are no such axes", {
+    skip_if_not_installed("hdf5r")
+    d <- .make_rt_daf()  # no obsm_* / varm_* synthetic axes
+    tmp <- tempfile(fileext = ".h5ad")
+    on.exit(unlink(tmp), add = TRUE)
+    daf_as_h5ad(d, tmp, obs_axis = "obs", var_axis = "var")
+    h5 <- hdf5r::H5File$new(tmp, mode = "r")
+    expect_true(h5$exists("obsm"))
+    expect_identical(length(h5[["obsm"]]$names), 0L)
+    expect_true(h5$exists("varm"))
+    expect_identical(length(h5[["varm"]]$names), 0L)
+    h5$close_all()
+})
+
 test_that("nested uns: non-scalar leaves are skipped", {
     skip_if_not_installed("hdf5r")
     tmp <- tempfile(fileext = ".h5ad")
