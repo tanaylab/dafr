@@ -20,12 +20,6 @@ The semantics follow the Julia reference implementation
 the short [Query DSL vignette](../queries.html) is a tutorial, this one
 is the specification.
 
-`dafr`'s DSL currently implements a subset of the Julia spec — three
-documented Julia features are not yet in `dafr`. They are listed
-explicitly in the [Divergences from DataAxesFormats.jl](#divergences-from-dataaxesformatsjl)
-section at the end; everything else in this article is faithful to the
-Julia semantics.
-
 The DSL has two surface forms:
 
 - a **string form** (`daf["@ cell : donor"]`), tokenised and parsed.
@@ -66,6 +60,7 @@ the **phrase** column indicates which phrase the operator appears in.
 | `|/`     | `GroupColumnsBy()`      | Group matrix columns by a vector with one value per column.                                   |
 | `-/`     | `GroupRowsBy()`         | Group matrix rows by a vector with one value per row.                                         |
 | `%`      | eltwise op (`Abs`, …)   | Apply an element-wise operation to vector or matrix data.                                     |
+| `>>`     | reduction op (`Sum`, …) | Reduce a vector or matrix to a scalar (per-group vector on a grouped input).                  |
 | `>|`     | `ReduceToColumn()`      | Reduce a matrix along rows to a single column vector.                                         |
 | `>-`     | `ReduceToRow()`         | Reduce a matrix along columns to a single row vector.                                         |
 | `\|\|`   | `IfMissing()`           | Default value when a lookup target does not exist, or when reducing empty data.               |
@@ -98,17 +93,10 @@ Element-wise operation builders include `Abs`, `Clamp`, `Convert`,
 builders include `Sum`, `Mean`, `Median`, `Mode`, `Quantile`, `Max`,
 `Min`, `Count`, `GeoMean`, `Std`, `StdN`, `Var`, `VarN`.
 
-The Julia `>>` operator (`ReductionOperation`, vector/matrix to
-scalar) is documented in the
-[Divergences](#divergences-from-dataaxesformatsjl) section — it is a
-known gap in `dafr`.
-
 # The four query kinds
 
-Every query returns one of four result kinds. `dafr` today produces
-names, a scalar, a vector, or a matrix; the only gap vs. Julia is that
-no in-DSL path produces a scalar from a vector or matrix (use R's
-`sum()` / `mean()` etc. on the vector/matrix result).
+Every query returns one of four result kinds, selected by the phrases
+it uses.
 
 ## Names query — `?`
 
@@ -127,28 +115,33 @@ cells["@ gene : ?"]
 cells["@ cell @ gene :: ?"]
 ```
 
-## Scalar query — `. name`
+## Scalar query — `.` / `... >> Reduction`
 
-A scalar query in `dafr` is a scalar-property lookup, optionally with a
-default via `||`:
+Returns a single scalar value. Produced by:
+
+- Looking up a scalar (`. name`), optionally with a `||` default and
+  an optional `type T` to pin the default's dtype.
+- Looking up a vector and picking one entry
+  (`: vec @ axis = entry`).
+- Looking up a matrix and picking one cell
+  (`:: m @ rows = R @ cols = C`).
+- Reducing any vector to a scalar (`... >> Reduction`).
+- Reducing any matrix to a scalar (`... >> Reduction`).
 
 ```{r}
 cells[". organism"]
 cells[". nope || fallback"]
+cells[". nope || 0 type Int64"]
+
+# Pick one entry from a vector.
+cells["@ donor : age @ donor = N89"]
+
+# Number of genes marked as lateral (reduce a vector of Bool).
+cells["@ gene : is_lateral >> Sum type Int64"]
+
+# Total UMIs in the whole matrix.
+cells["@ cell @ gene :: UMIs >> Sum type Int64"]
 ```
-
-For summaries of a vector or matrix — e.g., total UMIs in the store
-or the count of lateral genes — evaluate the vector/matrix query and
-reduce in R:
-
-```{r}
-sum(cells["@ gene : is_lateral"])      # count of lateral genes
-sum(cells["@ cell @ gene :: UMIs"])    # total UMIs in the matrix
-```
-
-Julia's in-DSL `>> Reduction` (vector/matrix to scalar) is tracked as
-a gap — see the
-[Divergences](#divergences-from-dataaxesformatsjl) section.
 
 ## Vector query
 
@@ -341,34 +334,13 @@ internal cache. Use `daf[q]` for a one-shot evaluation that does
 also invoked automatically on every mutating write to the daf so
 cached results never become stale.
 
-# Divergences from DataAxesFormats.jl
+# Further reading
 
-The DSL semantics above match the Julia reference implementation
-except for the following three features, which are defined in the
-Julia spec but not yet implemented in `dafr`:
-
-1. **`>>` as `ReductionOperation` (vector/matrix to scalar).** Julia
-   allows `... >> Sum` to reduce a vector or a matrix all the way to
-   a single scalar. In `dafr`, the DSL does not yet have a
-   reduce-to-scalar phrase; the current parser at
-   `R/query_parse.R:112` treats `>>` as an alias for `>|`
-   (reduce-to-column) for legacy compatibility. Workaround: run the
-   vector/matrix query and reduce in R (`sum(daf["..."])`).
-
-2. **`@ axis = entry` entry-picker.** Julia's scalar phrase
-   `: vec @ axis = entry` picks a single entry from a vector (and
-   analogously `:: m @ r = R @ c = C` picks one cell from a matrix).
-   `dafr`'s parser currently treats `=` after `@ axis` as a mask
-   comparator, so the phrase does not parse. Workaround: evaluate
-   the vector/matrix query and subscript in R, or use `axis_indices()`
-   for an exact lookup.
-
-3. **`|| value type T` on scalar-lookup defaults.** Julia's scalar
-   default accepts a `type T` suffix (`. name || 0 type Int64`) to
-   fix the default's numeric type. In `dafr`, only the bare
-   `|| value` form is accepted for scalar lookups; the `type T`
-   suffix is only supported inside reductions and element-wise ops.
-
-When these features ship in `dafr`, the [NEWS](../news/index.html) for
-that release will flag them explicitly, and this section will be
-updated.
+- [Query DSL tutorial](../queries.html) — short introduction.
+- [Reference: Query DSL (string form)](../reference/index.html) —
+  per-function docs for parsing, inspection, and escape helpers.
+- [Reference: Query builders](../reference/index.html) — per-function
+  docs for each builder.
+- Upstream spec in
+  [`DataAxesFormats.jl/src/queries.jl`](https://github.com/tanaylab/DataAxesFormats.jl/blob/main/src/queries.jl)
+  for semantic cross-reference.
