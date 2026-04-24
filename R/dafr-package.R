@@ -8,4 +8,5 @@
 #' @importFrom jsonlite fromJSON toJSON
 #' @importFrom stats setNames
 #' @importFrom utils object.size
+#' @importFrom rlang := .data
 "_PACKAGE"
