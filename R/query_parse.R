@@ -314,7 +314,18 @@ parse_query <- function(query_string) {
 
 .parse_if_missing <- function(tokens, i, src) {
     if (i + 1L <= length(tokens) && tokens[[i + 1L]]$type == "value") {
-        list(node = .qop_if_missing(tokens[[i + 1L]]$value), next_index = i + 2L)
+        default <- tokens[[i + 1L]]$value
+        j <- i + 2L
+        # Optional `type T` suffix — Julia parity with `IfMissing(value, T)`.
+        type <- NULL
+        if (j + 1L <= length(tokens) &&
+            tokens[[j]]$type == "value" &&
+            identical(tokens[[j]]$value, "type") &&
+            tokens[[j + 1L]]$type == "value") {
+            type <- tokens[[j + 1L]]$value
+            j <- j + 2L
+        }
+        list(node = .qop_if_missing(default, type = type), next_index = j)
     } else {
         list(node = .qop_if_missing(NULL), next_index = i + 1L)
     }

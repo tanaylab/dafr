@@ -9,7 +9,8 @@ NULL
 #' @keywords internal
 #' @noRd
 .eval_query <- function(daf, ast) {
-    state <- list(kind = "init", value = NULL, if_missing = NULL)
+    state <- list(kind = "init", value = NULL, if_missing = NULL,
+                  if_missing_type = NULL)
     i <- 1L
     n <- length(ast)
     while (i <= n) {
@@ -17,8 +18,10 @@ NULL
         # Lookahead: if next node is IfMissing, hoist its default forward
         if (i < n && identical(ast[[i + 1L]]$op, "IfMissing")) {
             state$if_missing <- ast[[i + 1L]]$default
+            state$if_missing_type <- ast[[i + 1L]]$type
             state <- .apply_node(node, state, daf)
             state$if_missing <- NULL # consume; don't carry forward past this lookup
+            state$if_missing_type <- NULL
             i <- i + 2L
             next
         }
@@ -175,7 +178,10 @@ NULL
     }
     if (!format_has_scalar(daf, node$name)) {
         if (!is.null(state$if_missing)) {
-            return(list(kind = "scalar", value = state$if_missing))
+            default <- .coerce_if_missing_default(
+                state$if_missing, state$if_missing_type
+            )
+            return(list(kind = "scalar", value = default))
         }
         stop(sprintf(
             "no scalar %s in daf %s",
@@ -186,6 +192,29 @@ NULL
     state$value <- format_get_scalar(daf, node$name)
     state$kind <- "scalar"
     state
+}
+
+# Coerce an IfMissing default to the requested Julia-style dtype, or leave
+# it as the parser-emitted character if no type was given.
+.coerce_if_missing_default <- function(value, type) {
+    if (is.null(type)) return(value)
+    switch(type,
+        String  = as.character(value),
+        Bool    = {
+            v <- as.character(value)
+            if (v %in% c("0", "false", "FALSE")) FALSE
+            else if (v %in% c("1", "true", "TRUE")) TRUE
+            else as.logical(value)
+        },
+        Int8 = , Int16 = , Int32 = ,
+        UInt8 = , UInt16 = , UInt32 = as.integer(value),
+        Int64 = , UInt64 = bit64::as.integer64(value),
+        Float32 = , Float64 = as.double(value),
+        stop(sprintf(
+            "IfMissing: unknown type %s (expected one of Bool, Int8/16/32/64, UInt8/16/32/64, Float32/64, String)",
+            sQuote(type)
+        ), call. = FALSE)
+    )
 }
 
 .apply_names <- function(node, state, daf) {
