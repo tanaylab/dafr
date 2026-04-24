@@ -141,25 +141,67 @@ pull_daf_axis_tbl <- function(.data, var = -1, name = NULL, ...) {
     dplyr::pull(df, {{ var }}, name = {{ name }})
 }
 
+# ---- row-reduction helper (shared by filter, slice*) -----------------------
+
+# Apply a `reducer(df) -> kept_df` on the realized tibble, then
+# reindex row_mask and overrides to the kept rows.
+.apply_row_reducer <- function(.data, reducer) {
+    df <- .realize(.data)
+    if (inherits(df, "grouped_df")) df <- dplyr::ungroup(df)
+    kept <- reducer(df)
+    if (inherits(kept, "grouped_df")) kept <- dplyr::ungroup(kept)
+    daf <- attr(.data, "daf")
+    axis <- attr(.data, "axis")
+    attr(.data, "row_mask") <- match(kept$name, axis_entries(daf, axis))
+    overrides <- attr(.data, "overrides")
+    if (length(overrides)) {
+        local_idx <- match(kept$name, df$name)
+        attr(.data, "overrides") <- lapply(overrides, function(v) v[local_idx])
+    }
+    .data
+}
+
 # ---- filter ----------------------------------------------------------------
 
 #' @noRd
 filter_daf_axis_tbl <- function(.data, ..., .by = NULL) {
-    df <- .realize(.data)
-    if (inherits(df, "grouped_df")) df <- dplyr::ungroup(df)
-    keep <- dplyr::filter(df, ...)
-    daf <- attr(.data, "daf")
-    axis <- attr(.data, "axis")
-    # New row_mask: positions in the full axis of the kept entries.
-    attr(.data, "row_mask") <- match(keep$name, axis_entries(daf, axis))
-    # Reindex overrides (aligned to previous row_mask order) to match
-    # the new row_mask order.
-    overrides <- attr(.data, "overrides")
-    if (length(overrides)) {
-        local_idx <- match(keep$name, df$name)
-        attr(.data, "overrides") <- lapply(overrides, function(v) v[local_idx])
-    }
-    .data
+    .apply_row_reducer(.data, function(df) dplyr::filter(df, ..., .by = {{ .by }}))
+}
+
+# ---- slice family ----------------------------------------------------------
+
+#' @noRd
+slice_daf_axis_tbl <- function(.data, ..., .by = NULL, .preserve = FALSE) {
+    .apply_row_reducer(.data, function(df) dplyr::slice(df, ..., .by = {{ .by }}))
+}
+
+#' @noRd
+slice_head_daf_axis_tbl <- function(.data, ..., by = NULL) {
+    .apply_row_reducer(.data, function(df) dplyr::slice_head(df, ..., by = {{ by }}))
+}
+
+#' @noRd
+slice_tail_daf_axis_tbl <- function(.data, ..., by = NULL) {
+    .apply_row_reducer(.data, function(df) dplyr::slice_tail(df, ..., by = {{ by }}))
+}
+
+#' @noRd
+slice_min_daf_axis_tbl <- function(.data, order_by, ..., by = NULL) {
+    .apply_row_reducer(.data, function(df) {
+        dplyr::slice_min(df, order_by = {{ order_by }}, ..., by = {{ by }})
+    })
+}
+
+#' @noRd
+slice_max_daf_axis_tbl <- function(.data, order_by, ..., by = NULL) {
+    .apply_row_reducer(.data, function(df) {
+        dplyr::slice_max(df, order_by = {{ order_by }}, ..., by = {{ by }})
+    })
+}
+
+#' @noRd
+slice_sample_daf_axis_tbl <- function(.data, ..., by = NULL) {
+    .apply_row_reducer(.data, function(df) dplyr::slice_sample(df, ..., by = {{ by }}))
 }
 
 # ---- mutate ----------------------------------------------------------------
