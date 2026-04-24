@@ -155,15 +155,31 @@ print_daf_axis_tbl <- function(x, n = 6L, ...) {
 
 #' @noRd
 select_daf_axis_tbl <- function(.data, ...) {
-    daf <- attr(.data, "daf")
-    axis <- attr(.data, "axis")
-    available <- c(vectors_set(daf, axis), names(attr(.data, "overrides")))
-    chosen <- tidyselect::eval_select(
-        rlang::expr(c(...)),
-        stats::setNames(seq_along(available), available)
-    )
-    attr(.data, "col_select") <- names(chosen)
-    .data
+    # Realize to a typed tibble so tidyselect predicates like
+    # `where(is.integer)` can inspect column types. If the selection
+    # only reorders/subsets columns without renaming, we just update
+    # col_select; if it renames, we materialize as overrides.
+    df <- .realize(.data)
+    if (inherits(df, "grouped_df")) df <- dplyr::ungroup(df)
+    chosen <- tidyselect::eval_select(rlang::expr(c(...)), df)
+    selected_orig <- colnames(df)[chosen]
+    selected_new <- names(chosen)
+    if (identical(selected_orig, selected_new)) {
+        attr(.data, "col_select") <- selected_new
+        .data
+    } else {
+        overrides <- as.list(df[, chosen, drop = FALSE])
+        names(overrides) <- selected_new
+        overrides[["name"]] <- NULL
+        new_daf_axis_tbl(
+            daf = attr(.data, "daf"),
+            axis = attr(.data, "axis"),
+            row_mask = attr(.data, "row_mask"),
+            col_select = setdiff(selected_new, "name"),
+            overrides = overrides,
+            groups = attr(.data, "groups")
+        )
+    }
 }
 
 #' @noRd
@@ -395,6 +411,11 @@ mutate_daf_axis_tbl <- function(.data, ..., .by = NULL,
         }
     }
     attr(.data, "overrides") <- overrides
+    # When .keep != "all", dplyr::mutate returns only a subset of
+    # columns. Restrict col_select so our tbl displays the same subset.
+    if (.keep != "all") {
+        attr(.data, "col_select") <- setdiff(colnames(df2), "name")
+    }
     .data
 }
 
