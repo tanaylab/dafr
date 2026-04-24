@@ -20,11 +20,11 @@ set_matrix(d, "cell", "gene", "UMIs",
 print(d)
 #> <dafr::MemoryDaf>
 #>  @ name                  : chr "demo"
-#>  @ internal              :<environment: 0x56335abe1a90> 
-#>  @ cache                 :<environment: 0x56335abfab08> 
-#>  @ axis_version_counter  :<environment: 0x56335abfef68> 
-#>  @ vector_version_counter:<environment: 0x56335abfec90> 
-#>  @ matrix_version_counter:<environment: 0x56335abfe9b8>
+#>  @ internal              :<environment: 0x5647af810300> 
+#>  @ cache                 :<environment: 0x5647af829378> 
+#>  @ axis_version_counter  :<environment: 0x5647af82d7d8> 
+#>  @ vector_version_counter:<environment: 0x5647af82d500> 
+#>  @ matrix_version_counter:<environment: 0x5647af82d228>
 ```
 
 ## Reading data
