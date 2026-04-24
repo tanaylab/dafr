@@ -1,3 +1,19 @@
+# dafr (development version)
+
+## New features
+
+- **dplyr backend.** `tbl(daf, axis)` returns a lazy `daf_axis_tbl`
+  supporting `filter`, `select`, `mutate`, `arrange`, `summarise`,
+  `group_by`, `ungroup`, `distinct`, `pull`, and `collect`. Grouped
+  `summarise()` whose grouping variable names an existing axis in the
+  daf auto-ties-back to a `daf_axis_tbl` on that axis. Write-back to
+  the daf is explicit via `dplyr::compute(tbl, vectors = c(...))` —
+  dafr plugs into dplyr's `compute()` generic rather than introducing
+  a new one, so it doesn't shadow dbplyr's. See
+  `vignette("dplyr", package = "dafr")`. `dplyr` / `tibble` /
+  `tidyselect` are Suggests — methods are registered conditionally
+  in `.onLoad`, so dafr still installs without them.
+
 # dafr 0.1.0 (2026-04-23)
 
 First public release.
