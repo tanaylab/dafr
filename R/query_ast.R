@@ -31,14 +31,17 @@ NULL
 .qop_names <- function() .qop("Names")
 .qop_axis <- function(axis_name) .qop("Axis", axis_name = axis_name)
 .qop_as_axis <- function(axis_name) .qop("AsAxis", axis_name = axis_name)
-.qop_if_missing <- function(default) {
+.qop_if_missing <- function(default, type = NULL) {
     # Coerce to character so the stored AST matches what parse_query() produces
     # (the parser always emits character-typed literals). Without this, numeric
     # defaults such as IfMissing(42) produce AST $default = 42 (numeric) while
     # parse_query("|| 42") produces "42" (character); the canonical strings
     # are equal but the ASTs are not. Mirrors .qop_eltwise_typed.
     default <- .fmt_value(default)
-    .qop("IfMissing", default = default)
+    if (!is.null(type)) {
+        type <- as.character(type)[[1L]]
+    }
+    .qop("IfMissing", default = default, type = type)
 }
 .qop_if_not <- function(value = NULL) .qop("IfNot", value = value)
 .qop_lookup_scalar <- function(name = NULL) .qop("LookupScalar", name = name)
@@ -55,7 +58,10 @@ NULL
         Names = "?",
         Axis = paste0("@ ", .escape_value(n$axis_name)),
         AsAxis = if (is.null(n$axis_name)) "=@" else paste0("=@ ", .escape_value(n$axis_name)),
-        IfMissing = paste0("|| ", .escape_value(.fmt_value(n$default))),
+        IfMissing = {
+            core <- paste0("|| ", .escape_value(.fmt_value(n$default)))
+            if (is.null(n$type)) core else paste0(core, " type ", .escape_value(n$type))
+        },
         IfNot = if (is.null(n$value)) "??" else paste0("?? ", .escape_value(.fmt_value(n$value))),
         LookupScalar = if (is.null(n$name)) "." else paste0(". ", .escape_value(n$name)),
         LookupVector = if (is.null(n$name)) ":" else paste0(": ", .escape_value(n$name)),
@@ -85,6 +91,7 @@ NULL
         CountBy = paste0("* ", .escape_value(n$property)),
         ReduceToColumn = .canonicalise_reduction(">|", n$reduction, n$params),
         ReduceToRow = .canonicalise_reduction(">-", n$reduction, n$params),
+        ReduceToScalar = .canonicalise_reduction(">>", n$reduction, n$params),
         Eltwise = .canonicalise_eltwise(n$name, n$params),
         stop(sprintf("no canonicaliser for %s", n$op), call. = FALSE)
     )
@@ -205,6 +212,9 @@ unescape_value <- function(s) {
 }
 .qop_reduce_to_row <- function(reduction, params = list()) {
     .qop("ReduceToRow", reduction = reduction, params = params)
+}
+.qop_reduce_to_scalar <- function(reduction, params = list()) {
+    .qop("ReduceToScalar", reduction = reduction, params = params)
 }
 
 .qop_eltwise <- function(name, params = list()) {

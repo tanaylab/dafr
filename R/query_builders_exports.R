@@ -486,22 +486,45 @@ Names <- .make_nullary("Names", .qop_names)
 #' If-missing query operation.
 #'
 #' Builds a `|| <default>` query fragment, providing a default value
-#' for entries missing from the prior lookup.
+#' for entries missing from the prior lookup. An optional `type` pins
+#' the Julia-style dtype the default is coerced to when the lookup
+#' falls back (`Int8`..`Int64`, `UInt8`..`UInt64`, `Float32`, `Float64`,
+#' `Bool`, `String`).
 #'
 #' @param value Default value (character or numeric scalar), or a
 #'   piped [DafrQuery].
+#' @param type Optional Julia-style dtype name (character scalar) to
+#'   coerce the default to when it is actually used. `NULL` leaves the
+#'   default as whatever the string parser emitted.
 #' @param ... Optional piped [DafrQuery].
 #' @return A [DafrQuery].
 #' @examples
 #' IfMissing("N/A")
 #' IfMissing(0)
-#' Axis("cell") |> LookupVector("age") |> IfMissing(0)
+#' IfMissing(0, type = "Int64")
+#' Axis("cell") |> LookupVector("age") |> IfMissing(0, type = "Int64")
 #' @seealso [IfNot()]
 #' @export
-IfMissing <- .make_value_op(
-    "IfMissing", .qop_if_missing,
-    param_name = "default"
-)
+IfMissing <- function(value, ..., type = NULL) {
+    # `type` comes after `...` so that the piped form
+    #   prior_query |> IfMissing(0)
+    # still binds `0` to `value` (when no prior is present) or to the first
+    # dot argument (when prior is piped in as `value`). Requiring `type` to
+    # be passed by name mirrors the Julia `IfMissing(value; type)` kwarg.
+    res <- .extract_query_and_value(
+        value, missing(value), list(...),
+        required = TRUE
+    )
+    if (!res$provided) {
+        cli::cli_abort("`default` is missing with no default")
+    }
+    if (!is.null(type) && (!is.character(type) || length(type) != 1L)) {
+        cli::cli_abort("`type` must be a single character string or NULL")
+    }
+    node <- .qop_if_missing(res$value, type = type)
+    frag <- list(ast = list(node), canonical = .canonicalise_ast(list(node)))
+    .compose_query(res$query, frag$ast, frag$canonical)
+}
 
 #' Square-column-is query operation.
 #'

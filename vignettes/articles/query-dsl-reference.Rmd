@@ -1,0 +1,346 @@
+---
+title: "Query DSL reference"
+output: rmarkdown::html_vignette
+vignette: >
+  %\VignetteIndexEntry{Query DSL reference}
+  %\VignetteEngine{knitr::rmarkdown}
+  %\VignetteEncoding{UTF-8}
+---
+
+```{r setup, include = FALSE}
+knitr::opts_chunk$set(collapse = TRUE, comment = "#>")
+library(dafr)
+cells     <- example_cells_daf()
+metacells <- example_metacells_daf()
+```
+
+This article is the normative reference for the `dafr` query language.
+The semantics follow the Julia reference implementation
+[`DataAxesFormats.jl`](https://github.com/tanaylab/DataAxesFormats.jl);
+the short [Query DSL vignette](../queries.html) is a tutorial, this one
+is the specification.
+
+The DSL has two surface forms:
+
+- a **string form** (`daf["@ cell : donor"]`), tokenised and parsed.
+- a **builder form** — pipe-composable R objects
+  (`daf[Axis("cell") |> LookupVector("donor")]`).
+
+The two forms are interchangeable: any string is parsed into the same
+AST the builders produce, so examples below give both forms for the
+first occurrence of each phrase and then use whichever is clearer.
+
+# Execution model
+
+A query is a sequence of operators that is not executed one operator at
+a time. Instead, the parser groups operators into **phrases**, where
+each phrase is a stack-rewriting step:
+
+1. The query state is a stack, starting empty.
+2. Each phrase matches a pattern on the top of the stack (for example,
+   a `LookupVector` phrase needs an axis specification on top).
+3. The phrase pops the matching top elements, performs its operation,
+   and pushes zero or more new elements.
+4. When all operators have been consumed, the stack must hold exactly
+   one result; that result is what the query returns.
+
+The grouping-into-phrases means an operator's meaning depends on the
+phrase it participates in. Where a table of operators is given below,
+the **phrase** column indicates which phrase the operator appears in.
+
+# Operator table
+
+| Operator | Builder                 | Phrase / meaning                                                                              |
+|:---------|:------------------------|:----------------------------------------------------------------------------------------------|
+| `@`      | `Axis()`                | Introduce an axis onto the stack.                                                             |
+| `=@`     | `AsAxis()`              | Treat subsequent values as entries of that axis (for secondary lookup / pivoting).            |
+| `@|`     | `SquareColumnIs()`      | Slice a square matrix by column.                                                              |
+| `@-`     | `SquareRowIs()`         | Slice a square matrix by row.                                                                 |
+| `/`      | `GroupBy()`             | Group a vector by values of another vector of the same length.                                |
+| `|/`     | `GroupColumnsBy()`      | Group matrix columns by a vector with one value per column.                                   |
+| `-/`     | `GroupRowsBy()`         | Group matrix rows by a vector with one value per row.                                         |
+| `%`      | eltwise op (`Abs`, …)   | Apply an element-wise operation to vector or matrix data.                                     |
+| `>>`     | reduction op (`Sum`, …) | Reduce a vector or matrix to a scalar (per-group vector on a grouped input).                  |
+| `>|`     | `ReduceToColumn()`      | Reduce a matrix along rows to a single column vector.                                         |
+| `>-`     | `ReduceToRow()`         | Reduce a matrix along columns to a single row vector.                                         |
+| `\|\|`   | `IfMissing()`           | Default value when a lookup target does not exist, or when reducing empty data.               |
+| `??`     | `IfNot()`               | Fallback value when a chained lookup produces an empty result.                                |
+| `*`      | `CountBy()`             | Count, in a matrix, the number of times each combination of values from two vectors appears.  |
+| `?`      | `Names()`               | Return the set of axis / property names reachable from the current stack state.               |
+| `.`      | `LookupScalar()`        | Look up a scalar property.                                                                    |
+| `:`      | `LookupVector()`        | Look up a vector property on the current axis.                                                |
+| `::`     | `LookupMatrix()`        | Look up a matrix property on a pair of axes.                                                  |
+| `<`      | `IsLess()`              | Mask comparison: strictly less.                                                               |
+| `<=`     | `IsLessEqual()`         | Mask comparison: less or equal.                                                               |
+| `=`      | `IsEqual()`             | Mask comparison: equal.                                                                       |
+| `!=`     | `IsNotEqual()`          | Mask comparison: not equal.                                                                   |
+| `>=`     | `IsGreaterEqual()`      | Mask comparison: greater or equal.                                                            |
+| `>`      | `IsGreater()`           | Mask comparison: strictly greater.                                                            |
+| `~`      | `IsMatch()`             | Mask comparison: regex match.                                                                 |
+| `!~`     | `IsNotMatch()`          | Mask comparison: regex non-match.                                                             |
+| `[`      | `BeginMask()`           | Start a mask sub-expression on the current axis.                                              |
+| `[ !`    | `BeginNegatedMask()`    | Start a negated mask on the current axis.                                                     |
+| `]`      | `EndMask()`             | Finish the mask; the axis becomes filtered.                                                   |
+| `&`      | `AndMask()`             | Combine masks with AND.                                                                       |
+| `& !`    | `AndNegatedMask()`      | Combine masks with AND NOT.                                                                   |
+| `\|`     | `OrMask()`              | Combine masks with OR.                                                                        |
+| `\| !`   | `OrNegatedMask()`       | Combine masks with OR NOT.                                                                    |
+| `^`      | `XorMask()`             | Combine masks with XOR.                                                                       |
+| `^ !`    | `XorNegatedMask()`      | Combine masks with XOR NOT.                                                                   |
+
+Element-wise operation builders include `Abs`, `Clamp`, `Convert`,
+`Fraction`, `Log`, `Round`, `Significant`. Reduction operation
+builders include `Sum`, `Mean`, `Median`, `Mode`, `Quantile`, `Max`,
+`Min`, `Count`, `GeoMean`, `Std`, `StdN`, `Var`, `VarN`.
+
+# The four query kinds
+
+Every query returns one of four result kinds, selected by the phrases
+it uses.
+
+## Names query — `?`
+
+Returns the set of names at some point in the data hierarchy.
+
+| Goal                                    | String                   | Builder                                             |
+|-----------------------------------------|--------------------------|-----------------------------------------------------|
+| Names of all scalars                    | `". ?"`                  | `LookupScalar("?")`                                 |
+| Names of all axes                       | `"@ ?"`                  | `Axis("?")`                                         |
+| Vector properties on `gene`             | `"@ gene : ?"`           | `Axis("gene") |> LookupVector("?")`                 |
+| Matrix properties on `(cell, gene)`     | `"@ cell @ gene :: ?"`   | `Axis("cell") |> Axis("gene") |> LookupMatrix("?")` |
+
+```{r}
+cells[". ?"]
+cells["@ gene : ?"]
+cells["@ cell @ gene :: ?"]
+```
+
+## Scalar query — `.` / `... >> Reduction`
+
+Returns a single scalar value. Produced by:
+
+- Looking up a scalar (`. name`), optionally with a `||` default and
+  an optional `type T` to pin the default's dtype.
+- Looking up a vector and picking one entry
+  (`: vec @ axis = entry`).
+- Looking up a matrix and picking one cell
+  (`:: m @ rows = R @ cols = C`).
+- Reducing any vector to a scalar (`... >> Reduction`).
+- Reducing any matrix to a scalar (`... >> Reduction`).
+
+```{r}
+cells[". organism"]
+cells[". nope || fallback"]
+cells[". nope || 0 type Int64"]
+
+# Pick one entry from a vector.
+cells["@ donor : age @ donor = N89"]
+
+# Number of genes marked as lateral (reduce a vector of Bool).
+cells["@ gene : is_lateral >> Sum type Int64"]
+
+# Total UMIs in the whole matrix.
+cells["@ cell @ gene :: UMIs >> Sum type Int64"]
+```
+
+## Vector query
+
+Returns a vector. Phrase kinds:
+
+- Axis entries: `@ axis`.
+- Axis entries after masking: `@ axis [ ... ]`.
+- Property lookup along an axis: `@ axis : property`.
+- Any of the above with an element-wise op appended:
+  `@ axis : property % Op`.
+- Reduction of a matrix along one dimension:
+  `@ rows @ cols :: m >- Op` (row result) or `>| Op` (column result).
+
+```{r}
+head(cells["@ experiment"])
+length(cells["@ gene [ ! is_lateral ]"])
+head(cells["@ cell : donor"])
+# Per-row (per-gene) mean UMIs.
+head(cells["@ gene @ cell :: UMIs >- Mean"])
+```
+
+## Matrix query
+
+Returns a matrix. Phrase kinds:
+
+- Lookup: `@ rows @ cols :: property`.
+- Count of value-combinations: `@ axis : v1 * v2`.
+- Any of the above followed by an element-wise op, or a row / column
+  grouping + reduction.
+
+```{r}
+dim(cells["@ cell @ gene :: UMIs"])
+
+# Log-transform a dense matrix.
+dim(cells["@ cell @ gene :: UMIs % Log base 2 eps 1"])
+
+# Group matrix rows by donor, then reduce each group to its mean.
+dim(cells["@ cell @ gene :: UMIs -/ donor >- Mean"])
+```
+
+# Masks
+
+A mask filters an axis to the entries for which a predicate holds.
+
+Phrase structure: `@ axis [ <mask-body> ]`.
+
+The mask body starts with a property lookup (`BeginMask`) and is
+followed by zero or more **comparisons** and **mask combinators**.
+
+```{r}
+# Donors older than 30.
+length(cells[Axis("donor") |>
+             BeginMask("age") |> IsGreater(30) |> EndMask()])
+
+# Same in string form.
+length(cells["@ donor [ age > 30 ]"])
+
+# Negated mask: genes that are NOT lateral.
+length(cells["@ gene [ ! is_lateral ]"])
+
+# Combined masks: age > 60 AND sex = male (on donor axis).
+length(cells["@ donor [ age > 60 & sex = male ]"])
+```
+
+Supported comparisons: `<`, `<=`, `=`, `!=`, `>=`, `>`, `~` (regex
+match), `!~` (regex non-match).
+
+Mask combinators: `&`, `& !`, `|`, `| !`, `^`, `^ !`. They are
+evaluated left to right — they are **not** grouped by precedence. Use
+separate masks with explicit combinators when order matters.
+
+# Defaults and fallbacks
+
+Two operators supply fallback values:
+
+- `|| value` (`IfMissing`) — used when the thing being looked up does
+  not exist, or when reducing an empty vector / matrix.
+- `?? value` (`IfNot`) — used during chained lookups
+  (`: a =@ : b`) when the intermediate key is empty.
+
+```{r}
+cells[". nope || fallback"]
+
+# Fallback when a chained lookup runs out of pivot values.
+head(metacells["@ cell : metacell =@ ?? none : type"])
+```
+
+# Element-wise and reduction operations
+
+Element-wise ops are applied with `%`; reductions on a matrix with `>-`
+(reduce to row) or `>|` (reduce to column). Both take keyword-style
+sub-arguments separated by spaces:
+
+```r
+daf["... % Log base 2 eps 1e-5"]
+daf["... >- Mean"]
+daf["... >| Sum type Int64"]
+```
+
+Built-in element-wise: `Abs`, `Clamp low h`, `Convert type T`,
+`Fraction`, `Log base b eps e`, `Round`, `Significant digits n`.
+
+Built-in reductions: `Sum`, `Mean`, `Median`, `Mode`, `Quantile p P`,
+`Max`, `Min`, `Count`, `GeoMean`, `Std`, `StdN`, `Var`, `VarN`.
+
+User code can extend either set:
+
+```r
+register_eltwise("MySquare", function(x) x * x)
+register_reduction("MyMax", function(x) max(x, na.rm = TRUE))
+```
+
+# Grouping
+
+Grouping appears in three phrase contexts:
+
+- `GroupBy` (`/`) — reduce a vector to groups defined by another
+  vector of equal length, yielding a shorter vector keyed by group.
+- `GroupRowsBy` (`-/`) — group the rows of a matrix and emit one row
+  per group.
+- `GroupColumnsBy` (`|/`) — group the columns of a matrix and emit one
+  column per group.
+
+The matrix-group forms must be paired with a compatible reduction
+(`-/` pairs with `>-`, `|/` with `>|`).
+
+```{r}
+# Mean per (donor, gene) — collapse cells into donor rows.
+dim(cells["@ cell @ gene :: UMIs -/ donor >- Mean"])
+```
+
+Appending `=@` after a group property changes the result to be ordered
+by that axis's entries (rather than by unique group value). Appending
+`|| default` before the reduction supplies a value for empty groups.
+
+# Axis-as-value and chained lookup (`=@`)
+
+`=@` declares that a set of values should be interpreted as entries of
+a named axis. That lets the query walk one axis into another:
+
+```{r}
+# Cell -> metacell -> type: pipe values through the metacell axis.
+head(metacells["@ cell : metacell =@ ?? none : type"])
+```
+
+In the above, `: metacell =@` says "these values are entries of the
+`metacell` axis", then `: type` looks up the `type` property on that
+axis. The `?? NA` fallback covers cells without an assigned metacell.
+
+`SquareColumnIs` (`@|`) and `SquareRowIs` (`@-`) slice a square matrix
+by a specific column / row of that axis; the right-hand side of each
+is a value of the matrix's square axis.
+
+# Parsing, canonicalisation, and equivalence
+
+`parse_query(s)` returns the builder AST; `canonical_query(q)` returns
+a normalised string; both forms of the same query produce the same
+AST.
+
+```{r}
+s     <- "@ gene : is_lateral"
+q_bld <- Axis("gene") |> LookupVector("is_lateral")
+identical(canonical_query(s), as.character(q_bld))
+```
+
+Inspection helpers:
+
+- `has_query(daf, q)` — `TRUE` if `q` could be evaluated against `daf`.
+- `is_axis_query(q)` — `TRUE` if the result is an axis.
+- `query_axis_name(q)` — the axis name (if applicable).
+- `query_result_dimensions(q)` — 0 (scalar), 1 (vector), 2 (matrix).
+- `query_requires_relayout(q)` — whether a matrix relayout is needed.
+
+# String literals and escaping
+
+String literal values inside a query can include spaces and most
+punctuation. Characters that collide with the DSL's own tokens (`@`,
+`:`, `|`, `[`, `]`, …) must be escaped. Use `escape_value()` to
+produce a safe literal and `unescape_value()` to reverse it.
+
+```{r}
+escape_value("a | b")
+```
+
+# Caching
+
+`get_query(daf, q)` caches the result as `QueryData` inside the daf's
+internal cache. Use `daf[q]` for a one-shot evaluation that does
+**not** cache. `empty_cache(daf)` releases all cached results and is
+also invoked automatically on every mutating write to the daf so
+cached results never become stale.
+
+# Further reading
+
+- [Query DSL tutorial](../queries.html) — short introduction.
+- [Reference: Query DSL (string form)](../reference/index.html) —
+  per-function docs for parsing, inspection, and escape helpers.
+- [Reference: Query builders](../reference/index.html) — per-function
+  docs for each builder.
+- Upstream spec in
+  [`DataAxesFormats.jl/src/queries.jl`](https://github.com/tanaylab/DataAxesFormats.jl/blob/main/src/queries.jl)
+  for semantic cross-reference.

@@ -1,3 +1,27 @@
+# dafr 0.1.0 (development)
+
+## Query DSL: Julia-parity parser additions
+
+Three DataAxesFormats.jl query-DSL features that were previously
+missing have been implemented, closing the last semantic gaps between
+`dafr` and the upstream Julia package:
+
+- `>> Reduction` reduces a vector or matrix to a scalar (e.g.
+  `@ gene : is_lateral >> Sum type Int64`, or
+  `@ cell @ gene :: UMIs >> Sum`). `>>` is no longer silently aliased
+  to `>|`; on a grouped input (`... / g >> Sum`) it continues to
+  produce a per-group vector, as before.
+- `@ axis = entry` picks one entry from a vector
+  (`@ cell : age @ cell = N89`) or one cell from a matrix
+  (`@ cell @ gene :: UMIs @ cell = C @ gene = X`). Two successive
+  picks collapse a matrix to a scalar.
+- `|| value type T` attaches a Julia-style dtype (`Bool`,
+  `Int8`..`Int64`, `UInt8`..`UInt64`, `Float32`, `Float64`, `String`)
+  to a scalar-lookup default, matching the existing behaviour of the
+  same suffix inside reductions and element-wise ops.
+- `IfMissing()` builder gains an optional `type` kwarg
+  (`IfMissing(0, type = "Int64")`).
+
 # dafr 0.1.0
 
 First public release.

@@ -9,7 +9,8 @@ NULL
 #' @keywords internal
 #' @noRd
 .eval_query <- function(daf, ast) {
-    state <- list(kind = "init", value = NULL, if_missing = NULL)
+    state <- list(kind = "init", value = NULL, if_missing = NULL,
+                  if_missing_type = NULL)
     i <- 1L
     n <- length(ast)
     while (i <= n) {
@@ -17,8 +18,10 @@ NULL
         # Lookahead: if next node is IfMissing, hoist its default forward
         if (i < n && identical(ast[[i + 1L]]$op, "IfMissing")) {
             state$if_missing <- ast[[i + 1L]]$default
+            state$if_missing_type <- ast[[i + 1L]]$type
             state <- .apply_node(node, state, daf)
             state$if_missing <- NULL # consume; don't carry forward past this lookup
+            state$if_missing_type <- NULL
             i <- i + 2L
             next
         }
@@ -120,7 +123,8 @@ NULL
         SquareRowIs = ,
         SquareColumnIs = .apply_square_slice,
         ReduceToColumn = ,
-        ReduceToRow = .apply_reduction,
+        ReduceToRow = ,
+        ReduceToScalar = .apply_reduction,
         Eltwise = .apply_eltwise,
         GroupBy = ,
         GroupRowsBy = ,
@@ -146,6 +150,40 @@ NULL
             sQuote(node$axis_name),
             sQuote(S7::prop(daf, "name"))
         ), call. = FALSE)
+    }
+    # Entry-pick transitions for the Julia SCALAR_QUERY phrase
+    # `: vec @ axis = entry` / `:: m @ rows-axis = R @ cols-axis = C`.
+    if (identical(state$kind, "vector")) {
+        if (!identical(node$axis_name, state$axis)) {
+            stop(sprintf(
+                "entry-pick axis %s does not match the vector's axis %s",
+                sQuote(node$axis_name), sQuote(state$axis)
+            ), call. = FALSE)
+        }
+        if (!is.null(state$indices)) {
+            stop("entry-pick is not supported on a masked vector",
+                call. = FALSE)
+        }
+        state$kind <- "entry_pick_vector"
+        state$pick_axis <- node$axis_name
+        return(state)
+    }
+    if (identical(state$kind, "matrix")) {
+        if (identical(node$axis_name, state$rows_axis)) {
+            pick_dim <- "row"
+        } else if (identical(node$axis_name, state$cols_axis)) {
+            pick_dim <- "col"
+        } else {
+            stop(sprintf(
+                "entry-pick axis %s does not match the matrix axes (%s, %s)",
+                sQuote(node$axis_name),
+                sQuote(state$rows_axis), sQuote(state$cols_axis)
+            ), call. = FALSE)
+        }
+        state$kind <- "entry_pick_matrix"
+        state$pick_axis <- node$axis_name
+        state$pick_dim <- pick_dim
+        return(state)
     }
     if (identical(state$kind, "axis")) {
         # second axis -> matrix dimension in scope.
@@ -175,7 +213,10 @@ NULL
     }
     if (!format_has_scalar(daf, node$name)) {
         if (!is.null(state$if_missing)) {
-            return(list(kind = "scalar", value = state$if_missing))
+            default <- .coerce_if_missing_default(
+                state$if_missing, state$if_missing_type
+            )
+            return(list(kind = "scalar", value = default))
         }
         stop(sprintf(
             "no scalar %s in daf %s",
@@ -186,6 +227,29 @@ NULL
     state$value <- format_get_scalar(daf, node$name)
     state$kind <- "scalar"
     state
+}
+
+# Coerce an IfMissing default to the requested Julia-style dtype, or leave
+# it as the parser-emitted character if no type was given.
+.coerce_if_missing_default <- function(value, type) {
+    if (is.null(type)) return(value)
+    switch(type,
+        String  = as.character(value),
+        Bool    = {
+            v <- as.character(value)
+            if (v %in% c("0", "false", "FALSE")) FALSE
+            else if (v %in% c("1", "true", "TRUE")) TRUE
+            else as.logical(value)
+        },
+        Int8 = , Int16 = , Int32 = ,
+        UInt8 = , UInt16 = , UInt32 = as.integer(value),
+        Int64 = , UInt64 = bit64::as.integer64(value),
+        Float32 = , Float64 = as.double(value),
+        stop(sprintf(
+            "IfMissing: unknown type %s (expected one of Bool, Int8/16/32/64, UInt8/16/32/64, Float32/64, String)",
+            sQuote(type)
+        ), call. = FALSE)
+    )
 }
 
 .apply_names <- function(node, state, daf) {
@@ -457,6 +521,14 @@ NULL
 }
 
 .apply_comparator <- function(node, state, daf) {
+    # Entry-pick resolves `= entry` after `@ axis` when a vector or matrix
+    # is in scope (Julia SCALAR_QUERY phrases).
+    if (identical(state$kind, "entry_pick_vector")) {
+        return(.apply_entry_pick_vector(node, state, daf))
+    }
+    if (identical(state$kind, "entry_pick_matrix")) {
+        return(.apply_entry_pick_matrix(node, state, daf))
+    }
     if (!identical(state$kind, "mask")) {
         stop("comparator outside of mask", call. = FALSE)
     }
@@ -497,6 +569,66 @@ NULL
         as.character(value_string)
     }
 }
+
+# Entry-pick from a vector: `@ axis = entry` after `: vector-property`.
+# Consumes the in-scope vector and returns the scalar at the named entry.
+.apply_entry_pick_vector <- function(node, state, daf) {
+    if (!identical(node$op, "IsEqual")) {
+        stop(sprintf(
+            "entry-pick on axis %s expects '= <entry>', got %s",
+            sQuote(state$pick_axis), sQuote(node$op)
+        ), call. = FALSE)
+    }
+    entry <- as.character(node$value)
+    axis_entries <- format_axis_array(daf, state$pick_axis)
+    idx <- match(entry, axis_entries)
+    if (is.na(idx)) {
+        stop(sprintf(
+            "no entry %s on axis %s",
+            sQuote(entry), sQuote(state$pick_axis)
+        ), call. = FALSE)
+    }
+    val <- state$value[[idx]]
+    # Strip any name attribute so the scalar is a bare length-1 value.
+    names(val) <- NULL
+    list(kind = "scalar", value = val)
+}
+
+# Entry-pick from a matrix: `@ axis = entry` after `:: matrix-property`.
+# Picks one row (or column) and leaves a vector along the remaining axis.
+# Two consecutive entry-picks reduce the matrix all the way to a scalar via
+# the entry_pick_vector path.
+.apply_entry_pick_matrix <- function(node, state, daf) {
+    if (!identical(node$op, "IsEqual")) {
+        stop(sprintf(
+            "entry-pick on axis %s expects '= <entry>', got %s",
+            sQuote(state$pick_axis), sQuote(node$op)
+        ), call. = FALSE)
+    }
+    entry <- as.character(node$value)
+    axis_entries <- format_axis_array(daf, state$pick_axis)
+    idx <- match(entry, axis_entries)
+    if (is.na(idx)) {
+        stop(sprintf(
+            "no entry %s on axis %s",
+            sQuote(entry), sQuote(state$pick_axis)
+        ), call. = FALSE)
+    }
+    m <- state$value
+    if (identical(state$pick_dim, "row")) {
+        vec <- m[idx, , drop = TRUE]
+        remaining_axis <- state$cols_axis
+    } else {
+        vec <- m[, idx, drop = TRUE]
+        remaining_axis <- state$rows_axis
+    }
+    if (methods::is(vec, "sparseVector") || methods::is(vec, "Matrix")) {
+        vec <- as.numeric(vec)
+        names(vec) <- format_axis_array(daf, remaining_axis)
+    }
+    list(kind = "vector", value = vec, axis = remaining_axis)
+}
+
 .apply_square_slice <- function(node, state, daf) {
     if (!identical(state$kind, "matrix")) {
         stop("square slice requires a matrix in scope", call. = FALSE)
@@ -530,21 +662,45 @@ NULL
     }
     fn <- get_eltwise(node$name)
     params <- .coerce_params(node$params)
-
-    # Fast path: sparsity-preserving Log on dgCMatrix. log1p(0) == 0, so
-    # eps == 1 with default base (e) is the only Log parameterisation that
-    # preserves sparsity; apply log1p in place to @x and keep @i / @p.
     builtin <- attr(fn, ".dafr_builtin")
-    if (isTRUE(dafr_opt("dafr.perf.fast_paths")) &&
-        identical(builtin, "Log") &&
-        methods::is(state$value, "dgCMatrix") &&
-        isTRUE(all.equal(params$eps %||% 0, 1)) &&
-        (is.null(params$base) ||
-            isTRUE(all.equal(params$base, exp(1))))) {
-        out <- state$value
-        out@x <- log1p(out@x)
-        state$value <- out
-        return(state)
+
+    if (isTRUE(dafr_opt("dafr.perf.fast_paths")) && identical(builtin, "Log")) {
+        eps <- as.numeric(params$eps %||% 0)
+        base <- as.numeric(params$base %||% exp(1))
+
+        # Fast path 1: sparsity-preserving Log on dgCMatrix. log1p(0) == 0,
+        # so eps == 1 with default base (e) is the only Log parameterisation
+        # that preserves sparsity; apply log1p in place to @x and keep @i /
+        # @p.
+        if (methods::is(state$value, "dgCMatrix") &&
+            isTRUE(all.equal(eps, 1)) &&
+            isTRUE(all.equal(base, exp(1)))) {
+            out <- state$value
+            out@x <- log1p(out@x)
+            state$value <- out
+            return(state)
+        }
+
+        # Fast path 2: OpenMP-parallel log(x + eps)/log(base) on dense
+        # matrices and numeric vectors. Covers the common log2(x + 1e-5)
+        # case (MCView's lfp transform, etc.) which previously fell
+        # through to R's single-threaded log() + scalar coercion chain.
+        threshold <- as.integer(dafr_opt("dafr.kernel_threshold"))
+        if (is.matrix(state$value) && is.double(state$value)) {
+            state$value <- kernel_log_dense_mat_cpp(
+                state$value, eps = eps, base = base, threshold = threshold
+            )
+            return(state)
+        }
+        if (is.numeric(state$value) && is.null(dim(state$value))) {
+            nm <- names(state$value)
+            out <- kernel_log_dense_vec_cpp(
+                as.double(state$value), eps = eps, base = base, threshold = threshold
+            )
+            names(out) <- nm
+            state$value <- out
+            return(state)
+        }
     }
 
     state$value <- do.call(fn, c(list(state$value), params))
@@ -560,6 +716,11 @@ NULL
     }
     if (identical(state$kind, "grouped_matrix_cols")) {
         return(.apply_reduction_grouped_matrix(node, state, daf, by = "cols"))
+    }
+    # ReduceToScalar accepts plain vector or matrix inputs (Julia parity).
+    if (identical(node$op, "ReduceToScalar") &&
+        state$kind %in% c("vector", "matrix")) {
+        return(.apply_reduction_to_scalar(node, state, daf))
     }
     if (!identical(state$kind, "matrix")) {
         stop(sprintf("%s requires a matrix or grouped scope", node$op),
@@ -577,6 +738,34 @@ NULL
     }
 
     .apply_reduction_slow(node, state, fn, params, daf)
+}
+
+# `>>` ReductionOperation reducing a plain vector or matrix to one scalar.
+# Julia parity — `DataAxesFormats.jl` queries.jl ReductionOperation.
+# For a matrix we materialise the data as a dense flat vector so that
+# reductions whose result is non-associative (Var, Mode, Median, Quantile, ...)
+# produce the same answer as in Julia.
+.apply_reduction_to_scalar <- function(node, state, daf) {
+    fn <- get_reduction(node$reduction)
+    params <- .coerce_params(node$params)
+    v <- switch(state$kind,
+        vector = state$value,
+        matrix = {
+            m <- state$value
+            if (methods::is(m, "Matrix")) {
+                as.vector(as.matrix(m))
+            } else {
+                as.vector(m)
+            }
+        },
+        stop(sprintf(
+            "'>>' requires a vector or matrix in scope (got %s)",
+            state$kind
+        ), call. = FALSE)
+    )
+    out <- do.call(fn, c(list(v), params))
+    if (length(out) == 1L) names(out) <- NULL
+    list(kind = "scalar", value = out)
 }
 
 .dafr_kernel_threshold <- function() dafr_opt("dafr.kernel_threshold")

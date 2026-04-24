@@ -52,6 +52,14 @@ kernel_grouped_rowsum_dense_cpp <- function(mat, groups, ngroups, need_sq, axis,
   .Call(`_dafr_kernel_grouped_rowsum_dense_cpp`, mat, groups, ngroups, need_sq, axis, threshold)
 }
 
+kernel_log_dense_vec_cpp <- function(x, eps, base, threshold) {
+  .Call(`_dafr_kernel_log_dense_vec_cpp`, x, eps, base, threshold)
+}
+
+kernel_log_dense_mat_cpp <- function(m, eps, base, threshold) {
+  .Call(`_dafr_kernel_log_dense_mat_cpp`, m, eps, base, threshold)
+}
+
 kernel_log_reduce_dense_cpp <- function(m, eps, base, axis, reducer, threshold) {
   .Call(`_dafr_kernel_log_reduce_dense_cpp`, m, eps, base, axis, reducer, threshold)
 }
@@ -78,6 +86,14 @@ kernel_quantile_csc_cpp <- function(x, i, p, nrow, ncol, axis, q, threshold) {
 
 kernel_quantile_dense_cpp <- function(mat, axis, q, threshold) {
   .Call(`_dafr_kernel_quantile_dense_cpp`, mat, axis, q, threshold)
+}
+
+kernel_top_k_per_col_dense_cpp <- function(m, k, use_abs, threshold) {
+  .Call(`_dafr_kernel_top_k_per_col_dense_cpp`, m, k, use_abs, threshold)
+}
+
+kernel_top_k_per_col_csc_cpp <- function(x, i, p, nrow, ncol, k, use_abs, threshold) {
+  .Call(`_dafr_kernel_top_k_per_col_csc_cpp`, x, i, p, nrow, ncol, k, use_abs, threshold)
 }
 
 kernel_var_csc_cpp <- function(x, i, p, nrow, ncol, axis, variant, eps, threshold) {

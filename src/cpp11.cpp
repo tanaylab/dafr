@@ -96,6 +96,20 @@ extern "C" SEXP _dafr_kernel_grouped_rowsum_dense_cpp(SEXP mat, SEXP groups, SEX
     return cpp11::as_sexp(kernel_grouped_rowsum_dense_cpp(cpp11::as_cpp<cpp11::decay_t<SEXP>>(mat), cpp11::as_cpp<cpp11::decay_t<cpp11::integers>>(groups), cpp11::as_cpp<cpp11::decay_t<int>>(ngroups), cpp11::as_cpp<cpp11::decay_t<bool>>(need_sq), cpp11::as_cpp<cpp11::decay_t<int>>(axis), cpp11::as_cpp<cpp11::decay_t<int>>(threshold)));
   END_CPP11
 }
+// kernel_log_dense.cpp
+cpp11::writable::doubles kernel_log_dense_vec_cpp(cpp11::doubles x, double eps, double base, int threshold);
+extern "C" SEXP _dafr_kernel_log_dense_vec_cpp(SEXP x, SEXP eps, SEXP base, SEXP threshold) {
+  BEGIN_CPP11
+    return cpp11::as_sexp(kernel_log_dense_vec_cpp(cpp11::as_cpp<cpp11::decay_t<cpp11::doubles>>(x), cpp11::as_cpp<cpp11::decay_t<double>>(eps), cpp11::as_cpp<cpp11::decay_t<double>>(base), cpp11::as_cpp<cpp11::decay_t<int>>(threshold)));
+  END_CPP11
+}
+// kernel_log_dense.cpp
+cpp11::writable::doubles_matrix<> kernel_log_dense_mat_cpp(cpp11::doubles_matrix<> m, double eps, double base, int threshold);
+extern "C" SEXP _dafr_kernel_log_dense_mat_cpp(SEXP m, SEXP eps, SEXP base, SEXP threshold) {
+  BEGIN_CPP11
+    return cpp11::as_sexp(kernel_log_dense_mat_cpp(cpp11::as_cpp<cpp11::decay_t<cpp11::doubles_matrix<>>>(m), cpp11::as_cpp<cpp11::decay_t<double>>(eps), cpp11::as_cpp<cpp11::decay_t<double>>(base), cpp11::as_cpp<cpp11::decay_t<int>>(threshold)));
+  END_CPP11
+}
 // kernel_log_reduce.cpp
 cpp11::writable::doubles kernel_log_reduce_dense_cpp(cpp11::doubles_matrix<> m, double eps, double base, int axis, std::string reducer, int threshold);
 extern "C" SEXP _dafr_kernel_log_reduce_dense_cpp(SEXP m, SEXP eps, SEXP base, SEXP axis, SEXP reducer, SEXP threshold) {
@@ -145,6 +159,20 @@ extern "C" SEXP _dafr_kernel_quantile_dense_cpp(SEXP mat, SEXP axis, SEXP q, SEX
     return cpp11::as_sexp(kernel_quantile_dense_cpp(cpp11::as_cpp<cpp11::decay_t<SEXP>>(mat), cpp11::as_cpp<cpp11::decay_t<int>>(axis), cpp11::as_cpp<cpp11::decay_t<double>>(q), cpp11::as_cpp<cpp11::decay_t<int>>(threshold)));
   END_CPP11
 }
+// kernel_top_k_per_col.cpp
+cpp11::writable::list kernel_top_k_per_col_dense_cpp(cpp11::doubles_matrix<> m, int k, bool use_abs, int threshold);
+extern "C" SEXP _dafr_kernel_top_k_per_col_dense_cpp(SEXP m, SEXP k, SEXP use_abs, SEXP threshold) {
+  BEGIN_CPP11
+    return cpp11::as_sexp(kernel_top_k_per_col_dense_cpp(cpp11::as_cpp<cpp11::decay_t<cpp11::doubles_matrix<>>>(m), cpp11::as_cpp<cpp11::decay_t<int>>(k), cpp11::as_cpp<cpp11::decay_t<bool>>(use_abs), cpp11::as_cpp<cpp11::decay_t<int>>(threshold)));
+  END_CPP11
+}
+// kernel_top_k_per_col.cpp
+cpp11::writable::list kernel_top_k_per_col_csc_cpp(cpp11::doubles x, cpp11::integers i, cpp11::integers p, int nrow, int ncol, int k, bool use_abs, int threshold);
+extern "C" SEXP _dafr_kernel_top_k_per_col_csc_cpp(SEXP x, SEXP i, SEXP p, SEXP nrow, SEXP ncol, SEXP k, SEXP use_abs, SEXP threshold) {
+  BEGIN_CPP11
+    return cpp11::as_sexp(kernel_top_k_per_col_csc_cpp(cpp11::as_cpp<cpp11::decay_t<cpp11::doubles>>(x), cpp11::as_cpp<cpp11::decay_t<cpp11::integers>>(i), cpp11::as_cpp<cpp11::decay_t<cpp11::integers>>(p), cpp11::as_cpp<cpp11::decay_t<int>>(nrow), cpp11::as_cpp<cpp11::decay_t<int>>(ncol), cpp11::as_cpp<cpp11::decay_t<int>>(k), cpp11::as_cpp<cpp11::decay_t<bool>>(use_abs), cpp11::as_cpp<cpp11::decay_t<int>>(threshold)));
+  END_CPP11
+}
 // kernel_var_csc.cpp
 cpp11::writable::doubles kernel_var_csc_cpp(cpp11::doubles x, cpp11::integers i, cpp11::integers p, int nrow, int ncol, int axis, std::string variant, double eps, int threshold);
 extern "C" SEXP _dafr_kernel_var_csc_cpp(SEXP x, SEXP i, SEXP p, SEXP nrow, SEXP ncol, SEXP axis, SEXP variant, SEXP eps, SEXP threshold) {
@@ -190,6 +218,8 @@ static const R_CallMethodDef CallEntries[] = {
     {"_dafr_kernel_grouped_reduce_dense_cpp", (DL_FUNC) &_dafr_kernel_grouped_reduce_dense_cpp,  8},
     {"_dafr_kernel_grouped_rowsum_dense_cpp", (DL_FUNC) &_dafr_kernel_grouped_rowsum_dense_cpp,  6},
     {"_dafr_kernel_log_add_cpp",              (DL_FUNC) &_dafr_kernel_log_add_cpp,               3},
+    {"_dafr_kernel_log_dense_mat_cpp",        (DL_FUNC) &_dafr_kernel_log_dense_mat_cpp,         4},
+    {"_dafr_kernel_log_dense_vec_cpp",        (DL_FUNC) &_dafr_kernel_log_dense_vec_cpp,         4},
     {"_dafr_kernel_log_reduce_csc_cpp",       (DL_FUNC) &_dafr_kernel_log_reduce_csc_cpp,       10},
     {"_dafr_kernel_log_reduce_dense_cpp",     (DL_FUNC) &_dafr_kernel_log_reduce_dense_cpp,      6},
     {"_dafr_kernel_minmax_csc_cpp",           (DL_FUNC) &_dafr_kernel_minmax_csc_cpp,            8},
@@ -197,6 +227,8 @@ static const R_CallMethodDef CallEntries[] = {
     {"_dafr_kernel_mode_dense_cpp",           (DL_FUNC) &_dafr_kernel_mode_dense_cpp,            3},
     {"_dafr_kernel_quantile_csc_cpp",         (DL_FUNC) &_dafr_kernel_quantile_csc_cpp,          8},
     {"_dafr_kernel_quantile_dense_cpp",       (DL_FUNC) &_dafr_kernel_quantile_dense_cpp,        4},
+    {"_dafr_kernel_top_k_per_col_csc_cpp",    (DL_FUNC) &_dafr_kernel_top_k_per_col_csc_cpp,     8},
+    {"_dafr_kernel_top_k_per_col_dense_cpp",  (DL_FUNC) &_dafr_kernel_top_k_per_col_dense_cpp,   4},
     {"_dafr_kernel_var_csc_cpp",              (DL_FUNC) &_dafr_kernel_var_csc_cpp,               9},
     {"_dafr_mmap_int_altrep_cpp",             (DL_FUNC) &_dafr_mmap_int_altrep_cpp,              2},
     {"_dafr_mmap_lgl_altrep_cpp",             (DL_FUNC) &_dafr_mmap_lgl_altrep_cpp,              2},
