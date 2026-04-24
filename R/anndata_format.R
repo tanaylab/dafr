@@ -128,9 +128,10 @@ NULL
 #'
 #' Loads dense or sparse `/X`, `/obs` and `/var` column groups (dense
 #' scalar columns and categorical columns), flat + nested `/uns` scalar
-#' entries (nested keys are flattened via `_`), and dense `/layers`.
-#' `varm` / `obsm` / `obsp` / `varp` and `raw` are still escalated
-#' through `unsupported_handler` and skipped.
+#' entries (nested keys are flattened via `_`), dense `/layers`, and
+#' `/obsm` / `/varm` dense matrices (each stored on a synthetic axis
+#' `obsm_<name>_dim` / `varm_<name>_dim`). `obsp` / `varp` and `raw` are
+#' still escalated through `unsupported_handler` and skipped.
 #'
 #' Requires the `hdf5r` and `Matrix` packages.
 #'
@@ -323,6 +324,41 @@ h5ad_as_daf <- function(path, name = NULL, mode = "r",
         }
     }
 
+    # --- /obsm and /varm — per-axis embeddings / loadings.
+    # Each dense (n_axis x k) matrix is stored as a daf matrix on a
+    # synthetic axis `<obsm|varm>_<name>_dim` with entries "1".."k". The
+    # matrix name equals the embedding name.
+    .read_xm <- function(group_name, axis) {
+        if (!h5$exists(group_name)) return(invisible())
+        grp <- h5[[group_name]]
+        for (nm in grp$names) {
+            child <- grp[[nm]]
+            if (inherits(child, "H5Group")) {
+                emit_action("inefficient",
+                    sprintf("non-dataset %s entry '%s' not supported; skipping",
+                        group_name, nm))
+                next
+            }
+            m <- tryCatch(child$read(), error = function(e) NULL)
+            if (is.null(m)) {
+                emit_action("inefficient",
+                    sprintf("unreadable %s entry '%s'; skipping", group_name, nm))
+                next
+            }
+            if (!is.matrix(m)) {
+                emit_action("inefficient",
+                    sprintf("non-matrix %s entry '%s' not supported; skipping",
+                        group_name, nm))
+                next
+            }
+            synth <- sprintf("%s_%s_dim", group_name, nm)
+            add_axis(d, synth, as.character(seq_len(ncol(m))))
+            set_matrix(d, axis, synth, nm, m)
+        }
+    }
+    .read_xm("obsm", "obs")
+    .read_xm("varm", "var")
+
     d
 }
 
@@ -452,6 +488,38 @@ daf_as_h5ad <- function(daf, path, obs_axis = NULL, var_axis = NULL,
             layers_grp$create_dataset(nm, robj = m)
         }
     }
+
+    # /obsm and /varm — matrices living on (<axis>, <synthetic dim axis>),
+    # where the dim axis is named `<obsm|varm>_<matrix_name>_dim`. This is
+    # the inverse of the synthetic-axis convention used by h5ad_as_daf.
+    .write_xm <- function(group_prefix, axis) {
+        grp <- h5$create_group(group_prefix)
+        # Any axis matching the naming convention is a candidate.
+        all_axes <- format_axes_set(daf)
+        pat <- sprintf("^%s_(.+)_dim$", group_prefix)
+        for (ax in all_axes) {
+            mm <- regmatches(ax, regexec(pat, ax))[[1L]]
+            if (length(mm) != 2L) next
+            synth_axis <- ax
+            # Enumerate matrices on (axis, synth_axis); any matrix there is
+            # an embedding for that synthetic axis.
+            for (mname in format_matrices_set(daf, axis, synth_axis)) {
+                m <- get_matrix(daf, axis, synth_axis, mname)
+                if (methods::is(m, "sparseMatrix")) {
+                    m <- as.matrix(m)
+                }
+                # Shape must be (n_axis, k) — matches the synthetic axis on
+                # the right. If the matrix comes back flipped, restore the
+                # canonical orientation.
+                if (nrow(m) != format_axis_length(daf, axis)) {
+                    m <- t(m)
+                }
+                grp$create_dataset(mname, robj = m)
+            }
+        }
+    }
+    .write_xm("obsm", obs_axis)
+    .write_xm("varm", var_axis)
 
     # /uns — flat scalars (no nested write).
     uns_grp <- h5$create_group("uns")

@@ -16,7 +16,8 @@ ContractDaf(
   overwrite = logical(0),
   base = DafReader(),
   axes = new.env(parent = emptyenv()),
-  data = new.env(parent = emptyenv())
+  data = new.env(parent = emptyenv()),
+  tensor_index = new.env(parent = emptyenv())
 )
 }
 \arguments{
@@ -52,6 +53,10 @@ name).}
 
 \item{data}{Per-property access-tracking environment (keyed by
 \verb{<kind>:<axes>:<name>}).}
+
+\item{tensor_index}{Environment mapping \verb{<rows_axis>:<columns_axis>:<mat_name>}
+→ tensor key in \code{data}, used to resolve per-entry matrix reads to their
+owning tensor tracker.}
 }
 \value{
 An S7 class object; users normally obtain instances via

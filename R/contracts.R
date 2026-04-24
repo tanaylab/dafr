@@ -180,6 +180,9 @@ contract_matrix <- function(rows_axis, columns_axis, name, expectation, type, de
 #'   name).
 #' @param data Per-property access-tracking environment (keyed by
 #'   `<kind>:<axes>:<name>`).
+#' @param tensor_index Environment mapping `<rows_axis>:<columns_axis>:<mat_name>`
+#'   → tensor key in `data`, used to resolve per-entry matrix reads to their
+#'   owning tensor tracker.
 #' @return An S7 class object; users normally obtain instances via
 #'   [contractor()] rather than calling the constructor directly.
 #' @seealso [contractor()], [verify_input()], [verify_output()].
@@ -199,12 +202,13 @@ ContractDaf <- S7::new_class(
     package = "dafr",
     parent = DafWriter,
     properties = list(
-        computation = S7::class_character,
-        is_relaxed  = S7::class_logical,
-        overwrite   = S7::class_logical,
-        base        = DafReader,
-        axes        = S7::class_environment,   # env(axis -> tracker env)
-        data        = S7::class_environment    # env(key -> tracker env)
+        computation  = S7::class_character,
+        is_relaxed   = S7::class_logical,
+        overwrite    = S7::class_logical,
+        base         = DafReader,
+        axes         = S7::class_environment,   # env(axis -> tracker env)
+        data         = S7::class_environment,   # env(key -> tracker env)
+        tensor_index = S7::class_environment    # env("ra:ca:mat_name" -> tensor data key)
     )
 )
 
@@ -281,8 +285,24 @@ contractor <- function(computation, contract, daf,
         axes_env[[ax]] <- .new_tracker(spec[[1L]])
     }
     data_env <- new.env(parent = emptyenv())
+    tensor_index <- new.env(parent = emptyenv())
     for (rec in S7::prop(contract, "data")) {
-        data_env[[.data_key(rec)]] <- .new_tracker(rec$expectation, rec$type)
+        key <- .data_key(rec)
+        data_env[[key]] <- .new_tracker(rec$expectation, rec$type)
+        if (identical(rec$kind, "tensor")) {
+            # Resolve per-entry matrix names NOW (from the base daf's main-axis
+            # entries) so that regular format_get_matrix reads can be mapped
+            # back to this tensor's tracker. If the main axis is missing we
+            # skip — the tensor verify step reports that as its own error.
+            if (format_has_axis(daf, rec$main_axis)) {
+                entries <- format_axis_array(daf, rec$main_axis)
+                for (entry in entries) {
+                    mat_name <- sprintf("%s_%s", entry, rec$name)
+                    idx_key <- .access_key_matrix(rec$rows_axis, rec$columns_axis, mat_name)
+                    tensor_index[[idx_key]] <- key
+                }
+            }
+        }
     }
     ContractDaf(
         name = name,
@@ -296,7 +316,8 @@ contractor <- function(computation, contract, daf,
         overwrite = overwrite,
         base = daf,
         axes = axes_env,
-        data = data_env
+        data = data_env,
+        tensor_index = tensor_index
     )
 }
 
@@ -387,6 +408,19 @@ contractor <- function(computation, contract, daf,
     if (is.null(tracker)) {
         # Try flipped
         tracker <- S7::prop(cd, "data")[[.access_key_matrix(ca, ra, name)]]
+    }
+    if (is.null(tracker)) {
+        # Fall back to the tensor index: a matrix named `<entry>_<tname>`
+        # whose (ra, ca) matches a tensor contract resolves to that tensor's
+        # tracker. Accept either orientation.
+        tidx <- S7::prop(cd, "tensor_index")
+        tkey <- tidx[[key]]
+        if (is.null(tkey)) {
+            tkey <- tidx[[.access_key_matrix(ca, ra, name)]]
+        }
+        if (!is.null(tkey)) {
+            tracker <- S7::prop(cd, "data")[[tkey]]
+        }
     }
     if (is.null(tracker)) {
         if (isTRUE(S7::prop(cd, "is_relaxed"))) return(invisible())
@@ -833,10 +867,26 @@ S7::method(
                 ), call. = FALSE)
             }
         } else if (kind == "tensor") {
-            # Skip unused-check for tensors; access tracking for
-            # per-entry matrices would require a separate tracker per
-            # entry. Future work.
-            next
+            # Tensor is accessed iff at least one of its per-entry matrices
+            # was read (see contractor() + .access_matrix). If the main axis
+            # and every per-entry matrix still exist but none were read, the
+            # tensor is unused.
+            main <- parts[[2L]]
+            ra <- parts[[3L]]
+            ca <- parts[[4L]]
+            tname <- parts[[5L]]
+            if (!format_has_axis(base, main)) next
+            entries <- format_axis_array(base, main)
+            all_present <- length(entries) > 0L && all(vapply(entries,
+                function(e) format_has_matrix(base, ra, ca,
+                    sprintf("%s_%s", e, tname)),
+                logical(1L)))
+            if (all_present) {
+                stop(sprintf(
+                    "unused RequiredInput tensor: %s of the main axis: %s rows axis: %s and the columns axis: %s of the computation: %s on the daf data: %s",
+                    tname, main, ra, ca, comp, dname
+                ), call. = FALSE)
+            }
         }
     }
     invisible()
