@@ -152,3 +152,81 @@ test_that("Contract validator accepts tensor records in data", {
         RequiredInput, "integer", "")
     expect_silent(Contract(data = list(rec)))
 })
+
+# ---- Slice 15: tensor .verify_access tracking ------------------------------
+
+.build_tensor_daf <- function() {
+    d <- memory_daf()
+    add_axis(d, "batch", c("b1", "b2"))
+    add_axis(d, "cell", c("c1", "c2"))
+    add_axis(d, "gene", c("g1", "g2", "g3"))
+    set_matrix(d, "cell", "gene", "b1_UMIs",
+        matrix(1:6, 2, 3))
+    set_matrix(d, "cell", "gene", "b2_UMIs",
+        matrix(7:12, 2, 3))
+    d
+}
+
+.tensor_contract_obj <- function() {
+    create_contract(
+        axes = list(
+            axis_contract("batch", RequiredInput, ""),
+            axis_contract("cell", RequiredInput, ""),
+            axis_contract("gene", RequiredInput, "")
+        ),
+        tensors = list(tensor_contract("batch", "cell", "gene",
+            "UMIs", RequiredInput, "integer", ""))
+    )
+}
+
+test_that("verify_output passes when one per-entry tensor matrix was read", {
+    withr::with_options(list(dafr.enforce_contracts = TRUE), {
+        d <- .build_tensor_daf()
+        cd <- contractor("demo", .tensor_contract_obj(), d)
+        verify_input(cd)
+        # Touch each required axis so the axis unused-check doesn't fire.
+        axis_entries(cd, "batch"); axis_entries(cd, "cell"); axis_entries(cd, "gene")
+        # Access exactly one per-entry matrix; this should mark the tensor
+        # tracker as accessed.
+        m <- get_matrix(cd, "cell", "gene", "b1_UMIs")
+        expect_identical(dim(m), c(2L, 3L))
+        expect_silent(verify_output(cd))
+    })
+})
+
+test_that("verify_output passes when the flipped-axis read marks the tensor", {
+    withr::with_options(list(dafr.enforce_contracts = TRUE), {
+        d <- .build_tensor_daf()
+        cd <- contractor("demo_flip", .tensor_contract_obj(), d)
+        verify_input(cd)
+        axis_entries(cd, "batch"); axis_entries(cd, "cell"); axis_entries(cd, "gene")
+        # Reading via the flipped (gene, cell) orientation should still
+        # resolve through the tensor index.
+        m <- get_matrix(cd, "gene", "cell", "b2_UMIs")
+        expect_identical(dim(m), c(3L, 2L))
+        expect_silent(verify_output(cd))
+    })
+})
+
+test_that("verify_output errors on unused RequiredInput tensor", {
+    withr::with_options(list(dafr.enforce_contracts = TRUE), {
+        d <- .build_tensor_daf()
+        # Mark the axes as accessed so the axis-level check passes and we
+        # isolate the tensor diagnostic.
+        cd <- contractor("demo_unused", .tensor_contract_obj(), d)
+        verify_input(cd)
+        axis_entries(cd, "batch"); axis_entries(cd, "cell"); axis_entries(cd, "gene")
+        # No per-entry matrices were read.
+        expect_error(verify_output(cd),
+            "unused RequiredInput tensor: UMIs")
+    })
+})
+
+test_that("verify_contract (static) does not trigger the tensor unused-check", {
+    # verify_contract passes is_static = TRUE; we only check shape/existence
+    # there, so an unused-tensor false positive must not fire.
+    withr::with_options(list(dafr.enforce_contracts = TRUE), {
+        d <- .build_tensor_daf()
+        expect_silent(verify_contract(.tensor_contract_obj(), d))
+    })
+})
