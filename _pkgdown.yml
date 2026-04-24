@@ -219,6 +219,15 @@ reference:
       - get_eltwise
       - get_reduction
 
+  - title: Fast kernels
+    desc: >
+      OpenMP-parallel kernels callable directly on in-memory data, bypassing
+      the DSL overhead. Intended for downstream packages with their own
+      session-level caches.
+    contents:
+      - fast_log
+      - top_k_per_col
+
   - title: Handlers
     contents:
       - register_dafr_handler
