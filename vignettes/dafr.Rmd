@@ -1,0 +1,76 @@
+---
+title: "Getting Started with dafr"
+output: rmarkdown::html_vignette
+vignette: >
+  %\VignetteIndexEntry{Getting Started with dafr}
+  %\VignetteEngine{knitr::rmarkdown}
+  %\VignetteEncoding{UTF-8}
+---
+
+```{r setup, include = FALSE}
+knitr::opts_chunk$set(collapse = TRUE, comment = "#>")
+library(dafr)
+```
+
+## What is a Daf?
+
+A Daf (Data Axes Format) is a multi-axis container for biological /
+scientific data. Think of it as a typed dictionary of scalars,
+per-axis vectors, and per-axis-pair matrices, with cache invalidation
+and lazy mmap-backed reads.
+
+## Create a Daf
+
+```{r}
+d <- memory_daf(name = "demo")
+add_axis(d, "cell", c("c1", "c2", "c3"))
+add_axis(d, "gene", c("g1", "g2"))
+set_scalar(d, "organism", "human")
+set_vector(d, "cell", "donor", c("A", "B", "A"))
+set_matrix(d, "cell", "gene", "UMIs",
+           matrix(1:6, nrow = 3, ncol = 2))
+print(d)
+```
+
+## Reading data
+
+```{r}
+get_scalar(d, "organism")
+get_vector(d, "cell", "donor")
+get_matrix(d, "cell", "gene", "UMIs")
+```
+
+## Queries
+
+Queries let you compose reads. Two equivalent forms — a string DSL and
+pipe-chain builders:
+
+```{r}
+get_query(d, "@ cell : donor")
+get_query(d, ". organism")
+```
+
+```{r}
+d[Axis("cell") |> LookupVector("donor")]
+```
+
+## Data frames
+
+```{r}
+get_dataframe(d, "cell")
+```
+
+## Persistence
+
+```{r, eval = FALSE}
+# Write to a directory:
+fd <- files_daf(tempfile("dafr-"), mode = "w+", name = "persisted")
+copy_all(d, fd)
+```
+
+## Example data
+
+```{r}
+d2 <- example_cells_daf()
+axes_set(d2)
+```

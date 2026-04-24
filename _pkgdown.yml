@@ -1,0 +1,255 @@
+url: https://tanaylab.github.io/dafr/
+
+template:
+  bootstrap: 5
+
+reference:
+  - title: Core data model
+    contents:
+      - DafReader
+      - DafReadOnly
+      - DafWriter
+      - MemoryDaf
+      - FilesDaf
+      - FilesDafReadOnly
+      - memory_daf
+      - files_daf
+      - is_daf
+      - daf_name
+      - description
+      - complete_path
+      - read_only
+      - empty_cache
+
+  - title: Readers
+    contents:
+      - get_scalar
+      - get_vector
+      - get_matrix
+      - has_scalar
+      - has_vector
+      - has_matrix
+      - has_axis
+      - scalars_set
+      - axes_set
+      - axis_entries
+      - axis_dict
+      - axis_indices
+      - axis_length
+      - axis_vector
+      - vectors_set
+      - matrices_set
+
+  - title: Writers
+    contents:
+      - add_axis
+      - delete_axis
+      - set_scalar
+      - delete_scalar
+      - set_vector
+      - delete_vector
+      - set_matrix
+      - delete_matrix
+      - relayout_matrix
+      - empty_data
+
+  - title: Query DSL (string form)
+    contents:
+      - get_query
+      - has_query
+      - parse_query
+      - canonical_query
+      - is_axis_query
+      - query_axis_name
+      - query_result_dimensions
+      - query_requires_relayout
+      - escape_value
+      - unescape_value
+
+  - title: Query builders (DafrQuery)
+    contents:
+      - DafrQuery
+      - Abs
+      - Clamp
+      - Convert
+      - Fraction
+      - Log
+      - Round
+      - Significant
+      - Count
+      - CountBy
+      - GeoMean
+      - GroupBy
+      - GroupColumnsBy
+      - GroupRowsBy
+      - Max
+      - Mean
+      - Median
+      - Min
+      - Mode
+      - Quantile
+      - ReduceToColumn
+      - ReduceToRow
+      - Std
+      - StdN
+      - Sum
+      - Var
+      - VarN
+      - Axis
+      - AsAxis
+      - BeginMask
+      - BeginNegatedMask
+      - EndMask
+      - IfMissing
+      - IfNot
+      - LookupMatrix
+      - LookupScalar
+      - LookupVector
+      - Names
+      - SquareColumnIs
+      - SquareRowIs
+      - AndMask
+      - AndNegatedMask
+      - OrMask
+      - OrNegatedMask
+      - XorMask
+      - XorNegatedMask
+      - IsEqual
+      - IsGreater
+      - IsGreaterEqual
+      - IsLess
+      - IsLessEqual
+      - IsMatch
+      - IsNotEqual
+      - IsNotMatch
+
+  - title: DataFrames
+    contents:
+      - get_dataframe
+      - get_dataframe_query
+      - get_tidy
+
+  - title: AnnData interop
+    contents:
+      - DafAnnData
+      - as_anndata
+      - h5ad_as_daf
+      - daf_as_h5ad
+
+  - title: Chains & views
+    contents:
+      - chain_reader
+      - chain_writer
+      - viewer
+      - ViewDaf
+      - ReadOnlyChainDaf
+      - WriteChainDaf
+      - VIEW_ALL_AXES
+      - VIEW_ALL_DATA
+      - VIEW_ALL_MATRICES
+      - VIEW_ALL_SCALARS
+      - VIEW_ALL_VECTORS
+
+  - title: Contracts
+    contents:
+      - Contract
+      - ContractDaf
+      - contract_scalar
+      - contract_vector
+      - contract_matrix
+      - tensor_contract
+      - axis_contract
+      - function_contract
+      - create_contract
+      - contract_description
+      - contract_docs
+      - contractor
+      - verify_input
+      - verify_output
+      - verify_contract
+      - merge_contracts
+      - RequiredInput
+      - OptionalInput
+      - GuaranteedOutput
+      - OptionalOutput
+      - CreatedOutput
+
+  - title: Computations & adapters
+    contents:
+      - computation
+      - adapter
+
+  - title: Mmap readers
+    contents:
+      - mmap_dgCMatrix
+      - mmap_int
+      - mmap_lgl
+      - mmap_real
+
+  - title: Op registry
+    contents:
+      - register_eltwise
+      - register_reduction
+      - registered_eltwise
+      - registered_reductions
+      - get_eltwise
+      - get_reduction
+
+  - title: Handlers
+    contents:
+      - register_dafr_handler
+      - inefficient_action_handler
+      - ERROR_HANDLER
+      - IGNORE_HANDLER
+      - WARN_HANDLER
+
+  - title: Threads
+    desc: >
+      OpenMP thread-count control. Kernels honour the value set via
+      `set_num_threads()` (or the `dafr.num_threads` option). CRAN-like
+      environments are auto-capped to two cores on package load.
+    contents:
+      - set_num_threads
+      - get_num_threads
+
+  - title: Version counters
+    contents:
+      - axis_version_counter
+      - vector_version_counter
+      - matrix_version_counter
+
+  - title: Group helpers
+    contents:
+      - compact_groups
+      - collect_group_members
+      - group_names
+
+  - title: Example data
+    contents:
+      - example_cells_daf
+      - example_metacells_daf
+      - example_chain_daf
+
+  - title: Copy & concat
+    contents:
+      - copy_all
+      - copy_axis
+      - copy_vector
+      - copy_matrix
+      - copy_scalar
+      - copy_tensor
+      - concatenate
+      - ALL_AXES
+      - ALL_MATRICES
+      - ALL_SCALARS
+      - ALL_VECTORS
+      - MERGE_COLLECT_AXIS
+      - MERGE_LAST_VALUE
+      - MERGE_SKIP
+
+  - title: Reconstruction & completion
+    contents:
+      - open_daf
+      - complete_daf
+      - complete_chain
+      - reconstruct_axis
