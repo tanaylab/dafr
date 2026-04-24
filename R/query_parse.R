@@ -13,14 +13,64 @@ NULL
 #' ast <- parse_query("@ cell : donor")
 #' is_axis_query("@ cell : donor")
 #' get_query(example_cells_daf(), "@ cell : donor") |> head()
+# Process-lifetime cache for parse_query results. Parsing is
+# side-effect-free given an identical input string, so memoising the
+# string → AST mapping is safe. The cache is size-capped via a simple
+# FIFO ring buffer in an environment to avoid unbounded memory growth
+# under long-running sessions that see many distinct queries.
+
+.parse_query_cache <- new.env(parent = emptyenv())
+.parse_query_cache$entries <- new.env(parent = emptyenv(), hash = TRUE)
+.parse_query_cache$order <- character(0L)
+.parse_query_cache$cap <- 1024L
+
+.parse_query_cache_lookup <- function(key) {
+    if (exists(key, envir = .parse_query_cache$entries, inherits = FALSE)) {
+        get(key, envir = .parse_query_cache$entries, inherits = FALSE)
+    } else {
+        NULL
+    }
+}
+
+.parse_query_cache_store <- function(key, value) {
+    assign(key, value, envir = .parse_query_cache$entries)
+    .parse_query_cache$order <- c(.parse_query_cache$order, key)
+    while (length(.parse_query_cache$order) > .parse_query_cache$cap) {
+        victim <- .parse_query_cache$order[[1L]]
+        .parse_query_cache$order <- .parse_query_cache$order[-1L]
+        if (exists(victim, envir = .parse_query_cache$entries, inherits = FALSE)) {
+            rm(list = victim, envir = .parse_query_cache$entries)
+        }
+    }
+    invisible()
+}
+
+# Internal helper to clear the cache (test-only).
+.parse_query_cache_clear <- function() {
+    .parse_query_cache$entries <- new.env(parent = emptyenv(), hash = TRUE)
+    .parse_query_cache$order <- character(0L)
+    invisible()
+}
+
 #' @export
 parse_query <- function(query_string) {
     stopifnot(
         is.character(query_string), length(query_string) == 1L,
         !is.na(query_string)
     )
+    # Skip cache for empty strings (can't be used as env keys in R).
+    if (!nzchar(query_string)) {
+        tokens <- .tokenize_query(query_string)
+        return(.parse_tokens(tokens, query_string))
+    }
+    cached <- .parse_query_cache_lookup(query_string)
+    if (!is.null(cached)) {
+        return(cached)
+    }
     tokens <- .tokenize_query(query_string)
-    .parse_tokens(tokens, query_string)
+    ast <- .parse_tokens(tokens, query_string)
+    .parse_query_cache_store(query_string, ast)
+    ast
 }
 
 .parse_tokens <- function(tokens, src) {
