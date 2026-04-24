@@ -32,20 +32,23 @@ as \verb{/X}. Default \code{"UMIs"}.}
 exists; if \code{TRUE}, silently replace.}
 
 \item{unsupported_handler}{Handler for Daf features we cannot
-represent in h5ad (e.g. sparse matrices are densified with a
-warning). See \code{\link[=inefficient_action_handler]{inefficient_action_handler()}}.}
+represent in h5ad. See \code{\link[=inefficient_action_handler]{inefficient_action_handler()}}.}
 }
 \value{
 Invisibly, \code{path}.
 }
 \description{
-Inverse of \code{\link[=h5ad_as_daf]{h5ad_as_daf()}}. Writes a minimal-viable h5ad file
-containing \verb{/X} (dense), per-axis column groups \verb{/obs} and \verb{/var}
-(each with an \verb{_index}), \verb{/layers} for additional matrices, and
-\verb{/uns} for scalars.
+Inverse of \code{\link[=h5ad_as_daf]{h5ad_as_daf()}}. Writes \verb{/X} (dense or CSC-sparse),
+per-axis column groups \verb{/obs} and \verb{/var} (each with an \verb{_index};
+factor vectors emitted as h5ad categorical groups), \verb{/layers} for
+additional matrices, and flat \verb{/uns} scalars.
 }
 \details{
-Requires the \code{hdf5r} package (a Suggests dependency).
+Note: the write side always emits \verb{/uns} flat. On read we flatten
+nested uns groups with a \verb{_} separator, so a round-trip of a nested
+uns file produces flat dotted keys on the resulting Daf.
+
+Requires the \code{hdf5r} and \code{Matrix} packages.
 }
 \examples{
 \dontrun{

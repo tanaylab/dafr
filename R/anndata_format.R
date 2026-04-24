@@ -11,15 +11,128 @@ NULL
     }
 }
 
+# ---- Sparse helpers -------------------------------------------------------
+
+# Read an h5ad sparse matrix group (csr_matrix or csc_matrix) into a
+# dgCMatrix with shape (n_rows, n_cols) as declared in the `shape` attr.
+.read_h5ad_sparse <- function(grp) {
+    enc <- hdf5r::h5attr(grp, "encoding-type")
+    shape <- hdf5r::h5attr(grp, "shape")
+    data <- grp[["data"]]$read()
+    indices <- grp[["indices"]]$read()
+    indptr <- grp[["indptr"]]$read()
+    nrow <- as.integer(shape[1L])
+    ncol <- as.integer(shape[2L])
+    if (enc == "csr_matrix") {
+        # CSR: indptr is over rows (length = nrow + 1), indices are
+        # column indices (0-based). Build a dgRMatrix then coerce.
+        M <- methods::new("dgRMatrix",
+            Dim = c(nrow, ncol),
+            p = as.integer(indptr),
+            j = as.integer(indices),
+            x = as.numeric(data)
+        )
+        methods::as(M, "CsparseMatrix")
+    } else if (enc == "csc_matrix") {
+        # CSC: indptr is over columns, indices are row indices (0-based).
+        Matrix::sparseMatrix(
+            i = as.integer(indices) + 1L,
+            p = as.integer(indptr),
+            x = as.numeric(data),
+            dims = c(nrow, ncol),
+            repr = "C"
+        )
+    } else {
+        stop(sprintf("unsupported sparse encoding: %s", enc), call. = FALSE)
+    }
+}
+
+# Write a sparseMatrix as an h5ad CSC group under `parent/name`.
+.write_h5ad_sparse <- function(parent, name, m) {
+    if (!methods::is(m, "CsparseMatrix")) {
+        m <- methods::as(m, "CsparseMatrix")
+    }
+    grp <- parent$create_group(name)
+    grp$create_attr("encoding-type", robj = "csc_matrix",
+                    space = hdf5r::H5S$new("scalar"))
+    grp$create_attr("encoding-version", robj = "0.1.0",
+                    space = hdf5r::H5S$new("scalar"))
+    grp$create_attr("shape", robj = as.integer(dim(m)))
+    grp$create_dataset("data", robj = as.numeric(m@x))
+    grp$create_dataset("indices", robj = as.integer(m@i))  # 0-based row idx
+    grp$create_dataset("indptr", robj = as.integer(m@p))   # col pointers
+    invisible(NULL)
+}
+
+# ---- Categorical helpers --------------------------------------------------
+
+# Read a categorical obs/var column group. Returns a factor (ordered or
+# unordered depending on the `ordered` attr). NA codes (-1) become NA.
+.read_h5ad_categorical <- function(grp) {
+    codes <- grp[["codes"]]$read()
+    categories <- grp[["categories"]]$read()
+    ordered <- FALSE
+    if (grp$attr_exists("ordered")) {
+        ordered <- tryCatch(isTRUE(as.logical(hdf5r::h5attr(grp, "ordered"))[[1L]]),
+            error = function(e) FALSE)
+    }
+    idx <- as.integer(codes) + 1L
+    idx[as.integer(codes) < 0L] <- NA_integer_
+    structure(idx,
+        levels = as.character(categories),
+        class = if (ordered) c("ordered", "factor") else "factor"
+    )
+}
+
+# Write a factor vector as a categorical group under `parent/name`.
+.write_h5ad_categorical <- function(parent, name, v) {
+    stopifnot(is.factor(v))
+    grp <- parent$create_group(name)
+    grp$create_attr("encoding-type", robj = "categorical",
+                    space = hdf5r::H5S$new("scalar"))
+    grp$create_attr("encoding-version", robj = "0.2.0",
+                    space = hdf5r::H5S$new("scalar"))
+    grp$create_attr("ordered", robj = is.ordered(v))
+    codes <- as.integer(v) - 1L  # 0-based
+    codes[is.na(codes)] <- -1L
+    grp$create_dataset("codes", robj = as.integer(codes))
+    grp$create_dataset("categories", robj = as.character(levels(v)))
+    invisible(NULL)
+}
+
+# ---- Nested uns helper ----------------------------------------------------
+
+# Walk a /uns group recursively. Each nested scalar leaf gets flattened
+# into the parent name-space via a `_` separator. Non-scalar leaves are
+# skipped (same policy as the flat reader).
+.flatten_uns <- function(grp, prefix = "") {
+    out <- list()
+    for (nm in grp$names) {
+        child <- grp[[nm]]
+        full_name <- if (nzchar(prefix)) paste0(prefix, "_", nm) else nm
+        if (inherits(child, "H5Group")) {
+            out <- c(out, .flatten_uns(child, full_name))
+        } else {
+            v <- tryCatch(child$read(), error = function(e) NULL)
+            if (!is.null(v) && length(v) == 1L) {
+                out[[full_name]] <- v
+            }
+            # Non-scalar or unreadable uns entries: skipped silently here;
+            # the top-level caller is responsible for any warnings.
+        }
+    }
+    out
+}
+
 #' Load a Muon-style h5ad file into a `memory_daf`.
 #'
-#' Minimal-viable h5ad reader covering dense `/X`, `/obs` and `/var`
-#' column groups with `_index`, flat scalar `/uns` entries, and
-#' dense `/layers`. Sparse matrices, categorical/factor columns,
-#' `varm` / `obsm` / `obsp` / `varp`, `raw`, and nested `uns` groups
-#' are escalated through `unsupported_handler` and skipped.
+#' Loads dense or sparse `/X`, `/obs` and `/var` column groups (dense
+#' scalar columns and categorical columns), flat + nested `/uns` scalar
+#' entries (nested keys are flattened via `_`), and dense `/layers`.
+#' `varm` / `obsm` / `obsp` / `varp` and `raw` are still escalated
+#' through `unsupported_handler` and skipped.
 #'
-#' Requires the `hdf5r` package (a Suggests dependency).
+#' Requires the `hdf5r` and `Matrix` packages.
 #'
 #' @param path Path to the `.h5ad` file.
 #' @param name Optional name for the returned Daf; defaults to the
@@ -81,32 +194,27 @@ h5ad_as_daf <- function(path, name = NULL, mode = "r",
     # --- /X matrix ---
     if (h5$exists("X")) {
         x_obj <- h5[["X"]]
-        enc <- NULL
         if (inherits(x_obj, "H5Group")) {
-            # Sparse X is stored as a group (data, indices, indptr + attrs).
+            # Sparse X: detect encoding and read via helper.
+            enc <- NULL
             if (x_obj$attr_exists("encoding-type")) {
-                enc <- tryCatch(x_obj$attr_open("encoding-type")$read(),
-                    error = function(e) NULL)
-            }
-            emit_action("inefficient",
-                sprintf("sparse X with encoding %s not yet supported; skipping",
-                    enc %||% "<unknown>"))
-        } else {
-            if (x_obj$attr_exists("encoding-type")) {
-                enc <- tryCatch(x_obj$attr_open("encoding-type")$read(),
+                enc <- tryCatch(hdf5r::h5attr(x_obj, "encoding-type"),
                     error = function(e) NULL)
             }
             if (!is.null(enc) && enc %in% c("csr_matrix", "csc_matrix")) {
-                emit_action("inefficient",
-                    sprintf("sparse X with encoding %s not yet supported; skipping",
-                        enc))
-            } else {
-                X <- x_obj$read()
-                if (!is.matrix(X)) {
-                    X <- as.matrix(X)
-                }
+                X <- .read_h5ad_sparse(x_obj)
                 set_matrix(d, "obs", "var", "UMIs", X)
+            } else {
+                emit_action("inefficient",
+                    sprintf("group-valued X with encoding %s not supported; skipping",
+                        enc %||% "<unknown>"))
             }
+        } else {
+            X <- x_obj$read()
+            if (!is.matrix(X)) {
+                X <- as.matrix(X)
+            }
+            set_matrix(d, "obs", "var", "UMIs", X)
         }
     }
 
@@ -115,9 +223,20 @@ h5ad_as_daf <- function(path, name = NULL, mode = "r",
         if (col == "_index") next
         child <- obs_group[[col]]
         if (inherits(child, "H5Group")) {
+            enc <- if (child$attr_exists("encoding-type")) {
+                tryCatch(hdf5r::h5attr(child, "encoding-type"),
+                    error = function(e) NULL)
+            } else {
+                NULL
+            }
+            if (!is.null(enc) && enc == "categorical") {
+                v <- .read_h5ad_categorical(child)
+                set_vector(d, "obs", col, v)
+                next
+            }
             emit_action("inefficient",
-                sprintf("nested obs column '%s' (likely categorical) not supported; skipping",
-                    col))
+                sprintf("nested obs column '%s' (encoding=%s) not supported; skipping",
+                    col, enc %||% "unknown"))
             next
         }
         v <- tryCatch(child$read(), error = function(e) NULL)
@@ -135,9 +254,20 @@ h5ad_as_daf <- function(path, name = NULL, mode = "r",
         if (col == "_index") next
         child <- var_group[[col]]
         if (inherits(child, "H5Group")) {
+            enc <- if (child$attr_exists("encoding-type")) {
+                tryCatch(hdf5r::h5attr(child, "encoding-type"),
+                    error = function(e) NULL)
+            } else {
+                NULL
+            }
+            if (!is.null(enc) && enc == "categorical") {
+                v <- .read_h5ad_categorical(child)
+                set_vector(d, "var", col, v)
+                next
+            }
             emit_action("inefficient",
-                sprintf("nested var column '%s' (likely categorical) not supported; skipping",
-                    col))
+                sprintf("nested var column '%s' (encoding=%s) not supported; skipping",
+                    col, enc %||% "unknown"))
             next
         }
         v <- tryCatch(child$read(), error = function(e) NULL)
@@ -150,29 +280,12 @@ h5ad_as_daf <- function(path, name = NULL, mode = "r",
         set_vector(d, "var", col, v)
     }
 
-    # --- /uns (flat scalars only) ---
+    # --- /uns (flat + nested scalars, flattened via '_' separator) ---
     if (h5$exists("uns")) {
         uns <- h5[["uns"]]
-        for (nm in uns$names) {
-            child <- uns[[nm]]
-            if (inherits(child, "H5Group")) {
-                emit_action("inefficient",
-                    sprintf("nested uns group '%s' not supported; skipping", nm))
-                next
-            }
-            v <- tryCatch(child$read(), error = function(e) NULL)
-            if (is.null(v)) {
-                emit_action("inefficient",
-                    sprintf("unreadable uns '%s'; skipping", nm))
-                next
-            }
-            if (length(v) == 1L) {
-                set_scalar(d, nm, v)
-            } else {
-                emit_action("inefficient",
-                    sprintf("non-scalar uns '%s' (length %d) not supported; skipping",
-                        nm, length(v)))
-            }
+        flat <- .flatten_uns(uns)
+        for (nm in names(flat)) {
+            set_scalar(d, nm, flat[[nm]])
         }
     }
 
@@ -181,9 +294,22 @@ h5ad_as_daf <- function(path, name = NULL, mode = "r",
         layers <- h5[["layers"]]
         for (nm in layers$names) {
             child <- layers[[nm]]
-            if (!inherits(child, "H5D")) {
+            if (inherits(child, "H5Group")) {
+                # Sparse layer — same shape convention as X.
+                enc <- if (child$attr_exists("encoding-type")) {
+                    tryCatch(hdf5r::h5attr(child, "encoding-type"),
+                        error = function(e) NULL)
+                } else {
+                    NULL
+                }
+                if (!is.null(enc) && enc %in% c("csr_matrix", "csc_matrix")) {
+                    m <- .read_h5ad_sparse(child)
+                    set_matrix(d, "obs", "var", nm, m)
+                    next
+                }
                 emit_action("inefficient",
-                    sprintf("non-dataset layer '%s' not supported; skipping", nm))
+                    sprintf("non-dataset layer '%s' (encoding=%s) not supported; skipping",
+                        nm, enc %||% "unknown"))
                 next
             }
             m <- tryCatch(child$read(), error = function(e) NULL)
@@ -202,12 +328,16 @@ h5ad_as_daf <- function(path, name = NULL, mode = "r",
 
 #' Write a Daf to a Muon-style h5ad file.
 #'
-#' Inverse of [h5ad_as_daf()]. Writes a minimal-viable h5ad file
-#' containing `/X` (dense), per-axis column groups `/obs` and `/var`
-#' (each with an `_index`), `/layers` for additional matrices, and
-#' `/uns` for scalars.
+#' Inverse of [h5ad_as_daf()]. Writes `/X` (dense or CSC-sparse),
+#' per-axis column groups `/obs` and `/var` (each with an `_index`;
+#' factor vectors emitted as h5ad categorical groups), `/layers` for
+#' additional matrices, and flat `/uns` scalars.
 #'
-#' Requires the `hdf5r` package (a Suggests dependency).
+#' Note: the write side always emits `/uns` flat. On read we flatten
+#' nested uns groups with a `_` separator, so a round-trip of a nested
+#' uns file produces flat dotted keys on the resulting Daf.
+#'
+#' Requires the `hdf5r` and `Matrix` packages.
 #'
 #' @param daf A [DafReader].
 #' @param path Destination `.h5ad` path.
@@ -220,8 +350,7 @@ h5ad_as_daf <- function(path, name = NULL, mode = "r",
 #' @param overwrite If `FALSE` (default), error when `path` already
 #'   exists; if `TRUE`, silently replace.
 #' @param unsupported_handler Handler for Daf features we cannot
-#'   represent in h5ad (e.g. sparse matrices are densified with a
-#'   warning). See [inefficient_action_handler()].
+#'   represent in h5ad. See [inefficient_action_handler()].
 #' @return Invisibly, `path`.
 #' @examples
 #' \dontrun{
@@ -278,11 +407,10 @@ daf_as_h5ad <- function(daf, path, obs_axis = NULL, var_axis = NULL,
     if (format_has_matrix(daf, obs_axis, var_axis, x_name)) {
         X <- get_matrix(daf, obs_axis, var_axis, x_name)
         if (methods::is(X, "sparseMatrix")) {
-            emit_action("inefficient",
-                sprintf("densifying sparse matrix '%s' for h5ad write", x_name))
-            X <- as.matrix(X)
+            .write_h5ad_sparse(h5, "X", X)
+        } else {
+            h5$create_dataset("X", robj = X)
         }
-        h5$create_dataset("X", robj = X)
     } else {
         emit_action("inefficient",
             sprintf("matrix '%s' not on (%s, %s); writing without /X",
@@ -293,14 +421,24 @@ daf_as_h5ad <- function(daf, path, obs_axis = NULL, var_axis = NULL,
     obs_grp <- h5$create_group("obs")
     obs_grp$create_dataset("_index", robj = obs_names)
     for (vn in format_vectors_set(daf, obs_axis)) {
-        obs_grp$create_dataset(vn, robj = format_get_vector(daf, obs_axis, vn))
+        v <- format_get_vector(daf, obs_axis, vn)
+        if (is.factor(v)) {
+            .write_h5ad_categorical(obs_grp, vn, v)
+        } else {
+            obs_grp$create_dataset(vn, robj = v)
+        }
     }
 
     # /var
     var_grp <- h5$create_group("var")
     var_grp$create_dataset("_index", robj = var_names)
     for (vn in format_vectors_set(daf, var_axis)) {
-        var_grp$create_dataset(vn, robj = format_get_vector(daf, var_axis, vn))
+        v <- format_get_vector(daf, var_axis, vn)
+        if (is.factor(v)) {
+            .write_h5ad_categorical(var_grp, vn, v)
+        } else {
+            var_grp$create_dataset(vn, robj = v)
+        }
     }
 
     # /layers — matrices on (obs_axis, var_axis) other than x_name.
@@ -309,14 +447,13 @@ daf_as_h5ad <- function(daf, path, obs_axis = NULL, var_axis = NULL,
         if (nm == x_name) next
         m <- get_matrix(daf, obs_axis, var_axis, nm)
         if (methods::is(m, "sparseMatrix")) {
-            emit_action("inefficient",
-                sprintf("densifying sparse matrix '%s' for h5ad write", nm))
-            m <- as.matrix(m)
+            .write_h5ad_sparse(layers_grp, nm, m)
+        } else {
+            layers_grp$create_dataset(nm, robj = m)
         }
-        layers_grp$create_dataset(nm, robj = m)
     }
 
-    # /uns — flat scalars.
+    # /uns — flat scalars (no nested write).
     uns_grp <- h5$create_group("uns")
     for (nm in format_scalars_set(daf)) {
         v <- get_scalar(daf, nm)

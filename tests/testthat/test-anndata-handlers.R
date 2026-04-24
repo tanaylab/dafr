@@ -1,6 +1,8 @@
 # Tests for unsupported_handler dispatch in h5ad_as_daf.
-# We craft a tiny h5ad containing a nested uns group — an unsupported
-# feature that triggers the inefficient-action handler per Slice-10b §3.15.
+# We craft a tiny h5ad containing a group-valued obs column with an
+# unrecognised encoding-type — an unsupported feature that triggers the
+# inefficient-action handler per Slice-10b §3.15. (Nested uns groups
+# were lifted out of the unsupported set in slice-13.)
 
 .write_unsupported_h5ad <- function(path) {
     h5 <- hdf5r::H5File$new(path, mode = "w")
@@ -8,14 +10,16 @@
     # Axes
     obs <- h5$create_group("obs")
     obs$create_dataset("_index", robj = c("o1", "o2"))
+    # Group-valued obs column with a non-categorical (hence unsupported)
+    # encoding — triggers the handler.
+    fancy <- obs$create_group("fancy")
+    fancy$create_attr("encoding-type", robj = "mystery_encoding",
+        space = hdf5r::H5S$new("scalar"))
+    fancy$create_dataset("payload", robj = c(1L, 2L))
     var <- h5$create_group("var")
     var$create_dataset("_index", robj = c("v1", "v2"))
     # X
     h5$create_dataset("X", robj = matrix(1.0, 2, 2))
-    # uns with nested group — our trigger for the handler
-    uns <- h5$create_group("uns")
-    nested <- uns$create_group("nested")
-    nested$create_dataset("k", robj = 1L)
     invisible(path)
 }
 
@@ -27,7 +31,7 @@ test_that("WARN_HANDLER (default) warns on unsupported feature", {
     on.exit(unlink(p), add = TRUE)
     .write_unsupported_h5ad(p)
 
-    expect_warning(h5ad_as_daf(p), "nested uns group")
+    expect_warning(h5ad_as_daf(p), "nested obs column")
 })
 
 # ---- IGNORE_HANDLER ----
@@ -53,7 +57,7 @@ test_that("ERROR_HANDLER converts unsupported feature into an error", {
 
     expect_error(
         h5ad_as_daf(p, unsupported_handler = ERROR_HANDLER),
-        "nested uns group"
+        "nested obs column"
     )
 })
 
