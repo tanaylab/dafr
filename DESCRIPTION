@@ -96,6 +96,7 @@ Collate:
     'dataframes.R'
     'dplyr_backend.R'
     'example_data.R'
+    'fast_log.R'
     'files_io.R'
     'files_daf_read.R'
     'files_daf_write.R'
@@ -106,4 +107,5 @@ Collate:
     'query_builders_exports.R'
     'reconstruction.R'
     'threads.R'
+    'top_k_per_col.R'
     'zzz.R'
