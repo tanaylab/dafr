@@ -77,11 +77,36 @@ tbl(d, "cell") |>
 If the grouping variable is just a vector (not an axis), `summarise()`
 returns a plain tibble.
 
-## Out of scope for v1
+## More verbs
+
+Beyond the core set above, the backend also supports `slice` and the
+`slice_head` / `slice_tail` / `slice_min` / `slice_max` /
+`slice_sample` family; `rename` and `relocate`; `count` / `tally` /
+`add_count` / `add_tally`; `transmute` and `reframe`. Inside
+`mutate()` and `summarise()`, common dplyr helpers work via
+delegation:
+
+- Window functions: `lag`, `lead`, `cumsum`, `row_number`,
+  `min_rank`, `dense_rank`, `ntile`, `percent_rank`.
+- Scalar helpers: `if_else`, `case_when`, `coalesce`, `n_distinct`,
+  `first`, `last`, `nth`.
+- `across(where(is.numeric), mean)`-style column-wise ops.
+- Tidyselect helpers in `select()`: `starts_with`, `contains`,
+  `matches`, `where`.
+
+`.by = ...` (dplyr 1.1+) works on `filter()` / `mutate()` /
+`summarise()`; a single-axis `.by` on `summarise()` ties back the
+same way group_by does. `mutate(.keep = "none")` is respected.
+
+## Not supported
 
 - Matrices. Use `Axis(...) |> LookupMatrix(...)` from the query DSL.
-- Joins across axes.
-- Window functions (`lag`, `cumsum`, etc.).
-- DSL pushdown for `filter` / `summarise` (planned follow-up — verbs
-  currently materialize via `get_vector`, which is cheap for memory
-  daf but not optimal for large `FilesDaf` with selective filters).
+- Joins (`inner_join`, `left_join`, etc.) — a daf_axis_tbl has no
+  method for these; calling them errors with R's standard "no
+  applicable method" message. Collect to a tibble first if you need
+  to join.
+- Set operations (`union`, `intersect`, etc.) — same story.
+- `rowwise()` / complex window functions that rely on group state.
+- DSL pushdown for `filter` / `summarise` — verbs currently
+  materialize via `get_vector`, which is cheap for memory daf but not
+  optimal for large `FilesDaf` with selective filters.
