@@ -3,6 +3,30 @@ url: https://tanaylab.github.io/dafr/
 template:
   bootstrap: 5
 
+navbar:
+  structure:
+    left:  [intro, articles, reference, news]
+    right: [search, github]
+
+articles:
+  - title: Getting started
+    navbar: ~
+    contents:
+      - dafr
+      - queries
+      - dplyr
+      - anndata
+      - native-performance
+
+  - title: Reference specifications
+    desc: >
+      Normative references for the query language and the on-disk store.
+      Not shipped with the CRAN tarball; rendered on the pkgdown site only.
+    navbar: Reference specs
+    contents:
+      - articles/query-dsl-reference
+      - articles/files-daf-format
+
 reference:
   - title: Core data model
     contents:

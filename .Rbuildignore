@@ -20,3 +20,8 @@
 ^benchmarks$
 ^\.worktrees$
 ^\.git$
+^tools$
+^tools/.*
+^\.rhub$
+^vignettes/articles$
+^vignettes/articles/.*
