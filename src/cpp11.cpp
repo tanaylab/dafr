@@ -167,10 +167,18 @@ extern "C" SEXP _dafr_dafr_get_max_threads() {
     return cpp11::as_sexp(dafr_get_max_threads());
   END_CPP11
 }
+// thread_control.cpp
+bool dafr_has_openmp();
+extern "C" SEXP _dafr_dafr_has_openmp() {
+  BEGIN_CPP11
+    return cpp11::as_sexp(dafr_has_openmp());
+  END_CPP11
+}
 
 extern "C" {
 static const R_CallMethodDef CallEntries[] = {
     {"_dafr_dafr_get_max_threads",            (DL_FUNC) &_dafr_dafr_get_max_threads,             0},
+    {"_dafr_dafr_has_openmp",                 (DL_FUNC) &_dafr_dafr_has_openmp,                  0},
     {"_dafr_dafr_set_num_threads",            (DL_FUNC) &_dafr_dafr_set_num_threads,             1},
     {"_dafr_is_altrep_cpp",                   (DL_FUNC) &_dafr_is_altrep_cpp,                    1},
     {"_dafr_kernel_csc_colsums_cpp",          (DL_FUNC) &_dafr_kernel_csc_colsums_cpp,           4},
