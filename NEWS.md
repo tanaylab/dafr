@@ -39,7 +39,9 @@
   auto-ties-back on a single-axis `.by`. `mutate(.keep = ...)` is
   respected. `tbl_vars` / `group_vars` infrastructure methods are
   registered so dplyr internals (e.g. `check_n_name`) can inspect
-  columns.
+  columns. Joins, set operations, and `rowwise()` are still
+  unsupported but now raise a helpful error pointing users at
+  `dplyr::collect()` instead of R's generic "no applicable method".
 
 # dafr 0.1.0 (2026-04-23)
 

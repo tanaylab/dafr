@@ -386,6 +386,54 @@ reframe_daf_axis_tbl <- function(.data, ..., .by = NULL) {
     dplyr::reframe(df, ..., .by = {{ .by }})
 }
 
+# ---- unsupported-verb stubs -----------------------------------------------
+#
+# Joins, set operations, and rowwise aren't in v1 of the backend.
+# Without explicit methods, users get R's generic "no applicable
+# method" error, which doesn't explain *why* it's unsupported or how
+# to work around it. These stubs replace that with a targeted
+# message pointing users at `dplyr::collect()`.
+
+.daf_axis_tbl_unsupported <- function(verb,
+    hint = "Use `dplyr::collect()` to materialize a tibble first, then apply this verb.") {
+    stop(sprintf(
+        "`%s()` is not supported on a daf_axis_tbl.\n%s",
+        verb, hint
+    ), call. = FALSE)
+}
+
+#' @noRd
+inner_join_daf_axis_tbl  <- function(x, y, ...) .daf_axis_tbl_unsupported("inner_join")
+#' @noRd
+left_join_daf_axis_tbl   <- function(x, y, ...) .daf_axis_tbl_unsupported("left_join")
+#' @noRd
+right_join_daf_axis_tbl  <- function(x, y, ...) .daf_axis_tbl_unsupported("right_join")
+#' @noRd
+full_join_daf_axis_tbl   <- function(x, y, ...) .daf_axis_tbl_unsupported("full_join")
+#' @noRd
+semi_join_daf_axis_tbl   <- function(x, y, ...) .daf_axis_tbl_unsupported("semi_join")
+#' @noRd
+anti_join_daf_axis_tbl   <- function(x, y, ...) .daf_axis_tbl_unsupported("anti_join")
+#' @noRd
+cross_join_daf_axis_tbl  <- function(x, y, ...) .daf_axis_tbl_unsupported("cross_join")
+#' @noRd
+nest_join_daf_axis_tbl   <- function(x, y, ...) .daf_axis_tbl_unsupported("nest_join")
+#' @noRd
+union_daf_axis_tbl       <- function(x, y, ...) .daf_axis_tbl_unsupported("union")
+#' @noRd
+union_all_daf_axis_tbl   <- function(x, y, ...) .daf_axis_tbl_unsupported("union_all")
+#' @noRd
+intersect_daf_axis_tbl   <- function(x, y, ...) .daf_axis_tbl_unsupported("intersect")
+#' @noRd
+setdiff_daf_axis_tbl     <- function(x, y, ...) .daf_axis_tbl_unsupported("setdiff")
+#' @noRd
+rowwise_daf_axis_tbl <- function(data, ...) {
+    .daf_axis_tbl_unsupported(
+        "rowwise",
+        hint = "row-wise iteration over a daf_axis_tbl is not supported. Use `dplyr::collect()` first, or rewrite as a vectorized expression in `mutate()`."
+    )
+}
+
 # ---- mutate ----------------------------------------------------------------
 
 #' @noRd

@@ -98,15 +98,25 @@ delegation:
 `summarise()`; a single-axis `.by` on `summarise()` ties back the
 same way group_by does. `mutate(.keep = "none")` is respected.
 
-## Not supported
+## Not supported (yet)
 
-- Matrices. Use `Axis(...) |> LookupMatrix(...)` from the query DSL.
-- Joins (`inner_join`, `left_join`, etc.) — a daf_axis_tbl has no
-  method for these; calling them errors with R's standard "no
-  applicable method" message. Collect to a tibble first if you need
-  to join.
-- Set operations (`union`, `intersect`, etc.) — same story.
-- `rowwise()` / complex window functions that rely on group state.
-- DSL pushdown for `filter` / `summarise` — verbs currently
-  materialize via `get_vector`, which is cheap for memory daf but not
-  optimal for large `FilesDaf` with selective filters.
+- **Matrices.** Use `Axis(...) |> LookupMatrix(...)` from the query
+  DSL.
+- **Joins** (`inner_join`, `left_join`, `right_join`, `full_join`,
+  `semi_join`, `anti_join`, `cross_join`, `nest_join`). A
+  daf_axis_tbl has no meaningful join semantics against another
+  table in v1. Calling any of these produces a helpful error
+  pointing you at `dplyr::collect()`:
+
+  ```r
+  tbl(d, "cell") |> left_join(other)
+  #> Error: `left_join()` is not supported on a daf_axis_tbl.
+  #> Use `dplyr::collect()` to materialize a tibble first, then apply this verb.
+  ```
+
+- **Set operations** (`union`, `union_all`, `intersect`, `setdiff`)
+  — same story.
+- **`rowwise()`** — collect or rewrite as a vectorized `mutate()`.
+- **DSL pushdown** for `filter` / `summarise`. Verbs currently
+  materialize via `get_vector`, which is cheap for memory daf but
+  not optimal for large `FilesDaf` with selective filters.
