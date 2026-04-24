@@ -334,6 +334,42 @@ add_tally_daf_axis_tbl <- function(x, wt = NULL, sort = FALSE, name = NULL) {
     result
 }
 
+# ---- transmute / reframe --------------------------------------------------
+
+# transmute is mutate-then-drop-everything-except-new-columns. We keep
+# the axis "name" column automatically (it's the row identity), so
+# transmute's dropping applies to stored cols and pre-existing
+# overrides.
+
+#' @noRd
+transmute_daf_axis_tbl <- function(.data, ...) {
+    df <- .realize(.data)
+    if (inherits(df, "grouped_df")) df <- dplyr::ungroup(df)
+    result <- dplyr::transmute(df, ...)
+    daf <- attr(.data, "daf")
+    axis <- attr(.data, "axis")
+    overrides <- as.list(
+        result[, setdiff(colnames(result), "name"), drop = FALSE]
+    )
+    new_daf_axis_tbl(
+        daf = daf,
+        axis = axis,
+        row_mask = attr(.data, "row_mask"),
+        col_select = names(overrides),
+        overrides = overrides,
+        groups = attr(.data, "groups")
+    )
+}
+
+# reframe allows multi-row-per-group output, so it always exits the
+# daf_axis_tbl world (row count doesn't match the axis).
+
+#' @noRd
+reframe_daf_axis_tbl <- function(.data, ..., .by = NULL) {
+    df <- .realize(.data)
+    dplyr::reframe(df, ..., .by = {{ .by }})
+}
+
 # ---- mutate ----------------------------------------------------------------
 
 #' @noRd

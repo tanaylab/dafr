@@ -40,6 +40,8 @@
     registerS3method("tally", "daf_axis_tbl", ns$tally_daf_axis_tbl, envir = dplyr_ns)
     registerS3method("add_count", "daf_axis_tbl", ns$add_count_daf_axis_tbl, envir = dplyr_ns)
     registerS3method("add_tally", "daf_axis_tbl", ns$add_tally_daf_axis_tbl, envir = dplyr_ns)
+    registerS3method("transmute", "daf_axis_tbl", ns$transmute_daf_axis_tbl, envir = dplyr_ns)
+    registerS3method("reframe", "daf_axis_tbl", ns$reframe_daf_axis_tbl, envir = dplyr_ns)
     registerS3method("mutate", "daf_axis_tbl", ns$mutate_daf_axis_tbl, envir = dplyr_ns)
     registerS3method("arrange", "daf_axis_tbl", ns$arrange_daf_axis_tbl, envir = dplyr_ns)
     registerS3method("distinct", "daf_axis_tbl", ns$distinct_daf_axis_tbl, envir = dplyr_ns)
