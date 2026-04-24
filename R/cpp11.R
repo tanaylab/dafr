@@ -91,3 +91,7 @@ dafr_set_num_threads <- function(n) {
 dafr_get_max_threads <- function() {
   .Call(`_dafr_dafr_get_max_threads`)
 }
+
+dafr_has_openmp <- function() {
+  .Call(`_dafr_dafr_has_openmp`)
+}

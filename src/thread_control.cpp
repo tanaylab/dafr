@@ -32,3 +32,12 @@ int dafr_get_max_threads() {
     return 1;
 #endif
 }
+
+[[cpp11::register]]
+bool dafr_has_openmp() {
+#if defined(_OPENMP)
+    return true;
+#else
+    return false;
+#endif
+}
