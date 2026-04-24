@@ -530,21 +530,45 @@ NULL
     }
     fn <- get_eltwise(node$name)
     params <- .coerce_params(node$params)
-
-    # Fast path: sparsity-preserving Log on dgCMatrix. log1p(0) == 0, so
-    # eps == 1 with default base (e) is the only Log parameterisation that
-    # preserves sparsity; apply log1p in place to @x and keep @i / @p.
     builtin <- attr(fn, ".dafr_builtin")
-    if (isTRUE(dafr_opt("dafr.perf.fast_paths")) &&
-        identical(builtin, "Log") &&
-        methods::is(state$value, "dgCMatrix") &&
-        isTRUE(all.equal(params$eps %||% 0, 1)) &&
-        (is.null(params$base) ||
-            isTRUE(all.equal(params$base, exp(1))))) {
-        out <- state$value
-        out@x <- log1p(out@x)
-        state$value <- out
-        return(state)
+
+    if (isTRUE(dafr_opt("dafr.perf.fast_paths")) && identical(builtin, "Log")) {
+        eps <- as.numeric(params$eps %||% 0)
+        base <- as.numeric(params$base %||% exp(1))
+
+        # Fast path 1: sparsity-preserving Log on dgCMatrix. log1p(0) == 0,
+        # so eps == 1 with default base (e) is the only Log parameterisation
+        # that preserves sparsity; apply log1p in place to @x and keep @i /
+        # @p.
+        if (methods::is(state$value, "dgCMatrix") &&
+            isTRUE(all.equal(eps, 1)) &&
+            isTRUE(all.equal(base, exp(1)))) {
+            out <- state$value
+            out@x <- log1p(out@x)
+            state$value <- out
+            return(state)
+        }
+
+        # Fast path 2: OpenMP-parallel log(x + eps)/log(base) on dense
+        # matrices and numeric vectors. Covers the common log2(x + 1e-5)
+        # case (MCView's lfp transform, etc.) which previously fell
+        # through to R's single-threaded log() + scalar coercion chain.
+        threshold <- as.integer(dafr_opt("dafr.kernel_threshold"))
+        if (is.matrix(state$value) && is.double(state$value)) {
+            state$value <- kernel_log_dense_mat_cpp(
+                state$value, eps = eps, base = base, threshold = threshold
+            )
+            return(state)
+        }
+        if (is.numeric(state$value) && is.null(dim(state$value))) {
+            nm <- names(state$value)
+            out <- kernel_log_dense_vec_cpp(
+                as.double(state$value), eps = eps, base = base, threshold = threshold
+            )
+            names(out) <- nm
+            state$value <- out
+            return(state)
+        }
     }
 
     state$value <- do.call(fn, c(list(state$value), params))
