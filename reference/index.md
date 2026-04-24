@@ -1,0 +1,521 @@
+# Package index
+
+## Core data model
+
+- [`DafReader()`](https://tanaylab.github.io/dafr/reference/DafReader.md)
+  : Base abstract reader class.
+
+- [`DafReadOnly()`](https://tanaylab.github.io/dafr/reference/DafReadOnly.md)
+  : Abstract read-only reader class.
+
+- [`DafWriter()`](https://tanaylab.github.io/dafr/reference/DafWriter.md)
+  : Abstract writer class.
+
+- [`MemoryDaf()`](https://tanaylab.github.io/dafr/reference/MemoryDaf.md)
+  :
+
+  Concrete `DafWriter` backed by R environments (no I/O).
+
+- [`FilesDaf()`](https://tanaylab.github.io/dafr/reference/FilesDaf.md)
+  : File-backed Daf writer class.
+
+- [`FilesDafReadOnly()`](https://tanaylab.github.io/dafr/reference/FilesDafReadOnly.md)
+  : File-backed read-only Daf class.
+
+- [`memory_daf()`](https://tanaylab.github.io/dafr/reference/memory_daf.md)
+  : In-memory Daf store.
+
+- [`files_daf()`](https://tanaylab.github.io/dafr/reference/files_daf.md)
+  : File-backed Daf store.
+
+- [`is_daf()`](https://tanaylab.github.io/dafr/reference/is_daf.md) :
+
+  Test whether an object is a `DafReader`.
+
+- [`daf_name()`](https://tanaylab.github.io/dafr/reference/daf_name.md)
+  :
+
+  Return the name of a `DafReader`.
+
+- [`description()`](https://tanaylab.github.io/dafr/reference/description.md)
+  : Human-readable summary of a Daf store.
+
+- [`complete_path()`](https://tanaylab.github.io/dafr/reference/complete_path.md)
+  : Canonical disk path of a (possibly chained) daf.
+
+- [`read_only()`](https://tanaylab.github.io/dafr/reference/read_only.md)
+  : Wrap a writer into a read-only view via a 1-element chain.
+
+- [`empty_cache()`](https://tanaylab.github.io/dafr/reference/empty_cache.md)
+  : Empty caches on a Daf object.
+
+## Readers
+
+- [`get_scalar()`](https://tanaylab.github.io/dafr/reference/get_scalar.md)
+  : Get a scalar, optionally with a default when missing.
+- [`get_vector()`](https://tanaylab.github.io/dafr/reference/get_vector.md)
+  : Get a vector, returning it as an axis-named R vector.
+- [`get_matrix()`](https://tanaylab.github.io/dafr/reference/get_matrix.md)
+  : Get a matrix, returning it with axis-entry dimnames.
+- [`has_scalar()`](https://tanaylab.github.io/dafr/reference/has_scalar.md)
+  : Test whether a scalar exists.
+- [`has_vector()`](https://tanaylab.github.io/dafr/reference/has_vector.md)
+  : Test whether a vector exists on an axis.
+- [`has_matrix()`](https://tanaylab.github.io/dafr/reference/has_matrix.md)
+  : Test whether a matrix exists for an axis pair.
+- [`has_axis()`](https://tanaylab.github.io/dafr/reference/has_axis.md)
+  : Test whether an axis exists.
+- [`scalars_set()`](https://tanaylab.github.io/dafr/reference/scalars_set.md)
+  : Names of all scalars, sorted.
+- [`axes_set()`](https://tanaylab.github.io/dafr/reference/axes_set.md)
+  : Names of all axes, sorted.
+- [`axis_entries()`](https://tanaylab.github.io/dafr/reference/axis_entries.md)
+  : Entry names of an axis (full or by index).
+- [`axis_dict()`](https://tanaylab.github.io/dafr/reference/axis_dict.md)
+  : Entry-name to 1-based-index hash for an axis.
+- [`axis_indices()`](https://tanaylab.github.io/dafr/reference/axis_indices.md)
+  : Look up 1-based positions of entries in an axis.
+- [`axis_length()`](https://tanaylab.github.io/dafr/reference/axis_length.md)
+  : Length (entry count) of an axis.
+- [`axis_vector()`](https://tanaylab.github.io/dafr/reference/axis_vector.md)
+  : Entry-name vector for an axis.
+- [`vectors_set()`](https://tanaylab.github.io/dafr/reference/vectors_set.md)
+  : Names of vectors on an axis, sorted.
+- [`matrices_set()`](https://tanaylab.github.io/dafr/reference/matrices_set.md)
+  : Names of matrices for an axis pair, sorted.
+
+## Writers
+
+- [`add_axis()`](https://tanaylab.github.io/dafr/reference/add_axis.md)
+  : Add a new axis.
+
+- [`delete_axis()`](https://tanaylab.github.io/dafr/reference/delete_axis.md)
+  : Delete an axis (and all vectors / matrices that depend on it).
+
+- [`set_scalar()`](https://tanaylab.github.io/dafr/reference/set_scalar.md)
+  : Set a scalar.
+
+- [`delete_scalar()`](https://tanaylab.github.io/dafr/reference/delete_scalar.md)
+  : Delete a scalar.
+
+- [`set_vector()`](https://tanaylab.github.io/dafr/reference/set_vector.md)
+  : Set a vector on an axis.
+
+- [`delete_vector()`](https://tanaylab.github.io/dafr/reference/delete_vector.md)
+  : Delete a vector on an axis.
+
+- [`set_matrix()`](https://tanaylab.github.io/dafr/reference/set_matrix.md)
+  : Set a matrix indexed by a pair of axes.
+
+- [`delete_matrix()`](https://tanaylab.github.io/dafr/reference/delete_matrix.md)
+  : Delete a matrix.
+
+- [`relayout_matrix()`](https://tanaylab.github.io/dafr/reference/relayout_matrix.md)
+  : Physically store the transposed layout of a matrix.
+
+- [`empty_data()`](https://tanaylab.github.io/dafr/reference/empty_data.md)
+  :
+
+  Build a flat-keyed `empty` (or `types`) list for
+  [`copy_all()`](https://tanaylab.github.io/dafr/reference/copy_all.md).
+
+## Query DSL (string form)
+
+- [`get_query()`](https://tanaylab.github.io/dafr/reference/get_query.md)
+  : Evaluate a query against a daf reader.
+
+- [`has_query()`](https://tanaylab.github.io/dafr/reference/has_query.md)
+  : Check whether a query can be evaluated against a daf without error.
+
+- [`parse_query()`](https://tanaylab.github.io/dafr/reference/parse_query.md)
+  :
+
+  Parse a query string into an AST (list of `qop` nodes).
+
+- [`canonical_query()`](https://tanaylab.github.io/dafr/reference/canonical_query.md)
+  : Canonicalise a query string.
+
+- [`is_axis_query()`](https://tanaylab.github.io/dafr/reference/is_axis_query.md)
+  : Test whether a query yields an axis entry vector.
+
+- [`query_axis_name()`](https://tanaylab.github.io/dafr/reference/query_axis_name.md)
+  : Return the axis name implied by a query, if any.
+
+- [`query_result_dimensions()`](https://tanaylab.github.io/dafr/reference/query_result_dimensions.md)
+  : Return the dimensionality of a query's result.
+
+- [`query_requires_relayout()`](https://tanaylab.github.io/dafr/reference/query_requires_relayout.md)
+  : Does evaluating this query require a matrix relayout (transpose)?
+
+- [`escape_value()`](https://tanaylab.github.io/dafr/reference/escape_value.md)
+  : Escape a value for use as a query literal.
+
+- [`unescape_value()`](https://tanaylab.github.io/dafr/reference/unescape_value.md)
+  :
+
+  Inverse of
+  [`escape_value()`](https://tanaylab.github.io/dafr/reference/escape_value.md).
+
+## Query builders (DafrQuery)
+
+- [`DafrQuery()`](https://tanaylab.github.io/dafr/reference/DafrQuery.md)
+  : Pipe-composable query object.
+- [`Abs()`](https://tanaylab.github.io/dafr/reference/Abs.md) :
+  Element-wise query operation: absolute value.
+- [`Clamp()`](https://tanaylab.github.io/dafr/reference/Clamp.md) :
+  Element-wise query operation: clamp values to a range.
+- [`Convert()`](https://tanaylab.github.io/dafr/reference/Convert.md) :
+  Element-wise query operation: convert values to a given type.
+- [`Fraction()`](https://tanaylab.github.io/dafr/reference/Fraction.md)
+  : Element-wise query operation: convert each entry to its fraction of
+  the total.
+- [`Log()`](https://tanaylab.github.io/dafr/reference/Log.md) :
+  Element-wise query operation: logarithm.
+- [`Round()`](https://tanaylab.github.io/dafr/reference/Round.md) :
+  Element-wise query operation: round to nearest integer.
+- [`Significant()`](https://tanaylab.github.io/dafr/reference/Significant.md)
+  : Element-wise query operation: keep only "significant" entries.
+- [`Count()`](https://tanaylab.github.io/dafr/reference/Count.md) :
+  Reduction query operation: count non-zero entries.
+- [`CountBy()`](https://tanaylab.github.io/dafr/reference/CountBy.md) :
+  Count-by query operation.
+- [`GeoMean()`](https://tanaylab.github.io/dafr/reference/GeoMean.md) :
+  Reduction query operation: geometric mean.
+- [`GroupBy()`](https://tanaylab.github.io/dafr/reference/GroupBy.md) :
+  Group-by query operation.
+- [`GroupColumnsBy()`](https://tanaylab.github.io/dafr/reference/GroupColumnsBy.md)
+  : Group-columns-by query operation.
+- [`GroupRowsBy()`](https://tanaylab.github.io/dafr/reference/GroupRowsBy.md)
+  : Group-rows-by query operation.
+- [`Max()`](https://tanaylab.github.io/dafr/reference/Max.md) :
+  Reduction query operation: maximum.
+- [`Mean()`](https://tanaylab.github.io/dafr/reference/Mean.md) :
+  Reduction query operation: mean.
+- [`Median()`](https://tanaylab.github.io/dafr/reference/Median.md) :
+  Reduction query operation: median.
+- [`Min()`](https://tanaylab.github.io/dafr/reference/Min.md) :
+  Reduction query operation: minimum.
+- [`Mode()`](https://tanaylab.github.io/dafr/reference/Mode.md) :
+  Reduction query operation: most-frequent value.
+- [`Quantile()`](https://tanaylab.github.io/dafr/reference/Quantile.md)
+  : Reduction query operation: quantile.
+- [`ReduceToColumn()`](https://tanaylab.github.io/dafr/reference/ReduceToColumn.md)
+  : Reduce-to-column query operation.
+- [`ReduceToRow()`](https://tanaylab.github.io/dafr/reference/ReduceToRow.md)
+  : Reduce-to-row query operation.
+- [`Std()`](https://tanaylab.github.io/dafr/reference/Std.md) :
+  Reduction query operation: standard deviation.
+- [`StdN()`](https://tanaylab.github.io/dafr/reference/StdN.md) :
+  Reduction query operation: standard deviation normalised by the mean.
+- [`Sum()`](https://tanaylab.github.io/dafr/reference/Sum.md) :
+  Reduction query operation: sum.
+- [`Var()`](https://tanaylab.github.io/dafr/reference/Var.md) :
+  Reduction query operation: variance.
+- [`VarN()`](https://tanaylab.github.io/dafr/reference/VarN.md) :
+  Reduction query operation: variance normalised by the mean.
+- [`Axis()`](https://tanaylab.github.io/dafr/reference/Axis.md) : Axis
+  selection query operation.
+- [`AsAxis()`](https://tanaylab.github.io/dafr/reference/AsAxis.md) :
+  As-axis query operation.
+- [`BeginMask()`](https://tanaylab.github.io/dafr/reference/BeginMask.md)
+  : Begin-mask query operation.
+- [`BeginNegatedMask()`](https://tanaylab.github.io/dafr/reference/BeginNegatedMask.md)
+  : Negated begin-mask query operation.
+- [`EndMask()`](https://tanaylab.github.io/dafr/reference/EndMask.md) :
+  End-mask query operation.
+- [`IfMissing()`](https://tanaylab.github.io/dafr/reference/IfMissing.md)
+  : If-missing query operation.
+- [`IfNot()`](https://tanaylab.github.io/dafr/reference/IfNot.md) :
+  If-not query operation.
+- [`LookupMatrix()`](https://tanaylab.github.io/dafr/reference/LookupMatrix.md)
+  : Lookup-matrix query operation.
+- [`LookupScalar()`](https://tanaylab.github.io/dafr/reference/LookupScalar.md)
+  : Lookup-scalar query operation.
+- [`LookupVector()`](https://tanaylab.github.io/dafr/reference/LookupVector.md)
+  : Lookup-vector query operation.
+- [`Names()`](https://tanaylab.github.io/dafr/reference/Names.md) :
+  Names query operation.
+- [`SquareColumnIs()`](https://tanaylab.github.io/dafr/reference/SquareColumnIs.md)
+  : Square-column-is query operation.
+- [`SquareRowIs()`](https://tanaylab.github.io/dafr/reference/SquareRowIs.md)
+  : Square-row-is query operation.
+- [`AndMask()`](https://tanaylab.github.io/dafr/reference/AndMask.md) :
+  And-mask query operation.
+- [`AndNegatedMask()`](https://tanaylab.github.io/dafr/reference/AndNegatedMask.md)
+  : And-negated-mask query operation.
+- [`OrMask()`](https://tanaylab.github.io/dafr/reference/OrMask.md) :
+  Or-mask query operation.
+- [`OrNegatedMask()`](https://tanaylab.github.io/dafr/reference/OrNegatedMask.md)
+  : Or-negated-mask query operation.
+- [`XorMask()`](https://tanaylab.github.io/dafr/reference/XorMask.md) :
+  Xor-mask query operation.
+- [`XorNegatedMask()`](https://tanaylab.github.io/dafr/reference/XorNegatedMask.md)
+  : Xor-negated-mask query operation.
+- [`IsEqual()`](https://tanaylab.github.io/dafr/reference/IsEqual.md) :
+  Equal-to comparison query operation.
+- [`IsGreater()`](https://tanaylab.github.io/dafr/reference/IsGreater.md)
+  : Greater-than comparison query operation.
+- [`IsGreaterEqual()`](https://tanaylab.github.io/dafr/reference/IsGreaterEqual.md)
+  : Greater-than-or-equal comparison query operation.
+- [`IsLess()`](https://tanaylab.github.io/dafr/reference/IsLess.md) :
+  Less-than comparison query operation.
+- [`IsLessEqual()`](https://tanaylab.github.io/dafr/reference/IsLessEqual.md)
+  : Less-than-or-equal comparison query operation.
+- [`IsMatch()`](https://tanaylab.github.io/dafr/reference/IsMatch.md) :
+  Regex-match query operation.
+- [`IsNotEqual()`](https://tanaylab.github.io/dafr/reference/IsNotEqual.md)
+  : Not-equal-to comparison query operation.
+- [`IsNotMatch()`](https://tanaylab.github.io/dafr/reference/IsNotMatch.md)
+  : Negated regex-match query operation.
+
+## DataFrames
+
+- [`get_dataframe()`](https://tanaylab.github.io/dafr/reference/get_dataframe.md)
+  :
+
+  Extract vectors on an axis as a `data.frame`.
+
+- [`get_dataframe_query()`](https://tanaylab.github.io/dafr/reference/get_dataframe_query.md)
+  :
+
+  Extract an axis-resolving query's result as a `data.frame`.
+
+- [`get_tidy()`](https://tanaylab.github.io/dafr/reference/get_tidy.md)
+  : Pivot axis vectors into a tidy long-format tibble.
+
+## AnnData interop
+
+- [`DafAnnData`](https://tanaylab.github.io/dafr/reference/DafAnnData.md)
+  : Read-only AnnData-shaped facade over a Daf.
+
+- [`as_anndata()`](https://tanaylab.github.io/dafr/reference/as_anndata.md)
+  : One-shot factory for a DafAnnData facade.
+
+- [`h5ad_as_daf()`](https://tanaylab.github.io/dafr/reference/h5ad_as_daf.md)
+  :
+
+  Load a Muon-style h5ad file into a `memory_daf`.
+
+- [`daf_as_h5ad()`](https://tanaylab.github.io/dafr/reference/daf_as_h5ad.md)
+  : Write a Daf to a Muon-style h5ad file.
+
+## Chains & views
+
+- [`chain_reader()`](https://tanaylab.github.io/dafr/reference/chain_reader.md)
+  : Create a read-only chain of DafReaders.
+- [`chain_writer()`](https://tanaylab.github.io/dafr/reference/chain_writer.md)
+  : Create a chain of DafReaders with a final DafWriter.
+- [`viewer()`](https://tanaylab.github.io/dafr/reference/viewer.md) :
+  Construct a ViewDaf over a base daf.
+- [`ViewDaf()`](https://tanaylab.github.io/dafr/reference/ViewDaf.md) :
+  A read-only view over a base daf.
+- [`ReadOnlyChainDaf()`](https://tanaylab.github.io/dafr/reference/ReadOnlyChainDaf.md)
+  : Read-only chain of DafReaders.
+- [`WriteChainDaf()`](https://tanaylab.github.io/dafr/reference/WriteChainDaf.md)
+  : Write chain of DafReaders with a final DafWriter.
+- [`VIEW_ALL_AXES`](https://tanaylab.github.io/dafr/reference/VIEW_ALL_AXES.md)
+  : Default view spec: expose all axes as-is.
+- [`VIEW_ALL_DATA`](https://tanaylab.github.io/dafr/reference/VIEW_ALL_DATA.md)
+  : Default view spec: expose all data (scalars + vectors + matrices)
+  as-is.
+- [`VIEW_ALL_MATRICES`](https://tanaylab.github.io/dafr/reference/VIEW_ALL_MATRICES.md)
+  : Default view spec: expose all matrices as-is.
+- [`VIEW_ALL_SCALARS`](https://tanaylab.github.io/dafr/reference/VIEW_ALL_SCALARS.md)
+  : Default view spec: expose all scalars as-is.
+- [`VIEW_ALL_VECTORS`](https://tanaylab.github.io/dafr/reference/VIEW_ALL_VECTORS.md)
+  : Default view spec: expose all vectors as-is.
+
+## Contracts
+
+- [`Contract()`](https://tanaylab.github.io/dafr/reference/Contract.md)
+  : A contract describing a computation's inputs and outputs.
+
+- [`ContractDaf()`](https://tanaylab.github.io/dafr/reference/ContractDaf.md)
+  : Contract-enforcing daf wrapper
+
+- [`contract_scalar()`](https://tanaylab.github.io/dafr/reference/contract-entries.md)
+  [`contract_vector()`](https://tanaylab.github.io/dafr/reference/contract-entries.md)
+  [`contract_matrix()`](https://tanaylab.github.io/dafr/reference/contract-entries.md)
+  : Contract entry constructors
+
+- [`tensor_contract()`](https://tanaylab.github.io/dafr/reference/tensor_contract.md)
+  : Tensor-contract record.
+
+- [`axis_contract()`](https://tanaylab.github.io/dafr/reference/axis_contract.md)
+  : Axis-contract record.
+
+- [`function_contract()`](https://tanaylab.github.io/dafr/reference/function_contract.md)
+  : Retrieve the contract bound to a wrapped computation.
+
+- [`create_contract()`](https://tanaylab.github.io/dafr/reference/create_contract.md)
+  :
+
+  Construct a
+  [`Contract()`](https://tanaylab.github.io/dafr/reference/Contract.md)
+  from typed per-category argument lists.
+
+- [`contract_description()`](https://tanaylab.github.io/dafr/reference/contract_description.md)
+  : Render a contract as a human-readable multi-line string.
+
+- [`contract_docs()`](https://tanaylab.github.io/dafr/reference/contract_docs.md)
+  :
+
+  Render a
+  [`Contract()`](https://tanaylab.github.io/dafr/reference/Contract.md)
+  as human-readable documentation.
+
+- [`contractor()`](https://tanaylab.github.io/dafr/reference/contractor.md)
+  : Wrap a daf with a contract for a computation
+
+- [`verify_input()`](https://tanaylab.github.io/dafr/reference/verify_input.md)
+  [`verify_output()`](https://tanaylab.github.io/dafr/reference/verify_input.md)
+  : Verify contract inputs / outputs
+
+- [`verify_contract()`](https://tanaylab.github.io/dafr/reference/verify_contract.md)
+  : Single-pass contract verification (input + output).
+
+- [`merge_contracts()`](https://tanaylab.github.io/dafr/reference/merge_contracts.md)
+  : Merge two contracts.
+
+- [`RequiredInput`](https://tanaylab.github.io/dafr/reference/expectation-constants.md)
+  [`OptionalInput`](https://tanaylab.github.io/dafr/reference/expectation-constants.md)
+  [`CreatedOutput`](https://tanaylab.github.io/dafr/reference/expectation-constants.md)
+  [`GuaranteedOutput`](https://tanaylab.github.io/dafr/reference/expectation-constants.md)
+  [`OptionalOutput`](https://tanaylab.github.io/dafr/reference/expectation-constants.md)
+  : Contract expectation constants
+
+## Computations & adapters
+
+- [`computation()`](https://tanaylab.github.io/dafr/reference/computation.md)
+  : Wrap a function so a contract is enforced on every call.
+- [`adapter()`](https://tanaylab.github.io/dafr/reference/adapter.md) :
+  Apply a computation to a renaming view of a DafWriter.
+
+## Mmap readers
+
+- [`mmap_dgCMatrix()`](https://tanaylab.github.io/dafr/reference/mmap_dgCMatrix.md)
+  :
+
+  Construct a `dgCMatrix` whose `x`, `i`, `p` slots are ALTREP mmap
+  views.
+
+- [`mmap_real()`](https://tanaylab.github.io/dafr/reference/mmap_real.md)
+  [`mmap_int()`](https://tanaylab.github.io/dafr/reference/mmap_real.md)
+  [`mmap_lgl()`](https://tanaylab.github.io/dafr/reference/mmap_real.md)
+  : Open a binary file as a read-only mmap-backed vector.
+
+## Op registry
+
+- [`register_eltwise()`](https://tanaylab.github.io/dafr/reference/register_eltwise.md)
+  : Register an eltwise operation.
+- [`register_reduction()`](https://tanaylab.github.io/dafr/reference/register_reduction.md)
+  : Register a reduction operation.
+- [`registered_eltwise()`](https://tanaylab.github.io/dafr/reference/registered_eltwise.md)
+  : List registered eltwise operations.
+- [`registered_reductions()`](https://tanaylab.github.io/dafr/reference/registered_reductions.md)
+  : List registered reduction operations.
+- [`get_eltwise()`](https://tanaylab.github.io/dafr/reference/get_eltwise.md)
+  : Retrieve a registered eltwise operation by name.
+- [`get_reduction()`](https://tanaylab.github.io/dafr/reference/get_reduction.md)
+  : Retrieve a registered reduction operation by name.
+
+## Handlers
+
+- [`register_dafr_handler()`](https://tanaylab.github.io/dafr/reference/register_dafr_handler.md)
+  : Register a handler for an action category.
+
+- [`inefficient_action_handler()`](https://tanaylab.github.io/dafr/reference/inefficient_action_handler.md)
+  :
+
+  Register a handler for the `"inefficient"` action category.
+
+- [`ERROR_HANDLER`](https://tanaylab.github.io/dafr/reference/handler-constants.md)
+  [`WARN_HANDLER`](https://tanaylab.github.io/dafr/reference/handler-constants.md)
+  [`IGNORE_HANDLER`](https://tanaylab.github.io/dafr/reference/handler-constants.md)
+  : Inefficient-action handler constants.
+
+## Version counters
+
+- [`axis_version_counter()`](https://tanaylab.github.io/dafr/reference/axis_version_counter.md)
+  : Per-axis version counter.
+- [`vector_version_counter()`](https://tanaylab.github.io/dafr/reference/vector_version_counter.md)
+  : Per-vector version counter.
+- [`matrix_version_counter()`](https://tanaylab.github.io/dafr/reference/matrix_version_counter.md)
+  : Per-matrix version counter.
+
+## Group helpers
+
+- [`compact_groups()`](https://tanaylab.github.io/dafr/reference/compact_groups.md)
+  : Renumber group indices to be dense in 1..N.
+- [`collect_group_members()`](https://tanaylab.github.io/dafr/reference/collect_group_members.md)
+  : Invert group-index assignment into per-group entry lists.
+- [`group_names()`](https://tanaylab.github.io/dafr/reference/group_names.md)
+  : Deterministic names for groups of axis entries.
+
+## Example data
+
+- [`example_cells_daf()`](https://tanaylab.github.io/dafr/reference/example_cells_daf.md)
+  : Load cells example data into a MemoryDaf.
+- [`example_metacells_daf()`](https://tanaylab.github.io/dafr/reference/example_metacells_daf.md)
+  : Load metacells example data into a MemoryDaf.
+- [`example_chain_daf()`](https://tanaylab.github.io/dafr/reference/example_chain_daf.md)
+  : Load a chain of cells and metacells example data.
+
+## Copy & concat
+
+- [`copy_all()`](https://tanaylab.github.io/dafr/reference/copy_all.md)
+  : Copy everything from one daf to another.
+
+- [`copy_axis()`](https://tanaylab.github.io/dafr/reference/copy_axis.md)
+  : Copy an axis (its entries) from one daf to another.
+
+- [`copy_vector()`](https://tanaylab.github.io/dafr/reference/copy_vector.md)
+  : Copy a vector from one daf to another.
+
+- [`copy_matrix()`](https://tanaylab.github.io/dafr/reference/copy_matrix.md)
+  : Copy a matrix from one daf to another.
+
+- [`copy_scalar()`](https://tanaylab.github.io/dafr/reference/copy_scalar.md)
+  : Copy a scalar from one daf to another.
+
+- [`copy_tensor()`](https://tanaylab.github.io/dafr/reference/copy_tensor.md)
+  : Copy a tensor (set of per-main-axis-entry matrices) between dafs.
+
+- [`concatenate()`](https://tanaylab.github.io/dafr/reference/concatenate.md)
+  : Concatenate multiple dafs along one or more axes.
+
+- [`ALL_AXES`](https://tanaylab.github.io/dafr/reference/ALL_AXES.md) :
+  Wildcard for all axes.
+
+- [`ALL_MATRICES`](https://tanaylab.github.io/dafr/reference/ALL_MATRICES.md)
+  : Wildcard for all matrices.
+
+- [`ALL_SCALARS`](https://tanaylab.github.io/dafr/reference/ALL_SCALARS.md)
+  : Wildcard for all scalars.
+
+- [`ALL_VECTORS`](https://tanaylab.github.io/dafr/reference/ALL_VECTORS.md)
+  : Wildcard for all vectors.
+
+- [`MERGE_SKIP`](https://tanaylab.github.io/dafr/reference/merge_actions.md)
+  [`MERGE_LAST_VALUE`](https://tanaylab.github.io/dafr/reference/merge_actions.md)
+  [`MERGE_COLLECT_AXIS`](https://tanaylab.github.io/dafr/reference/merge_actions.md)
+  :
+
+  Merge action constants for
+  [`concatenate()`](https://tanaylab.github.io/dafr/reference/concatenate.md).
+
+## Reconstruction & completion
+
+- [`open_daf()`](https://tanaylab.github.io/dafr/reference/open_daf.md)
+  : Open a daf storage path in a given mode.
+
+- [`complete_daf()`](https://tanaylab.github.io/dafr/reference/complete_daf.md)
+  : Reopen a persistent chain from disk.
+
+- [`complete_chain()`](https://tanaylab.github.io/dafr/reference/complete_chain.md)
+  :
+
+  Create a persistent chain by linking `new_daf` to a `base_daf`.
+
+- [`reconstruct_axis()`](https://tanaylab.github.io/dafr/reference/reconstruct_axis.md)
+  : Promote an implicit property to an explicit axis.

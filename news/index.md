@@ -1,0 +1,826 @@
+# Changelog
+
+## dafr (development version)
+
+### New features
+
+- **Full h5ad feature coverage.**
+  [`h5ad_as_daf()`](https://tanaylab.github.io/dafr/reference/h5ad_as_daf.md)
+  /
+  [`daf_as_h5ad()`](https://tanaylab.github.io/dafr/reference/daf_as_h5ad.md)
+  (slice-10b) now handle three previously-skipped h5ad feature
+  categories instead of warn-and-skipping them:
+  - **Sparse `/X` and `/layers/*`.** CSR and CSC encoded sparse matrices
+    round-trip as `Matrix::dgCMatrix`. On write, sparse Daf matrices are
+    emitted as h5ad CSC groups — no more densify-on-write warning.
+  - **Categorical obs/var columns.** A categorical group (`codes` +
+    `categories` + `ordered`) reads as an R `factor` (ordered if the
+    on-disk flag is set). On write, factor vectors are emitted as
+    categorical groups.
+  - **Nested `/uns` groups.** Nested scalar leaves are flattened on read
+    with `_` as the separator (e.g. `uns/params/seed` becomes Daf scalar
+    `params_seed`). The write path remains flat — Daf has no
+    tree-of-scalars concept — so a nested-uns round-trip emits flat
+    dotted keys on the resulting Daf (documented asymmetry). New
+    fixture: `inst/extdata/sparse_test.h5ad` (50 x 20 CSR `/X`, a
+    categorical `celltype` obs column, nested `uns/params/*`).
+- **dplyr backend.** `tbl(daf, axis)` returns a lazy `daf_axis_tbl`
+  supporting `filter`, `select`, `mutate`, `arrange`, `summarise`,
+  `group_by`, `ungroup`, `distinct`, `pull`, and `collect`. Grouped
+  [`summarise()`](https://dplyr.tidyverse.org/reference/summarise.html)
+  whose grouping variable names an existing axis in the daf
+  auto-ties-back to a `daf_axis_tbl` on that axis. Write-back to the daf
+  is explicit via `dplyr::compute(tbl, vectors = c(...))` — dafr plugs
+  into dplyr’s
+  [`compute()`](https://dplyr.tidyverse.org/reference/compute.html)
+  generic rather than introducing a new one, so it doesn’t shadow
+  dbplyr’s. See
+  [`vignette("dplyr", package = "dafr")`](https://tanaylab.github.io/dafr/articles/dplyr.md).
+  `dplyr` / `tibble` / `tidyselect` are Suggests — methods are
+  registered conditionally in `.onLoad`, so dafr still installs without
+  them.
+
+## dafr 0.1.0 (2026-04-23)
+
+First public release.
+
+### Headline features
+
+- **Full Daf data model** — scalars, per-axis vectors, per-axis-pair
+  matrices, axis entries, cache invalidation, disk persistence.
+- **Query DSL** — string form (`daf["@ cell : donor"]`) and pipe-chain
+  builders (`daf[Axis("cell") |> LookupVector("donor")]`). 53 exported
+  builders covering 5 categories (element-wise, reductions, selection,
+  logical masks, comparison).
+- **mmap-backed reads** — vectors and sparse matrices from a read-only
+  FilesDaf are mmap’d with zero-copy access.
+- **OpenMP-parallel kernels** — Sum, Mean, Var, Mode, Quantile, GeoMean
+  dispatch to parallel C++ for large inputs.
+- **AnnData interop** — `DafAnnData` R6 facade + `h5ad_as_daf` /
+  `daf_as_h5ad` for round-trip I/O.
+- **Contracts** — `contract_scalar` / `contract_vector` /
+  `contract_matrix` / `tensor_contract` / `axis_contract` +
+  `create_contract` + `verify_contract` for computation validation.
+- **Class-surface sugar** — `is_daf`, `daf_name`, `complete_path`,
+  `read_only`, `axis_version_counter` / `vector_version_counter` /
+  `matrix_version_counter`, group helpers (`compact_groups`,
+  `collect_group_members`, `group_names`), and DataFrame helpers
+  (`get_dataframe`, `get_dataframe_query`, `get_tidy`).
+
+### Known gaps
+
+- `h5df` HDF5-backed Daf store (post-0.1.0).
+- Sparse-matrix h5ad encoding, categorical obs/var columns, nested `uns`
+  groups — currently skipped via the unsupported-feature handler (warn
+  by default).
+- `verify_contract` tracker-marker workaround (static-check semantics) —
+  proper static flag deferred to post-0.1.0.
+- `get_dataframe_query` dropped the wrapper’s `columns` kwarg.
+- `[filter] : vector` query form — filter is not applied to the vector
+  lookup. Builder round-trips to correct canonical but evaluation skips
+  the mask. Post-0.1.0 fix.
+- CRAN submission pending installed-size and benchmarks-dir NOTE
+  burn-down.
+
+### Breaking changes vs. `dafJuliaWrapper` (Julia-facade)
+
+- `get_frame` renamed to `get_dataframe_query`.
+- `create_contract` takes typed per-category args, not a flat `data`
+  list.
+- `tensor_contract` parameter is now `type`, not `dtype`.
+- Version counters return `integer`, not stringified UInt32.
+- [`read_only()`](https://tanaylab.github.io/dafr/reference/read_only.md)
+  implemented via 1-element `chain_reader`, not a new S7 class.
+
+------------------------------------------------------------------------
+
+## dafr 0.1.0 — Development history
+
+The remainder of this file is the internal slice-by-slice ledger
+preserved as historical record. See `git log` for the source-level
+narrative.
+
+### Slice 10b — AnnData + h5ad round-trip (2026-04-23)
+
+#### New exports (4)
+
+- **`DafAnnData`** — R6 read-only facade that exposes a `DafReader` with
+  AnnData-style property names: `X`, `obs`, `var`, `layers`, `uns`,
+  `obs_names`, `var_names`, `n_obs`, `n_vars`, `shape`. All writes error
+  with the message *“DafAnnData facade is read-only. Use the underlying
+  Daf object to modify data.”* (matches wrapper).
+- **`as_anndata(daf, obs_axis = NULL, var_axis = NULL, x_name = "UMIs")`**
+  — one-shot factory. Auto-detects `obs_axis` from `cell` / `metacell`
+  and `var_axis` from `gene`.
+- **`h5ad_as_daf(path, name = NULL, mode = "r", unsupported_handler = WARN_HANDLER)`**
+  — loads a Muon-style h5ad file into a fresh `memory_daf`. Sparse
+  matrices, categorical columns, and nested `uns` groups are currently
+  emitted via the `unsupported_handler` (default warning) and skipped.
+- **`daf_as_h5ad(daf, path, obs_axis = NULL, var_axis = NULL, x_name = "UMIs", overwrite = FALSE, unsupported_handler = WARN_HANDLER)`**
+  — writes a Daf to h5ad. Sparse matrices are densified (with a
+  handler-routed warning).
+
+#### Dependency changes
+
+- `R6` promoted to `Imports` (the `DafAnnData` facade class).
+- `hdf5r` added to `Suggests`; gated via
+  [`rlang::check_installed()`](https://rlang.r-lib.org/reference/is_installed.html)
+  at each h5ad entry point.
+
+#### Fixture
+
+- `inst/extdata/small_test.h5ad` — 50 obs × 20 var reference for
+  round-trip testing.
+
+#### Known limitations (post-release work)
+
+- Sparse matrix h5ad encoding (`csr_matrix` / `csc_matrix`) not yet
+  translated; read path emits a handler warning and skips.
+- Categorical (factor) `obs` / `var` columns not translated; skipped.
+- Nested `uns` groups skipped.
+- `varm` / `obsm` / `obsp` / `varp` / `raw` not translated.
+
+### Slice 10a — Query builders (2026-04-23)
+
+#### New exports (54)
+
+- **`DafrQuery`** S7 class: pipe-composable query object with `ast`
+  (parsed AST list) and `canonical` (canonical string) properties.
+  Methods: `print`, `format`, `as.character`, `length`.
+- **53 builder functions** producing `DafrQuery` objects:
+  - **Element-wise (7):**
+    [`Abs()`](https://tanaylab.github.io/dafr/reference/Abs.md),
+    [`Clamp()`](https://tanaylab.github.io/dafr/reference/Clamp.md),
+    [`Convert()`](https://tanaylab.github.io/dafr/reference/Convert.md),
+    [`Fraction()`](https://tanaylab.github.io/dafr/reference/Fraction.md),
+    [`Log()`](https://tanaylab.github.io/dafr/reference/Log.md),
+    [`Round()`](https://tanaylab.github.io/dafr/reference/Round.md),
+    [`Significant()`](https://tanaylab.github.io/dafr/reference/Significant.md).
+  - **Reductions (19):**
+    [`Count()`](https://tanaylab.github.io/dafr/reference/Count.md),
+    [`CountBy()`](https://tanaylab.github.io/dafr/reference/CountBy.md),
+    [`GeoMean()`](https://tanaylab.github.io/dafr/reference/GeoMean.md),
+    [`GroupBy()`](https://tanaylab.github.io/dafr/reference/GroupBy.md),
+    [`GroupColumnsBy()`](https://tanaylab.github.io/dafr/reference/GroupColumnsBy.md),
+    [`GroupRowsBy()`](https://tanaylab.github.io/dafr/reference/GroupRowsBy.md),
+    [`Max()`](https://tanaylab.github.io/dafr/reference/Max.md),
+    [`Mean()`](https://tanaylab.github.io/dafr/reference/Mean.md),
+    [`Median()`](https://tanaylab.github.io/dafr/reference/Median.md),
+    [`Min()`](https://tanaylab.github.io/dafr/reference/Min.md),
+    [`Mode()`](https://tanaylab.github.io/dafr/reference/Mode.md),
+    [`Quantile()`](https://tanaylab.github.io/dafr/reference/Quantile.md),
+    [`ReduceToColumn()`](https://tanaylab.github.io/dafr/reference/ReduceToColumn.md),
+    [`ReduceToRow()`](https://tanaylab.github.io/dafr/reference/ReduceToRow.md),
+    [`Std()`](https://tanaylab.github.io/dafr/reference/Std.md),
+    [`StdN()`](https://tanaylab.github.io/dafr/reference/StdN.md),
+    [`Sum()`](https://tanaylab.github.io/dafr/reference/Sum.md),
+    [`Var()`](https://tanaylab.github.io/dafr/reference/Var.md),
+    [`VarN()`](https://tanaylab.github.io/dafr/reference/VarN.md).
+  - **Selection/axis (13):**
+    [`Axis()`](https://tanaylab.github.io/dafr/reference/Axis.md),
+    [`AsAxis()`](https://tanaylab.github.io/dafr/reference/AsAxis.md),
+    [`BeginMask()`](https://tanaylab.github.io/dafr/reference/BeginMask.md),
+    [`BeginNegatedMask()`](https://tanaylab.github.io/dafr/reference/BeginNegatedMask.md),
+    [`EndMask()`](https://tanaylab.github.io/dafr/reference/EndMask.md),
+    [`IfMissing()`](https://tanaylab.github.io/dafr/reference/IfMissing.md),
+    [`IfNot()`](https://tanaylab.github.io/dafr/reference/IfNot.md),
+    [`LookupMatrix()`](https://tanaylab.github.io/dafr/reference/LookupMatrix.md),
+    [`LookupScalar()`](https://tanaylab.github.io/dafr/reference/LookupScalar.md),
+    [`LookupVector()`](https://tanaylab.github.io/dafr/reference/LookupVector.md),
+    [`Names()`](https://tanaylab.github.io/dafr/reference/Names.md),
+    [`SquareColumnIs()`](https://tanaylab.github.io/dafr/reference/SquareColumnIs.md),
+    [`SquareRowIs()`](https://tanaylab.github.io/dafr/reference/SquareRowIs.md).
+  - **Logical masks (6):**
+    [`AndMask()`](https://tanaylab.github.io/dafr/reference/AndMask.md),
+    [`AndNegatedMask()`](https://tanaylab.github.io/dafr/reference/AndNegatedMask.md),
+    [`OrMask()`](https://tanaylab.github.io/dafr/reference/OrMask.md),
+    [`OrNegatedMask()`](https://tanaylab.github.io/dafr/reference/OrNegatedMask.md),
+    [`XorMask()`](https://tanaylab.github.io/dafr/reference/XorMask.md),
+    [`XorNegatedMask()`](https://tanaylab.github.io/dafr/reference/XorNegatedMask.md).
+  - **Comparison (8):**
+    [`IsEqual()`](https://tanaylab.github.io/dafr/reference/IsEqual.md),
+    [`IsGreater()`](https://tanaylab.github.io/dafr/reference/IsGreater.md),
+    [`IsGreaterEqual()`](https://tanaylab.github.io/dafr/reference/IsGreaterEqual.md),
+    [`IsLess()`](https://tanaylab.github.io/dafr/reference/IsLess.md),
+    [`IsLessEqual()`](https://tanaylab.github.io/dafr/reference/IsLessEqual.md),
+    [`IsMatch()`](https://tanaylab.github.io/dafr/reference/IsMatch.md),
+    [`IsNotEqual()`](https://tanaylab.github.io/dafr/reference/IsNotEqual.md),
+    [`IsNotMatch()`](https://tanaylab.github.io/dafr/reference/IsNotMatch.md).
+
+#### Dispatch extension
+
+- [`get_query()`](https://tanaylab.github.io/dafr/reference/get_query.md),
+  [`has_query()`](https://tanaylab.github.io/dafr/reference/has_query.md),
+  and `[.DafReader` now accept either a character-scalar query string or
+  a `DafrQuery` object. Character queries behave exactly as before.
+
+#### Usage
+
+``` r
+daf[Axis("cell") |> LookupVector("age") |> IsGreater(2)]
+# equivalent to
+daf["@ cell : age > 2"]
+```
+
+#### Known limitations
+
+- Value-op builders (`IsGreater(2)`, `IfMissing(42)`,
+  `SquareColumnIs(7)`) store raw numeric values in the AST, while
+  [`parse_query()`](https://tanaylab.github.io/dafr/reference/parse_query.md)
+  parses the same canonical string into a character value. Round-trip
+  holds at the canonical-string level but not at the AST level when
+  numeric literals are passed. Workaround: compare via
+  `canonical_query(q@canonical)`.
+
+#### Fixed pre-existing bugs
+
+- `.canonicalise_eltwise` was wrapping parameter lists in parentheses
+  that the parser rejected. Switched to space-separated form so that
+  `parse_query(canonical_query(q)) == q` round-trip holds for every
+  eltwise node.
+
+### Slice 10c — Wrapper-parity surface (2026-04-23)
+
+#### New exports (25)
+
+- Handler constants: `ERROR_HANDLER`, `WARN_HANDLER`, `IGNORE_HANDLER`,
+  [`inefficient_action_handler()`](https://tanaylab.github.io/dafr/reference/inefficient_action_handler.md).
+- Query introspection:
+  [`escape_value()`](https://tanaylab.github.io/dafr/reference/escape_value.md),
+  [`unescape_value()`](https://tanaylab.github.io/dafr/reference/unescape_value.md),
+  [`query_requires_relayout()`](https://tanaylab.github.io/dafr/reference/query_requires_relayout.md).
+- Version counters:
+  [`axis_version_counter()`](https://tanaylab.github.io/dafr/reference/axis_version_counter.md),
+  [`vector_version_counter()`](https://tanaylab.github.io/dafr/reference/vector_version_counter.md),
+  [`matrix_version_counter()`](https://tanaylab.github.io/dafr/reference/matrix_version_counter.md).
+- Group helpers:
+  [`compact_groups()`](https://tanaylab.github.io/dafr/reference/compact_groups.md),
+  [`collect_group_members()`](https://tanaylab.github.io/dafr/reference/collect_group_members.md),
+  [`group_names()`](https://tanaylab.github.io/dafr/reference/group_names.md).
+- Class-surface sugar:
+  [`is_daf()`](https://tanaylab.github.io/dafr/reference/is_daf.md),
+  [`daf_name()`](https://tanaylab.github.io/dafr/reference/daf_name.md),
+  [`complete_path()`](https://tanaylab.github.io/dafr/reference/complete_path.md),
+  [`read_only()`](https://tanaylab.github.io/dafr/reference/read_only.md).
+- DataFrame helpers:
+  [`get_dataframe()`](https://tanaylab.github.io/dafr/reference/get_dataframe.md),
+  [`get_dataframe_query()`](https://tanaylab.github.io/dafr/reference/get_dataframe_query.md),
+  [`get_tidy()`](https://tanaylab.github.io/dafr/reference/get_tidy.md).
+- Contract UX:
+  [`create_contract()`](https://tanaylab.github.io/dafr/reference/create_contract.md),
+  [`axis_contract()`](https://tanaylab.github.io/dafr/reference/axis_contract.md),
+  [`tensor_contract()`](https://tanaylab.github.io/dafr/reference/tensor_contract.md),
+  [`contract_docs()`](https://tanaylab.github.io/dafr/reference/contract_docs.md),
+  [`verify_contract()`](https://tanaylab.github.io/dafr/reference/verify_contract.md).
+
+#### Breaking changes vs. `dafJuliaWrapper` (Julia-facade)
+
+- `get_frame` was renamed to `get_dataframe_query`. No compatibility
+  shim (native package is pre-1.0). Users of the wrapper’s `get_frame`
+  should migrate to `get_dataframe_query` (query-string form) or
+  `get_dataframe` (axis-name form).
+- `create_contract` takes typed per-category args (`scalars` / `vectors`
+  / `matrices` / `tensors` / `axes`) rather than the wrapper’s flat
+  `data = list(...)`. There is no `name` field on a contract; the
+  computation name lives on
+  [`contractor()`](https://tanaylab.github.io/dafr/reference/contractor.md).
+- `tensor_contract` parameter is now `type` (aligning with native’s
+  existing `contract_scalar` / `contract_vector` / `contract_matrix`)
+  rather than the wrapper’s `dtype`.
+- `axis_version_counter` / `vector_version_counter` /
+  `matrix_version_counter` return `integer(1)`, not character. Native
+  counters are per-process and fit comfortably in R’s signed integer
+  range.
+- [`read_only()`](https://tanaylab.github.io/dafr/reference/read_only.md)
+  is implemented by wrapping the reader in a 1-element `chain_reader`,
+  rather than introducing a new S7 class. The returned object is a
+  `ReadOnlyChainDaf` whose `name` defaults to the original daf’s name
+  (pass `name = "..."` to override).
+
+#### New Imports / Suggests
+
+- `rlang` → `Imports` (used for `check_installed` gating in `get_tidy`).
+- `tidyr`, `tibble` → `Suggests` (required only for `get_tidy`).
+
+#### Known limitations
+
+- Tensor `.verify_access` tracking is not implemented; tensors declared
+  `RequiredInput` are never flagged as “unused input” by
+  [`verify_input()`](https://tanaylab.github.io/dafr/reference/verify_input.md).
+  [`verify_contract()`](https://tanaylab.github.io/dafr/reference/verify_contract.md)
+  works around a static-check false-positive on the round-trip guard by
+  marking trackers as accessed between
+  [`verify_input()`](https://tanaylab.github.io/dafr/reference/verify_input.md)
+  and
+  [`verify_output()`](https://tanaylab.github.io/dafr/reference/verify_input.md).
+
+#### Deliberately deferred
+
+- `h5df` HDF5-backed Daf store (post-0.1.0).
+- `set_seed` Julia RNG hook (not applicable to native).
+- AnnData facade + h5ad round-trip (slice 10b).
+- Query builder functions
+  ([`Axis()`](https://tanaylab.github.io/dafr/reference/Axis.md),
+  [`LookupVector()`](https://tanaylab.github.io/dafr/reference/LookupVector.md),
+  …) (slice 10a).
+
+### Slice 9d-N — CSC axis-0 row-partition sweep (2026-04-22)
+
+#### Performance
+
+- **Row-partition rewrite of the axis = 0 branch of six non-grouped CSC
+  kernels.** Four category-A kernels (`kernel_var_csc`,
+  `kernel_minmax_csc`, `kernel_log_reduce`, `kernel_geomean_csc`) each
+  carried a `std::vector<std::vector<T>>` of length `nthreads × nrow`
+  that was merged serially after the parallel scan; two category-B
+  kernels (`kernel_mode_csc`, `kernel_quantile_csc`) had a single-
+  threaded fill pass because `rows[pi[k]].push_back(...)` would race
+  across threads. The rewrite applies the 9d-M row-partition template
+  inline: each thread owns a disjoint row range `[r0, r1)` and writes
+  directly into the shared output-shaped accumulator, with post-process
+  folded into the same parallel region. Combined peak-RSS reduction on a
+  10⁵ × 5·10³ × 0.02 stress fixture at 128 threads is measured in
+  hundreds of MB for category-A kernels; category-B kernels gain
+  parallel fill for the first time. Bit-identity with serial dispatch is
+  preserved — values accumulate in column-ascending order per row in
+  both paths. No bake-off regression; the fix is memory-and-perf at
+  scale, invisible at OMP_NUM_THREADS = 1.
+
+### Slice 9d-M — G3 grouped-CSC memory fix (2026-04-22)
+
+#### Performance
+
+- **Row-partition rewrite of the axis = 3 branch of three grouped CSC
+  kernels** (`kernel_grouped_reduce_csc`, `kernel_grouped_mode_csc`,
+  `kernel_grouped_quantile_csc`). The prior implementation allocated an
+  `O(nthreads × nrow × ngroups)` vector of thread-local accumulator
+  buckets and merged them serially after the parallel scan. On a stress
+  fixture of 10⁴ × 10⁴ CSC with 100 groups, that pattern grew to 7.34 GB
+  at 128 threads and the serial merge made the 128-thread dispatch 10-
+  30× *slower* than single-threaded. The rewrite gives each thread a
+  disjoint row range `[r0, r1)` and lets it write directly into a single
+  shared output-shaped accumulator; no thread buckets, no merge. Peak
+  RSS at 128 threads drops to 340 MB (-7.0 GB), and wall-time at 128
+  threads is now 29–103× faster than the pre-fix value across the
+  measured kernel variants. Single-threaded behaviour is bit-identical
+  to the prior path (no bake-off regression); the fix is memory-and-perf
+  at scale, invisible at OMP_NUM_THREADS = 1.
+
+### Slice 9c — Dense perf closure (2026-04-22)
+
+#### Performance
+
+- **Dense Int-aware Quantile, Mode, and grouped Min/Max kernels.** Three
+  new cpp11 kernels — `kernel_quantile_dense_cpp`,
+  `kernel_mode_dense_cpp`, `kernel_grouped_minmax_dense_cpp` — replace
+  the prior
+  [`matrixStats::colQuantiles`](https://rdrr.io/pkg/matrixStats/man/rowQuantiles.html)
+  / `apply(.op_mode)` /
+  [`matrixStats::rowMaxs`](https://rdrr.io/pkg/matrixStats/man/rowRanges.html)-in-loop
+  paths for dense-layout queries on Int32 matrices. All three accept
+  INTSXP or REALSXP directly, avoiding the `storage.mode(m) <- "double"`
+  copy that dominated light-tier query time on the 856 × 683 UMIs mmap
+  matrix. Closes the 4 remaining bake-off breaches against DAF.jl
+  (`julia_queries_026` Quantile, `_028` Mode, `_043` G2 Max, `_047` G3
+  Max); the remaining 4 accepted breaches are the mmap-query S7-ctor
+  floor (deferred).
+
+### Slice 9b — Perf parity with DAF.jl (2026-04-22)
+
+#### Performance
+
+- **Dense grouped matrix reductions are now single-pass and int-aware.**
+  The G2/G3 `rowsum`-based fast paths added in this slice now route
+  through a new cpp11 kernel (`kernel_grouped_rowsum_dense_cpp`) that
+  promotes `Int32` input to `double` during accumulation instead of
+  materializing a full `double` copy first
+  (`storage.mode(m) <- "double"` was costing ~1.5–2.5 ms per call on the
+  856 × 683 Int32 UMIs mmap matrix). For Var/Std/VarN/StdN, the same
+  pass also accumulates sum- of-squares, eliminating the intermediate
+  `m * m` allocation. 9 of the original 17 baseline breaches closed from
+  this change alone; several queries now *beat* DAF.jl at single-thread.
+- **Dense column Var/Std use
+  [`matrixStats::colVars`](https://rdrr.io/pkg/matrixStats/man/rowVars.html)
+  / `rowVars`.** The R-side two-pass formula
+  `colMeans(m * m) - colMeans(m)^2` allocated a full copy of `m * m`
+  before reducing; the one-pass two-moment algorithm in `matrixStats` is
+  ~2.5× faster on the UMIs fixture and is now the default for the dense
+  path of `Var`, `Std`, `VarN`, `StdN`.
+- **G3 Sum-family uses a BLAS indicator matrix.** `t(rowsum(t(m), g))`
+  has been replaced with `m %*% indicator` for G3 Sum/Mean/Var when the
+  input is dense double; this hands the reduction to the underlying BLAS
+  and cuts G3 kernel time by ~4.7× on the UMIs corpus.
+- **FilesDaf descriptors and scalar-JSON files parsed by regex.** The
+  three fixed-schema JSON files dafr emits (`daf.json`, scalar-value
+  files, matrix/vector descriptors) are now parsed with `readChar` +
+  regex, falling back to
+  [`jsonlite::fromJSON`](https://jeroen.r-universe.dev/jsonlite/reference/fromJSON.html)
+  on any non-matching content. Closed the `mmap_open_read_scalar` breach
+  and shaved 125–160 µs off every FilesDaf cold reopen.
+- **GeoMean accumulator no longer wastes `std::log` calls.** `Acc::push`
+  in `src/kernel_grouped_acc.h` previously computed `std::log(v + eps)`
+  on every element for every op; now gated behind a `bool need_log` flag
+  set to true only when the op is GeoMean. Pure waste removal — the
+  existing Sum/Mean/Var/etc. paths never read `log_sum`.
+
+#### Tooling
+
+- **Bake-off harness** at `benchmarks/` (package repo): reproducible R↔︎
+  Julia performance comparison. Hand-authored 79-query set + 5 FilesDaf
+  fixtures, SHA256-verified so the comparison can refuse to join runs
+  against divergent corpora. R-side runner
+  ([`bench::mark`](https://bench.r-lib.org/reference/mark.html)),
+  Julia-side runner (`BenchmarkTools.jl`), both emit matching-schema
+  CSVs consumed by `benchmarks/compare.R`, which produces a markdown
+  breach report. See `benchmarks/README.md` to reproduce.
+
+#### Deferred
+
+- `Quantile` and `Mode` dense-matrix reductions on `cells_daf`-scale
+  inputs (julia-queries 26 and 28) still breach at ~2.3–3.0× and need
+  new cpp11 dense-kernel analogs of the existing CSC quantile and mode
+  kernels. Tracked for a follow-up slice.
+- Five remaining baseline breaches (Max grouped on UMIs, and the mmap-
+  reopen family on `vector`/`matrix`/`axis`) sit at the R per-call
+  dispatch / S7-constructor floor. Further closure requires
+  architectural work (query-parse caching or rewriting `files_daf` in
+  C++) out of slice scope.
+- `kernel_grouped_reduce_csc_cpp` axis=3 memory behaviour at 128 threads
+  × 10 k nrow × 100 groups is unchanged; single-thread baseline did not
+  exercise it. Profile-driven fix tracked for follow-up.
+
+### CI stabilisation (post-Slice-9a)
+
+#### Bug fixes
+
+- **`assert_no_densify_during` test helper**: replaced
+  `assignInNamespace("as.matrix.Matrix", ...)` with direct
+  namespace-binding + `.__S3MethodsTable__.` manipulation. The R 4.5
+  [`utils::assignInNamespace`](https://rdrr.io/r/utils/getFromNamespace.html)
+  S3-remap path touches `methods::slot(genfun, "default")@methods$ANY`,
+  which fails with
+  `"no slot of name 'methods' for this object of class 'derivedDefaultMethod'"`
+  against Matrix 1.7-4+. Tests passed locally against older Matrix but
+  failed on all CI platforms (ubuntu, macos, windows).
+- **`complete_daf` relative-path detection is Windows-safe**: the old
+  test `startsWith(base, "/")` misclassified Windows absolute paths
+  (`C:/...`, `C:\...`, UNC) as relative, producing nonsense
+  `dirname(path) / abs_base` concatenations. Extracted to
+  `.is_absolute_path()` handling Unix, drive-letter, and UNC forms.
+
+### Slice 9a — Julia-parity correctness (2026-04-22)
+
+#### Breaking changes
+
+- **Grouped-matrix operator semantics inverted to match DAF.jl.** The
+  pairing between `GroupRowsBy` / `GroupColumnsBy` and `ReduceToRow` /
+  `ReduceToColumn` has been swapped.
+
+  | Pattern                          | Before      | After       |
+  |----------------------------------|-------------|-------------|
+  | G2 (matrix out, ngroups × ncol)  | `-/ g >|`   | `-/ g >-`   |
+  | G3 (matrix out, nrow × ngroups)  | `\|/ g >-`  | `\|/ g >\|` |
+  | G4a (vector out, length ngroups) | `-/ g >-`   | `-/ g >\|`  |
+  | G4b (vector out, length ngroups) | `\|/ g >\|` | `\|/ g >-`  |
+
+  G1 vector reduction (`/ g >|`) is unchanged.
+
+#### New features
+
+- Julia G1 reduction syntax `>>` accepted as alias for `>|`.
+- Convert op now accepts Julia type names: `Float32` / `Float64` →
+  `double`; `Int32` → `integer`; `Int64` →
+  [`bit64::integer64`](https://bit64.r-lib.org/reference/bit64-package.html)
+  (dim/dimnames preserved on matrix input); `Bool` → `logical`. R-native
+  names (`double`, `integer`, `logical`, `character`) continue to work.
+- Julia-queries fixture extended with 23 new records covering G1 (`>>`),
+  G2, G3, Convert-to-{Int32, Int64} (matrix + vector), and
+  Mode-on-character. Byte-parity with DataAxesFormats.jl verified.
+- [`complete_daf()`](https://tanaylab.github.io/dafr/reference/complete_daf.md)
+  correctly round-trips views with renamed axes (regression test added;
+  was already supported, now guarded).
+
+#### Documented divergence
+
+- `Convert type Bool` on a matrix behaves differently in DAF.jl (strict
+  `InexactError` on values \> 1) versus `dafr` (permissive; non-zero →
+  TRUE via `as.logical`). This is an intrinsic language-level
+  difference, not a bug. The fixture does not include a matrix Bool
+  record.
+
+#### Internal
+
+- Matrix comparison path in `tests/testthat/test-query-julia-compat.R`
+  now handles
+  [`bit64::integer64`](https://bit64.r-lib.org/reference/bit64-package.html)
+  correctly. Previously
+  [`as.vector()`](https://rdrr.io/r/base/vector.html) on an integer64
+  matrix stripped the S3 class and produced IEEE-754 reinterpretation
+  garbage; the fix casts both sides explicitly before comparison.
+
+### Slice 8 — Matrix-kernel fast paths + complete_daf view re-apply
+
+#### Performance
+
+- Sparse `dgCMatrix` reductions (Var, Std, VarN, StdN, Median, Quantile,
+  GeoMean, Mode) now use custom CSC C++ kernels and no longer densify
+  via [`as.matrix()`](https://rdrr.io/r/base/matrix.html). Min/Max on
+  sparse input no longer densifies either.
+- Grouped reductions (patterns G1–G4) use new CSC + dense C++ kernels
+  instead of [`split()`](https://rdrr.io/r/base/split.html) +
+  [`apply()`](https://rdrr.io/r/base/apply.html). Benchmark gates show
+  10–80× speedups at representative small-to-medium scale. Large-scale
+  grouped reductions on high-thread-count machines may benefit from
+  tuning `dafr.kernel_threshold` — see `?dafr-options`.
+
+#### New features
+
+- `.op_convert` preserves sparsity for `dgCMatrix → integer` and
+  `dgCMatrix → logical` conversions. Sparse → character still densifies
+  (R has no character-valued sparse class).
+- `Mode` reduction now accepts character input in grouped-vector
+  reductions. Underlying grouped-reduction dispatch no longer hard-codes
+  `vapply(..., numeric(1))` — output storage is inferred from the
+  reducer’s return value (supports integer, logical, character).
+- [`complete_daf()`](https://tanaylab.github.io/dafr/reference/complete_daf.md)
+  re-applies `base_daf_view` JSON on reopen; previously the stored view
+  spec was parsed but ignored. Supports identity views; axis-rename
+  round-trip depends on
+  [`viewer()`](https://tanaylab.github.io/dafr/reference/viewer.md)
+  rename syntax support.
+
+#### Fixes
+
+- `.matrix_type_ok` now recognises `character` matrices and
+  integer-/logical-valued `dgCMatrix` inputs for contract checking.
+- Sparse Min/Max no longer silently densifies via
+  `matrixStats::rowMaxs(as.matrix(m))` (pre-existing Slice-3 mine).
+- `lgCMatrix` inputs route correctly to the slow path for ops whose
+  kernels expect `dgCMatrix` (avoids `cpp11::doubles` type-mismatch
+  crash).
+
+#### Known limitations
+
+- **Grouped matrix reductions**: the R-side operator-to-reduce-kind
+  mapping differs from Julia DAF’s convention for grouped-matrix
+  patterns. Byte-parity with DataAxesFormats.jl is not achieved for
+  grouped queries. R-side semantics are internally self-consistent and
+  tested.
+- **Grouped G3 kernel at high thread counts**: thread-bucket layout is
+  O(nthreads × nrow × ngroups). On many-core machines (\>16 threads) at
+  large scale (nrow \> 10k with ngroups \> 50), the fast path may be
+  slower than the pure-R fallback due to bucket allocation cost. Set
+  `options(dafr.kernel_threshold = Inf)` to force sequential execution
+  if you observe this.
+
+## dafr 0.6.0 (in development)
+
+### New features
+
+- **Query op surface expansion** — 12 new default ops registered at
+  package load: eltwise `Clamp`, `Convert`, `Fraction`, `Significant`;
+  reductions `Var`, `Std`, `VarN`, `StdN`, `Median`, `Quantile`,
+  `GeoMean`, `Mode`. All available from query strings
+  (e.g. `% Clamp min: 0 max: 10`, `>| Quantile p: 0.9`). Reductions use
+  uncorrected (n-denom) variance to match DAF.jl. `Mode` is numeric-only
+  this slice; string-axis grouping deferred. No new exports.
+- **Copies surface**
+  ([`copy_scalar()`](https://tanaylab.github.io/dafr/reference/copy_scalar.md)
+  /
+  [`copy_axis()`](https://tanaylab.github.io/dafr/reference/copy_axis.md)
+  /
+  [`copy_vector()`](https://tanaylab.github.io/dafr/reference/copy_vector.md)
+  /
+  [`copy_matrix()`](https://tanaylab.github.io/dafr/reference/copy_matrix.md)
+  /
+  [`copy_tensor()`](https://tanaylab.github.io/dafr/reference/copy_tensor.md)
+  /
+  [`copy_all()`](https://tanaylab.github.io/dafr/reference/copy_all.md)):
+  port of Julia `Copies.jl`. Supports `rename` / `reaxis`, type
+  coercion, `empty` fill for source-is-subset axes, `overwrite` and
+  `insist` semantics matching Julia. Sparse matrix pad-mode preserves
+  sparsity via
+  [`Matrix::sparseMatrix`](https://rdrr.io/pkg/Matrix/man/sparseMatrix.html)
+  embedding — fixes the Slice-5 dense-coercion mine. (#slice-6)
+- [`empty_data()`](https://tanaylab.github.io/dafr/reference/empty_data.md)
+  helper builds flat-keyed empty / types specs from a typed-list builder
+  API. (#slice-6)
+- [`concatenate()`](https://tanaylab.github.io/dafr/reference/concatenate.md):
+  stitches N dafs along one or more axes, creates a per-source `dataset`
+  axis, supports prefix de-duplication with the
+  “property-matches-any-concat-axis” heuristic (widened from the plan’s
+  original draft for Julia parity), fills missing per-source properties
+  from an `empty` map, and applies per-property `merge` actions
+  (`SkipProperty`, `LastValue`, `CollectAxis`). (#slice-6)
+- [`complete_chain()`](https://tanaylab.github.io/dafr/reference/complete_chain.md)
+  /
+  [`complete_daf()`](https://tanaylab.github.io/dafr/reference/complete_daf.md)
+  /
+  [`open_daf()`](https://tanaylab.github.io/dafr/reference/open_daf.md):
+  persistent chain metadata. `complete_chain` stores a
+  `base_daf_repository` pointer scalar; `complete_daf` walks the pointer
+  chain back and returns a `chain_reader` or `chain_writer`. `open_daf`
+  dispatches FilesDaf (directory) paths; H5df is deferred. (#slice-6)
+- [`reconstruct_axis()`](https://tanaylab.github.io/dafr/reference/reconstruct_axis.md):
+  promotes an implicit property to an explicit axis, migrating
+  consistently-mapped properties. Returns a per-property dict of values
+  associated with empty-implicit entries. Core behaviors only;
+  pre-existing target axis merge is Slice 7. (#slice-6)
+
+### Refactor
+
+- [`adapter()`](https://tanaylab.github.io/dafr/reference/adapter.md)
+  internal `.copy_view_to_daf()` removed; adapter now calls
+  [`copy_all()`](https://tanaylab.github.io/dafr/reference/copy_all.md)
+  with `insist = FALSE`. Same user-facing surface; sparse pad-mode is
+  now sparse-preserving. (#slice-6)
+
+## dafr 0.5.0 (in development)
+
+### New features
+
+- `computation(name, contract, fn)`: higher-order function that wraps
+  `fn` with a contract. On each call,
+  [`contractor()`](https://tanaylab.github.io/dafr/reference/contractor.md)
+  wraps the first argument,
+  [`verify_input()`](https://tanaylab.github.io/dafr/reference/verify_input.md)
+  runs before the body,
+  [`verify_output()`](https://tanaylab.github.io/dafr/reference/verify_input.md)
+  runs after, and the result is returned. Contract enforcement gates on
+  `DAF_ENFORCE_CONTRACTS` / `options(dafr.enforce_contracts)` as in
+  Slice 4. `function_contract(fn)` retrieves the bound contract;
+  `contract_description(contract)` renders a contract as multi-line text
+  for roxygen docstrings. Single-contract only this slice; dual- and
+  triple-contract forms (Julia-UNTESTED upstream) are deferred.
+  (#slice-5)
+- `adapter(daf, fn, input_axes, input_data, output_axes, output_data, capture, empty, relayout, overwrite, name)`:
+  apply a computation to a renaming view of `daf`, capturing the outputs
+  in a fresh writable, and project them back under the caller’s names.
+  Mirrors Julia
+  [`adapter()`](https://tanaylab.github.io/dafr/reference/adapter.md).
+  The internal `.copy_view_to_daf()` supports pad-mode for subset-axis
+  views via `empty` (`"axis|vector"` / `"rows|cols|matrix"` flat keys).
+  (#slice-5)
+- [`example_cells_daf()`](https://tanaylab.github.io/dafr/reference/example_cells_daf.md)
+  /
+  [`example_metacells_daf()`](https://tanaylab.github.io/dafr/reference/example_metacells_daf.md)
+  /
+  [`example_chain_daf()`](https://tanaylab.github.io/dafr/reference/example_chain_daf.md):
+  byte-parity versions of the Julia example datasets (856 cells × 683
+  genes; 7 metacells × 4 types; chained writer over both). Raw data
+  files ship under `inst/extdata/example_data/`; loaders replicate the
+  Bool → Int → Double → Character and UInt8 → UInt16 → Float32 promotion
+  lattices. (#slice-5)
+- Multi-hop chained lookup: `@ cell : donor =@ : lab =@ : country` now
+  resolves through an arbitrary number of hops. The evaluator stamps
+  `$property` on each hop’s return so the next `=@` can infer its target
+  axis, and uses the carried `names(pivot_values)` so prior `??`
+  row-drops survive subsequent hops. (#slice-5)
+
+### Documentation
+
+- `@examples` blocks added to all 60 exported functions (was: 1). Query
+  DSL, view, chain, and contract examples use
+  [`example_cells_daf()`](https://tanaylab.github.io/dafr/reference/example_cells_daf.md)
+  for realistic data; CRUD ops use compact inline memory_daf
+  construction. `mmap_*` examples stay in `\donttest{}`. (#slice-5)
+
+### Bug fixes
+
+- `ViewDaf`’s `format_vectors_set` / `format_matrices_set` no longer
+  crash with `startsWith(NULL, prefix)` when the view carries no vectors
+  / matrices (latent Slice-3 bug, unearthed by Phase B’s minimal test
+  fixtures). (#slice-5)
+
+## dafr 0.4.0 (in development)
+
+### New features
+
+- [`chain_reader()`](https://tanaylab.github.io/dafr/reference/chain_reader.md)
+  /
+  [`chain_writer()`](https://tanaylab.github.io/dafr/reference/chain_writer.md):
+  federate an ordered list of `DafReader`s into a single read-only
+  (`ReadOnlyChainDaf`) or read-write (`WriteChainDaf`) view. Later
+  entries override earlier entries on read; writes go to the final
+  writer; deletes only succeed when the entry exists solely in the top
+  writer. Axis consistency across overlapping axes is validated at
+  construction. (#slice-4)
+- [`Contract()`](https://tanaylab.github.io/dafr/reference/Contract.md),
+  [`contractor()`](https://tanaylab.github.io/dafr/reference/contractor.md),
+  [`verify_input()`](https://tanaylab.github.io/dafr/reference/verify_input.md),
+  [`verify_output()`](https://tanaylab.github.io/dafr/reference/verify_input.md):
+  typed pre/post-condition enforcement for computations consuming Daf
+  data. Guards required / optional / created / guaranteed / optional
+  outputs, tracks access to required inputs, and validates element
+  types. Enforcement is off by default; enable via
+  `DAF_ENFORCE_CONTRACTS=1` (env) or
+  `options(dafr.enforce_contracts = TRUE)`. (#slice-4)
+- [`merge_contracts()`](https://tanaylab.github.io/dafr/reference/merge_contracts.md):
+  combine two contracts (Julia’s `|>` semantics), resolving expectations
+  and element types. (#slice-4)
+- `IfNot` / `AsAxis` evaluator semantics: single-hop chained lookup
+  `@ A : v ?? X =@ : w` is now evaluated end-to-end. `??` bare drops
+  empty-value entries; `?? X` substitutes `X`. (#slice-4)
+- `ViewDaf`: axis rename
+  (`viewer(d, axes = list(list("obs", "@ cell")))`) and axis filter
+  (`viewer(d, axes = list(list("cell", "@ cell [ keep ]")))`) now
+  propagate to
+  [`get_vector()`](https://tanaylab.github.io/dafr/reference/get_vector.md)
+  /
+  [`get_matrix()`](https://tanaylab.github.io/dafr/reference/get_matrix.md)
+  reads. (#slice-4)
+
+### Performance
+
+- `% Log eps: 1` on a `dgCMatrix` now preserves sparsity (in-place
+  `log1p` on the `@x` slot). Eliminates the multi-GB dense intermediate
+  the previous path produced for typical UMI matrices. (#slice-4-P2)
+- Bare default reductions (`>| Sum`, `>- Mean`, `>| Max`, etc., with no
+  parameters) now route to `rowSums` /
+  [`Matrix::rowSums`](https://rdrr.io/pkg/Matrix/man/colSums-methods.html)
+  /
+  [`matrixStats::rowMaxs`](https://rdrr.io/pkg/matrixStats/man/rowRanges.html)
+  instead of [`apply()`](https://rdrr.io/r/base/apply.html).
+  (#slice-4-P3)
+- `% Log eps: ε >| Sum` and the `Mean` / `>-` variants now dispatch to a
+  fused C++ kernel (`kernel_log_reduce_{dense,csc}_cpp`); the CSC
+  variant is single-pass over `nnz` with no dense intermediate.
+  (#slice-4-P4)
+- `dafr.omp_threshold` (declared in Slice 0 but orphaned) is now
+  threaded through `kernel_log_add_cpp` and `kernel_csc_colsums_cpp`,
+  and through the new fused log-reduce kernel. Defaults to 10000.
+  (#slice-4-P1)
+
+### Bug fixes
+
+- `@ A [ v cmp X ]`: NA values in the masked property no longer leak
+  into the result; they are dropped silently, matching Julia’s boolean
+  indexing semantics. (#slice-4)
+
+### Internal changes
+
+- `ViewDaf` now reuses the base daf’s cache environment (the previously
+  allocated but unused per-view `query` cache bucket was removed).
+  (#slice-4)
+- New Imports: `matrixStats` (used by Phase P3 fast path for `rowMaxs` /
+  `colMins` etc.).
+
+## dafr 0.3.0 (Slice 3)
+
+### New features
+
+- **Query DSL**
+  ([`parse_query()`](https://tanaylab.github.io/dafr/reference/parse_query.md),
+  [`get_query()`](https://tanaylab.github.io/dafr/reference/get_query.md)):
+  text-based query language over any `DafReader`. Supports axis lookups,
+  vector/matrix lookups, bracketed masks with comparators
+  (`< <= = != > >= ~ !~`), logical combinators (`& | ^` with negation),
+  square slicing (`@- @|`), `GroupBy` / `CountBy`, reductions (`>- >|`),
+  and eltwise operations (`%`). See
+  [`?parse_query`](https://tanaylab.github.io/dafr/reference/parse_query.md).
+- **Frames** (`get_frame()`): extract a `data.frame` of vectors along an
+  axis query.
+- **Views** (`ViewDaf`,
+  [`viewer()`](https://tanaylab.github.io/dafr/reference/viewer.md)):
+  lazy read-only wrapper that exposes a renamed / filtered view of a
+  base daf via query rewrites. No copies. Supports `ALL_AXES` /
+  `ALL_SCALARS` / `ALL_VECTORS` / `ALL_MATRICES` wildcards with
+  last-wins override semantics.
+- **Operations registry**
+  ([`register_reduction()`](https://tanaylab.github.io/dafr/reference/register_reduction.md),
+  [`register_eltwise()`](https://tanaylab.github.io/dafr/reference/register_eltwise.md)):
+  pluggable op table. Defaults shipped: `Sum`, `Mean`, `Max`, `Min`,
+  `Count`, `Log`, `Abs`, `Exp`, `Sqrt`, `Round`.
+- **Query cache tier** now populated (previously reserved). Entries
+  keyed by canonical query string via `cache_lookup` / `cache_store`;
+  invalidated on version-counter bumps.
+
+### Compatibility
+
+- Query strings parse and evaluate against Julia-produced FilesDaf
+  stores; round-trip tested via a Julia-generated fixture
+  ([`example_cells_daf()`](https://tanaylab.github.io/dafr/reference/example_cells_daf.md)).
+- 17/17 fixture query strings parse and evaluate to matching
+  numeric/character values (values compared with tolerance; `>|` / `>-`
+  reduction axis semantics corrected to match Julia in this release).
+
+### Known limitations (deferred to Slice 4)
+
+- **ViewDaf axis rename** does not propagate to vector / matrix reads.
+  `viewer(d, axes = list(list("obs", "@ cell")))` renames the axis but
+  `get_vector(v, "obs", ...)` does not resolve. Workaround: keep the
+  original axis name in the view.
+- **ViewDaf axis filter** does not propagate to vector / matrix reads.
+  `viewer(d, axes = list(list("cell", "@ cell [ keep ]")))` exposes the
+  filtered entries via
+  [`axis_vector()`](https://tanaylab.github.io/dafr/reference/axis_vector.md),
+  but `get_vector(v, "cell", ...)` returns the full base vector.
+  Workaround: filter vectors explicitly via a query override in `data`.
+- **`IfNot` and `AsAxis`** query modifiers parse successfully but are
+  evaluated as no-ops in Slice 3 (Slice 4 lands the real semantics).
+- **Performance**: reductions and eltwise ops use
+  [`apply()`](https://rdrr.io/r/base/apply.html); for large matrices
+  (millions of elements) this is several times slower than a vectorized
+  `colSums` / `rowMeans` path. A vectorized default-op path is planned.
+- **Chains and Contracts** modules are not yet ported (scheduled for
+  Slice 4).
