@@ -150,6 +150,40 @@ NULL
             sQuote(S7::prop(daf, "name"))
         ), call. = FALSE)
     }
+    # Entry-pick transitions for the Julia SCALAR_QUERY phrase
+    # `: vec @ axis = entry` / `:: m @ rows-axis = R @ cols-axis = C`.
+    if (identical(state$kind, "vector")) {
+        if (!identical(node$axis_name, state$axis)) {
+            stop(sprintf(
+                "entry-pick axis %s does not match the vector's axis %s",
+                sQuote(node$axis_name), sQuote(state$axis)
+            ), call. = FALSE)
+        }
+        if (!is.null(state$indices)) {
+            stop("entry-pick is not supported on a masked vector",
+                call. = FALSE)
+        }
+        state$kind <- "entry_pick_vector"
+        state$pick_axis <- node$axis_name
+        return(state)
+    }
+    if (identical(state$kind, "matrix")) {
+        if (identical(node$axis_name, state$rows_axis)) {
+            pick_dim <- "row"
+        } else if (identical(node$axis_name, state$cols_axis)) {
+            pick_dim <- "col"
+        } else {
+            stop(sprintf(
+                "entry-pick axis %s does not match the matrix axes (%s, %s)",
+                sQuote(node$axis_name),
+                sQuote(state$rows_axis), sQuote(state$cols_axis)
+            ), call. = FALSE)
+        }
+        state$kind <- "entry_pick_matrix"
+        state$pick_axis <- node$axis_name
+        state$pick_dim <- pick_dim
+        return(state)
+    }
     if (identical(state$kind, "axis")) {
         # second axis -> matrix dimension in scope.
         # If the first axis was mask-filtered, carry its surviving-entry
@@ -486,6 +520,14 @@ NULL
 }
 
 .apply_comparator <- function(node, state, daf) {
+    # Entry-pick resolves `= entry` after `@ axis` when a vector or matrix
+    # is in scope (Julia SCALAR_QUERY phrases).
+    if (identical(state$kind, "entry_pick_vector")) {
+        return(.apply_entry_pick_vector(node, state, daf))
+    }
+    if (identical(state$kind, "entry_pick_matrix")) {
+        return(.apply_entry_pick_matrix(node, state, daf))
+    }
     if (!identical(state$kind, "mask")) {
         stop("comparator outside of mask", call. = FALSE)
     }
@@ -526,6 +568,66 @@ NULL
         as.character(value_string)
     }
 }
+
+# Entry-pick from a vector: `@ axis = entry` after `: vector-property`.
+# Consumes the in-scope vector and returns the scalar at the named entry.
+.apply_entry_pick_vector <- function(node, state, daf) {
+    if (!identical(node$op, "IsEqual")) {
+        stop(sprintf(
+            "entry-pick on axis %s expects '= <entry>', got %s",
+            sQuote(state$pick_axis), sQuote(node$op)
+        ), call. = FALSE)
+    }
+    entry <- as.character(node$value)
+    axis_entries <- format_axis_array(daf, state$pick_axis)
+    idx <- match(entry, axis_entries)
+    if (is.na(idx)) {
+        stop(sprintf(
+            "no entry %s on axis %s",
+            sQuote(entry), sQuote(state$pick_axis)
+        ), call. = FALSE)
+    }
+    val <- state$value[[idx]]
+    # Strip any name attribute so the scalar is a bare length-1 value.
+    names(val) <- NULL
+    list(kind = "scalar", value = val)
+}
+
+# Entry-pick from a matrix: `@ axis = entry` after `:: matrix-property`.
+# Picks one row (or column) and leaves a vector along the remaining axis.
+# Two consecutive entry-picks reduce the matrix all the way to a scalar via
+# the entry_pick_vector path.
+.apply_entry_pick_matrix <- function(node, state, daf) {
+    if (!identical(node$op, "IsEqual")) {
+        stop(sprintf(
+            "entry-pick on axis %s expects '= <entry>', got %s",
+            sQuote(state$pick_axis), sQuote(node$op)
+        ), call. = FALSE)
+    }
+    entry <- as.character(node$value)
+    axis_entries <- format_axis_array(daf, state$pick_axis)
+    idx <- match(entry, axis_entries)
+    if (is.na(idx)) {
+        stop(sprintf(
+            "no entry %s on axis %s",
+            sQuote(entry), sQuote(state$pick_axis)
+        ), call. = FALSE)
+    }
+    m <- state$value
+    if (identical(state$pick_dim, "row")) {
+        vec <- m[idx, , drop = TRUE]
+        remaining_axis <- state$cols_axis
+    } else {
+        vec <- m[, idx, drop = TRUE]
+        remaining_axis <- state$rows_axis
+    }
+    if (methods::is(vec, "sparseVector") || methods::is(vec, "Matrix")) {
+        vec <- as.numeric(vec)
+        names(vec) <- format_axis_array(daf, remaining_axis)
+    }
+    list(kind = "vector", value = vec, axis = remaining_axis)
+}
+
 .apply_square_slice <- function(node, state, daf) {
     if (!identical(state$kind, "matrix")) {
         stop("square slice requires a matrix in scope", call. = FALSE)
