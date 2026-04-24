@@ -32,6 +32,8 @@
     registerS3method("slice_min", "daf_axis_tbl", ns$slice_min_daf_axis_tbl, envir = dplyr_ns)
     registerS3method("slice_max", "daf_axis_tbl", ns$slice_max_daf_axis_tbl, envir = dplyr_ns)
     registerS3method("slice_sample", "daf_axis_tbl", ns$slice_sample_daf_axis_tbl, envir = dplyr_ns)
+    registerS3method("rename", "daf_axis_tbl", ns$rename_daf_axis_tbl, envir = dplyr_ns)
+    registerS3method("relocate", "daf_axis_tbl", ns$relocate_daf_axis_tbl, envir = dplyr_ns)
     registerS3method("mutate", "daf_axis_tbl", ns$mutate_daf_axis_tbl, envir = dplyr_ns)
     registerS3method("arrange", "daf_axis_tbl", ns$arrange_daf_axis_tbl, envir = dplyr_ns)
     registerS3method("distinct", "daf_axis_tbl", ns$distinct_daf_axis_tbl, envir = dplyr_ns)

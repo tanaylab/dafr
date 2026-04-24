@@ -68,18 +68,26 @@ tbl_DafReader_axis <- function(src, axis, ...) {
     overrides <- attr(x, "overrides")
 
     cols <- list()
-    cols[["name"]] <- entries[rm]
-    for (nm in sel) {
-        if (nm %in% names(overrides)) {
-            cols[[nm]] <- unname(overrides[[nm]])
+    emit <- function(nm) {
+        if (nm == "name") {
+            cols[["name"]] <<- entries[rm]
+        } else if (nm %in% names(overrides)) {
+            cols[[nm]] <<- unname(overrides[[nm]])
         } else if (nm %in% stored_cols) {
-            v <- get_vector(daf, axis, nm)
-            cols[[nm]] <- unname(v[rm])
+            cols[[nm]] <<- unname(get_vector(daf, axis, nm)[rm])
         }
     }
-    if (!sel_explicit) {
+    if (sel_explicit) {
+        # Explicit sel defines the full output including where "name"
+        # lands. If user didn't include "name", it goes first.
+        if (!("name" %in% sel)) emit("name")
+        for (nm in sel) emit(nm)
+    } else {
+        # Default: name first, then stored cols, then extra overrides.
+        emit("name")
+        for (nm in sel) emit(nm)
         extra <- setdiff(names(overrides), c(sel, "name"))
-        for (nm in extra) cols[[nm]] <- unname(overrides[[nm]])
+        for (nm in extra) emit(nm)
     }
 
     out <- tibble::as_tibble(cols)
@@ -202,6 +210,43 @@ slice_max_daf_axis_tbl <- function(.data, order_by, ..., by = NULL) {
 #' @noRd
 slice_sample_daf_axis_tbl <- function(.data, ..., by = NULL) {
     .apply_row_reducer(.data, function(df) dplyr::slice_sample(df, ..., by = {{ by }}))
+}
+
+# ---- rename / relocate -----------------------------------------------------
+
+# rename is implemented by realizing the tbl, applying dplyr::rename,
+# and rebuilding the daf_axis_tbl with all columns now as overrides
+# (so the rename sticks — stored columns are keyed by their daf name
+# and can't be "renamed at source").
+
+#' @noRd
+rename_daf_axis_tbl <- function(.data, ...) {
+    df <- .realize(.data)
+    if (inherits(df, "grouped_df")) df <- dplyr::ungroup(df)
+    renamed <- dplyr::rename(df, ...)
+    daf <- attr(.data, "daf")
+    axis <- attr(.data, "axis")
+    overrides <- as.list(
+        renamed[, setdiff(colnames(renamed), "name"), drop = FALSE]
+    )
+    new_daf_axis_tbl(
+        daf = daf,
+        axis = axis,
+        row_mask = attr(.data, "row_mask"),
+        col_select = names(overrides),
+        overrides = overrides,
+        groups = attr(.data, "groups")
+    )
+}
+
+#' @noRd
+relocate_daf_axis_tbl <- function(.data, ..., .before = NULL, .after = NULL) {
+    df <- .realize(.data)
+    if (inherits(df, "grouped_df")) df <- dplyr::ungroup(df)
+    reordered <- dplyr::relocate(df, ...,
+        .before = {{ .before }}, .after = {{ .after }})
+    attr(.data, "col_select") <- colnames(reordered)
+    .data
 }
 
 # ---- mutate ----------------------------------------------------------------
