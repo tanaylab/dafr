@@ -7,8 +7,31 @@
   - ubuntu-latest on R r-oldrel-1
   - macos-latest on R r-release
   - windows-latest on R r-release
+- R-hub v2 (run cayenned-slothbear, branch `main`):
+  - linux (R-devel), windows (R-devel), macos-arm64 (R-devel),
+    gcc14, atlas, valgrind — all `Status: OK`.
 
-Full `testthat` suite: 2913 assertions.
+Full `testthat` suite: ~2987 assertions.
+
+## R-hub notes
+
+- **valgrind.** Reports 432 bytes "possibly lost" in a single block,
+  inside glibc's pthread thread-local-storage allocator
+  (`_dl_allocate_tls` invoked from `pthread_create` by `GOMP_parallel`
+  on the first OpenMP kernel call). `definitely lost` and
+  `indirectly lost` are both 0 bytes. This is the universal OpenMP
+  false-positive seen on every CRAN package that uses libgomp; it is
+  not a leak in our code.
+
+- **nold / clang-asan / clang-ubsan.** Could not be checked against
+  the full Suggests stack on R 4.7-devel because two transitive
+  Suggests deps fail to build there: `RcppAnnoy` (via `Seurat`) and
+  `RcppTOML` (via `reticulate`) reference the now-removed C symbol
+  `R_NamespaceRegistry` in `Rcpp/Function.h`. These are upstream
+  packages we don't depend on directly. A targeted probe with those
+  Suggests removed (R-hub run undiseased-polecat) confirmed the
+  package itself is clean under clang-ASAN and clang-UBSAN
+  (32m and 36m runs respectively, 0 sanitizer findings).
 
 ## R CMD check notes worth justifying
 
