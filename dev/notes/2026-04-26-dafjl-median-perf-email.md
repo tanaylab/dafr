@@ -110,17 +110,17 @@ bench::mark({ empty_cache(d); get_query(d, "@ row @ col :: value >- Sum") })
 
 Two things to notice:
 
-1. The kernel itself (a) is ~0.5 ms. The framework around it adds ~643 ms.
-   That's a **1240× wrapper-to-kernel ratio**, allocating ~108 k objects
-   per call. dafr, running the *same* DSL query through its own R+C++
-   wrapper, takes 56 ms — also above its bare R kernel (14.6 ms), but
-   the wrapper-to-kernel ratio is ~4× rather than 1240×. So the cost
-   ceiling for a DSL query is *much* lower than DAF.jl currently sits at.
-2. Generic per-column reduction (b) is *not* the slow part. A naive
-   `[sum(view(A, :, j)) for j in 1:n]` is 0.55 ms — basically identical
-   to the SparseArrays-specialized path. So the 643 ms in (c) is **not**
-   explained by "DAF.jl forfeits the SparseArrays fast path." It's
-   explained by everything *around* the reduction loop.
+1. The kernel itself (a) is ~0.5 ms. The wrapper around it adds ~643 ms —
+   a **1240× ratio**. dafr, running the *same* DSL query through its own
+   R + C++ wrapper, takes 56 ms (Sum) / 60 ms (Var) — also above its
+   bare kernel, but the wrapper ratio is ~4× rather than 1240×. So the
+   cost ceiling for a DSL wrapper is *much* lower than DAF.jl currently
+   sits at.
+2. Generic per-column reduction (b) is *not* the slow part. The
+   `[sum(view(A, :, j)) for j in 1:n]` form is 0.55 ms because each
+   `sum` call dispatches to the SparseArrays-specialized method — even
+   the "generic" Julia path is fast, as long as the dispatch finds the
+   specialization.
 
 Same shape on variance:
 
@@ -143,25 +143,81 @@ bench::mark({ empty_cache(d); get_query(d, "@ row @ col :: value >- Var") })
 # 59.6 ms median   (~25× faster than DAF.jl's 1515 ms)
 ```
 
-A profile of (c) shows 99 % of samples in this stack:
+### Where exactly the 643 ms goes
+
+A 10-second sampling profile of `empty_cache!(daf); get_query(daf, "... >- Sum")`
+(33 082 samples, 16 541 effective at 50 % util) — 99 % of samples in this
+stack:
 
 ```
-get_query → get_query_result → get_query_final_state →
-  do_query_phrase → reduce_matrix_to_row →
-    compute_reduction(::Sum, ...) →
-      parallel_loop_wo_rng → flame_timed →
-        mapfoldl_impl → _foldl_impl
+get_query (queries.jl:1330)
+  → with_data_read_lock
+    → write_slow_through_cache
+      → get_query_result (queries.jl:1691)
+        → get_query_final_state (queries.jl:1777)
+          → do_query_phrase (queries.jl:5568)
+            → reduce_matrix_to_row (queries.jl:4043)
+              → compute_reduction(::Sum, …) (operations.jl:1147)         16 428 samp
+                → parallel_loop_wo_rng → flame_timed
+                  → mapfoldl_impl → foldl_impl → _foldl_impl              16 282
+                    → iterate(::SubArray, …)                              15 936
+                      → SubArray.getindex (subarray.jl:316)               15 936
+                        → SparseArrays.ReadOnly.getindex (readonly.jl:20) 15 936
+                          → SparseMatrixCSC.getindex (sparsematrix.jl:2748) 13 466  (81 %)
+                            → searchsortedfirst (sort.jl:308–310)         13 466  (81 %)
+                              → < (int.jl:519)                             9 003  (54 %)
 ```
 
-…with the hot frames inside that path including `OrderedCollections`
-`ht_keyindex2` / `setindex!`, NamedArray construction,
-`StringViews.hash`, and `with_cache_write_lock`. The per-call 4.77 MiB /
-108 k allocations look like the dominant pressure source. Profile data:
-`/net/mraid20/.../dafr-native/dev/scripts/out/profile-flat.txt`.
+**The single most expensive function call is `searchsortedfirst` on an
+Int range** — 81 % of all samples — with the bare `<` integer compare at
+54 %.
 
-**Suggested fix:** find a way to amortize the per-call NamedArray /
-OrderedDict / cache-locking work, or specialize the hot paths so a
-`get_query("... >- Sum")` doesn't pay 100k allocations per invocation.
+What's actually happening: `compute_reduction(::Sum, …)` reduces to a
+generic `mapfoldl(identity, op, view(A, …))` over a `SubArray` of a
+`SparseArrays.ReadOnly{SparseMatrixCSC}`. Iterating that view yields
+elements one at a time via **scalar `A[i, j]` indexing**, and each scalar
+index into a CSC matrix is a binary search over the column's `rowval`.
+On this fixture: 100 M scalar reads × ~9 binary-search compares =
+~900 M integer comparisons. At sub-ns/compare in L1, that's ~700 ms.
+
+The "framework overhead" is literally this binary-search loop:
+
+```julia
+# Anti-pattern — what DAF.jl currently does, via mapfoldl over a view:
+s = zero(eltype(A))
+for i in 1:size(A, 1)
+    s += A[i, j]    # ← binary search every iteration
+end
+
+# Correct pattern — what `sum(A; dims=1)` already does internally,
+# 1300× faster on this fixture:
+s = zero(eltype(A))
+for k in nzrange(A, j)
+    s += A.nzval[k] # ← direct array read, O(nnz_in_col)
+end
+```
+
+Profile artifacts:
+`/net/mraid20/.../dafr-native/dev/scripts/out/{deep-flat.txt, deep-tree.txt}`
+(reproduce via `dev/scripts/probe-profile-deep.jl`).
+
+**Suggested fix.** Two equivalent paths:
+
+1. **Inside `compute_reduction(::Sum/Mean/Max/...)`**, replace the
+   generic `mapfoldl(identity, op, view(A, …))` with one that walks
+   `nzrange + nzval` directly — or, simpler, dispatch to
+   `SparseArrays.sum(A; dims=…)` / `mean` / `maximum` for the ops where
+   that already exists.
+2. **More general:** any `mapfoldl` / `mapreducedim!` over a
+   `SubArray{<:SparseMatrixCSC}` will hit this. A specialized
+   `iterate(::SubArray{<:SparseMatrixCSC})` that walks nonzeros directly
+   would fix it without touching `compute_reduction` at all.
+
+This also explains the asymmetry in the dafr↔DAF.jl bake-off table:
+`*_col` queries are "only" 4× slower in DAF.jl because column-direction
+views keep the binary-search constant manageable, while `*_row` queries
+hit 15–37× because every element costs a separate column-search — same
+anti-pattern, much worse asymptotic constant.
 
 ---
 
@@ -244,9 +300,16 @@ Reproducer scripts and profile data:
 ```
 /net/mraid20/ifs/wisdom/tanay_lab/tgdata/users/aviezerl/src/dafr-native/dev/scripts/
     profile-reasons-evidence.jl    # Julia: full Reason-1 + Reason-2
-    profile-kernel-sum-col.jl      # Julia: Reason 1 alone, with sampling profile
+    profile-kernel-sum-col.jl      # Julia: Reason 1 alone
     profile-kernel-median-col.jl   # Julia: Reason 2 alone
+    probe-profile-deep.jl          # Julia: the deep call-chain profile that
+                                   # pinned the cost to scalar getindex /
+                                   # searchsortedfirst
+    probe-jit-vs-runtime.jl        # Julia: confirms the 715ms is steady-state,
+                                   # not JIT (first call ~10s, all subsequent
+                                   # calls 709-725ms; cache hits = 40us)
     profile-dafr-equivalents.R     # R/dafr: paired equivalents on the same fixture
-    out/profile-flat.txt           # the 99% mapfoldl_impl profile output
+    out/deep-flat.txt              # flat profile, sorted by self-time
+    out/deep-tree.txt              # full call-tree profile
 ```
 
