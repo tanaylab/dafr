@@ -46,8 +46,8 @@ A function with the same signature as `fn`. The bound `contract` and
 
 Scope: single contract (matching Julia's exported
 `@computation Contract` form). Two-contract / three-contract variants
-(Julia UNTESTED) are not supported in this slice; pass a single
-`Contract` or use a merged one via `merge_contracts`.
+(Julia UNTESTED) are not supported; pass a single `Contract` or use a
+merged one via `merge_contracts`.
 
 ## See also
 

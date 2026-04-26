@@ -70,9 +70,11 @@ micro-test). On the heavy workloads that dominate real pipelines
 
 ### Heavy kernels on a large sparse matrix
 
-Dense reductions over a CSC matrix (`big_sparse`, ~100k × 5k, 2 %
-density). `dafr`’s OpenMP kernels win decisively even at
-`OMP_NUM_THREADS=1`:
+DSL-driven reductions over a CSC matrix (`big_sparse`, 10 000 × 10 000,
+5 % density, ~5 M nonzeros). Both runners measure the full query path —
+parse + axis lookup + kernel + result wrap — with the per-query cache
+invalidated each iteration. `OMP_NUM_THREADS=1`, so threading is not in
+play.
 
 | Query                 | dafr median | Julia median | Ratio (R/J) | Speedup (J/R) |
 |-----------------------|------------:|-------------:|------------:|--------------:|
@@ -88,6 +90,55 @@ density). `dafr`’s OpenMP kernels win decisively even at
 | `kernel_max_col`      |      154 ms |       683 ms |       0.23× |        **4×** |
 | `kernel_sum_col`      |      162 ms |       713 ms |       0.23× |        **4×** |
 | `kernel_mean_col`     |      161 ms |       643 ms |       0.25× |        **4×** |
+
+**What’s actually being compared.** These are wall-time numbers for the
+full DSL query, not for the underlying linear algebra. Both packages
+wrap a query parser, an axis-resolution layer, and a result-wrapping
+layer around a numeric kernel. Profiling shows that most of the visible
+time on this fixture is in those wrappers, not in the kernel itself —
+e.g. `get_query(daf, "@ row @ col :: value >- Sum")` in
+`DataAxesFormats.jl` spends ~99.9 % of its 652 ms in framework code; the
+underlying `sum(::SparseMatrixCSC; dims=1)` returns in ~0.5 ms. dafr’s
+analogous path is ~4× leaner per query, but dafr is also far above what
+a tight C++ kernel needs in absolute terms — both runners pay a
+substantial per-query tax.
+
+The wins above therefore have **two distinct sources**, depending on the
+row of the table:
+
+- **Column reductions (`*_col`, ~4×).** Pure framework win. Raw Julia
+  `sum(A; dims=1)` on the underlying `SparseMatrixCSC` is actually much
+  faster than dafr’s column-sum kernel; `DataAxesFormats.jl` forfeits
+  that fast path by routing every reduction through a generic per-column
+  `mapfoldl` for uniformity across operations. The 4× gap is the cost of
+  that generic path, not a kernel-quality difference.
+
+- **“Cheap” row reductions on CSC (`sum_row`, `mean_row`, `max_row`,
+  `var_row`, `std_row`; 15–37×).** Same story, amplified.
+  `SparseArrays.jl` has a specialized single-pass `dims=2` path that
+  outperforms dafr’s C++ kernel head-to-head; again,
+  `DataAxesFormats.jl`’s generic reduction wrapper does not use it, and
+  the wrapper happens to be especially expensive on this direction. Most
+  of the apparent dafr advantage here is `DataAxesFormats.jl` framework
+  cost, not a dafr kernel advantage.
+
+- **“Hard” row reductions on CSC (`median_row`, `mode_row`,
+  `quantile_row`, `geomean_row`; 7–18×).** Genuine kernel win.
+  `SparseArrays.jl` has no specialized `dims=2` path for these, and the
+  obvious idiomatic Julia approach (`mapslices(median, A; dims=2)`)
+  densifies every row — that alone takes ~3.5 s and allocates ~1.5 GiB
+  on this fixture. dafr ships hand-rolled CSC-row kernels
+  (`kernel_quantile_csc`, `kernel_mode_csc`, `kernel_geomean_csc`) that
+  scan nonzeros once without densifying. This is the only part of the
+  table where dafr’s kernel itself, rather than its framework, is the
+  source of the speedup.
+
+The takeaway: dafr is a faster *DSL runtime* than `DataAxesFormats.jl`
+on every row of this table, but on most of them (`*_col` plus the cheap
+row reductions) the underlying linear algebra in either package is
+already very fast. dafr’s specialized C++ reduction kernels matter
+mostly for the harder row-wise statistics on sparse data
+(`median`/`mode`/`quantile`/`geomean`).
 
 ### Grouped reductions
 

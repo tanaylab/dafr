@@ -118,9 +118,9 @@ property.</p>
 associated with <code>existing_axis</code> entries whose implicit value is empty —
 or <code>NULL</code> if no such entries exist. These values can be used to
 reconstruct the original property via the <code>?? X</code> query modifier.</p>
-<p>This slice requires <code>rename_axis</code> (or the default, <code>implicit_axis</code> name)
-to not already exist in <code>daf</code>. Pre-existing axis merge is a Slice 7
-follow-up.</p>
+<p>Requires that <code>rename_axis</code> (or the default, <code>implicit_axis</code> name)
+does not already exist in <code>daf</code>. Merging into a pre-existing axis is
+not supported.</p>
     </div>
 
     <div class="section level2">

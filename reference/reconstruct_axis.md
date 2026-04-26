@@ -64,9 +64,9 @@ associated with `existing_axis` entries whose implicit value is empty —
 or `NULL` if no such entries exist. These values can be used to
 reconstruct the original property via the `?? X` query modifier.
 
-This slice requires `rename_axis` (or the default, `implicit_axis` name)
-to not already exist in `daf`. Pre-existing axis merge is a Slice 7
-follow-up.
+Requires that `rename_axis` (or the default, `implicit_axis` name) does
+not already exist in `daf`. Merging into a pre-existing axis is not
+supported.
 
 ## Examples
 

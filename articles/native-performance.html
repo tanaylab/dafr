@@ -148,9 +148,11 @@ grouped reductions), dafr wins by 2×–37×.</p>
 <div class="section level3">
 <h3 id="heavy-kernels-on-a-large-sparse-matrix">Heavy kernels on a large sparse matrix<a class="anchor" aria-label="anchor" href="#heavy-kernels-on-a-large-sparse-matrix"></a>
 </h3>
-<p>Dense reductions over a CSC matrix (<code>big_sparse</code>, ~100k ×
-5k, 2 % density). <code>dafr</code>’s OpenMP kernels win decisively even
-at <code>OMP_NUM_THREADS=1</code>:</p>
+<p>DSL-driven reductions over a CSC matrix (<code>big_sparse</code>, 10
+000 × 10 000, 5 % density, ~5 M nonzeros). Both runners measure the full
+query path — parse + axis lookup + kernel + result wrap — with the
+per-query cache invalidated each iteration.
+<code>OMP_NUM_THREADS=1</code>, so threading is not in play.</p>
 <table class="table">
 <colgroup>
 <col width="29%">
@@ -253,6 +255,59 @@ at <code>OMP_NUM_THREADS=1</code>:</p>
 </tr>
 </tbody>
 </table>
+<p><strong>What’s actually being compared.</strong> These are wall-time
+numbers for the full DSL query, not for the underlying linear algebra.
+Both packages wrap a query parser, an axis-resolution layer, and a
+result-wrapping layer around a numeric kernel. Profiling shows that most
+of the visible time on this fixture is in those wrappers, not in the
+kernel itself —
+e.g. <code>get_query(daf, "@ row @ col :: value &gt;- Sum")</code> in
+<code>DataAxesFormats.jl</code> spends ~99.9 % of its 652 ms in
+framework code; the underlying
+<code>sum(::SparseMatrixCSC; dims=1)</code> returns in ~0.5 ms. dafr’s
+analogous path is ~4× leaner per query, but dafr is also far above what
+a tight C++ kernel needs in absolute terms — both runners pay a
+substantial per-query tax.</p>
+<p>The wins above therefore have <strong>two distinct sources</strong>,
+depending on the row of the table:</p>
+<ul>
+<li><p><strong>Column reductions (<code>*_col</code>, ~4×).</strong>
+Pure framework win. Raw Julia <code>sum(A; dims=1)</code> on the
+underlying <code>SparseMatrixCSC</code> is actually much faster than
+dafr’s column-sum kernel; <code>DataAxesFormats.jl</code> forfeits that
+fast path by routing every reduction through a generic per-column
+<code>mapfoldl</code> for uniformity across operations. The 4× gap is
+the cost of that generic path, not a kernel-quality difference.</p></li>
+<li><p><strong>“Cheap” row reductions on CSC (<code>sum_row</code>,
+<code>mean_row</code>, <code>max_row</code>, <code>var_row</code>,
+<code>std_row</code>; 15–37×).</strong> Same story, amplified.
+<code>SparseArrays.jl</code> has a specialized single-pass
+<code>dims=2</code> path that outperforms dafr’s C++ kernel
+head-to-head; again, <code>DataAxesFormats.jl</code>’s generic reduction
+wrapper does not use it, and the wrapper happens to be especially
+expensive on this direction. Most of the apparent dafr advantage here is
+<code>DataAxesFormats.jl</code> framework cost, not a dafr kernel
+advantage.</p></li>
+<li><p><strong>“Hard” row reductions on CSC (<code>median_row</code>,
+<code>mode_row</code>, <code>quantile_row</code>,
+<code>geomean_row</code>; 7–18×).</strong> Genuine kernel win.
+<code>SparseArrays.jl</code> has no specialized <code>dims=2</code> path
+for these, and the obvious idiomatic Julia approach
+(<code>mapslices(median, A; dims=2)</code>) densifies every row — that
+alone takes ~3.5 s and allocates ~1.5 GiB on this fixture. dafr ships
+hand-rolled CSC-row kernels (<code>kernel_quantile_csc</code>,
+<code>kernel_mode_csc</code>, <code>kernel_geomean_csc</code>) that scan
+nonzeros once without densifying. This is the only part of the table
+where dafr’s kernel itself, rather than its framework, is the source of
+the speedup.</p></li>
+</ul>
+<p>The takeaway: dafr is a faster <em>DSL runtime</em> than
+<code>DataAxesFormats.jl</code> on every row of this table, but on most
+of them (<code>*_col</code> plus the cheap row reductions) the
+underlying linear algebra in either package is already very fast. dafr’s
+specialized C++ reduction kernels matter mostly for the harder row-wise
+statistics on sparse data
+(<code>median</code>/<code>mode</code>/<code>quantile</code>/<code>geomean</code>).</p>
 </div>
 <div class="section level3">
 <h3 id="grouped-reductions">Grouped reductions<a class="anchor" aria-label="anchor" href="#grouped-reductions"></a>

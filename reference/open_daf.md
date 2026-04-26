@@ -2,7 +2,7 @@
 
 Dispatches on path extension. Directory paths open a `FilesDaf`; paths
 ending in `.h5df` or containing `.h5dfs#<group>` are reserved for an
-H5df backend (not implemented this slice).
+H5df backend (not implemented).
 
 ## Usage
 
@@ -35,10 +35,10 @@ tmp <- tempfile(); dir.create(tmp)
 files_daf(tmp, name = "tmp", mode = "w+")
 #> <dafr::FilesDaf>
 #>  @ name                  : chr "tmp"
-#>  @ internal              :<environment: 0x557a2dd32410> 
-#>  @ cache                 :<environment: 0x557a2dd32f70> 
-#>  @ axis_version_counter  :<environment: 0x557a2dd30cd0> 
-#>  @ vector_version_counter:<environment: 0x557a2dd30fa8> 
-#>  @ matrix_version_counter:<environment: 0x557a2dd31280> 
+#>  @ internal              :<environment: 0x5572fbc821a0> 
+#>  @ cache                 :<environment: 0x5572fbc82cc8> 
+#>  @ axis_version_counter  :<environment: 0x5572fbc7ead0> 
+#>  @ vector_version_counter:<environment: 0x5572fbc7eda8> 
+#>  @ matrix_version_counter:<environment: 0x5572fbc7b250> 
 d <- open_daf(tmp, "r")
 ```
