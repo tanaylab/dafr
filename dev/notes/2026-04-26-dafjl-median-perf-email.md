@@ -1,14 +1,7 @@
-**Subject:** DataAxesFormats.jl: where the perf gap with dafr actually
-comes from — two reasons, with reproducers
+**Subject:** Two measured causes for the DataAxesFormats.jl sparse perf gap
 
-Hi,
-
-I'm Aviezer Lifshitz from the Tanay lab. I've been writing a native R port
-of `DataAxesFormats.jl` (`dafr` — pure R + C++, same on-disk format and DSL),
-and while bake-off-ing it against the Julia reference I tracked down where
-the wall-time gap on sparse reductions actually comes from. It boils down
-to **two** distinct causes — both with clean fixes — and I wanted to share
-the reproducers in case they're useful.
+Sparse-reduction wall-time gap: **two** measured causes, with reproducers and
+fix directions.
 
 Everything below is runnable on the lab cluster. The fixture is a real
 `FilesDaf` directory at:
@@ -189,60 +182,13 @@ translation reference if useful — they're at
 
 ---
 
-## Things I checked that turned out *not* to be the cause
-
-I want to flag these explicitly so they don't get folklore'd into the
-next analysis. Both are runnable from the same setup block above:
-
-```julia
-# (g) Welford for variance is NOT a speed win on sparse:
-function welford_col_var(A::SparseMatrixCSC{Tv}) where Tv
-    n_rows, n_cols = size(A); out = zeros(Float64, n_cols)
-    @inbounds for j in 1:n_cols
-        rng = nzrange(A, j); n_zero = n_rows - length(rng)
-        n = n_zero; mu = 0.0; M2 = 0.0     # batch-fold the implicit zeros
-        for k in rng
-            x = Float64(A.nzval[k]); n += 1
-            d = x - mu; mu += d / n; M2 += d * (x - mu)
-        end
-        out[j] = M2 / (n - 1)
-    end
-    return out
-end
-@assert welford_col_var(A) ≈ vec(var(A; dims = 1))
-
-@btime welford_col_var($A)             # ~26 ms
-@btime var($A; dims = 1)               # ~1.06 ms
-# Statistics' two-pass path is ~25× FASTER than my Welford because its
-# inner loops vectorize. Welford's value is numerical stability, not
-# throughput.
-
-# (h) C++ kernels are NOT inherently faster than Julia here:
-#   dafr's full `kernel_sum_col` query              : 162 ms (R + C++)
-#   raw SparseArrays sum(A; dims=1) in Julia        : 0.52 ms  (above)
-# Julia's specialized kernel beats dafr's C++ kernel by ~300×. The
-# reason dafr "wins" the bake-off on column reductions is that dafr's
-# R-side framework is leaner than DataAxesFormats.jl's, NOT that the
-# C++ kernel is faster than Julia's BLAS-style loops.
-```
-
-So out of eight reasons I initially hypothesized for the gap, only the
-two above held up under measurement. The wrapper-overhead one is the
-dominant story for the entire bake-off; the missing sparse-aware
-kernels for densifying ops is a clean second.
-
----
-
-Happy to open a GitHub issue or draft a PR for either or both. The
-self-contained reproducer script and profile data:
+Reproducer scripts and profile data:
 
 ```
 /net/mraid20/ifs/wisdom/tanay_lab/tgdata/users/aviezerl/src/dafr-native/dev/scripts/
-    profile-reasons-evidence.jl    # full Reason-1 + Reason-2 + (g) + (h)
+    profile-reasons-evidence.jl    # full Reason-1 + Reason-2
     profile-kernel-sum-col.jl      # Reason 1 alone, with sampling profile
     profile-kernel-median-col.jl   # Reason 2 alone
     out/profile-flat.txt           # the 99% mapfoldl_impl profile output
 ```
 
-Best,
-Aviezer
