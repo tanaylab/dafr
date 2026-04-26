@@ -49,9 +49,9 @@ associated with \code{existing_axis} entries whose implicit value is empty —
 or \code{NULL} if no such entries exist. These values can be used to
 reconstruct the original property via the \code{?? X} query modifier.
 
-This slice requires \code{rename_axis} (or the default, \code{implicit_axis} name)
-to not already exist in \code{daf}. Pre-existing axis merge is a Slice 7
-follow-up.
+Requires that \code{rename_axis} (or the default, \code{implicit_axis} name)
+does not already exist in \code{daf}. Merging into a pre-existing axis is
+not supported.
 }
 \examples{
 d <- memory_daf(name = "d")

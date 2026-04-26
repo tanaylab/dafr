@@ -1,7 +1,7 @@
 #' @include utils.R
 NULL
 
-# Tokenizer — see dev/plans/2026-04-20-slice-3-queries-views.md task Q1.
+# Tokenizer.
 # Reference: DataAxesFormats.jl tokens.jl + queries.jl:2780.
 
 .QUERY_OP_REGEX <- "^(?:[!<>]=|!~|[\\|-]/|[&^\\|]!|\\?\\?|@[-\\|]|=@|::|>[->\\|]|\\|\\||[!&*%./:<=>?@\\[\\]^\\|~])"

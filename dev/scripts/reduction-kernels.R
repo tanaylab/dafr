@@ -1,8 +1,8 @@
-# benchmarks/slice-8-reduction-kernels.R
-# Slice 8 performance gates. Each benchmark block must pass its stated
-# ratio for the slice exit. Run with:
-#   Rscript benchmarks/slice-8-reduction-kernels.R
-# Results are also appended to dev/benchmarks/slice-8-results-<date>.csv.
+# dev/scripts/reduction-kernels.R
+# Reduction-kernel performance gates. Each benchmark block must pass its
+# stated ratio. Run with:
+#   Rscript dev/scripts/reduction-kernels.R
+# Results are also appended to dev/benchmarks/reduction-kernel-results-<date>.csv.
 
 suppressPackageStartupMessages({
     library(dafr)
@@ -247,7 +247,7 @@ res_df <- do.call(rbind, lapply(results, function(r) data.frame(
     target = r$target, mem_target = r$mem_target, status = r$status,
     stringsAsFactors = FALSE)))
 
-out_path <- sprintf("dev/benchmarks/slice-8-results-%s.csv", Sys.Date())
+out_path <- sprintf("dev/benchmarks/reduction-kernel-results-%s.csv", Sys.Date())
 dir.create(dirname(out_path), showWarnings = FALSE, recursive = TRUE)
 utils::write.csv(res_df, out_path, row.names = FALSE)
 cat(sprintf("\nWrote %s\n", out_path))

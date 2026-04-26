@@ -67,7 +67,7 @@ test_that("reconstruct_axis: rename_axis uses a different target name", {
     expect_false(has_axis(d, "donor"))
 })
 
-test_that("reconstruct_axis: errors when target axis pre-exists (this slice)", {
+test_that("reconstruct_axis: errors when target axis pre-exists", {
     d <- memory_daf(name = "d")
     add_axis(d, "cell", c("c1"))
     add_axis(d, "donor", c("dA"))

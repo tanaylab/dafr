@@ -1,4 +1,4 @@
-# Slice 8 Task 10: grouped-reduction rewrite tests
+# Grouped-reduction tests.
 #
 # Covers the four grouped patterns (G1/G2/G3/G4) end-to-end via the query DSL
 # plus R-level type-sniffing fallback + Mode-on-character special case.

@@ -30,7 +30,7 @@ no-op, so the wrapper is cheap to leave in place.
 \details{
 Scope: single contract (matching Julia's exported \verb{@computation Contract}
 form). Two-contract / three-contract variants (Julia UNTESTED) are not
-supported in this slice; pass a single \code{Contract} or use a merged one via
+supported; pass a single \code{Contract} or use a merged one via
 \code{merge_contracts}.
 }
 \examples{

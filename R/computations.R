@@ -12,7 +12,7 @@ NULL
 #'
 #' Scope: single contract (matching Julia's exported `@computation Contract`
 #' form). Two-contract / three-contract variants (Julia UNTESTED) are not
-#' supported in this slice; pass a single `Contract` or use a merged one via
+#' supported; pass a single `Contract` or use a merged one via
 #' `merge_contracts`.
 #'
 #' @param name Human-readable computation name (character scalar). Used in

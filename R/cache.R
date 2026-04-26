@@ -1,12 +1,7 @@
-# Cache skeleton for dafr.
-#
-# Three tiers:
-# - mapped : ALTREP mmap views (populated by FilesDaf in Slice 2)
+# Cache for dafr. Three tiers:
+# - mapped : ALTREP mmap views (populated by FilesDaf)
 # - memory : materialized R vectors
-# - query  : query-execution results (populated in Slice 4)
-#
-# Full LRU + heap-cap + version-stamp invalidation lands in Slice 1/4.
-# Slice 0 ships the storage layout and the simple operations.
+# - query  : query-execution results
 
 # ---- Verbose user-facing messages (gated on dafr.verbose) ----
 .cli_verbose <- function(msg, ...) {

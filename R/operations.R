@@ -377,7 +377,7 @@ registered_eltwise <- function() sort(names(.ops_env$eltwise))
 
 .op_mode <- function(x, ...) {
     if (!is.numeric(x) && !is.logical(x)) {
-        stop("Mode: only numeric and logical input are supported this slice; got ",
+        stop("Mode: only numeric and logical input are supported; got ",
             sQuote(typeof(x)), call. = FALSE
         )
     }
