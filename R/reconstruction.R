@@ -13,9 +13,9 @@ NULL
 #' or `NULL` if no such entries exist. These values can be used to
 #' reconstruct the original property via the `?? X` query modifier.
 #'
-#' This slice requires `rename_axis` (or the default, `implicit_axis` name)
-#' to not already exist in `daf`. Pre-existing axis merge is a Slice 7
-#' follow-up.
+#' Requires that `rename_axis` (or the default, `implicit_axis` name)
+#' does not already exist in `daf`. Merging into a pre-existing axis is
+#' not supported.
 #'
 #' @param daf A `DafWriter`.
 #' @param existing_axis Axis that holds the implicit property.
@@ -50,7 +50,7 @@ reconstruct_axis <- function(daf, existing_axis, implicit_axis,
 
     if (format_has_axis(daf, new_axis)) {
         stop(sprintf(
-            "axis %s already exists; reconstruct_axis does not support merging this slice",
+            "axis %s already exists; reconstruct_axis does not support merging into a pre-existing axis",
             sQuote(new_axis)
         ), call. = FALSE)
     }

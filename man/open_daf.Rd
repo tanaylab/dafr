@@ -19,7 +19,7 @@ A \code{DafReader} or \code{DafWriter}.
 \description{
 Dispatches on path extension. Directory paths open a \code{FilesDaf}; paths
 ending in \code{.h5df} or containing \code{.h5dfs#<group>} are reserved for an
-H5df backend (not implemented this slice).
+H5df backend (not implemented).
 }
 \examples{
 tmp <- tempfile(); dir.create(tmp)

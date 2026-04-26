@@ -1,5 +1,5 @@
-# tests/testthat/test-kernels-slice8.R
-# Slice 8 kernel tests — per-task additions.
+# tests/testthat/test-kernels-csc-fastpaths.R
+# CSC reduction-kernel tests.
 
 # ---------------------------------------------------------------------------
 # Task 2: kernel_minmax_csc_cpp

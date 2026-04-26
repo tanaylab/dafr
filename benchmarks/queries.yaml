@@ -364,7 +364,7 @@
   category: grouped
   fixture: big_sparse
 
-# (G4a `-/ g >|` and G4b `|/ g >-` are valid in dafr post-Slice-9a but
+# (G4a `-/ g >|` and G4b `|/ g >-` are valid in dafr but
 #  DataAxesFormats.jl rejects the operator combination. Dropped from the
 #  bake-off set since there is no Julia side to compare against.)
 

@@ -131,7 +131,7 @@ test_that("Mode on a single-element vector returns that element", {
     expect_equal(get_reduction("Mode")(7), 7)
 })
 
-test_that("Mode raises on character input (numeric-only this slice)", {
+test_that("Mode raises on character input (numeric-only)", {
     expect_error(get_reduction("Mode")(c("a", "b", "a")), "Mode.*numeric")
 })
 

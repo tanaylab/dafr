@@ -1,4 +1,4 @@
-# Slice 0 benchmark script.
+# Baseline benchmark script.
 #
 # Invocation:
 #   Rscript inst/benchmarks/bench.R [--small]
@@ -62,7 +62,7 @@ bm_t <- bench::mark(
 results_dir <- "dev/benchmarks"
 dir.create(results_dir, recursive = TRUE, showWarnings = FALSE)
 ts <- format(Sys.time(), "%Y-%m-%d-%H%M%S")
-csv_out <- file.path(results_dir, paste0("slice-0-baseline-", ts, ".csv"))
+csv_out <- file.path(results_dir, paste0("baseline-", ts, ".csv"))
 
 out <- rbind(
   data.frame(benchmark = "open_cold", expression = as.character(bm_open$expression),

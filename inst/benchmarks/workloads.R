@@ -1,6 +1,6 @@
-# Workload generators for Slice 0 benchmarks.
-# Produces synthetic FilesDaf-like directories; real FilesDaf format comes
-# in Slice 2, so for now we emit the raw slot files only.
+# Workload generators for benchmarks.
+# Produces synthetic FilesDaf-like directories — emits the raw slot files
+# only.
 
 make_synthetic_sparse <- function(nrow = 30000L, ncol = 30000L, density = 0.1) {
   nnz_est <- as.integer(nrow * ncol * density)

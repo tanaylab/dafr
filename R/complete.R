@@ -5,7 +5,7 @@ NULL
 #'
 #' Dispatches on path extension. Directory paths open a `FilesDaf`; paths
 #' ending in `.h5df` or containing `.h5dfs#<group>` are reserved for an
-#' H5df backend (not implemented this slice).
+#' H5df backend (not implemented).
 #'
 #' @param path Filesystem path.
 #' @param mode One of `"r"` (read-only) or `"r+"` (read-write).

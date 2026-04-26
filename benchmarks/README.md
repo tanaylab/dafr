@@ -31,5 +31,3 @@ the new code will not be exercised and results will be misleading.
 
        Rscript benchmarks/compare.R --r /tmp/r-times.csv \
            --julia /tmp/julia-times.csv --out /tmp/report.md
-
-See `dev/notes/2026-04-22-slice-9b-design.md` for the design rationale.
