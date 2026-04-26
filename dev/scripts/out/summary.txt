@@ -1,0 +1,10 @@
+Profile of `kernel_sum_col` Julia path
+fixture: /net/mraid20/ifs/wisdom/tanay_lab/tgdata/users/aviezerl/src/dafr-native/dev/scripts/../../benchmarks/fixture/data/big_sparse
+query:   @ row @ col :: value >- Sum
+matrix:  10000 × 10000, nnz = 5000000
+Julia:   1.12.5
+BLAS:    LBTConfig([ILP64] libopenblas64_.so)
+
+kernel-only (median):      0.49 ms
+full query  (median):    652.53 ms
+framework overhead:      652.04 ms  (99.9% of full query)

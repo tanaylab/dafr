@@ -1,0 +1,4 @@
+query          kernel(ms)    query(ms) framework×   k_allocs   q_allocs
+sum_row              6.60      2734.96      414.4          6     108491
+var_row             15.42      5849.07      379.4         18     108491
+median_row        3564.08      3519.06        1.0      90003     198491
