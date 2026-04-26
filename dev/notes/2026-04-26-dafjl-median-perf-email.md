@@ -29,8 +29,11 @@ $ julia --project=/net/mraid20/ifs/wisdom/tanay_lab/tgdata/users/aviezerl/src/da
 
 All numbers below were measured at `OMP_NUM_THREADS=1`,
 `BLAS.set_num_threads(1)`, Julia 1.12.5, `DataAxesFormats.jl` current `main`.
+The R-side numbers (dafr column) were measured under R 4.4.1 with the same
+single-threaded constraint. To make the comparison concrete, every Julia
+snippet is paired with the equivalent dafr (R) snippet immediately below.
 
-Setup block (paste into the REPL):
+Julia setup (paste into the REPL):
 
 ```julia
 using DataAxesFormats, SparseArrays, Statistics, BenchmarkTools, LinearAlgebra
@@ -53,6 +56,21 @@ A = unwrap_sparse(get_matrix(daf, "row", "col", "value"))
 println("matrix: $(size(A)), nnz=$(nnz(A))")
 ```
 
+R / dafr setup (paste into an R session):
+
+```r
+library(dafr); library(bench); library(Matrix)
+options(dafr.num_threads = 1L); Sys.setenv(OMP_NUM_THREADS = "1")
+
+d <- files_daf("/net/mraid20/ifs/wisdom/tanay_lab/tgdata/users/aviezerl/src/dafr-native/benchmarks/fixture/data/big_sparse",
+               mode = "r")
+m <- get_matrix(d, "row", "col", "value")   # dgCMatrix, same data as A
+stopifnot(dim(m) == c(10000L, 10000L))
+```
+
+A self-contained R reproducer with the same measurements lives at
+`/net/mraid20/.../dafr-native/dev/scripts/profile-dafr-equivalents.R`.
+
 ---
 
 ## Reason 1: per-query framework overhead dominates wall time
@@ -62,6 +80,7 @@ kernel is sub-millisecond, but `get_query` takes hundreds of milliseconds
 to a second-and-a-half. The cost is in the wrapper path, not the math.
 
 ```julia
+# Julia
 # (a) bare SparseArrays — the kernel
 @btime sum($A; dims = 1)
 # 0.52 ms,  78 KiB,  3 allocs
@@ -78,11 +97,25 @@ end
 # 644 ms,  4.77 MiB,  108 499 allocs
 ```
 
+```r
+# R / dafr — equivalents on the same fixture
+# (a') Matrix package's bare colSums on the dgCMatrix
+bench::mark(Matrix::colSums(m))
+# 14.6 ms median   (R/Matrix bare kernel; ~28× slower than Julia's 0.52 ms)
+
+# (c') dafr full DSL query — identical query string
+bench::mark({ empty_cache(d); get_query(d, "@ row @ col :: value >- Sum") })
+# 56 ms median     (~11× faster than DAF.jl's 644 ms)
+```
+
 Two things to notice:
 
 1. The kernel itself (a) is ~0.5 ms. The framework around it adds ~643 ms.
    That's a **1240× wrapper-to-kernel ratio**, allocating ~108 k objects
-   per call.
+   per call. dafr, running the *same* DSL query through its own R+C++
+   wrapper, takes 56 ms — also above its bare R kernel (14.6 ms), but
+   the wrapper-to-kernel ratio is ~4× rather than 1240×. So the cost
+   ceiling for a DSL query is *much* lower than DAF.jl currently sits at.
 2. Generic per-column reduction (b) is *not* the slow part. A naive
    `[sum(view(A, :, j)) for j in 1:n]` is 0.55 ms — basically identical
    to the SparseArrays-specialized path. So the 643 ms in (c) is **not**
@@ -92,12 +125,22 @@ Two things to notice:
 Same shape on variance:
 
 ```julia
+# Julia
 @btime var($A; dims = 1)                                    # 1.06 ms
 @btime begin
     empty_cache!($daf)
     get_query($daf, "@ row @ col :: value >- Var")
 end
 # 1515 ms,  4.77 MiB,  108 499 allocs
+```
+
+```r
+# R / dafr
+bench::mark(sparseMatrixStats::colVars(m))
+# 36.9 ms median   (R sparse-aware bare kernel)
+
+bench::mark({ empty_cache(d); get_query(d, "@ row @ col :: value >- Var") })
+# 59.6 ms median   (~25× faster than DAF.jl's 1515 ms)
 ```
 
 A profile of (c) shows 99 % of samples in this stack:
@@ -170,6 +213,20 @@ sparse_col_medians(A) = [sparse_col_median(A, j) for j in 1:size(A, 2)]
 # 73 ms,   128 MiB,    110 003 allocs   <- 19× faster, 12× less memory
 ```
 
+```r
+# R / dafr — same DSL query; dafr's `kernel_quantile_csc` is sparse-aware
+bench::mark({ empty_cache(d); get_query(d, "@ row @ col :: value >- Median") })
+# 56 ms median   (~24× faster than DAF.jl's 1370 ms; comparable to the
+#                 30-line sparse_col_medians kernel above at 73 ms — both
+#                 do the same trick: sort only nonzeros, account for
+#                 implicit zeros)
+
+# Reference: R's sparseMatrixStats package has shipped a sparse-aware
+# colMedians for years
+bench::mark(sparseMatrixStats::colMedians(m))
+# 13.4 ms median
+```
+
 The same trick generalizes to `Quantile` (same skeleton, parametrized
 position), `Mode` (count-on-the-fly with implicit-zero bias), and
 `GeoMean` (log-sum over nonzeros + skip implicit zeros via `eps`-floor).
@@ -186,9 +243,10 @@ Reproducer scripts and profile data:
 
 ```
 /net/mraid20/ifs/wisdom/tanay_lab/tgdata/users/aviezerl/src/dafr-native/dev/scripts/
-    profile-reasons-evidence.jl    # full Reason-1 + Reason-2
-    profile-kernel-sum-col.jl      # Reason 1 alone, with sampling profile
-    profile-kernel-median-col.jl   # Reason 2 alone
+    profile-reasons-evidence.jl    # Julia: full Reason-1 + Reason-2
+    profile-kernel-sum-col.jl      # Julia: Reason 1 alone, with sampling profile
+    profile-kernel-median-col.jl   # Julia: Reason 2 alone
+    profile-dafr-equivalents.R     # R/dafr: paired equivalents on the same fixture
     out/profile-flat.txt           # the 99% mapfoldl_impl profile output
 ```
 
