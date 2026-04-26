@@ -10,16 +10,54 @@ the wall-time gap on sparse reductions actually comes from. It boils down
 to **two** distinct causes — both with clean fixes — and I wanted to share
 the reproducers in case they're useful.
 
-Setup for everything below: a 10 000 × 10 000 `SparseMatrixCSC{Float64}`,
-5 % density (~5 M nonzeros), `OMP_NUM_THREADS=1`,
+Everything below is runnable on the lab cluster. The fixture is a real
+`FilesDaf` directory at:
+
+```
+/net/mraid20/ifs/wisdom/tanay_lab/tgdata/users/aviezerl/src/dafr-native/benchmarks/fixture/data/big_sparse
+```
+
+It contains a 10 000 × 10 000 `SparseMatrixCSC{Float64}` at 5 % density
+(~5 M nonzeros), stored on axes `(row, col)` under matrix name `value`.
+A self-contained runnable script with all four measurements lives at:
+
+```
+/net/mraid20/ifs/wisdom/tanay_lab/tgdata/users/aviezerl/src/dafr-native/dev/scripts/profile-reasons-evidence.jl
+```
+
+Run with any Julia environment that has `DataAxesFormats`, `BenchmarkTools`,
+`SparseArrays`, `Statistics` (e.g. the bake-off env at
+`/net/mraid20/.../dafr-native/benchmarks/julia`):
+
+```
+$ julia --project=/net/mraid20/ifs/wisdom/tanay_lab/tgdata/users/aviezerl/src/dafr-native/benchmarks/julia \
+        /net/mraid20/ifs/wisdom/tanay_lab/tgdata/users/aviezerl/src/dafr-native/dev/scripts/profile-reasons-evidence.jl
+```
+
+All numbers below were measured at `OMP_NUM_THREADS=1`,
 `BLAS.set_num_threads(1)`, Julia 1.12.5, `DataAxesFormats.jl` current `main`.
 
-```julia
-using DataAxesFormats, SparseArrays, Statistics, BenchmarkTools
+Setup block (paste into the REPL):
 
-daf   = FilesDaf("path/to/big_sparse", "r")
-A     = parent(parent(get_matrix(daf, "row", "col", "value")))   # SparseMatrixCSC
+```julia
+using DataAxesFormats, SparseArrays, Statistics, BenchmarkTools, LinearAlgebra
+BLAS.set_num_threads(1)
+
+const FIXTURE = "/net/mraid20/ifs/wisdom/tanay_lab/tgdata/users/aviezerl/src/dafr-native/benchmarks/fixture/data/big_sparse"
+daf = FilesDaf(FIXTURE, "r"; name = "big_sparse")
+
+# Unwrap NamedArrays / ReadOnly down to the underlying SparseMatrixCSC.
+function unwrap_sparse(x)
+    cur = x
+    while !isa(cur, SparseMatrixCSC)
+        p = parent(cur); p === cur && break
+        cur = p
+    end
+    return cur
+end
+A = unwrap_sparse(get_matrix(daf, "row", "col", "value"))
 @assert isa(A, SparseMatrixCSC) && size(A) == (10_000, 10_000)
+println("matrix: $(size(A)), nnz=$(nnz(A))")
 ```
 
 ---
@@ -58,31 +96,32 @@ Two things to notice:
    explained by "DAF.jl forfeits the SparseArrays fast path." It's
    explained by everything *around* the reduction loop.
 
-The same shape holds for variance:
+Same shape on variance:
 
 ```julia
 @btime var($A; dims = 1)                                    # 1.06 ms
-@btime begin empty_cache!($daf); get_query($daf, "@ row @ col :: value >- Var") end
+@btime begin
+    empty_cache!($daf)
+    get_query($daf, "@ row @ col :: value >- Var")
+end
 # 1515 ms,  4.77 MiB,  108 499 allocs
 ```
 
-A profile of (c) shows the time goes through:
+A profile of (c) shows 99 % of samples in this stack:
 
 ```
 get_query → get_query_result → get_query_final_state →
   do_query_phrase → reduce_matrix_to_row →
     compute_reduction(::Sum, ...) →
       parallel_loop_wo_rng → flame_timed →
-        mapfoldl_impl → _foldl_impl    ← 99 % of samples
+        mapfoldl_impl → _foldl_impl
 ```
 
-…with the hot frames inside that path including OrderedDict
-`ht_keyindex2` / `setindex!`, NamedArray construction, `StringViews.hash`,
-and `with_cache_write_lock`. Allocation-wise, the per-call 4.77 MiB / 108 k
-allocations look like the dominant pressure source.
-
-(Profile script + flat output: `dev/scripts/profile-kernel-sum-col.jl`,
- `dev/scripts/out/profile-flat.txt`.)
+…with the hot frames inside that path including `OrderedCollections`
+`ht_keyindex2` / `setindex!`, NamedArray construction,
+`StringViews.hash`, and `with_cache_write_lock`. The per-call 4.77 MiB /
+108 k allocations look like the dominant pressure source. Profile data:
+`/net/mraid20/.../dafr-native/dev/scripts/out/profile-flat.txt`.
 
 **Suggested fix:** find a way to amortize the per-call NamedArray /
 OrderedDict / cache-locking work, or specialize the hot paths so a
@@ -92,12 +131,14 @@ OrderedDict / cache-locking work, or specialize the hot paths so a
 
 ## Reason 2: no sparse-aware path for Median / Mode / Quantile / GeoMean
 
-For these ops, the underlying Julia kernel is *also* slow (`Statistics`
-has no specialized sparse `dims` path), so the per-query overhead from
-Reason 1 is hidden — both DAF.jl and a naive bare-Julia call take
-~1.4 s. But there is an algorithmic ceiling, and it's ~19× higher than
-either. A 30-line sparse-aware median that sorts only the per-column
-nonzero buffer and indexes through the implicit zeros:
+For these ops, the underlying Julia kernel is *also* slow — `Statistics`
+has no specialized sparse `dims` path, so `median(::SparseColumnView)`
+densifies via `sort!`. The Reason 1 framework cost gets hidden behind
+this; both DAF.jl and a naive bare-Julia call take ~1.4 s. But there is
+an algorithmic ceiling, and it's ~19× higher than either.
+
+A 30-line sparse-aware median that sorts only the per-column nonzero
+buffer and indexes through the implicit zeros:
 
 ```julia
 # (d) bare Julia — what DAF.jl effectively reduces to
@@ -143,41 +184,65 @@ position), `Mode` (count-on-the-fly with implicit-zero bias), and
 **Suggested fix:** add `compute_reduction(::T, ::SparseMatrixCSC, axis)`
 methods for `T ∈ {Median, Quantile, Mode, GeoMean}` that exploit implicit
 zeros instead of densifying. Happy to share dafr's C++ kernels as a
-translation reference if useful.
+translation reference if useful — they're at
+`/net/mraid20/.../dafr-native/src/kernel_{quantile,mode,geomean}_csc.cpp`.
 
 ---
 
 ## Things I checked that turned out *not* to be the cause
 
-I want to flag these briefly so they don't get folklore'd into the next
-analysis:
+I want to flag these explicitly so they don't get folklore'd into the
+next analysis. Both are runnable from the same setup block above:
 
 ```julia
-# Welford for variance is NOT a speed win on sparse:
-#   hand-written single-pass Welford on SparseMatrixCSC: 26.1 ms
-#   Statistics.var(A; dims=1)                          :  1.06 ms
-# Statistics' two-pass path is ~25× faster because its inner loops
-# vectorize. Welford's value is numerical stability, not throughput.
+# (g) Welford for variance is NOT a speed win on sparse:
+function welford_col_var(A::SparseMatrixCSC{Tv}) where Tv
+    n_rows, n_cols = size(A); out = zeros(Float64, n_cols)
+    @inbounds for j in 1:n_cols
+        rng = nzrange(A, j); n_zero = n_rows - length(rng)
+        n = n_zero; mu = 0.0; M2 = 0.0     # batch-fold the implicit zeros
+        for k in rng
+            x = Float64(A.nzval[k]); n += 1
+            d = x - mu; mu += d / n; M2 += d * (x - mu)
+        end
+        out[j] = M2 / (n - 1)
+    end
+    return out
+end
+@assert welford_col_var(A) ≈ vec(var(A; dims = 1))
 
-# C++ kernels are NOT inherently faster than Julia here:
+@btime welford_col_var($A)             # ~26 ms
+@btime var($A; dims = 1)               # ~1.06 ms
+# Statistics' two-pass path is ~25× FASTER than my Welford because its
+# inner loops vectorize. Welford's value is numerical stability, not
+# throughput.
+
+# (h) C++ kernels are NOT inherently faster than Julia here:
 #   dafr's full `kernel_sum_col` query              : 162 ms (R + C++)
-#   raw SparseArrays sum(A; dims=1) in Julia        : 0.52 ms
-# Julia's specialized kernel beats dafr's C++ kernel by ~300×. The reason
-# dafr "wins" the bake-off on column reductions is that dafr's R-side
-# framework is leaner than DataAxesFormats.jl's, NOT that the C++ kernel
-# is faster than Julia's BLAS-style loops.
+#   raw SparseArrays sum(A; dims=1) in Julia        : 0.52 ms  (above)
+# Julia's specialized kernel beats dafr's C++ kernel by ~300×. The
+# reason dafr "wins" the bake-off on column reductions is that dafr's
+# R-side framework is leaner than DataAxesFormats.jl's, NOT that the
+# C++ kernel is faster than Julia's BLAS-style loops.
 ```
 
-So out of the eight reasons I initially hypothesized, only the two above
-held up under measurement. The wrapper-overhead one is the dominant story
-for the entire bake-off; the missing sparse-aware kernels for densifying
-ops is a clean second.
+So out of eight reasons I initially hypothesized for the gap, only the
+two above held up under measurement. The wrapper-overhead one is the
+dominant story for the entire bake-off; the missing sparse-aware
+kernels for densifying ops is a clean second.
 
 ---
 
 Happy to open a GitHub issue or draft a PR for either or both. The
-reproducer scripts are at `dev/scripts/profile-{kernel-sum-col,
-kernel-median-col, reasons-evidence}.jl` in the dafr-native repo.
+self-contained reproducer script and profile data:
+
+```
+/net/mraid20/ifs/wisdom/tanay_lab/tgdata/users/aviezerl/src/dafr-native/dev/scripts/
+    profile-reasons-evidence.jl    # full Reason-1 + Reason-2 + (g) + (h)
+    profile-kernel-sum-col.jl      # Reason 1 alone, with sampling profile
+    profile-kernel-median-col.jl   # Reason 2 alone
+    out/profile-flat.txt           # the 99% mapfoldl_impl profile output
+```
 
 Best,
 Aviezer

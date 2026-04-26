@@ -3,7 +3,12 @@
 # For each claimed reason, run the smallest possible measurement that
 # proves or disproves it. Outputs a table summarizing each.
 #
-#   julia --project=benchmarks/julia dev/scripts/profile-reasons-evidence.jl
+# Runnable on the lab cluster as-is:
+#   julia --project=/net/mraid20/ifs/wisdom/tanay_lab/tgdata/users/aviezerl/src/dafr-native/benchmarks/julia \
+#         /net/mraid20/ifs/wisdom/tanay_lab/tgdata/users/aviezerl/src/dafr-native/dev/scripts/profile-reasons-evidence.jl
+#
+# Or activate any env with DataAxesFormats + BenchmarkTools and `include`
+# this file from a Julia REPL.
 
 using DataAxesFormats
 using BenchmarkTools
@@ -14,7 +19,7 @@ using Printf
 
 BLAS.set_num_threads(1)
 
-const FIXTURE = joinpath(@__DIR__, "..", "..", "benchmarks", "fixture", "data", "big_sparse")
+const FIXTURE = "/net/mraid20/ifs/wisdom/tanay_lab/tgdata/users/aviezerl/src/dafr-native/benchmarks/fixture/data/big_sparse"
 daf = FilesDaf(FIXTURE, "r"; name = "big_sparse")
 function unwrap_sparse(x)
     cur = x
