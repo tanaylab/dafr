@@ -21,13 +21,13 @@ jobs:
 
       - uses: r-lib/actions/setup-r-dependencies@v2
         with:
-          extra-packages: any::cpp11, any::decor, any::bench, any::Matrix, any::withr
+          extra-packages: any::cpp11, any::decor, any::bench, any::Matrix, any::withr, any::pkgload
 
       - name: Build
         run: Rscript -e 'pkgbuild::clean_dll(); pkgbuild::compile_dll(debug = FALSE)'
 
       - name: Run Slice 0 benchmarks
-        run: Rscript -e 'devtools::load_all(); source("inst/benchmarks/bench.R")' -- --small
+        run: Rscript -e 'pkgload::load_all(); source("inst/benchmarks/bench.R")' -- --small
 
       - uses: actions/upload-artifact@v4
         with:
