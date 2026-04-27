@@ -32,4 +32,5 @@ jobs:
       - uses: actions/upload-artifact@v4
         with:
           name: bench-csv
-          path: dev/benchmarks/slice-0-baseline-*.csv
+          path: dev/benchmarks/baseline-*.csv
+          if-no-files-found: error
