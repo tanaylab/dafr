@@ -404,7 +404,7 @@ S7::method(
     format_relayout_matrix,
     list(FilesDaf, S7::class_character, S7::class_character, S7::class_character)
 ) <- function(daf, rows_axis, columns_axis, name) {
-    src <- format_get_matrix(daf, rows_axis, columns_axis, name)
+    src <- format_get_matrix(daf, rows_axis, columns_axis, name)$value
     transposed <- if (methods::is(src, "dgCMatrix") || methods::is(src, "lgCMatrix")) {
         Matrix::t(src)
     } else {

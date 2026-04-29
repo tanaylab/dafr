@@ -235,7 +235,7 @@ viewer <- function(daf, name = NULL, axes = NULL, data = NULL) {
     for (view_name in names(view_axes)) {
         q <- view_axes[[view_name]]
         base_axis <- renames[[view_name]]
-        base_entries <- format_axis_array(daf, base_axis)
+        base_entries <- format_axis_array(daf, base_axis)$value
         if (identical(q, "=") || identical(q, view_name)) {
             out[[view_name]] <- seq_along(base_entries)
         } else {

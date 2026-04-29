@@ -94,22 +94,22 @@ DafAnnData <- R6::R6Class(
         #' @field obs_names Character vector of observation names.
         obs_names = function(value) {
             if (!missing(value)) .read_only_error()
-            format_axis_array(self$daf, self$obs_axis)
+            format_axis_array(self$daf, self$obs_axis)$value
         },
         #' @field var_names Character vector of variable names.
         var_names = function(value) {
             if (!missing(value)) .read_only_error()
-            format_axis_array(self$daf, self$var_axis)
+            format_axis_array(self$daf, self$var_axis)$value
         },
         #' @field n_obs Number of observations.
         n_obs = function(value) {
             if (!missing(value)) .read_only_error()
-            as.integer(length(format_axis_array(self$daf, self$obs_axis)))
+            as.integer(length(format_axis_array(self$daf, self$obs_axis)$value))
         },
         #' @field n_vars Number of variables.
         n_vars = function(value) {
             if (!missing(value)) .read_only_error()
-            as.integer(length(format_axis_array(self$daf, self$var_axis)))
+            as.integer(length(format_axis_array(self$daf, self$var_axis)$value))
         },
         #' @field shape Dimensions `c(n_obs, n_vars)`.
         shape = function(value) {

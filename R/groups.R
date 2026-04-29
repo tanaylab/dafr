@@ -141,7 +141,7 @@ group_names <- function(daf, axis, entries_of_groups, prefix) {
         "`prefix` must be a character scalar" =
             is.character(prefix) && length(prefix) == 1L
     )
-    entry_names <- format_axis_array(daf, axis)
+    entry_names <- format_axis_array(daf, axis)$value
     n <- length(entry_names)
     vapply(entries_of_groups, function(members) {
         members <- as.integer(members)

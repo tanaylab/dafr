@@ -54,7 +54,7 @@ axis_vector <- function(daf, axis, null_if_missing = FALSE) {
         }
         stop(sprintf("axis %s does not exist", sQuote(axis)), call. = FALSE)
     }
-    format_axis_array(daf, axis)
+    format_axis_array(daf, axis)$value
 }
 
 #' Entry names of an axis (full or by index).
@@ -174,7 +174,7 @@ scalars_set <- function(daf) format_scalars_set(daf)
 get_scalar <- function(daf, name, default) {
     .assert_name(name, "name")
     if (format_has_scalar(daf, name)) {
-        return(format_get_scalar(daf, name))
+        return(format_get_scalar(daf, name)$value)
     }
     if (!missing(default)) {
         return(default)
@@ -238,7 +238,7 @@ get_vector <- function(daf, axis, name, default) {
     if (!format_has_axis(daf, axis)) {
         stop(sprintf("axis %s does not exist", sQuote(axis)), call. = FALSE)
     }
-    entries <- format_axis_array(daf, axis)
+    entries <- format_axis_array(daf, axis)$value
     if (!format_has_vector(daf, axis, name)) {
         if (missing(default)) {
             stop(sprintf(
@@ -263,14 +263,16 @@ get_vector <- function(daf, axis, name, default) {
     cache_key <- cache_key_vector(axis, name)
     cache_env <- S7::prop(daf, "cache")
     stamp_now <- vector_stamp(daf, axis, name)
-    hit <- cache_lookup(cache_env, "memory", cache_key, stamp_now)
+    res <- format_get_vector(daf, axis, name)
+    raw <- res$value
+    tier <- .canonical_tier(res$cache_group)
+    hit <- cache_lookup(cache_env, tier, cache_key, stamp_now)
     if (!is.null(hit)) {
         return(hit)
     }
-    raw <- format_get_vector(daf, axis, name)
     out <- raw
     if (is.null(names(out))) names(out) <- entries
-    cache_store(cache_env, "memory", cache_key, out, stamp_now,
+    cache_store(cache_env, tier, cache_key, out, stamp_now,
         size_bytes = object.size(out)
     )
     out
@@ -329,8 +331,8 @@ get_matrix <- function(daf, rows_axis, columns_axis, name, default) {
     .assert_name(columns_axis, "columns_axis")
     .assert_name(name, "name")
 
-    rows <- format_axis_array(daf, rows_axis)
-    cols <- format_axis_array(daf, columns_axis)
+    rows <- format_axis_array(daf, rows_axis)$value
+    cols <- format_axis_array(daf, columns_axis)$value
 
     primary <- format_has_matrix(daf, rows_axis, columns_axis, name)
     flipped <- !primary && format_has_matrix(daf, columns_axis, rows_axis, name)
@@ -363,10 +365,13 @@ get_matrix <- function(daf, rows_axis, columns_axis, name, default) {
     cache_key <- cache_key_matrix(ra, ca, name)
     cache_env <- S7::prop(daf, "cache")
     stamp_now <- matrix_stamp(daf, ra, ca, name)
-    stored <- cache_lookup(cache_env, "memory", cache_key, stamp_now)
+    res <- format_get_matrix(daf, ra, ca, name)
+    raw <- res$value
+    tier <- .canonical_tier(res$cache_group)
+    stored <- cache_lookup(cache_env, tier, cache_key, stamp_now)
     if (is.null(stored)) {
-        stored <- format_get_matrix(daf, ra, ca, name)
-        cache_store(cache_env, "memory", cache_key, stored, stamp_now,
+        stored <- raw
+        cache_store(cache_env, tier, cache_key, stored, stamp_now,
             size_bytes = object.size(stored)
         )
     }
@@ -413,7 +418,7 @@ description <- function(daf) {
     if (length(sc)) {
         lines <- c(lines, "scalars:")
         for (nm in sc) {
-            v <- format_get_scalar(daf, nm)
+            v <- format_get_scalar(daf, nm)$value
             lines <- c(lines, sprintf("  %s: %s", nm, .format_scalar_literal(v)))
         }
     }

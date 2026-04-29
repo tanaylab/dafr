@@ -29,8 +29,8 @@ NULL
     axis_name <- state$axis
     columns <- format_vectors_set(daf, axis_name)
     cols <- lapply(columns, function(nm) {
-        v <- format_get_vector(daf, axis_name, nm)
-        full_entries <- format_axis_array(daf, axis_name)
+        v <- format_get_vector(daf, axis_name, nm)$value
+        full_entries <- format_axis_array(daf, axis_name)$value
         idx <- match(entries, full_entries)
         v[idx]
     })
