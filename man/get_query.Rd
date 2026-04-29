@@ -15,6 +15,12 @@ get_query(daf, query_string)
 }
 \value{
 A scalar, vector, matrix, names set, or NULL if missing.
+Data-bearing results carry axis-entry names: vectors are returned
+with \code{names()} set to the axis entries (filtered by any mask) and
+matrices with \code{dimnames()} set to
+\code{list(rows-axis-entries, cols-axis-entries)}. Names-set queries
+(\verb{?}) and axis-only queries (whose values \emph{are} the entry names)
+are returned unnamed.
 }
 \description{
 The query language follows DataAxesFormats.jl's \code{queries.jl} exactly;
