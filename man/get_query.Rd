@@ -17,10 +17,71 @@ get_query(daf, query_string)
 A scalar, vector, matrix, names set, or NULL if missing.
 }
 \description{
-Evaluate a query against a daf reader.
+The query language follows DataAxesFormats.jl's \code{queries.jl} exactly;
+the examples below mirror its jldoctest blocks one-for-one so any
+regression is caught by \verb{R CMD check}.
 }
 \examples{
-d <- example_cells_daf()
-get_query(d, ". organism")
-head(get_query(d, "@ cell : donor"))
+cells <- example_cells_daf()
+metacells <- example_metacells_daf()
+chain <- example_chain_daf()
+
+# --- Names queries (jl:92-140) -------------------------------------------
+cells[". ?"]                            # scalar names
+cells["@ ?"]                            # axis names
+cells["@ gene : ?"]                     # vector names on gene
+cells["@ cell @ gene :: ?"]             # matrix names on cell x gene
+
+# --- Reductions to scalar (jl:162, 174) ----------------------------------
+cells["@ gene : is_lateral >> Sum type Int64"]
+cells["@ cell @ gene :: UMIs >> Sum type Int64"]
+
+# --- Axis vectors and masks (jl:195, 254, 293) ---------------------------
+head(cells["@ experiment"])
+head(cells["@ gene [ ! is_lateral ]"])
+head(cells["@ donor [ age > 60 & sex = male ]"])
+
+# --- Vector lookup (jl:332) ----------------------------------------------
+metacells["@ metacell : type"]
+
+# --- Matrix-by-axis column slice (jl:357) --------------------------------
+head(metacells["@ gene :: fraction @ metacell = M412.08"])
+
+# --- Square matrix slices (jl:386, 408) ----------------------------------
+metacells["@ metacell :: edge_weight @| M412.08"]
+metacells["@ metacell :: edge_weight @- M412.08"]
+
+# --- Chained vector lookup (jl:448) --------------------------------------
+metacells["@ metacell : type : color"]
+
+# --- Eltwise + comparator on vector (jl:468, 498) ------------------------
+head(cells["@ donor : age \% Clamp min 40 max 60 type Int64"])
+head(cells["@ donor : age > 60"])
+
+# --- AsAxis explicit and named (jl:548, 566) -----------------------------
+metacells["@ metacell : type =@ : color"]
+metacells["@ metacell : type =@ type : color"]
+
+# --- Group-by + chain + reduction (jl:598, 620) --------------------------
+chain["@ cell : donor : age / metacell ?? : type >> Mean"]
+chain[paste(
+    "@ cell [ metacell ?? : type != memory-B ] :",
+    "donor : age / metacell : type =@ >> Mean || 0"
+)]
+
+# --- Matrix reductions to a vector (jl:647, 668) -------------------------
+metacells["@ metacell @ gene :: fraction >| Max"]
+head(metacells["@ metacell @ gene :: fraction >- Max"])
+
+# --- Full matrix lookup (jl:709) -----------------------------------------
+dim(cells["@ cell @ gene :: UMIs"])
+
+# --- Count-by + chained vector (jl:754, 786) -----------------------------
+cells["@ cell : experiment * donor : sex"]
+cells["@ cell : experiment =@ * donor : sex"]
+
+# --- Matrix eltwise + group rows by (jl:830, 866, 889) -------------------
+dim(metacells["@ metacell @ gene :: fraction \% Log base 2 eps 1e-5"])
+dim(metacells["@ metacell @ gene :: fraction -/ type >- Mean"])
+dim(metacells["@ metacell @ gene :: fraction -/ type =@ >- Mean"])
 }

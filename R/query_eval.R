@@ -44,6 +44,9 @@ NULL
         state <- .apply_node(node, state, daf)
         i <- i + 1L
     }
+    if (identical(state$kind, "pending_count")) {
+        state <- .finalize_pending_count(state, daf)
+    }
     state$value
 }
 
@@ -294,6 +297,24 @@ NULL
     if (identical(state$kind, "vector_axis")) {
         return(.apply_chained_lookup_vector(node, state, daf))
     }
+    if (identical(state$kind, "vector")) {
+        # `: prop1 : prop2` - implicit AsAxis. Behaves like `: prop1 =@ : prop2`:
+        # the prior property name names the target axis whose entries are the
+        # pivot values, and the new property is looked up on that axis.
+        # (Julia: lookup_vector_by_vector via ensure_vector_is_axis.)
+        state$chain_target_axis <- NULL
+        state$kind <- "vector_axis"
+        return(.apply_chained_lookup_vector(node, state, daf))
+    }
+    if (identical(state$kind, "grouped_vector")) {
+        return(.apply_chained_lookup_grouped(node, state, daf))
+    }
+    if (identical(state$kind, "pending_count")) {
+        return(.apply_chained_lookup_count(node, state, daf))
+    }
+    if (identical(state$kind, "mask")) {
+        return(.apply_chained_lookup_mask(node, state, daf))
+    }
     if (!identical(state$kind, "axis")) {
         stop(sprintf("':' requires an axis in scope (got %s)", state$kind),
             call. = FALSE
@@ -328,11 +349,16 @@ NULL
     value <- format_get_vector(daf, axis, node$name)
     if (!is.null(indices)) {
         value <- value[indices]
+        # Tag the surviving-axis-entry names so a subsequent chain
+        # (`.apply_chained_lookup_vector`) sees the masked subset rather
+        # than falling back to the full axis array.
+        names(value) <- format_axis_array(daf, axis)[indices]
     }
     list(
         kind = "vector",
         value = value,
         axis = axis,
+        indices = indices,
         property = node$name
     )
 }
@@ -369,32 +395,49 @@ NULL
         return(state)
     }
     row_indices <- state$row_indices
+    transposed <- FALSE
     if (!format_has_matrix(daf, rows, cols, node$name)) {
-        if (!is.null(state$if_missing)) {
-            nrow_out <- if (is.null(row_indices)) {
-                format_axis_length(daf, rows)
-            } else {
-                length(row_indices)
+        if (format_has_matrix(daf, cols, rows, node$name)) {
+            # Stored on the transposed orientation. Julia auto-relayouts
+            # via get_matrix(...; relayout = true); we just transpose the
+            # fetched matrix back into the queried (rows, cols) shape.
+            transposed <- TRUE
+        } else {
+            if (!is.null(state$if_missing)) {
+                nrow_out <- if (is.null(row_indices)) {
+                    format_axis_length(daf, rows)
+                } else {
+                    length(row_indices)
+                }
+                return(list(
+                    kind = "matrix",
+                    value = matrix(
+                        state$if_missing,
+                        nrow_out,
+                        format_axis_length(daf, cols)
+                    ),
+                    rows_axis = rows, cols_axis = cols
+                ))
             }
-            return(list(
-                kind = "matrix",
-                value = matrix(
-                    state$if_missing,
-                    nrow_out,
-                    format_axis_length(daf, cols)
+            stop(
+                sprintf(
+                    "no matrix %s [%s, %s]",
+                    sQuote(node$name), sQuote(rows), sQuote(cols)
                 ),
-                rows_axis = rows, cols_axis = cols
-            ))
+                call. = FALSE
+            )
         }
-        stop(
-            sprintf(
-                "no matrix %s [%s, %s]",
-                sQuote(node$name), sQuote(rows), sQuote(cols)
-            ),
-            call. = FALSE
-        )
     }
-    m <- format_get_matrix(daf, rows, cols, node$name)
+    m <- if (transposed) {
+        m_stored <- format_get_matrix(daf, cols, rows, node$name)
+        if (methods::is(m_stored, "Matrix")) {
+            Matrix::t(m_stored)
+        } else {
+            t(m_stored)
+        }
+    } else {
+        format_get_matrix(daf, rows, cols, node$name)
+    }
     if (!is.null(row_indices)) {
         m <- m[row_indices, , drop = FALSE]
     }
@@ -413,6 +456,23 @@ NULL
     state
 }
 .apply_as_axis <- function(node, state, daf) {
+    if (identical(state$kind, "grouped_matrix_rows")) {
+        # `-/ prop =@`: marks the row-group labels as entries on the prop's
+        # axis. We only need to record this so a subsequent reduction labels
+        # the result rows by axis name; for now, treat as a no-op pass.
+        state$grouped_rows_as_axis <- node$axis_name %||% TRUE
+        return(state)
+    }
+    if (identical(state$kind, "grouped_matrix_cols")) {
+        state$grouped_cols_as_axis <- node$axis_name %||% TRUE
+        return(state)
+    }
+    if (identical(state$kind, "grouped_vector")) {
+        # `: prop =@` after a GroupBy: marks the chained group labels as
+        # entries on `prop`'s axis. Treated as a no-op annotation for now.
+        state$grouped_as_axis <- node$axis_name %||% TRUE
+        return(state)
+    }
     if (!identical(state$kind, "vector")) {
         stop("'=@' requires a vector in scope", call. = FALSE)
     }
@@ -486,13 +546,130 @@ NULL
         }
     }
     names(out) <- base_entries
+    # Carry forward any prior mask's surviving-entry indices. After a `??`
+    # bare-drop the surviving set may have shrunk further; recompute by
+    # mapping the (post-drop) base_entries back to the full axis.
+    out_indices <- if (!is.null(state$indices) ||
+                       length(base_entries) != format_axis_length(daf, base_axis)) {
+        all_entries <- format_axis_array(daf, base_axis)
+        match(base_entries, all_entries)
+    } else {
+        NULL
+    }
     list(
         kind     = "vector",
         value    = out,
         axis     = base_axis,
+        indices  = out_indices,
         property = node$name
     )
 }
+.apply_chained_lookup_grouped <- function(node, state, daf) {
+    # `/ axis ?? : prop` - chain on the GroupBy labels. The pending_groups
+    # vector holds entries on `pending_groups_axis`; replace it with the
+    # value of `prop` on that axis, applying any pending IfNot sentinel.
+    target_axis <- state$pending_groups_axis
+    if (is.null(target_axis)) {
+        stop("internal: grouped_vector missing pending_groups_axis",
+            call. = FALSE)
+    }
+    if (!format_has_axis(daf, target_axis)) {
+        stop(sprintf(
+            "chain target axis %s does not exist", sQuote(target_axis)
+        ), call. = FALSE)
+    }
+    if (!format_has_vector(daf, target_axis, node$name)) {
+        stop(sprintf(
+            "no vector %s on axis %s",
+            sQuote(node$name), sQuote(target_axis)
+        ), call. = FALSE)
+    }
+    pivot <- state$pending_groups
+    target_entries <- format_axis_array(daf, target_axis)
+    idx <- match(pivot, target_entries)
+    empty_mask <- is.na(idx) |
+        (is.character(pivot) & !nzchar(pivot))
+
+    lookup_vec <- format_get_vector(daf, target_axis, node$name)
+    new_groups <- rep(NA, length(pivot))
+    mode(new_groups) <- mode(lookup_vec)
+    new_groups[!empty_mask] <- lookup_vec[idx[!empty_mask]]
+
+    if (isTRUE(state$if_not_present)) {
+        sentinel <- state$if_not_value
+        if (is.null(sentinel)) {
+            keep <- !empty_mask
+            state$value <- state$value[keep]
+            new_groups <- new_groups[keep]
+        } else {
+            sentinel_typed <- methods::as(
+                sentinel, class(lookup_vec)[[1L]]
+            )
+            new_groups[empty_mask] <- sentinel_typed
+        }
+    } else if (any(empty_mask)) {
+        stop(sprintf(
+            "chain on grouped_vector via axis %s has %d empty pivot values and no '??' sentinel",
+            sQuote(target_axis), sum(empty_mask)
+        ), call. = FALSE)
+    }
+
+    state$pending_groups <- new_groups
+    state$pending_groups_axis <- node$name
+    state$if_not_present <- NULL
+    state$if_not_value <- NULL
+    state
+}
+
+# Chained `: prop` inside a mask predicate: pivot the current pending_vec
+# through `pending_property`'s axis, replacing pending_vec with prop's
+# value for each cell. Empty pivot values become NA (so a downstream
+# comparator's NA → false propagation drops them from the mask) when an
+# IfNot was supplied; otherwise the absence of pivots is an error.
+.apply_chained_lookup_mask <- function(node, state, daf) {
+    target_axis <- state$pending_property
+    if (is.null(target_axis)) {
+        stop("internal: mask state missing pending_property", call. = FALSE)
+    }
+    if (!format_has_axis(daf, target_axis)) {
+        stop(sprintf(
+            "chain target axis %s does not exist", sQuote(target_axis)
+        ), call. = FALSE)
+    }
+    if (!format_has_vector(daf, target_axis, node$name)) {
+        stop(sprintf(
+            "no vector %s on axis %s",
+            sQuote(node$name), sQuote(target_axis)
+        ), call. = FALSE)
+    }
+    pivot <- state$pending_vec
+    target_entries <- format_axis_array(daf, target_axis)
+    idx <- match(pivot, target_entries)
+    empty_mask <- is.na(idx) |
+        (is.character(pivot) & !nzchar(pivot))
+    lookup_vec <- format_get_vector(daf, target_axis, node$name)
+    new_vec <- rep(NA, length(pivot))
+    mode(new_vec) <- mode(lookup_vec)
+    new_vec[!empty_mask] <- lookup_vec[idx[!empty_mask]]
+    if (!isTRUE(state$if_not_present) && any(empty_mask)) {
+        stop(sprintf(
+            "chain inside mask via axis %s has %d empty pivot values and no '??' sentinel",
+            sQuote(target_axis), sum(empty_mask)
+        ), call. = FALSE)
+    }
+    if (isTRUE(state$if_not_present) && !is.null(state$if_not_value)) {
+        sentinel_typed <- methods::as(
+            state$if_not_value, class(lookup_vec)[[1L]]
+        )
+        new_vec[empty_mask] <- sentinel_typed
+    }
+    state$pending_vec <- new_vec
+    state$pending_property <- node$name
+    state$if_not_present <- NULL
+    state$if_not_value <- NULL
+    state
+}
+
 .apply_begin_mask <- function(node, state, daf) {
     if (!identical(state$kind, "axis")) {
         stop("'[' mask requires an axis in scope", call. = FALSE)
@@ -557,6 +734,23 @@ NULL
     }
     if (identical(state$kind, "axis_pending_matrix_pick")) {
         return(.apply_matrix_column_by_axis(node, state, daf))
+    }
+    if (identical(state$kind, "vector")) {
+        # `: vec > x` etc. - element-wise comparator over a vector returns a
+        # bool vector along the same axis. (Julia compare_vector phrase.)
+        vec <- state$value
+        test <- switch(node$op,
+            IsLess         = vec <  .coerce_cmp(node$value, vec),
+            IsLessEqual    = vec <= .coerce_cmp(node$value, vec),
+            IsEqual        = vec == .coerce_cmp(node$value, vec),
+            IsNotEqual     = vec != .coerce_cmp(node$value, vec),
+            IsGreater      = vec >  .coerce_cmp(node$value, vec),
+            IsGreaterEqual = vec >= .coerce_cmp(node$value, vec),
+            IsMatch        = grepl(node$pattern, as.character(vec), perl = TRUE),
+            IsNotMatch     = !grepl(node$pattern, as.character(vec), perl = TRUE)
+        )
+        state$value <- test
+        return(state)
     }
     if (!identical(state$kind, "mask")) {
         stop("comparator outside of mask", call. = FALSE)
@@ -1300,6 +1494,21 @@ NULL
     params <- .coerce_params(node$params)
     x <- state$value
     g <- state$pending_groups
+    # If `=@` was applied to the chained group labels (grouped_as_axis set
+    # to a real axis name), the result should expose every entry of the
+    # target axis - including groups with no members, which the IfMissing
+    # default fills in. We still reduce over the SEEN groups for the fast
+    # path, then expand the result vector at the end.
+    axis_levels <- NULL
+    if (!is.null(state$grouped_as_axis)) {
+        target_axis <- state$pending_groups_axis
+        if (is.character(state$grouped_as_axis)) {
+            target_axis <- state$grouped_as_axis
+        }
+        if (!is.null(target_axis) && format_has_axis(daf, target_axis)) {
+            axis_levels <- format_axis_array(daf, target_axis)
+        }
+    }
     # Preserve group first-appearance order via factor levels.
     gfac <- factor(g, levels = unique(g))
     gi <- as.integer(gfac)
@@ -1308,18 +1517,47 @@ NULL
 
     label <- .reduction_builtin_label(fn)
 
+    # Helper: take a length-ngroups result vector, expand to the full target
+    # axis (when grouped_as_axis was set), and substitute the IfMissing
+    # default for any entries that are missing/NA/NaN.
+    finalize_vals <- function(vals, names_seen) {
+        if (!is.null(axis_levels)) {
+            full <- rep(NA, length(axis_levels))
+            mode(full) <- mode(vals)
+            idx_in_full <- match(names_seen, axis_levels)
+            full[idx_in_full] <- vals
+            vals <- full
+            names_seen <- axis_levels
+        }
+        if (!is.null(state$if_missing)) {
+            nan_mask <- is.na(vals) | (is.numeric(vals) & is.nan(vals))
+            if (any(nan_mask)) {
+                if (is.numeric(vals)) {
+                    vals[nan_mask] <- as.numeric(state$if_missing)
+                } else if (is.logical(vals)) {
+                    vals[nan_mask] <- as.logical(state$if_missing)
+                } else if (is.character(vals)) {
+                    vals[nan_mask] <- as.character(state$if_missing)
+                }
+            }
+        }
+        list(value = vals, names = names_seen)
+    }
+
     # Mode-on-character dedicated R helper (no C kernel; char Mode is rare).
     if (!is.na(label) && label == "Mode" && is.character(x)) {
         vals <- .grouped_mode_character(x, gi, ngroups)
+        fin <- finalize_vals(vals, lvls)
         return(list(kind = "vector", axis = NULL,
-            value = stats::setNames(vals, lvls)))
+            value = stats::setNames(fin$value, fin$names)))
     }
 
     # Numeric builtin fast path.
     if (!is.na(label) && is.numeric(x)) {
         vals <- .grouped_vector_builtin(x, gi, ngroups, label, params)
+        fin <- finalize_vals(vals, lvls)
         return(list(kind = "vector", axis = NULL,
-            value = stats::setNames(vals, lvls)))
+            value = stats::setNames(fin$value, fin$names)))
     }
 
     # Fallback: type-sniffed split+loop (replaces the old vapply(..., numeric(1))).
@@ -1342,8 +1580,9 @@ NULL
         }
         out[g_i] <- do.call(fn, c(list(x[idx[[g_i]]]), params))
     }
+    fin <- finalize_vals(out, lvls)
     list(kind = "vector", axis = NULL,
-        value = stats::setNames(out, lvls))
+        value = stats::setNames(fin$value, fin$names))
 }
 
 # G2/G3 builtin fast-path: dispatch to appropriate C++ kernel or dense fallback.
@@ -1739,7 +1978,16 @@ NULL
         stop("GroupBy requires a vector in scope", call. = FALSE)
     }
     grp <- format_get_vector(daf, state$axis, node$property)
+    # If a prior mask narrowed the axis (state$indices set), restrict the
+    # group labels to the surviving cells so they line up with state$value.
+    if (!is.null(state$indices)) {
+        grp <- grp[state$indices]
+    }
     state$pending_groups <- grp
+    # The property name doubles as the target-axis name when a chained
+    # lookup follows (Julia axis_of_property). Stored so a later `: prop`
+    # can pivot the group labels through this axis.
+    state$pending_groups_axis <- node$property
     state$kind <- "grouped_vector"
     state
 }
@@ -1765,12 +2013,74 @@ NULL
 }
 
 .apply_countby <- function(node, state, daf) {
+    if (identical(state$kind, "vector_axis")) {
+        # `=@` immediately before `*` is a no-op for count-by - the property
+        # axis is already implicit. Reset to plain vector so the count-by
+        # path picks it up.
+        state$kind <- "vector"
+    }
     if (!identical(state$kind, "vector")) {
         stop("* CountBy requires a vector in scope", call. = FALSE)
     }
     a <- state$value
     b <- format_get_vector(daf, state$axis, node$property)
+    # Defer matrix materialisation so a subsequent `: prop` can pivot the
+    # b column through its property's axis (matching Julia's
+    # lookup_vector_by_vector + compute_count_matrix sequence).
+    list(
+        kind = "pending_count",
+        a_per_cell = a,
+        b_per_cell = b,
+        a_axis_label = state$property %||% state$axis,
+        b_axis_label = node$property,
+        b_pivot_axis = node$property
+    )
+}
+
+# Chain a `: prop` on the b-column of a pending_count: replace b_per_cell
+# with the property's value for each cell, pivoted through b_pivot_axis.
+.apply_chained_lookup_count <- function(node, state, daf) {
+    target_axis <- state$b_pivot_axis
+    if (is.null(target_axis)) {
+        stop("internal: pending_count missing b_pivot_axis", call. = FALSE)
+    }
+    if (!format_has_axis(daf, target_axis)) {
+        stop(sprintf(
+            "chain target axis %s does not exist", sQuote(target_axis)
+        ), call. = FALSE)
+    }
+    if (!format_has_vector(daf, target_axis, node$name)) {
+        stop(sprintf(
+            "no vector %s on axis %s",
+            sQuote(node$name), sQuote(target_axis)
+        ), call. = FALSE)
+    }
+    pivot <- state$b_per_cell
+    target_entries <- format_axis_array(daf, target_axis)
+    idx <- match(pivot, target_entries)
+    lookup_vec <- format_get_vector(daf, target_axis, node$name)
+    new_b <- rep(NA, length(pivot))
+    mode(new_b) <- mode(lookup_vec)
+    ok <- !is.na(idx)
+    new_b[ok] <- lookup_vec[idx[ok]]
+    state$b_per_cell <- new_b
+    state$b_axis_label <- node$name
+    state$b_pivot_axis <- node$name
+    state
+}
+
+# Build a count matrix from the pending pair of per-cell vectors. Used at
+# end of evaluation if the count-by wasn't followed by something that
+# materialises it (e.g. a reduction on the resulting matrix).
+.finalize_pending_count <- function(state, daf) {
+    a <- state$a_per_cell
+    b <- state$b_per_cell
     t <- table(a, b)
     m <- as.matrix(t)
-    list(kind = "matrix", value = m, rows_axis = NULL, cols_axis = NULL)
+    list(
+        kind = "matrix",
+        value = m,
+        rows_axis = state$a_axis_label,
+        cols_axis = state$b_axis_label
+    )
 }
