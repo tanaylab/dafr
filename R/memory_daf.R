@@ -447,3 +447,66 @@ S7::method(
     format_set_matrix(daf, columns_axis, rows_axis, name, transposed, overwrite = TRUE)
     invisible()
 }
+
+# ---- Reorder ----------------------------------------------------------------
+
+S7::method(format_replace_reorder, list(MemoryDaf, S7::class_list)) <-
+    function(daf, plan, crash_counter = NULL) {
+        # In-memory: permute every axis, vector, and matrix in place.
+        # No on-disk crash recovery needed; if R crashes the in-memory
+        # store is gone anyway.
+        for (axis in names(plan$planned_axes)) {
+            tick_crash_counter(crash_counter)
+            pa <- plan$planned_axes[[axis]]
+            ax_obj <- .memory_axis(daf, axis)
+            ax_obj$entries <- pa$new_entries
+            # Rebuild the entry -> index dict.
+            dict <- new.env(parent = emptyenv(), size = length(pa$new_entries))
+            for (i in seq_along(pa$new_entries)) {
+                assign(pa$new_entries[[i]], i, envir = dict)
+            }
+            ax_obj$dict <- dict
+            assign(axis, ax_obj, envir = S7::prop(daf, "internal")$axes)
+            bump_axis_counter(daf, axis)
+        }
+        for (pv in plan$planned_vectors) {
+            tick_crash_counter(crash_counter)
+            pa <- plan$planned_axes[[pv$axis]]
+            env <- .memory_axis_vectors(daf, pv$axis, create = FALSE)
+            v <- get(pv$name, envir = env, inherits = FALSE)
+            assign(pv$name, v[pa$permutation], envir = env)
+            bump_vector_counter(daf, pv$axis, pv$name)
+        }
+        for (pm in plan$planned_matrices) {
+            tick_crash_counter(crash_counter)
+            env <- .memory_matrix_bucket(daf, pm$rows_axis, pm$columns_axis,
+                                         create = FALSE)
+            m <- get(pm$name, envir = env, inherits = FALSE)
+            r_perm <- if (pm$rows_axis %in% names(plan$planned_axes)) {
+                plan$planned_axes[[pm$rows_axis]]$permutation
+            } else {
+                seq_len(nrow(m))
+            }
+            c_perm <- if (pm$columns_axis %in% names(plan$planned_axes)) {
+                plan$planned_axes[[pm$columns_axis]]$permutation
+            } else {
+                seq_len(ncol(m))
+            }
+            assign(pm$name, m[r_perm, c_perm, drop = FALSE], envir = env)
+            bump_matrix_counter(daf, pm$rows_axis, pm$columns_axis, pm$name)
+        }
+        invisible()
+    }
+
+S7::method(format_cleanup_reorder, list(MemoryDaf, S7::class_list)) <-
+    function(daf, plan, crash_counter = NULL) {
+        # No-op for memory_daf -- no on-disk state to clean up.
+        # Counters were already bumped in format_replace_reorder.
+        invisible()
+    }
+
+S7::method(format_reset_reorder, MemoryDaf) <-
+    function(daf, crash_counter = NULL) {
+        # No-op for memory_daf -- no incomplete reorder state ever exists.
+        invisible()
+    }
