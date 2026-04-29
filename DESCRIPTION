@@ -116,4 +116,5 @@ Collate:
     'zarr_v2.R'
     'zarr_store.R'
     'zarr_format.R'
+    'zarr_convert.R'
     'zzz.R'
