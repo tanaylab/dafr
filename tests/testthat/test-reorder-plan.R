@@ -77,3 +77,25 @@ test_that(".build_reorder_plan rejects non-list / unnamed permutations", {
     expect_error(dafr:::.build_reorder_plan(d, list(c(1L, 2L))),
                  "named list")
 })
+
+# ---- Crash counter -------------------------------------------------------
+
+test_that("new_crash_counter creates an env-ref", {
+    cc <- dafr:::new_crash_counter(3L)
+    expect_true(is.environment(cc))
+    expect_identical(cc$n, 3L)
+})
+
+test_that("tick_crash_counter decrements and throws SimulatedCrash on zero", {
+    cc <- dafr:::new_crash_counter(2L)
+    dafr:::tick_crash_counter(cc)
+    expect_identical(cc$n, 1L)
+    expect_error(
+        dafr:::tick_crash_counter(cc),
+        class = "SimulatedCrash"
+    )
+})
+
+test_that("tick_crash_counter is no-op when given NULL", {
+    expect_silent(dafr:::tick_crash_counter(NULL))
+})

@@ -93,6 +93,7 @@ Collate:
     'concat.R'
     'contract_ux.R'
     'cpp11.R'
+    'crash_counter.R'
     'dafr-package.R'
     'dataframes.R'
     'dplyr_backend.R'
