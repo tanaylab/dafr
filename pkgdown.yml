@@ -9,7 +9,7 @@ articles:
   native-performance: native-performance.html
   queries: queries.html
   articles/query-dsl-reference: query-dsl-reference.html
-last_built: 2026-04-27T06:04Z
+last_built: 2026-04-29T09:05Z
 urls:
   reference: https://tanaylab.github.io/dafr/reference
   article: https://tanaylab.github.io/dafr/articles
