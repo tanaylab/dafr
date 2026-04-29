@@ -20,9 +20,7 @@ Logical scalar.
 Test whether a vector exists on an axis.
 }
 \examples{
-d <- memory_daf()
-add_axis(d, "cell", c("c1", "c2"))
-set_vector(d, "cell", "donor", c("d1", "d2"))
-has_vector(d, "cell", "donor")
-has_vector(d, "cell", "age")
+# Mirrors readers.jl jldoctests at lines 525 + 533.
+has_vector(example_cells_daf(),     "cell",     "type") # FALSE
+has_vector(example_metacells_daf(), "metacell", "type") # TRUE
 }

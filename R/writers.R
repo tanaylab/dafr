@@ -5,9 +5,11 @@
 #' @param entries Unique, non-NA, non-empty character vector of entry names.
 #' @return Invisibly the input `daf`.
 #' @examples
-#' d <- memory_daf()
-#' add_axis(d, "cell", c("c1", "c2", "c3"))
-#' axis_length(d, "cell")
+#' # Mirrors writers.jl jldoctest at line 161.
+#' d <- example_cells_daf()
+#' has_axis(d, "block")                  # FALSE
+#' add_axis(d, "block", c("B1", "B2"))
+#' has_axis(d, "block")                  # TRUE
 #' @export
 add_axis <- function(daf, axis, entries) {
     .assert_name(axis, "axis")
@@ -27,11 +29,11 @@ add_axis <- function(daf, axis, entries) {
 #'   if `FALSE` silently no-op.
 #' @return Invisibly the input `daf`.
 #' @examples
-#' d <- memory_daf()
-#' add_axis(d, "cell", c("c1", "c2"))
-#' add_axis(d, "gene", c("g1", "g2", "g3"))
-#' delete_axis(d, "gene")
-#' axes_set(d)
+#' # Mirrors writers.jl jldoctest at line 217.
+#' m <- example_metacells_daf()
+#' has_axis(m, "type")    # TRUE
+#' delete_axis(m, "type")
+#' has_axis(m, "type")    # FALSE
 #' @export
 delete_axis <- function(daf, axis, must_exist = TRUE) {
     .assert_name(axis, "axis")
@@ -47,9 +49,12 @@ delete_axis <- function(daf, axis, must_exist = TRUE) {
 #'   exists; if `TRUE` replace.
 #' @return Invisibly the input `daf`.
 #' @examples
-#' d <- memory_daf()
-#' set_scalar(d, "organism", "human")
-#' get_scalar(d, "organism")
+#' # Mirrors writers.jl jldoctest at line 63.
+#' d <- example_cells_daf()
+#' set_scalar(d, "version", 1.0)
+#' get_scalar(d, "version")                          # 1.0
+#' set_scalar(d, "version", 2.0, overwrite = TRUE)
+#' get_scalar(d, "version")                          # 2.0
 #' @export
 set_scalar <- function(daf, name, value, overwrite = FALSE) {
     .assert_name(name, "name")
@@ -63,10 +68,11 @@ set_scalar <- function(daf, name, value, overwrite = FALSE) {
 #' @param must_exist See `delete_axis`.
 #' @return Invisibly the input `daf`.
 #' @examples
-#' d <- memory_daf()
-#' set_scalar(d, "organism", "human")
+#' # Mirrors writers.jl jldoctest at line 109.
+#' d <- example_cells_daf()
+#' has_scalar(d, "organism")    # TRUE
 #' delete_scalar(d, "organism")
-#' has_scalar(d, "organism")
+#' has_scalar(d, "organism")    # FALSE
 #' @export
 delete_scalar <- function(daf, name, must_exist = TRUE) {
     .assert_name(name, "name")
@@ -84,10 +90,14 @@ delete_scalar <- function(daf, name, must_exist = TRUE) {
 #' @param overwrite See `set_scalar`.
 #' @return Invisibly the input `daf`.
 #' @examples
-#' d <- memory_daf()
-#' add_axis(d, "cell", c("c1", "c2", "c3"))
-#' set_vector(d, "cell", "donor", c("d1", "d2", "d1"))
-#' get_vector(d, "cell", "donor")
+#' # Mirrors writers.jl jldoctest at line 300.
+#' m <- example_metacells_daf()
+#' has_vector(m, "type", "is_mebemp")                       # FALSE
+#' set_vector(m, "type", "is_mebemp", c(TRUE, TRUE, FALSE, FALSE))
+#' has_vector(m, "type", "is_mebemp")                       # TRUE
+#' set_vector(m, "type", "is_mebemp",
+#'            c(TRUE, TRUE, TRUE, FALSE), overwrite = TRUE)
+#' has_vector(m, "type", "is_mebemp")                       # TRUE
 #' @export
 set_vector <- function(daf, axis, name, vec, overwrite = FALSE) {
     .assert_name(axis, "axis")
@@ -103,11 +113,11 @@ set_vector <- function(daf, axis, name, vec, overwrite = FALSE) {
 #' @param must_exist See `delete_axis`.
 #' @return Invisibly the input `daf`.
 #' @examples
-#' d <- memory_daf()
-#' add_axis(d, "cell", c("c1", "c2"))
-#' set_vector(d, "cell", "donor", c("d1", "d2"))
-#' delete_vector(d, "cell", "donor")
-#' has_vector(d, "cell", "donor")
+#' # Mirrors writers.jl jldoctest at line 618.
+#' m <- example_metacells_daf()
+#' has_vector(m, "type", "color")    # TRUE
+#' delete_vector(m, "type", "color")
+#' has_vector(m, "type", "color")    # FALSE
 #' @export
 delete_vector <- function(daf, axis, name, must_exist = TRUE) {
     .assert_name(axis, "axis")
@@ -123,44 +133,79 @@ delete_vector <- function(daf, axis, name, must_exist = TRUE) {
 #' @param mat Dense `matrix`, or sparse `dgCMatrix` / `lgCMatrix`, of
 #'   shape `axis_length(rows_axis) x axis_length(columns_axis)`.
 #' @param overwrite See `set_scalar`.
+#' @param relayout If `TRUE`, also store the flipped layout (so
+#'   `get_matrix(columns_axis, rows_axis, name)` skips the
+#'   transpose-on-the-fly path). Mirrors Julia `set_matrix!(...; relayout)`.
+#'   Default `FALSE`; set to `TRUE` to match Julia's default behavior.
 #' @return Invisibly the input `daf`.
 #' @examples
-#' d <- memory_daf()
-#' add_axis(d, "cell", c("c1", "c2"))
-#' add_axis(d, "gene", c("g1", "g2", "g3"))
-#' m <- matrix(1:6, nrow = 2, ncol = 3,
-#'     dimnames = list(c("c1", "c2"), c("g1", "g2", "g3")))
-#' set_matrix(d, "cell", "gene", "counts", m)
-#' dim(get_matrix(d, "cell", "gene", "counts"))
+#' # Mirrors writers.jl jldoctest at line 686.
+#' m <- example_metacells_daf()
+#' has_matrix(m, "gene", "metacell", "confidence", relayout = FALSE)    # FALSE
+#' set_matrix(m, "metacell", "gene", "confidence",
+#'            matrix(stats::runif(7L * 683L), 7L, 683L), relayout = FALSE)
+#' has_matrix(m, "gene", "metacell", "confidence", relayout = FALSE)    # FALSE
+#' has_matrix(m, "metacell", "gene", "confidence", relayout = FALSE)    # TRUE
+#' set_matrix(m, "metacell", "gene", "confidence",
+#'            matrix(stats::runif(7L * 683L), 7L, 683L),
+#'            overwrite = TRUE, relayout = TRUE)
+#' has_matrix(m, "gene", "metacell", "confidence", relayout = FALSE)    # TRUE
+#' has_matrix(m, "metacell", "gene", "confidence", relayout = FALSE)    # TRUE
 #' @export
-set_matrix <- function(daf, rows_axis, columns_axis, name, mat, overwrite = FALSE) {
+set_matrix <- function(daf, rows_axis, columns_axis, name, mat,
+                       overwrite = FALSE, relayout = FALSE) {
     .assert_name(rows_axis, "rows_axis")
     .assert_name(columns_axis, "columns_axis")
     .assert_name(name, "name")
     .assert_flag(overwrite, "overwrite")
+    .assert_flag(relayout, "relayout")
     format_set_matrix(daf, rows_axis, columns_axis, name, mat, overwrite)
+    if (relayout && rows_axis != columns_axis) {
+        format_relayout_matrix(daf, rows_axis, columns_axis, name)
+    }
     invisible(daf)
 }
 
 #' Delete a matrix.
 #' @inheritParams has_matrix
 #' @param must_exist See `delete_axis`.
+#' @param relayout If `TRUE` (default), also delete the flipped layout
+#'   `(columns_axis, rows_axis, name)` if present. Mirrors Julia
+#'   `delete_matrix!(...; relayout)`.
 #' @return Invisibly the input `daf`.
 #' @examples
-#' d <- memory_daf()
-#' add_axis(d, "cell", c("c1", "c2"))
-#' add_axis(d, "gene", c("g1", "g2", "g3"))
-#' m <- matrix(0L, nrow = 2, ncol = 3)
-#' set_matrix(d, "cell", "gene", "counts", m)
-#' delete_matrix(d, "cell", "gene", "counts")
-#' has_matrix(d, "cell", "gene", "counts")
+#' # Mirrors writers.jl jldoctest at line 1147.
+#' d <- example_cells_daf()
+#' has_matrix(d, "gene", "cell", "UMIs", relayout = FALSE)  # TRUE
+#' has_matrix(d, "cell", "gene", "UMIs", relayout = FALSE)  # TRUE
+#' delete_matrix(d, "gene", "cell", "UMIs", relayout = FALSE)
+#' has_matrix(d, "gene", "cell", "UMIs", relayout = FALSE)  # FALSE
+#' has_matrix(d, "cell", "gene", "UMIs", relayout = FALSE)  # TRUE
+#' delete_matrix(d, "gene", "cell", "UMIs", must_exist = FALSE)
+#' has_matrix(d, "gene", "cell", "UMIs", relayout = FALSE)  # FALSE
+#' has_matrix(d, "cell", "gene", "UMIs", relayout = FALSE)  # FALSE
 #' @export
-delete_matrix <- function(daf, rows_axis, columns_axis, name, must_exist = TRUE) {
+delete_matrix <- function(daf, rows_axis, columns_axis, name,
+                          must_exist = TRUE, relayout = TRUE) {
     .assert_name(rows_axis, "rows_axis")
     .assert_name(columns_axis, "columns_axis")
     .assert_name(name, "name")
     .assert_flag(must_exist, "must_exist")
-    format_delete_matrix(daf, rows_axis, columns_axis, name, must_exist)
+    .assert_flag(relayout, "relayout")
+    relayout <- relayout && rows_axis != columns_axis
+    if (must_exist && !format_has_matrix(daf, rows_axis, columns_axis, name) &&
+        !(relayout && format_has_matrix(daf, columns_axis, rows_axis, name))) {
+        stop(sprintf(
+            "matrix %s does not exist on axes (%s, %s)",
+            sQuote(name), sQuote(rows_axis), sQuote(columns_axis)
+        ), call. = FALSE)
+    }
+    if (format_has_matrix(daf, rows_axis, columns_axis, name)) {
+        format_delete_matrix(daf, rows_axis, columns_axis, name, must_exist = FALSE)
+    }
+    if (relayout && format_has_matrix(daf, columns_axis, rows_axis, name)) {
+        format_delete_matrix(daf, columns_axis, rows_axis, name, must_exist = FALSE)
+    }
     invisible(daf)
 }
 

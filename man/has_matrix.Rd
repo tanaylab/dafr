@@ -4,7 +4,7 @@
 \alias{has_matrix}
 \title{Test whether a matrix exists for an axis pair.}
 \usage{
-has_matrix(daf, rows_axis, columns_axis, name)
+has_matrix(daf, rows_axis, columns_axis, name, relayout = TRUE)
 }
 \arguments{
 \item{daf}{A \code{DafReader}.}
@@ -14,6 +14,12 @@ has_matrix(daf, rows_axis, columns_axis, name)
 \item{columns_axis}{Column-axis name.}
 
 \item{name}{Matrix name.}
+
+\item{relayout}{If \code{TRUE} (default), also report \code{TRUE} when the
+matrix is stored only at the flipped axis pair
+\verb{(columns_axis, rows_axis)}. Set to \code{FALSE} to ask the strict
+"this exact layout?" question. Mirrors Julia
+\verb{has_matrix(...; relayout)}.}
 }
 \value{
 Logical scalar.
@@ -22,7 +28,9 @@ Logical scalar.
 Test whether a matrix exists for an axis pair.
 }
 \examples{
-d <- example_cells_daf()
-has_matrix(d, "gene", "cell", "UMIs")
-has_matrix(d, "cell", "gene", "UMIs")
+# Mirrors readers.jl jldoctest at line 748.
+has_matrix(example_cells_daf(), "gene", "cell", "UMIs") # TRUE
+
+# `relayout = FALSE` asks the strict "this exact layout?" question:
+has_matrix(example_cells_daf(), "gene", "cell", "UMIs", relayout = FALSE)
 }

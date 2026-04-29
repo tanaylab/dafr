@@ -4,14 +4,20 @@
 \alias{axis_entries}
 \title{Entry names of an axis (full or by index).}
 \usage{
-axis_entries(daf, axis, indices = NULL)
+axis_entries(daf, axis, indices = NULL, allow_empty = FALSE)
 }
 \arguments{
 \item{daf}{A \code{DafReader}.}
 
 \item{axis}{Axis name (character scalar).}
 
-\item{indices}{Optional integer index vector (1-based).}
+\item{indices}{Optional integer index vector (1-based). When
+\code{allow_empty = TRUE}, a zero or negative index is allowed and is
+translated to the empty string \code{""} in the result.}
+
+\item{allow_empty}{If \code{TRUE}, treat zero/negative \code{indices} as the
+empty string \code{""} in the result (mirrors Julia
+\verb{axis_entries(...; allow_empty=true)}).}
 }
 \value{
 Character vector.
@@ -20,8 +26,8 @@ Character vector.
 Entry names of an axis (full or by index).
 }
 \examples{
-d <- memory_daf()
-add_axis(d, "cell", c("c1", "c2", "c3", "c4"))
-axis_entries(d, "cell")
-axis_entries(d, "cell", indices = c(1L, 3L))
+# Mirrors readers.jl jldoctest at line 448.
+axis_entries(example_metacells_daf(), "type",
+             indices = c(3L, 0L), allow_empty = TRUE)
+# "MEBEMP-L" ""
 }

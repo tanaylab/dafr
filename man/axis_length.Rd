@@ -18,6 +18,6 @@ Integer scalar.
 Length (entry count) of an axis.
 }
 \examples{
-d <- example_cells_daf()
-axis_length(d, "cell")
+# Mirrors readers.jl jldoctest at line 487.
+axis_length(example_metacells_daf(), "type") # 4
 }

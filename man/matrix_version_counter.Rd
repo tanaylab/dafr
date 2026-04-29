@@ -22,8 +22,11 @@ Returns the monotonic counter for the \code{name} matrix on
 \code{delete_matrix} / \code{relayout_matrix}. Returns \code{0L} if never mutated.
 }
 \examples{
-d <- memory_daf()
-add_axis(d, "cell", c("c1", "c2"))
-add_axis(d, "gene", c("g1", "g2", "g3"))
-matrix_version_counter(d, "cell", "gene", "UMIs") # 0L
+# Mirrors readers.jl jldoctest at line 1088.
+m <- example_metacells_daf()
+matrix_version_counter(m, "gene", "metacell", "fraction") # 1L
+set_matrix(m, "gene", "metacell", "fraction",
+           matrix(stats::runif(683L * 7L), 683L, 7L),
+           overwrite = TRUE)
+matrix_version_counter(m, "gene", "metacell", "fraction") # 2L
 }

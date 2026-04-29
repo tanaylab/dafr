@@ -1,0 +1,6 @@
+{
+    "jl_line": 618,
+    "expr": "delete_vector!(metacells, \"type\", \"color\")",
+    "before": true,
+    "after": false
+}

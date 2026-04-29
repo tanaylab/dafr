@@ -1,0 +1,5 @@
+{
+    "jl_line": 533,
+    "expr": "has_vector(metacells, \"metacell\", \"type\")",
+    "value": true
+}

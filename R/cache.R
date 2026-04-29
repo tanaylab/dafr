@@ -146,10 +146,15 @@ matrix_stamp <- function(daf, rows_axis, columns_axis, name) {
 #' @param axis Axis name (character scalar).
 #' @return `integer(1)`.
 #' @examples
-#' d <- memory_daf()
-#' axis_version_counter(d, "cell") # 0L
-#' add_axis(d, "cell", c("c1", "c2"))
-#' axis_version_counter(d, "cell") # 1L
+#' # Mirrors readers.jl jldoctest at line 246. (R bumps the counter on
+#' # both add_axis and delete_axis, so the values differ from Julia's
+#' # "delete-only" counter — Julia reports 0 -> 1, R reports 1 -> 3 for
+#' # the same `delete_axis` + `add_axis` sequence.)
+#' m <- example_metacells_daf()
+#' axis_version_counter(m, "type")           # 1L
+#' delete_axis(m, "type")
+#' add_axis(m, "type", c("Foo", "Bar", "Baz"))
+#' axis_version_counter(m, "type")           # 3L
 #' @seealso [vector_version_counter()], [matrix_version_counter()]
 #' @export
 axis_version_counter <- function(daf, axis) {
@@ -166,11 +171,11 @@ axis_version_counter <- function(daf, axis) {
 #' @param name Vector name (character scalar).
 #' @return `integer(1)`.
 #' @examples
-#' d <- memory_daf()
-#' add_axis(d, "cell", c("c1", "c2"))
-#' vector_version_counter(d, "cell", "donor") # 0L
-#' set_vector(d, "cell", "donor", c("A", "B"))
-#' vector_version_counter(d, "cell", "donor") # 1L
+#' # Mirrors readers.jl jldoctest at line 566.
+#' m <- example_metacells_daf()
+#' vector_version_counter(m, "type", "color")                       # 1L
+#' set_vector(m, "type", "color", as.character(1:4), overwrite = TRUE)
+#' vector_version_counter(m, "type", "color")                       # 2L
 #' @export
 vector_version_counter <- function(daf, axis, name) {
     key <- paste0(axis, ":", name)
@@ -188,10 +193,13 @@ vector_version_counter <- function(daf, axis, name) {
 #' @param name Matrix name.
 #' @return `integer(1)`.
 #' @examples
-#' d <- memory_daf()
-#' add_axis(d, "cell", c("c1", "c2"))
-#' add_axis(d, "gene", c("g1", "g2", "g3"))
-#' matrix_version_counter(d, "cell", "gene", "UMIs") # 0L
+#' # Mirrors readers.jl jldoctest at line 1088.
+#' m <- example_metacells_daf()
+#' matrix_version_counter(m, "gene", "metacell", "fraction") # 1L
+#' set_matrix(m, "gene", "metacell", "fraction",
+#'            matrix(stats::runif(683L * 7L), 683L, 7L),
+#'            overwrite = TRUE)
+#' matrix_version_counter(m, "gene", "metacell", "fraction") # 2L
 #' @export
 matrix_version_counter <- function(daf, rows_axis, columns_axis, name) {
     key <- paste0(rows_axis, ":", columns_axis, ":", name)

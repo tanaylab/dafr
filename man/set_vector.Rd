@@ -26,8 +26,12 @@ Invisibly the input \code{daf}.
 Set a vector on an axis.
 }
 \examples{
-d <- memory_daf()
-add_axis(d, "cell", c("c1", "c2", "c3"))
-set_vector(d, "cell", "donor", c("d1", "d2", "d1"))
-get_vector(d, "cell", "donor")
+# Mirrors writers.jl jldoctest at line 300.
+m <- example_metacells_daf()
+has_vector(m, "type", "is_mebemp")                       # FALSE
+set_vector(m, "type", "is_mebemp", c(TRUE, TRUE, FALSE, FALSE))
+has_vector(m, "type", "is_mebemp")                       # TRUE
+set_vector(m, "type", "is_mebemp",
+           c(TRUE, TRUE, TRUE, FALSE), overwrite = TRUE)
+has_vector(m, "type", "is_mebemp")                       # TRUE
 }

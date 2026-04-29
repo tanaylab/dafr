@@ -169,7 +169,7 @@ test_that("get_matrix falls back to transposed layout when only the other is sto
     add_axis(d, "cell", c("A", "B"))
     add_axis(d, "gene", c("X", "Y", "Z"))
     format_set_matrix(d, "cell", "gene", "UMIs", matrix(seq_len(6), 2, 3), overwrite = FALSE)
-    expect_false(has_matrix(d, "gene", "cell", "UMIs"))
+    expect_false(has_matrix(d, "gene", "cell", "UMIs", relayout = FALSE))
     m <- get_matrix(d, "gene", "cell", "UMIs")
     expect_equal(dim(m), c(3L, 2L))
     expect_equal(rownames(m), c("X", "Y", "Z"))
@@ -291,9 +291,9 @@ test_that("relayout_matrix makes the flipped layout physical", {
     add_axis(d, "cell", c("A", "B"))
     add_axis(d, "gene", c("X", "Y", "Z"))
     set_matrix(d, "cell", "gene", "UMIs", matrix(seq_len(6), 2, 3))
-    expect_false(has_matrix(d, "gene", "cell", "UMIs"))
+    expect_false(has_matrix(d, "gene", "cell", "UMIs", relayout = FALSE))
     relayout_matrix(d, "cell", "gene", "UMIs")
-    expect_true(has_matrix(d, "gene", "cell", "UMIs"))
+    expect_true(has_matrix(d, "gene", "cell", "UMIs", relayout = FALSE))
 })
 
 test_that("get_matrix default accepts a numeric scalar and adds dimnames", {

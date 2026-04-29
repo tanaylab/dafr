@@ -22,9 +22,9 @@ Incremented on \code{set_vector} / \code{delete_vector}. Returns \code{0L} if th
 vector has never been mutated.
 }
 \examples{
-d <- memory_daf()
-add_axis(d, "cell", c("c1", "c2"))
-vector_version_counter(d, "cell", "donor") # 0L
-set_vector(d, "cell", "donor", c("A", "B"))
-vector_version_counter(d, "cell", "donor") # 1L
+# Mirrors readers.jl jldoctest at line 566.
+m <- example_metacells_daf()
+vector_version_counter(m, "type", "color")                       # 1L
+set_vector(m, "type", "color", as.character(1:4), overwrite = TRUE)
+vector_version_counter(m, "type", "color")                       # 2L
 }

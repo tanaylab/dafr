@@ -17,6 +17,7 @@ A \code{\link{WriteChainDaf}} combining \code{example_cells_daf()} and
 Replicates the Julia \code{ExampleData.example_chain_daf()} dataset.
 }
 \examples{
+# Mirrors example_data.jl jldoctest at line 205.
 ch <- example_chain_daf()
-axes_set(ch)
+cat(description(ch))
 }

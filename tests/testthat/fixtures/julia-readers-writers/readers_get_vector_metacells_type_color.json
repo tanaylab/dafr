@@ -1,0 +1,16 @@
+{
+    "jl_line": 633,
+    "expr": "get_vector(metacells, \"type\", \"color\")",
+    "names": [
+        "memory-B",
+        "MEBEMP-E",
+        "MEBEMP-L",
+        "MPP"
+    ],
+    "values": [
+        "steelblue",
+        "#eebb6e",
+        "plum",
+        "gold"
+    ]
+}

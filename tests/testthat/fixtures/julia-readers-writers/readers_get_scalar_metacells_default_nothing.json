@@ -1,0 +1,5 @@
+{
+    "jl_line": 165,
+    "expr": "get_scalar(metacells, \"organism\"; default = nothing)",
+    "value": null
+}

@@ -4,7 +4,15 @@
 \alias{set_matrix}
 \title{Set a matrix indexed by a pair of axes.}
 \usage{
-set_matrix(daf, rows_axis, columns_axis, name, mat, overwrite = FALSE)
+set_matrix(
+  daf,
+  rows_axis,
+  columns_axis,
+  name,
+  mat,
+  overwrite = FALSE,
+  relayout = FALSE
+)
 }
 \arguments{
 \item{daf}{A \code{DafReader}.}
@@ -19,6 +27,11 @@ set_matrix(daf, rows_axis, columns_axis, name, mat, overwrite = FALSE)
 shape \verb{axis_length(rows_axis) x axis_length(columns_axis)}.}
 
 \item{overwrite}{See \code{set_scalar}.}
+
+\item{relayout}{If \code{TRUE}, also store the flipped layout (so
+\code{get_matrix(columns_axis, rows_axis, name)} skips the
+transpose-on-the-fly path). Mirrors Julia \verb{set_matrix!(...; relayout)}.
+Default \code{FALSE}; set to \code{TRUE} to match Julia's default behavior.}
 }
 \value{
 Invisibly the input \code{daf}.
@@ -27,11 +40,16 @@ Invisibly the input \code{daf}.
 Set a matrix indexed by a pair of axes.
 }
 \examples{
-d <- memory_daf()
-add_axis(d, "cell", c("c1", "c2"))
-add_axis(d, "gene", c("g1", "g2", "g3"))
-m <- matrix(1:6, nrow = 2, ncol = 3,
-    dimnames = list(c("c1", "c2"), c("g1", "g2", "g3")))
-set_matrix(d, "cell", "gene", "counts", m)
-dim(get_matrix(d, "cell", "gene", "counts"))
+# Mirrors writers.jl jldoctest at line 686.
+m <- example_metacells_daf()
+has_matrix(m, "gene", "metacell", "confidence", relayout = FALSE)    # FALSE
+set_matrix(m, "metacell", "gene", "confidence",
+           matrix(stats::runif(7L * 683L), 7L, 683L), relayout = FALSE)
+has_matrix(m, "gene", "metacell", "confidence", relayout = FALSE)    # FALSE
+has_matrix(m, "metacell", "gene", "confidence", relayout = FALSE)    # TRUE
+set_matrix(m, "metacell", "gene", "confidence",
+           matrix(stats::runif(7L * 683L), 7L, 683L),
+           overwrite = TRUE, relayout = TRUE)
+has_matrix(m, "gene", "metacell", "confidence", relayout = FALSE)    # TRUE
+has_matrix(m, "metacell", "gene", "confidence", relayout = FALSE)    # TRUE
 }

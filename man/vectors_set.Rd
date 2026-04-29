@@ -18,6 +18,6 @@ Character vector.
 Names of vectors on an axis, sorted.
 }
 \examples{
-d <- example_cells_daf()
-vectors_set(d, "cell")
+# Mirrors readers.jl jldoctest at line 595.
+vectors_set(example_cells_daf(), "cell") # "donor" "experiment"
 }

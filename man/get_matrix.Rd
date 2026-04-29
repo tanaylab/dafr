@@ -29,7 +29,9 @@ When the matrix is stored only at the flipped-layout axis pair
 returns with the requested dimnames.
 }
 \examples{
-d <- example_cells_daf()
-m <- get_matrix(d, "cell", "gene", "UMIs")
-dim(m)
+# Mirrors readers.jl jldoctest at line 933.
+m <- get_matrix(example_metacells_daf(), "gene", "metacell", "fraction")
+dim(m)            # 683  7
+colnames(m)       # 7 metacell IDs
+m[1:3, 1:2]
 }

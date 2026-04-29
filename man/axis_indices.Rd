@@ -4,7 +4,7 @@
 \alias{axis_indices}
 \title{Look up 1-based positions of entries in an axis.}
 \usage{
-axis_indices(daf, axis, entries)
+axis_indices(daf, axis, entries, allow_empty = FALSE, allow_missing = FALSE)
 }
 \arguments{
 \item{daf}{A \code{DafReader}.}
@@ -12,15 +12,25 @@ axis_indices(daf, axis, entries)
 \item{axis}{Axis name (character scalar).}
 
 \item{entries}{Character vector of entry names to resolve.}
+
+\item{allow_empty}{If \code{TRUE}, the empty string \code{""} resolves to a zero
+index (mirrors Julia \verb{axis_indices(...; allow_empty=true)}).}
+
+\item{allow_missing}{If \code{TRUE}, any non-empty name that is not present
+in the axis resolves to a zero index (mirrors Julia
+\verb{axis_indices(...; allow_missing=true)}).}
 }
 \value{
-Integer vector of 1-based positions; same length as \code{entries}.
+Integer vector of positions (1-based when present;
+\code{0L} when \code{allow_empty}/\code{allow_missing} substitutes for an empty or
+absent name); same length as \code{entries}.
 }
 \description{
 Look up 1-based positions of entries in an axis.
 }
 \examples{
-d <- memory_daf()
-add_axis(d, "cell", c("c1", "c2", "c3"))
-axis_indices(d, "cell", c("c3", "c1"))
+# Mirrors readers.jl jldoctest at line 389.
+axis_indices(example_metacells_daf(), "type",
+             c("MPP", ""), allow_empty = TRUE)
+# 4 0
 }

@@ -1,0 +1,5 @@
+{
+    "jl_line": 100,
+    "expr": "has_scalar(metacells, \"organism\")",
+    "value": false
+}

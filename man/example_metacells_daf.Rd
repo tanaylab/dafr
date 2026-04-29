@@ -17,6 +17,7 @@ metacells, and 4 types.
 Replicates the Julia \code{ExampleData.example_metacells_daf()} dataset.
 }
 \examples{
+# Mirrors example_data.jl jldoctest at line 62.
 m <- example_metacells_daf()
-axes_set(m)
+cat(description(m))
 }
