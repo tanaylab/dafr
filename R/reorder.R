@@ -16,7 +16,7 @@
 #' @param daf A [DafWriter].
 #' @param ... Named permutations: `cell = perm_cell, gene = perm_gene`.
 #' @param crash_counter Internal — for testing only. See
-#'   [tick_crash_counter()] (not exported).
+#'   `tick_crash_counter()` (not exported).
 #' @return Invisibly the input `daf`.
 #' @examples
 #' d <- memory_daf()

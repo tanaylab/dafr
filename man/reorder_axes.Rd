@@ -12,7 +12,7 @@ reorder_axes(daf, ..., crash_counter = NULL)
 \item{...}{Named permutations: \verb{cell = perm_cell, gene = perm_gene}.}
 
 \item{crash_counter}{Internal — for testing only. See
-\code{\link[=tick_crash_counter]{tick_crash_counter()}} (not exported).}
+\code{tick_crash_counter()} (not exported).}
 }
 \value{
 Invisibly the input \code{daf}.
