@@ -75,3 +75,44 @@ test_that("transposed LookupMatrix gets dimnames in queried order", {
     expect_equal(rownames(out), c("g1", "g2", "g3"))
     expect_equal(colnames(out), c("c1", "c2"))
 })
+
+test_that("matrix-column slice `@ axis :: m @ other-axis = entry` is named", {
+    # Shape used by mcsharp/scripts/analyze_sharpening.r:
+    #   @ base_block :: correlation_with_most @ gene = <gene>
+    d <- memory_daf(name = "t")
+    add_axis(d, "block", c("B01", "B02", "B03"))
+    add_axis(d, "gene", c("g1", "g2", "g3"))
+    set_matrix(d, "block", "gene", "score",
+               matrix(seq_len(9) / 10, 3, 3))
+    out <- get_query(d, "@ block :: score @ gene = g2")
+    expect_equal(names(out), c("B01", "B02", "B03"))
+    expect_equal(unname(out), c(0.4, 0.5, 0.6))
+})
+
+test_that("square col-slice `@ axis :: m @| entry` is named", {
+    d <- memory_daf(name = "t")
+    add_axis(d, "metacell", c("M01", "M02", "M03"))
+    set_matrix(d, "metacell", "metacell", "edge",
+               matrix(seq_len(9) / 10, 3, 3))
+    out <- get_query(d, "@ metacell :: edge @| M02")
+    expect_equal(names(out), c("M01", "M02", "M03"))
+})
+
+test_that("square row-slice `@ axis :: m @- entry` is named", {
+    d <- memory_daf(name = "t")
+    add_axis(d, "metacell", c("M01", "M02", "M03"))
+    set_matrix(d, "metacell", "metacell", "edge",
+               matrix(seq_len(9) / 10, 3, 3))
+    out <- get_query(d, "@ metacell :: edge @- M02")
+    expect_equal(names(out), c("M01", "M02", "M03"))
+})
+
+test_that("entry-pick on a matrix `@ rows @ cols :: m @ rows = entry` is named", {
+    d <- memory_daf(name = "t")
+    add_axis(d, "cell", c("c1", "c2"))
+    add_axis(d, "gene", c("g1", "g2", "g3"))
+    set_matrix(d, "cell", "gene", "UMIs", matrix(1:6, 2, 3))
+    # Pick a row -> remaining axis is gene; result indexed by gene.
+    out <- get_query(d, "@ cell @ gene :: UMIs @ cell = c1")
+    expect_equal(names(out), c("g1", "g2", "g3"))
+})
