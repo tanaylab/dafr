@@ -95,3 +95,100 @@ test_that("zarr_v2 round-trip via DirStore (filesystem) too", {
     expect_identical(parsed$dtype, "<i4")
     expect_identical(parsed$shape, list(3L))
 })
+
+# ---- chunk encode/decode --------------------------------------------------
+
+test_that("zarr_v2 numeric chunk: <f8 round-trip", {
+    bytes <- dafr:::zarr_v2_encode_chunk(c(1.5, -2.5, 3.14159), "<f8")
+    expect_length(bytes, 24L)  # 3 values * 8 bytes
+    decoded <- dafr:::zarr_v2_decode_chunk(bytes, "<f8", n = 3L)
+    expect_equal(decoded, c(1.5, -2.5, 3.14159))
+})
+
+test_that("zarr_v2 numeric chunk: <i4 round-trip", {
+    bytes <- dafr:::zarr_v2_encode_chunk(c(1L, -2L, 100000L), "<i4")
+    expect_length(bytes, 12L)
+    decoded <- dafr:::zarr_v2_decode_chunk(bytes, "<i4", n = 3L)
+    expect_identical(decoded, c(1L, -2L, 100000L))
+})
+
+test_that("zarr_v2 numeric chunk: <i8 round-trip", {
+    skip_if_not_installed("bit64")
+    big <- bit64::as.integer64(c("12345678901", "-98765432109", "0"))
+    bytes <- dafr:::zarr_v2_encode_chunk(big, "<i8")
+    expect_length(bytes, 24L)
+    decoded <- dafr:::zarr_v2_decode_chunk(bytes, "<i8", n = 3L)
+    expect_s3_class(decoded, "integer64")
+    expect_identical(as.character(decoded), as.character(big))
+})
+
+test_that("zarr_v2 numeric chunk: |b1 round-trip", {
+    bytes <- dafr:::zarr_v2_encode_chunk(c(TRUE, FALSE, TRUE, TRUE, FALSE), "|b1")
+    expect_length(bytes, 5L)
+    decoded <- dafr:::zarr_v2_decode_chunk(bytes, "|b1", n = 5L)
+    expect_identical(decoded, c(TRUE, FALSE, TRUE, TRUE, FALSE))
+})
+
+test_that("zarr_v2 chunk encode rejects |O (use string encoder)", {
+    expect_error(dafr:::zarr_v2_encode_chunk(c("a", "b"), "|O"),
+                 "use zarr_v2_encode_strings")
+})
+
+test_that("zarr_v2 chunk decode rejects |O (use string decoder)", {
+    expect_error(dafr:::zarr_v2_decode_chunk(raw(0L), "|O", n = 0L),
+                 "use zarr_v2_decode_strings")
+})
+
+test_that("zarr_v2 chunk decode handles gzip-compressed input", {
+    plain <- dafr:::zarr_v2_encode_chunk(c(1.0, 2.0, 3.0), "<f8")
+    gz <- memCompress(plain, type = "gzip")
+    decoded <- dafr:::zarr_v2_decode_chunk(
+        gz, "<f8", n = 3L,
+        compressor = list(id = "gzip")
+    )
+    expect_equal(decoded, c(1.0, 2.0, 3.0))
+})
+
+test_that("zarr_v2 chunk decode errors clearly on blosc compressor", {
+    expect_error(
+        dafr:::zarr_v2_decode_chunk(raw(0L), "<f8", n = 0L,
+                                    compressor = list(id = "blosc")),
+        "codec.*blosc.*not supported"
+    )
+})
+
+test_that("zarr_v2 chunk decode errors on zstd compressor", {
+    expect_error(
+        dafr:::zarr_v2_decode_chunk(raw(0L), "<f8", n = 0L,
+                                    compressor = list(id = "zstd")),
+        "codec.*zstd.*not supported"
+    )
+})
+
+test_that("zarr_v2 chunk decode errors on lz4 compressor", {
+    expect_error(
+        dafr:::zarr_v2_decode_chunk(raw(0L), "<f8", n = 0L,
+                                    compressor = list(id = "lz4")),
+        "codec.*lz4.*not supported"
+    )
+})
+
+test_that("zarr_v2 chunk encode: empty vector → empty bytes", {
+    expect_identical(dafr:::zarr_v2_encode_chunk(double(0L), "<f8"), raw(0L))
+    expect_identical(dafr:::zarr_v2_encode_chunk(integer(0L), "<i4"), raw(0L))
+})
+
+test_that("zarr_v2 chunk decode: empty bytes → empty vector", {
+    expect_identical(dafr:::zarr_v2_decode_chunk(raw(0L), "<f8", n = 0L), double(0L))
+    expect_identical(dafr:::zarr_v2_decode_chunk(raw(0L), "<i4", n = 0L), integer(0L))
+})
+
+test_that("zarr_v2 NaN and Inf round-trip through <f8", {
+    vals <- c(NaN, Inf, -Inf, NA_real_)
+    bytes <- dafr:::zarr_v2_encode_chunk(vals, "<f8")
+    decoded <- dafr:::zarr_v2_decode_chunk(bytes, "<f8", n = 4L)
+    expect_true(is.nan(decoded[1]))
+    expect_true(is.infinite(decoded[2]) && decoded[2] > 0)
+    expect_true(is.infinite(decoded[3]) && decoded[3] < 0)
+    expect_true(is.na(decoded[4]))
+})

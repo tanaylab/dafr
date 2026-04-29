@@ -105,3 +105,97 @@ zarr_v2_read_zattrs <- function(store, path) {
     if (is.null(raw)) return(list())
     jsonlite::fromJSON(rawToChar(raw), simplifyVector = FALSE)
 }
+
+# ---- chunk encode (write) ------------------------------------------------
+
+# Encode an R vector to raw little-endian bytes for the given dtype.
+# Strings (`|O`) error here — see Phase 4's string encoder.
+zarr_v2_encode_chunk <- function(value, dtype) {
+    if (dtype == "|O") {
+        stop("zarr_v2_encode_chunk: use zarr_v2_encode_strings for vlen-utf8",
+             call. = FALSE)
+    }
+    if (dtype == "<f8") {
+        return(.zarr_v2_writeBin(as.double(value), size = 8L))
+    }
+    if (dtype == "<i4") {
+        return(.zarr_v2_writeBin(as.integer(value), size = 4L))
+    }
+    if (dtype == "<i8") {
+        # bit64::integer64 → little-endian raw via .Internal-free path.
+        if (!inherits(value, "integer64")) {
+            value <- bit64::as.integer64(value)
+        }
+        # bit64 stores integer64 as a double-typed R vector with class "integer64".
+        # The on-disk bytes are the underlying little-endian int64 representation,
+        # which equals the underlying double bits for that vector. writeBin with
+        # size = 8L on the underlying double gives us the right bytes.
+        return(.zarr_v2_writeBin(unclass(value), size = 8L,
+                                 what = "double"))
+    }
+    if (dtype == "|b1") {
+        # 1 byte per element, 0 or 1.
+        return(as.raw(as.integer(as.logical(value))))
+    }
+    stop(sprintf("zarr_v2_encode_chunk: unsupported dtype %s", sQuote(dtype)),
+         call. = FALSE)
+}
+
+.zarr_v2_writeBin <- function(value, size, what = NULL) {
+    con <- rawConnection(raw(0L), "wb")
+    on.exit(close(con))
+    if (is.null(what)) {
+        writeBin(value, con, size = size, endian = "little")
+    } else {
+        # Force the storage type for the writeBin call (used for integer64
+        # → double-bit-pattern reinterpretation).
+        writeBin(as(value, what), con, size = size, endian = "little")
+    }
+    rawConnectionValue(con)
+}
+
+# ---- chunk decode (read) -------------------------------------------------
+
+# Decode raw bytes back to an R vector. Handles uncompressed + gzip.
+# Errors clearly for unsupported codecs.
+zarr_v2_decode_chunk <- function(bytes, dtype, n, compressor = NULL) {
+    if (!is.null(compressor)) {
+        codec_id <- compressor$id %||% compressor[["id"]] %||%
+                    if (is.character(compressor)) compressor else NULL
+        if (is.null(codec_id)) {
+            stop("zarr_v2_decode_chunk: compressor field has no id", call. = FALSE)
+        }
+        if (identical(codec_id, "gzip")) {
+            bytes <- memDecompress(bytes, type = "gzip")
+        } else {
+            stop(sprintf(
+                "zarr_v2: codec %s not supported (only uncompressed + gzip); re-save with compressor=None",
+                sQuote(codec_id)
+            ), call. = FALSE)
+        }
+    }
+    if (dtype == "|O") {
+        stop("zarr_v2_decode_chunk: use zarr_v2_decode_strings for vlen-utf8",
+             call. = FALSE)
+    }
+    con <- rawConnection(bytes, "rb")
+    on.exit(close(con))
+    if (dtype == "<f8") {
+        return(readBin(con, "double", n = n, size = 8L, endian = "little"))
+    }
+    if (dtype == "<i4") {
+        return(readBin(con, "integer", n = n, size = 4L, endian = "little"))
+    }
+    if (dtype == "<i8") {
+        # Read as 8-byte doubles (R's only fixed-8-byte type without altrep tricks)
+        # and reinterpret as integer64 by setting the class.
+        d <- readBin(con, "double", n = n, size = 8L, endian = "little")
+        class(d) <- "integer64"
+        return(d)
+    }
+    if (dtype == "|b1") {
+        return(as.logical(readBin(con, "raw", n = n)))
+    }
+    stop(sprintf("zarr_v2_decode_chunk: unsupported dtype %s", sQuote(dtype)),
+         call. = FALSE)
+}
