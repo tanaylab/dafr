@@ -122,19 +122,42 @@ zarr_v2_read_zattrs <- function(store, path) {
 #     {
 #       "zarr_consolidated_format": 1,
 #       "metadata": {
-#         "scalars/n/.zarray": {<contents>},
-#         "axes/cell/.zarray": {<contents>},
+#         ".zgroup":             {"zarr_format": 2},     # root group (synthesised)
+#         "scalars/.zgroup":     {"zarr_format": 2},     # intermediate (synthesised)
+#         "scalars/n/.zarray":   {<contents>},
+#         "axes/.zgroup":        {"zarr_format": 2},     # intermediate (synthesised)
+#         "axes/cell/.zarray":   {<contents>},
 #         ...
 #       }
 #     }
+#
+# zarr-python v3 `_flat_to_nested` requires intermediate `.zgroup` entries
+# for every ancestor of an array.  dafr synthesises these here — they are
+# not written as separate files; the consolidated copy is sufficient for
+# `zarr.open()` HTTP/consolidated readers.  `.zattrs` entries are NOT
+# synthesised: zarr-python works without them and omitting them preserves
+# the "sparse vector has no .zattrs" invariant (Phase 8).
+#
+# zarr-python v3's `_flat_to_nested` requires that every intermediate
+# directory prefix of an array also appear as a `.zgroup` entry;
+# otherwise `zarr.open()` raises KeyError when rebuilding the tree.
+# dafr synthesises the missing intermediate `.zgroup` entries here
+# (they are not written as separate files; the consolidated copy is
+# the canonical source for HTTP / consolidated readers).
 
-# Walk every key matching */.zarray, */.zattrs, */.zgroup and inline
-# the parsed JSON into a single dict.
+# Walk every key matching *.zarray, *.zattrs, *.zgroup (including the
+# bare root keys) and inline the parsed JSON into a single dict.
+# Also synthesise `.zgroup` entries for every intermediate directory
+# prefix so zarr-python v3 can rebuild the nested group tree.
 zarr_v2_consolidated_metadata <- function(store) {
     keys <- store_list(store, "")
+    # Match */.zarray, */.zattrs, */.zgroup (slash-prefixed) AND the
+    # bare root variants (.zgroup, .zattrs) which have no leading slash.
     matching <- keys[endsWith(keys, "/.zarray") |
                      endsWith(keys, "/.zattrs") |
-                     endsWith(keys, "/.zgroup")]
+                     endsWith(keys, "/.zgroup") |
+                     keys == ".zgroup" |
+                     keys == ".zattrs"]
     metadata <- list()
     for (k in matching) {
         bytes <- store_get_bytes(store, k)
@@ -142,6 +165,36 @@ zarr_v2_consolidated_metadata <- function(store) {
         json <- jsonlite::fromJSON(rawToChar(bytes), simplifyVector = FALSE)
         metadata[[k]] <- json
     }
+
+    # Synthesise intermediate-group `.zgroup` entries.  For every
+    # .zarray or .zgroup key of the form "a/b/c/.zarray" (depth >= 2)
+    # we need ".zgroup" entries for every ancestor directory: "", "a",
+    # "a/b", etc.  The root "" is rendered as ".zgroup" (bare).
+    # Depth-1 arrays (e.g. "foo/.zarray") only need the root, which is
+    # already ensured by `_init_store` writing the file.
+    array_keys  <- keys[endsWith(keys, "/.zarray") | endsWith(keys, "/.zgroup")]
+    # Extract directory paths from each array key.
+    dir_paths <- unique(unlist(lapply(array_keys, function(k) {
+        # Strip the trailing /.<meta> suffix to get the array/group path.
+        path <- sub("/\\.[^/]+$", "", k)    # e.g. "scalars/n"
+        parts <- strsplit(path, "/", fixed = TRUE)[[1L]]
+        n <- length(parts)
+        if (n <= 1L) return(character(0L))  # depth 1: only root needed
+        # Return all intermediate prefixes (depth 1 to n-1).
+        vapply(seq_len(n - 1L), function(i) {
+            paste(parts[seq_len(i)], collapse = "/")
+        }, character(1L))
+    })))
+    # Ensure root is included whenever there are any arrays.
+    if (length(array_keys) > 0L) dir_paths <- unique(c("", dir_paths))
+    .zgroup_content <- list(zarr_format = 2L)
+    for (dp in dir_paths) {
+        zg_key <- if (nzchar(dp)) paste0(dp, "/.zgroup") else ".zgroup"
+        if (!zg_key %in% names(metadata)) {
+            metadata[[zg_key]] <- .zgroup_content
+        }
+    }
+
     list(zarr_consolidated_format = 1L, metadata = metadata)
 }
 

@@ -117,15 +117,18 @@ zarr_daf <- function(uri = NULL, mode = c("r", "r+", "w", "w+"),
 }
 
 # Initialize an empty Zarr store with the daf.json marker. Also writes
-# an empty `.zmetadata` (consolidated metadata, see zarr_v2.R) so the
-# file exists from store creation and the invariant "every ZarrDaf
-# store has a `.zmetadata` at its root" holds unconditionally.
+# the root `.zgroup` (so zarr-python v3's `zarr.open()` recognises the
+# directory as a Zarr v2 group) and an empty `.zmetadata` (consolidated
+# metadata, see zarr_v2.R) so both files exist from store creation and
+# the invariant "every ZarrDaf store has `.zgroup` + `.zmetadata` at
+# its root" holds unconditionally.
 .zarr_daf_init_store <- function(store) {
     daf_meta <- list(version = "0.2.0", format = "zarr_daf")
     store_set_bytes(
         store, "daf.json",
         charToRaw(jsonlite::toJSON(daf_meta, auto_unbox = TRUE))
     )
+    store_set_bytes(store, ".zgroup", .ZARR_ZGROUP_BYTES)
     zarr_v2_write_zmetadata(store)
     invisible()
 }
@@ -688,7 +691,7 @@ S7::method(format_delete_vector,
 #
 # Layout (mirrors DataAxesFormats.jl/src/zarr_format.jl):
 #   matrices/{rows_axis}/{cols_axis}/{name}/
-#       Dense:  .zarray + 0.0   (shape = [n_cols, n_rows], order = "C")
+#       Dense:  .zarray + 0/0   (shape = [n_cols, n_rows], order = "C")
 #       Sparse: .zgroup + colptr/, rowval/, [nzval/]
 #
 # Dense:   upstream stores `.zarray` shape REVERSED — [n_cols, n_rows] with
@@ -778,7 +781,7 @@ S7::method(format_matrices_set,
     on_disk_d1 <- as.integer(zarray$shape[[2L]])
     nr <- on_disk_d1
     nc <- on_disk_d0
-    chunk_path <- paste0(base, "/0.0")
+    chunk_path <- paste0(base, "/0/0")
     bytes <- store_get_bytes(store, chunk_path)
     if (is.null(bytes)) {
         stop(sprintf("matrix at %s missing chunk", sQuote(base)), call. = FALSE)
@@ -908,7 +911,7 @@ S7::method(
     }
     if (exists_dense) {
         store_delete(store, paste0(base, "/.zarray"))
-        store_delete(store, paste0(base, "/0.0"))
+        store_delete(store, paste0(base, "/0/0"))
     }
     if (exists_sparse) {
         for (k in store_list(store, base)) store_delete(store, k)
@@ -943,7 +946,7 @@ S7::method(
         chunk <- zarr_v2_encode_chunk(flat, dtype)
     }
     zarr_v2_write_zarray(store, base, zarray)
-    store_set_bytes(store, paste0(base, "/0.0"), chunk)
+    store_set_bytes(store, paste0(base, "/0/0"), chunk)
     zarr_v2_write_zmetadata(store)
 }
 
@@ -1000,7 +1003,7 @@ S7::method(format_delete_matrix,
         }
         if (exists_dense) {
             store_delete(store, paste0(base, "/.zarray"))
-            store_delete(store, paste0(base, "/0.0"))
+            store_delete(store, paste0(base, "/0/0"))
         }
         if (exists_sparse) {
             for (k in store_list(store, base)) store_delete(store, k)
