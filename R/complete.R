@@ -1,31 +1,6 @@
 #' @include classes.R files_daf.R memory_daf.R chain_daf.R view_daf.R readers.R writers.R
 NULL
 
-#' Open a daf storage path in a given mode.
-#'
-#' Dispatches on path extension. Directory paths open a `FilesDaf`; paths
-#' ending in `.h5df` or containing `.h5dfs#<group>` are reserved for an
-#' H5df backend (not implemented).
-#'
-#' @param path Filesystem path.
-#' @param mode One of `"r"` (read-only) or `"r+"` (read-write).
-#' @param name Optional daf name. Default derived from the path basename.
-#' @return A `DafReader` or `DafWriter`.
-#' @export
-#' @examples
-#' tmp <- tempfile(); dir.create(tmp)
-#' files_daf(tmp, name = "tmp", mode = "w+")
-#' d <- open_daf(tmp, "r")
-open_daf <- function(path, mode = "r", name = NULL) {
-    if (endsWith(path, ".h5df") || grepl(".h5dfs#", path, fixed = TRUE)) {
-        stop("H5df backend not supported yet", call. = FALSE)
-    }
-    if (is.null(name)) name <- basename(path)
-    if (!mode %in% c("r", "r+")) {
-        stop("`mode` must be \"r\" or \"r+\"", call. = FALSE)
-    }
-    files_daf(path, name = name, mode = mode)
-}
 
 #' Create a persistent chain by linking `new_daf` to a `base_daf`.
 #'

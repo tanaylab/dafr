@@ -103,6 +103,7 @@ Collate:
     'files_daf_write.R'
     'groups.R'
     'mmap.R'
+    'open_daf.R'
     'options.R'
     'query_builders.R'
     'query_builders_exports.R'
