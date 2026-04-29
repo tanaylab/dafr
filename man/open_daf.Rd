@@ -25,11 +25,10 @@ and mode).
 }
 \description{
 Path/URL-aware factory that dispatches to the right backend. Today
-supports \verb{memory://} (or no path / NULL) for in-memory stores and
-regular filesystem paths for \code{files_daf}. Future backends are
-stubbed with explicit error messages: \verb{*.daf.zarr} /
-\verb{*.daf.zarr.zip} errors with "lands in slice 16",
-\verb{http(s)://} errors with "lands in slice 18".
+supports \verb{memory://} (or no path / NULL) for in-memory stores,
+regular filesystem paths for \code{files_daf}, and \verb{*.daf.zarr}
+directories for \code{zarr_daf}. \verb{*.daf.zarr.zip} errors with
+"lands in slice 17"; \verb{http(s)://} errors with "lands in slice 18".
 }
 \examples{
 d <- open_daf("memory://", name = "demo")

@@ -13,6 +13,11 @@
 #' Uniform read/write API for byte content keyed by path strings.
 #' Concrete implementations: [DirStore], [DictStore], [MmapZipStore].
 #'
+#' @param root (`DirStore`) Filesystem root path; created if missing.
+#' @param env (`DictStore`) Internal environment used as the key-value
+#'   backing store; typically created by [new_dict_store()].
+#' @param path (`MmapZipStore`) Filesystem path to a zip archive
+#'   (stub; not yet functional — lands in slice 17).
 #' @name ZarrStore
 #' @export
 ZarrStore <- S7::new_class("ZarrStore", abstract = TRUE)
@@ -114,6 +119,7 @@ new_mmap_zip_store <- function(path) {
 #' @param path  Character scalar key (slash-separated path string).
 #' @param bytes Raw vector of bytes to write.
 #' @param prefix Character scalar; `""` to list all keys.
+#' @param ... Not used; present for S7 generic dispatch compatibility.
 #' @name zarr_store_generics
 #' @return See individual descriptions above.
 NULL

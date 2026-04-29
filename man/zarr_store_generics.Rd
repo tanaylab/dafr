@@ -24,6 +24,8 @@ store_list(store, prefix, ...)
 
 \item{path}{Character scalar key (slash-separated path string).}
 
+\item{...}{Not used; present for S7 generic dispatch compatibility.}
+
 \item{bytes}{Raw vector of bytes to write.}
 
 \item{prefix}{Character scalar; \code{""} to list all keys.}

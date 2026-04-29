@@ -9,6 +9,8 @@ NULL
 #' (in-memory). Zip-backed Zarr (`MmapZipStore`) lands in slice 17.
 #'
 #' @inheritParams DafReader
+#' @param store Internal [ZarrStore] instance (set by [zarr_daf()]);
+#'   not intended for direct use.
 #' @examples
 #' tmp <- tempfile(fileext = ".daf.zarr")
 #' d <- zarr_daf(tmp, mode = "w")
@@ -30,6 +32,8 @@ ZarrDaf <- S7::new_class(
 #' calls on this class with a clear "store opened read-only" error.
 #'
 #' @inheritParams DafReader
+#' @param store Internal [ZarrStore] instance (set by [zarr_daf()]);
+#'   not intended for direct use.
 #' @examples
 #' \dontrun{
 #' d <- zarr_daf("/path/to/existing.daf.zarr", mode = "r")

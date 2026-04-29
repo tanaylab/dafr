@@ -17,7 +17,7 @@ Invisibly the destination path.
 }
 \description{
 Reverse of \code{\link[=files_to_zarr]{files_to_zarr()}}. Re-serializes JSON metadata and
-string blobs. Same-filesystem only — cross-filesystem hard-links
+string blobs. Same-filesystem only - cross-filesystem hard-links
 fail and produce an error (no automatic copy fallback).
 }
 \examples{

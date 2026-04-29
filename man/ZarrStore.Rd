@@ -15,6 +15,15 @@ DictStore(env = NULL)
 
 MmapZipStore(path = character(0))
 }
+\arguments{
+\item{root}{(\code{DirStore}) Filesystem root path; created if missing.}
+
+\item{env}{(\code{DictStore}) Internal environment used as the key-value
+backing store; typically created by \code{\link[=new_dict_store]{new_dict_store()}}.}
+
+\item{path}{(\code{MmapZipStore}) Filesystem path to a zip archive
+(stub; not yet functional — lands in slice 17).}
+}
 \description{
 Uniform read/write API for byte content keyed by path strings.
 Concrete implementations: \link{DirStore}, \link{DictStore}, \link{MmapZipStore}.

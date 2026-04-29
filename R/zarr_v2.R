@@ -6,6 +6,9 @@
 # Phase 3: numeric chunk encode/decode.
 # Phase 4: vlen-utf8 string encoding.
 
+#' @importFrom methods as
+NULL
+
 # ---- dtype mapping (R type → Zarr v2 dtype string) -----------------------
 
 # Returns a Zarr v2 dtype string for the given R value. Always

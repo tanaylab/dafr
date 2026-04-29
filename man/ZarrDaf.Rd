@@ -31,6 +31,9 @@ mutation counters.}
 
 \item{matrix_version_counter}{Environment tracking per-matrix
 mutation counters.}
+
+\item{store}{Internal \link{ZarrStore} instance (set by \code{\link[=zarr_daf]{zarr_daf()}});
+not intended for direct use.}
 }
 \description{
 Concrete \code{DafWriter} subclass instantiated by \code{\link[=zarr_daf]{zarr_daf()}} when

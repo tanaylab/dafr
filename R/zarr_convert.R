@@ -47,7 +47,7 @@ files_to_zarr <- function(src, dst) {
 #' Convert a `zarr_daf` directory to a `files_daf` directory.
 #'
 #' Reverse of [files_to_zarr()]. Re-serializes JSON metadata and
-#' string blobs. Same-filesystem only — cross-filesystem hard-links
+#' string blobs. Same-filesystem only - cross-filesystem hard-links
 #' fail and produce an error (no automatic copy fallback).
 #'
 #' @inheritParams files_to_zarr
@@ -100,7 +100,7 @@ zarr_to_files <- function(src, dst) {
     if (!isTRUE(ok)) {
         stop(sprintf(
             paste0(
-                "cannot hard-link from %s to %s — paths must be on ",
+                "cannot hard-link from %s to %s - paths must be on ",
                 "the same filesystem"
             ),
             sQuote(src), sQuote(dst)
