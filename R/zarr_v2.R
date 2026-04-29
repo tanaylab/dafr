@@ -106,6 +106,72 @@ zarr_v2_read_zattrs <- function(store, path) {
     jsonlite::fromJSON(rawToChar(raw), simplifyVector = FALSE)
 }
 
+# ---- .zmetadata consolidation -------------------------------------------
+#
+# A Zarr v2 store can carry a `.zmetadata` JSON at its root that
+# mirrors every per-array `.zarray` + `.zattrs` (and `.zgroup`) in the
+# tree. zarr-python uses this to load metadata in O(1) HTTP roundtrips.
+# Upstream DataAxesFormats.jl writes this file too (see
+# `refresh_consolidated_metadata!` in zarr_format.jl). dafr maintains
+# this file always; on every set/delete the consolidated metadata is
+# rewritten so live readers (HTTP-backed `ConsolidatedStore` clients in
+# particular) observe a consistent view.
+#
+# JSON shape (matches upstream + zarr-python's `consolidate_metadata`):
+#
+#     {
+#       "zarr_consolidated_format": 1,
+#       "metadata": {
+#         "scalars/n/.zarray": {<contents>},
+#         "axes/cell/.zarray": {<contents>},
+#         ...
+#       }
+#     }
+
+# Walk every key matching */.zarray, */.zattrs, */.zgroup and inline
+# the parsed JSON into a single dict.
+zarr_v2_consolidated_metadata <- function(store) {
+    keys <- store_list(store, "")
+    matching <- keys[endsWith(keys, "/.zarray") |
+                     endsWith(keys, "/.zattrs") |
+                     endsWith(keys, "/.zgroup")]
+    metadata <- list()
+    for (k in matching) {
+        bytes <- store_get_bytes(store, k)
+        if (is.null(bytes)) next
+        json <- jsonlite::fromJSON(rawToChar(bytes), simplifyVector = FALSE)
+        metadata[[k]] <- json
+    }
+    list(zarr_consolidated_format = 1L, metadata = metadata)
+}
+
+# Rewrite the root-level `.zmetadata` file. Called at the END of every
+# write/delete helper in zarr_format.R so the consolidated copy is
+# always in sync with the per-file copies. No-op-friendly: if the
+# store is empty the metadata dict is just `{}`.
+zarr_v2_write_zmetadata <- function(store) {
+    consolidated <- zarr_v2_consolidated_metadata(store)
+    # `metadata` must serialize as `{}` (object), not `[]` (empty array),
+    # when there are no entries. jsonlite handles named lists correctly;
+    # an empty unnamed list serializes as `[]`. Force object shape.
+    if (length(consolidated$metadata) == 0L) {
+        # Empty named list serializes as {} only via auto_unbox plus an
+        # explicit nudge; jsonlite's safest path is to drop into
+        # named_list semantics by setting names() to character(0).
+        consolidated$metadata <- structure(list(), names = character(0L))
+    }
+    json <- jsonlite::toJSON(consolidated, auto_unbox = TRUE,
+                             null = "null", pretty = FALSE)
+    store_set_bytes(store, ".zmetadata", charToRaw(as.character(json)))
+    invisible()
+}
+
+zarr_v2_read_zmetadata <- function(store) {
+    bytes <- store_get_bytes(store, ".zmetadata")
+    if (is.null(bytes)) return(NULL)
+    jsonlite::fromJSON(rawToChar(bytes), simplifyVector = FALSE)
+}
+
 # ---- chunk encode (write) ------------------------------------------------
 
 # Encode an R vector to raw little-endian bytes for the given dtype.

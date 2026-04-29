@@ -116,13 +116,17 @@ zarr_daf <- function(uri = NULL, mode = c("r", "r+", "w", "w+"),
     )
 }
 
-# Initialize an empty Zarr store with the daf.json marker.
+# Initialize an empty Zarr store with the daf.json marker. Also writes
+# an empty `.zmetadata` (consolidated metadata, see zarr_v2.R) so the
+# file exists from store creation and the invariant "every ZarrDaf
+# store has a `.zmetadata` at its root" holds unconditionally.
 .zarr_daf_init_store <- function(store) {
     daf_meta <- list(version = "0.2.0", format = "zarr_daf")
     store_set_bytes(
         store, "daf.json",
         charToRaw(jsonlite::toJSON(daf_meta, auto_unbox = TRUE))
     )
+    zarr_v2_write_zmetadata(store)
     invisible()
 }
 
@@ -233,6 +237,7 @@ S7::method(
     }
     zarr_v2_write_zarray(store, path, zarray)
     store_set_bytes(store, paste0(path, "/0"), chunk_bytes)
+    zarr_v2_write_zmetadata(store)
 }
 
 S7::method(
@@ -250,6 +255,7 @@ S7::method(
     }
     store_delete(store, paste0("scalars/", name, "/.zarray"))
     store_delete(store, paste0("scalars/", name, "/0"))
+    zarr_v2_write_zmetadata(store)
     invisible()
 }
 S7::method(
@@ -371,6 +377,7 @@ S7::method(
         store, paste0(path, "/0"),
         zarr_v2_encode_strings(entries)
     )
+    zarr_v2_write_zmetadata(store)
     invisible()
 }
 S7::method(
@@ -395,6 +402,7 @@ S7::method(
     }
     store_delete(store, paste0("axes/", axis, "/.zarray"))
     store_delete(store, paste0("axes/", axis, "/0"))
+    zarr_v2_write_zmetadata(store)
     bump_axis_counter(daf, axis)
     invisible()
 }
@@ -486,15 +494,15 @@ S7::method(format_vectors_set,
     # (FilesDaf densifies sparse vectors at the read boundary too — the
     # user-facing get_vector contract is "named atomic vector"). On-disk
     # layout is still sparse; densification happens on read.
+    #
+    # Upstream parity (matches sparse-matrix layout):
+    #   - No `.zattrs` is written. The vector's full length comes from
+    #     the axis length, not from a stored `n`.
+    #   - The all-TRUE Bool case is inferred from the ABSENCE of
+    #     `nzval/.zarray` in the store.
     store <- S7::prop(daf, "store")
     base <- paste0("vectors/", axis, "/", name)
-    attrs <- zarr_v2_read_zattrs(store, base)
-    n <- if (is.null(attrs$n)) {
-        # Fallback to axis length if .zattrs lacks our dafr-specific "n".
-        as.integer(format_axis_length(daf, axis))
-    } else {
-        as.integer(attrs$n)
-    }
+    n <- as.integer(format_axis_length(daf, axis))
     nzind_zarray <- zarr_v2_read_zarray(store, paste0(base, "/nzind"))
     nzind_n <- as.integer(nzind_zarray$shape[[1L]])
     nzind <- zarr_v2_decode_chunk(
@@ -505,7 +513,8 @@ S7::method(format_vectors_set,
     # Upstream stores 1-based indices on disk (Julia SparseVector convention).
     nzind_1 <- as.integer(nzind)
 
-    if (isTRUE(attrs$all_true)) {
+    has_nzval <- store_exists(store, paste0(base, "/nzval/.zarray"))
+    if (!has_nzval) {
         # All-TRUE Bool sparse: nzval was omitted on write; synthesize.
         out <- logical(n)
         out[nzind_1] <- TRUE
@@ -612,19 +621,16 @@ S7::method(
     }
     zarr_v2_write_zarray(store, base, zarray)
     store_set_bytes(store, paste0(base, "/0"), chunk)
+    zarr_v2_write_zmetadata(store)
 }
 
 .zarr_write_sparse_vector <- function(store, base, vec) {
-    # Mark as group.
+    # Mark as group. NO .zattrs is written — upstream parity with
+    # sparse matrices: shape comes from the axis length on read, and
+    # the all-TRUE Bool case is inferred from absence of `nzval/`.
     store_set_bytes(store, paste0(base, "/.zgroup"), .ZARR_ZGROUP_BYTES)
     is_all_true_bool <- is.logical(vec@x) && length(vec@x) > 0L &&
                         all(vec@x, na.rm = FALSE)
-    attrs <- list(
-        format = "sparse",
-        n = as.integer(vec@length),
-        all_true = is_all_true_bool
-    )
-    zarr_v2_write_zattrs(store, base, attrs)
     # Write nzind: 1-based indices (upstream Julia SparseVector convention).
     nzind <- as.integer(vec@i)
     nzind_dtype <- "<i4"  # int32; upgrade to <i8 if/when we hit huge axes.
@@ -641,6 +647,7 @@ S7::method(
         store_set_bytes(store, paste0(base, "/nzval/0"),
                         zarr_v2_encode_chunk(vec@x, nzval_dtype))
     }
+    zarr_v2_write_zmetadata(store)
 }
 
 S7::method(format_delete_vector,
@@ -666,6 +673,7 @@ S7::method(format_delete_vector,
         if (exists_sparse) {
             for (k in store_list(store, base)) store_delete(store, k)
         }
+        zarr_v2_write_zmetadata(store)
         bump_vector_counter(daf, axis, name)
         invisible()
     }
@@ -936,6 +944,7 @@ S7::method(
     }
     zarr_v2_write_zarray(store, base, zarray)
     store_set_bytes(store, paste0(base, "/0.0"), chunk)
+    zarr_v2_write_zmetadata(store)
 }
 
 .zarr_write_sparse_matrix <- function(store, base, mat) {
@@ -969,6 +978,7 @@ S7::method(
         store_set_bytes(store, paste0(base, "/nzval/0"),
                         zarr_v2_encode_chunk(mat@x, nzval_dtype))
     }
+    zarr_v2_write_zmetadata(store)
 }
 
 S7::method(format_delete_matrix,
@@ -995,6 +1005,7 @@ S7::method(format_delete_matrix,
         if (exists_sparse) {
             for (k in store_list(store, base)) store_delete(store, k)
         }
+        zarr_v2_write_zmetadata(store)
         bump_matrix_counter(daf, rows_axis, columns_axis, name)
         invisible()
     }
