@@ -185,6 +185,14 @@ NULL
         state$pick_dim <- pick_dim
         return(state)
     }
+    if (identical(state$kind, "axis_pending_matrix")) {
+        # `@ axis :: matrix-prop @ other-axis = entry`: the second axis names
+        # the column dimension of the matrix; the slice is finalised by the
+        # IsEqual that should follow.
+        state$cols_axis <- node$axis_name
+        state$kind <- "axis_pending_matrix_pick"
+        return(state)
+    }
     if (identical(state$kind, "axis")) {
         # second axis -> matrix dimension in scope.
         # If the first axis was mask-filtered, carry its surviving-entry
@@ -330,6 +338,24 @@ NULL
 }
 
 .apply_lookup_matrix <- function(node, state, daf) {
+    if (identical(state$kind, "axis")) {
+        # `@ axis :: matrix-prop ...`: the matrix lookup is completed once a
+        # second axis (or a square slice) arrives. Stash the property name
+        # and any IfMissing default; preserve a row-mask filter from the
+        # first axis so the eventual slice respects it.
+        if (is.null(node$name)) {
+            stop("'::' requires two axes in scope (got axis)",
+                call. = FALSE)
+        }
+        return(list(
+            kind = "axis_pending_matrix",
+            rows_axis = state$axis,
+            row_indices = state$indices,
+            matrix_property = node$name,
+            matrix_if_missing = state$if_missing,
+            matrix_if_missing_type = state$if_missing_type
+        ))
+    }
     if (!identical(state$kind, "two_axes")) {
         stop(sprintf("'::' requires two axes in scope (got %s)", state$kind),
             call. = FALSE
@@ -529,6 +555,9 @@ NULL
     if (identical(state$kind, "entry_pick_matrix")) {
         return(.apply_entry_pick_matrix(node, state, daf))
     }
+    if (identical(state$kind, "axis_pending_matrix_pick")) {
+        return(.apply_matrix_column_by_axis(node, state, daf))
+    }
     if (!identical(state$kind, "mask")) {
         stop("comparator outside of mask", call. = FALSE)
     }
@@ -629,7 +658,127 @@ NULL
     list(kind = "vector", value = vec, axis = remaining_axis)
 }
 
+# Resolve `@ rows-axis :: matrix-prop @ cols-axis = entry` once the IsEqual
+# arrives. Fetches the matrix, slices the named column, and returns a vector
+# along the in-scope rows axis. Honours any IfMissing default that was
+# attached to the LookupMatrix node, and any row-mask filter carried over
+# from a `[ ... ]` predicate on the rows axis.
+.apply_matrix_column_by_axis <- function(node, state, daf) {
+    if (!identical(node$op, "IsEqual")) {
+        stop(sprintf(
+            "matrix-column slice on axis %s expects '= <entry>', got %s",
+            sQuote(state$cols_axis), sQuote(node$op)
+        ), call. = FALSE)
+    }
+    rows <- state$rows_axis
+    cols <- state$cols_axis
+    prop <- state$matrix_property
+    rows_array <- format_axis_array(daf, rows)
+    row_names <- if (is.null(state$row_indices)) {
+        rows_array
+    } else {
+        rows_array[state$row_indices]
+    }
+    n_rows_out <- length(row_names)
+
+    if (!format_has_matrix(daf, rows, cols, prop)) {
+        if (!is.null(state$matrix_if_missing)) {
+            default <- .coerce_if_missing_default(
+                state$matrix_if_missing, state$matrix_if_missing_type
+            )
+            return(list(
+                kind = "vector",
+                axis = rows,
+                value = setNames(rep(default, n_rows_out), row_names)
+            ))
+        }
+        stop(sprintf(
+            "no matrix %s [%s, %s]",
+            sQuote(prop), sQuote(rows), sQuote(cols)
+        ), call. = FALSE)
+    }
+
+    cols_array <- format_axis_array(daf, cols)
+    col_idx <- match(as.character(node$value), cols_array)
+    if (is.na(col_idx)) {
+        stop(sprintf(
+            "no entry %s on axis %s",
+            sQuote(node$value), sQuote(cols)
+        ), call. = FALSE)
+    }
+
+    m <- format_get_matrix(daf, rows, cols, prop)
+    vec <- m[, col_idx, drop = TRUE]
+    if (!is.null(state$row_indices)) {
+        vec <- vec[state$row_indices]
+    }
+    if (methods::is(vec, "sparseVector") || methods::is(vec, "Matrix")) {
+        vec <- as.numeric(vec)
+    }
+    names(vec) <- row_names
+    list(kind = "vector", value = vec, axis = rows)
+}
+
+# Resolve `@ axis :: matrix-prop @| entry` (column slice) and
+# `@ axis :: matrix-prop @- entry` (row slice) for square matrices, where
+# both dimensions of the matrix share the in-scope axis.
+.apply_square_slice_axis <- function(node, state, daf) {
+    rows <- state$rows_axis
+    prop <- state$matrix_property
+    rows_array <- format_axis_array(daf, rows)
+    row_names <- if (is.null(state$row_indices)) {
+        rows_array
+    } else {
+        rows_array[state$row_indices]
+    }
+    n_rows_out <- length(row_names)
+
+    if (!format_has_matrix(daf, rows, rows, prop)) {
+        if (!is.null(state$matrix_if_missing)) {
+            default <- .coerce_if_missing_default(
+                state$matrix_if_missing, state$matrix_if_missing_type
+            )
+            return(list(
+                kind = "vector",
+                axis = rows,
+                value = setNames(rep(default, n_rows_out), row_names)
+            ))
+        }
+        stop(sprintf(
+            "no matrix %s [%s, %s]",
+            sQuote(prop), sQuote(rows), sQuote(rows)
+        ), call. = FALSE)
+    }
+
+    idx <- match(as.character(node$value), rows_array)
+    if (is.na(idx)) {
+        stop(sprintf(
+            "no entry %s on axis %s",
+            sQuote(node$value), sQuote(rows)
+        ), call. = FALSE)
+    }
+
+    m <- format_get_matrix(daf, rows, rows, prop)
+    vec <- if (identical(node$op, "SquareRowIs")) {
+        m[idx, , drop = TRUE]
+    } else {
+        # SquareColumnIs
+        m[, idx, drop = TRUE]
+    }
+    if (!is.null(state$row_indices)) {
+        vec <- vec[state$row_indices]
+    }
+    if (methods::is(vec, "sparseVector") || methods::is(vec, "Matrix")) {
+        vec <- as.numeric(vec)
+    }
+    names(vec) <- row_names
+    list(kind = "vector", value = vec, axis = rows)
+}
+
 .apply_square_slice <- function(node, state, daf) {
+    if (identical(state$kind, "axis_pending_matrix")) {
+        return(.apply_square_slice_axis(node, state, daf))
+    }
     if (!identical(state$kind, "matrix")) {
         stop("square slice requires a matrix in scope", call. = FALSE)
     }

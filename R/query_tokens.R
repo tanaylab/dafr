@@ -68,28 +68,29 @@ NULL
             start, sQuote(s)
         ), call. = FALSE)
     }
-    # Decimal numeric literal (e.g. "2.0", "1.5").  Must be tried before the
-    # general value regex because '.' is otherwise treated as an operator token.
-    nm <- regmatches(
-        substr(s, start, n),
-        regexpr("^\\d+\\.\\d+(?:[eE][+-]?\\d+)?",
-            substr(s, start, n),
-            perl = TRUE
-        )
-    )
-    if (length(nm) == 1L && nzchar(nm)) {
-        return(list(value = nm, next_pos = start + nchar(nm)))
+    # Unquoted value: any run of value-safe characters (matching Julia's
+    # is_value_char in tokens.jl - letters, digits, '_', '.', '+', '-', plus
+    # any non-ASCII Unicode), with `\X` consuming the next character
+    # literally so axis-entry names containing otherwise-special characters
+    # can be embedded inline (e.g. `gene = AL627309\.1`).
+    out <- character(0)
+    j <- start
+    while (j <= n) {
+        ch <- substr(s, j, j)
+        if (ch == "\\" && j < n) {
+            out <- c(out, substr(s, j + 1L, j + 1L))
+            j <- j + 2L
+            next
+        }
+        if (grepl("^(?:[0-9a-zA-Z_.+\\-]|[^\\x00-\\x7F])$", ch, perl = TRUE)) {
+            out <- c(out, ch)
+            j <- j + 1L
+            next
+        }
+        break
     }
-    m <- regmatches(
-        substr(s, start, n),
-        regexpr("^[^\\s!&*%./:<=>?@\\[\\]^\\|~\"$#`]+",
-            substr(s, start, n),
-            perl = TRUE
-        )
-    )
-    if (length(m) == 1L && nzchar(m)) {
-        list(value = m, next_pos = start + nchar(m))
-    } else {
-        NULL
+    if (length(out) == 0L) {
+        return(NULL)
     }
+    list(value = paste0(out, collapse = ""), next_pos = j)
 }
