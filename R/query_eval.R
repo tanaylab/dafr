@@ -1683,9 +1683,11 @@ NULL
         # through to R's single-threaded log() + scalar coercion chain.
         threshold <- as.integer(dafr_opt("dafr.kernel_threshold"))
         if (is.matrix(state$value) && is.double(state$value)) {
+            dn <- dimnames(state$value)
             state$value <- kernel_log_dense_mat_cpp(
                 state$value, eps = eps, base = base, threshold = threshold
             )
+            dimnames(state$value) <- dn
             return(state)
         }
         if (is.numeric(state$value) && is.null(dim(state$value))) {
@@ -1699,7 +1701,22 @@ NULL
         }
     }
 
-    state$value <- do.call(fn, c(list(state$value), params))
+    if (is.matrix(state$value) || methods::is(state$value, "Matrix")) {
+        dn <- dimnames(state$value)
+        state$value <- do.call(fn, c(list(state$value), params))
+        if (is.matrix(state$value) || methods::is(state$value, "Matrix")) {
+            dimnames(state$value) <- dn
+        }
+    } else if (is.atomic(state$value) && is.null(dim(state$value))) {
+        nm <- names(state$value)
+        state$value <- do.call(fn, c(list(state$value), params))
+        if (is.atomic(state$value) && is.null(dim(state$value)) &&
+            length(state$value) == length(nm)) {
+            names(state$value) <- nm
+        }
+    } else {
+        state$value <- do.call(fn, c(list(state$value), params))
+    }
     state
 }
 

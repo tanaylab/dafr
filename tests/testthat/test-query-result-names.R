@@ -116,3 +116,25 @@ test_that("entry-pick on a matrix `@ rows @ cols :: m @ rows = entry` is named",
     out <- get_query(d, "@ cell @ gene :: UMIs @ cell = c1")
     expect_equal(names(out), c("g1", "g2", "g3"))
 })
+
+test_that("matrix eltwise (Log fast path) preserves dimnames", {
+    d <- memory_daf(name = "t")
+    add_axis(d, "cell", c("c1", "c2"))
+    add_axis(d, "gene", c("g1", "g2", "g3"))
+    set_matrix(d, "cell", "gene", "UMIs",
+               matrix(c(1, 2, 3, 4, 5, 6) + 0.0, 2, 3))
+    out <- get_query(d, "@ cell @ gene :: UMIs % Log base 2 eps 1e-5")
+    expect_equal(rownames(out), c("c1", "c2"))
+    expect_equal(colnames(out), c("g1", "g2", "g3"))
+})
+
+test_that("matrix eltwise (Abs slow path) preserves dimnames", {
+    d <- memory_daf(name = "t")
+    add_axis(d, "cell", c("c1", "c2"))
+    add_axis(d, "gene", c("g1", "g2"))
+    set_matrix(d, "cell", "gene", "UMIs",
+               matrix(c(-1, 2, -3, 4) + 0.0, 2, 2))
+    out <- get_query(d, "@ cell @ gene :: UMIs % Abs")
+    expect_equal(rownames(out), c("c1", "c2"))
+    expect_equal(colnames(out), c("g1", "g2"))
+})
