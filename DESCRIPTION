@@ -113,4 +113,5 @@ Collate:
     'reorder_plan.R'
     'threads.R'
     'top_k_per_col.R'
+    'zarr_store.R'
     'zzz.R'
