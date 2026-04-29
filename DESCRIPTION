@@ -81,6 +81,7 @@ Collate:
     'handlers.R'
     'anndata_facade.R'
     'anndata_format.R'
+    'cache_group.R'
     'writers.R'
     'readers.R'
     'memory_daf.R'
