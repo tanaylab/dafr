@@ -17,7 +17,7 @@ test_that("ViewDaf format_has_scalar / format_get_scalar delegate to base", {
     set_scalar(d, "organism", "human")
     v <- viewer(d, name = "v")
     expect_true(format_has_scalar(v, "organism"))
-    expect_equal(format_get_scalar(v, "organism"), "human")
+    expect_equal(format_get_scalar(v, "organism")$value, "human")
     expect_false(format_has_scalar(v, "nope"))
 })
 
@@ -26,7 +26,7 @@ test_that("ViewDaf format_has_axis / format_axis_array delegate to base", {
     add_axis(d, "cell", c("c1", "c2"))
     v <- viewer(d, name = "v")
     expect_true(format_has_axis(v, "cell"))
-    expect_equal(format_axis_array(v, "cell"), c("c1", "c2"))
+    expect_equal(format_axis_array(v, "cell")$value, c("c1", "c2"))
 })
 
 test_that("ViewDaf format_get_vector delegates via query", {
@@ -34,7 +34,7 @@ test_that("ViewDaf format_get_vector delegates via query", {
     add_axis(d, "cell", c("c1", "c2"))
     set_vector(d, "cell", "age", c(10, 20))
     v <- viewer(d, name = "v")
-    expect_equal(format_get_vector(v, "cell", "age"), c(c1 = 10, c2 = 20))
+    expect_equal(format_get_vector(v, "cell", "age")$value, c(c1 = 10, c2 = 20))
 })
 
 test_that("ViewDaf with no overrides mirrors base daf (smoke)", {

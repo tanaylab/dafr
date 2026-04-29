@@ -531,7 +531,7 @@ S7::method(
     earlier <- earlier[-length(earlier)]
     for (d in rev(earlier)) {
         if (format_has_axis(d, axis)) {
-            entries <- format_axis_array(d, axis)
+            entries <- format_axis_array(d, axis)$value
             format_add_axis(writer, axis, entries)
             return(invisible())
         }
@@ -642,7 +642,7 @@ S7::method(
         }
         .chain_ensure_axis_on_writer(daf, rows_axis)
         .chain_ensure_axis_on_writer(daf, columns_axis)
-        m <- format_get_matrix(found, rows_axis, columns_axis, name)
+        m <- format_get_matrix(found, rows_axis, columns_axis, name)$value
         format_set_matrix(writer, rows_axis, columns_axis, name, m, TRUE)
     }
     format_relayout_matrix(writer, rows_axis, columns_axis, name)
@@ -653,7 +653,7 @@ S7::method(
     for (d in dafs) {
         dname <- S7::prop(d, "name")
         for (axis in format_axes_set(d)) {
-            entries <- format_axis_array(d, axis)
+            entries <- format_axis_array(d, axis)$value
             prior <- seen[[axis]]
             if (is.null(prior)) {
                 seen[[axis]] <- list(name = dname, entries = entries)

@@ -75,7 +75,7 @@ NULL
             eps, base, axis, reducer, threshold
         )
         target_axis <- if (axis == 0L) state$rows_axis else state$cols_axis
-        names(out) <- format_axis_array(daf, target_axis)
+        names(out) <- format_axis_array(daf, target_axis)$value
         return(list(kind = "vector", axis = target_axis, value = out))
     }
     if (is.matrix(m)) {
@@ -90,7 +90,7 @@ NULL
             m, eps, base, axis, reducer, threshold
         )
         target_axis <- if (axis == 0L) state$rows_axis else state$cols_axis
-        names(out) <- format_axis_array(daf, target_axis)
+        names(out) <- format_axis_array(daf, target_axis)$value
         return(list(kind = "vector", axis = target_axis, value = out))
     }
     NULL
@@ -264,7 +264,7 @@ NULL
         state$axis <- NULL
         return(state)
     }
-    state$value <- format_axis_array(daf, node$axis_name)
+    state$value <- format_axis_array(daf, node$axis_name)$value
     state$axis <- node$axis_name
     state$kind <- "axis"
     state
@@ -289,7 +289,7 @@ NULL
             sQuote(S7::prop(daf, "name"))
         ), call. = FALSE)
     }
-    state$value <- format_get_scalar(daf, node$name)
+    state$value <- format_get_scalar(daf, node$name)$value
     state$kind <- "scalar"
     state
 }
@@ -399,7 +399,7 @@ NULL
         return(state)
     }
     indices <- state$indices
-    entries <- format_axis_array(daf, axis)
+    entries <- format_axis_array(daf, axis)$value
     out_names <- if (is.null(indices)) entries else entries[indices]
     if (!format_has_vector(daf, axis, node$name)) {
         if (!is.null(state$if_missing)) {
@@ -417,7 +417,7 @@ NULL
             sQuote(node$name), sQuote(axis)
         ), call. = FALSE)
     }
-    value <- format_get_vector(daf, axis, node$name)
+    value <- format_get_vector(daf, axis, node$name)$value
     if (!is.null(indices)) {
         value <- value[indices]
     }
@@ -506,9 +506,9 @@ NULL
         return(state)
     }
     row_indices <- state$row_indices
-    rows_entries <- format_axis_array(daf, rows)
+    rows_entries <- format_axis_array(daf, rows)$value
     out_rownames <- if (is.null(row_indices)) rows_entries else rows_entries[row_indices]
-    out_colnames <- format_axis_array(daf, cols)
+    out_colnames <- format_axis_array(daf, cols)$value
     transposed <- FALSE
     if (!format_has_matrix(daf, rows, cols, node$name)) {
         if (format_has_matrix(daf, cols, rows, node$name)) {
@@ -540,14 +540,14 @@ NULL
         }
     }
     m <- if (transposed) {
-        m_stored <- format_get_matrix(daf, cols, rows, node$name)
+        m_stored <- format_get_matrix(daf, cols, rows, node$name)$value
         if (methods::is(m_stored, "Matrix")) {
             Matrix::t(m_stored)
         } else {
             t(m_stored)
         }
     } else {
-        format_get_matrix(daf, rows, cols, node$name)
+        format_get_matrix(daf, rows, cols, node$name)$value
     }
     if (!is.null(row_indices)) {
         m <- m[row_indices, , drop = FALSE]
@@ -642,8 +642,8 @@ NULL
         final_mask <- rep(FALSE, length(pivot_values))
     }
 
-    lookup_vec <- format_get_vector(daf, target_axis, node$name)
-    target_entries <- format_axis_array(daf, target_axis)
+    lookup_vec <- format_get_vector(daf, target_axis, node$name)$value
+    target_entries <- format_axis_array(daf, target_axis)$value
     indices <- match(pivot_values, target_entries)
 
     empty_mask <- is.na(indices) |
@@ -667,7 +667,7 @@ NULL
     base_entries <- if (!is.null(names(pivot_values))) {
         names(pivot_values)
     } else {
-        format_axis_array(daf, base_axis)
+        format_axis_array(daf, base_axis)$value
     }
     if (isTRUE(state$if_not_present)) {
         sentinel <- state$if_not_value
@@ -702,7 +702,7 @@ NULL
     # mapping the (post-drop) base_entries back to the full axis.
     out_indices <- if (!is.null(state$indices) ||
                        length(base_entries) != format_axis_length(daf, base_axis)) {
-        all_entries <- format_axis_array(daf, base_axis)
+        all_entries <- format_axis_array(daf, base_axis)$value
         match(base_entries, all_entries)
     } else {
         NULL
@@ -737,12 +737,12 @@ NULL
         ), call. = FALSE)
     }
     pivot <- state$pending_groups
-    target_entries <- format_axis_array(daf, target_axis)
+    target_entries <- format_axis_array(daf, target_axis)$value
     idx <- match(pivot, target_entries)
     empty_mask <- is.na(idx) |
         (is.character(pivot) & !nzchar(pivot))
 
-    lookup_vec <- format_get_vector(daf, target_axis, node$name)
+    lookup_vec <- format_get_vector(daf, target_axis, node$name)$value
     new_groups <- rep(NA, length(pivot))
     mode(new_groups) <- mode(lookup_vec)
     new_groups[!empty_mask] <- lookup_vec[idx[!empty_mask]]
@@ -795,11 +795,11 @@ NULL
         ), call. = FALSE)
     }
     pivot <- state$pending_vec
-    target_entries <- format_axis_array(daf, target_axis)
+    target_entries <- format_axis_array(daf, target_axis)$value
     idx <- match(pivot, target_entries)
     empty_mask <- is.na(idx) |
         (is.character(pivot) & !nzchar(pivot))
-    lookup_vec <- format_get_vector(daf, target_axis, node$name)
+    lookup_vec <- format_get_vector(daf, target_axis, node$name)$value
     new_vec <- rep(NA, length(pivot))
     mode(new_vec) <- mode(lookup_vec)
     new_vec[!empty_mask] <- lookup_vec[idx[!empty_mask]]
@@ -845,17 +845,17 @@ NULL
             sQuote(node$name), sQuote(target_axis)
         ), call. = FALSE)
     }
-    target_entries <- format_axis_array(daf, target_axis)
-    lookup_vec <- format_get_vector(daf, target_axis, node$name)
+    target_entries <- format_axis_array(daf, target_axis)$value
+    lookup_vec <- format_get_vector(daf, target_axis, node$name)$value
     m <- state$value
     rn <- rownames(m)
     if (is.null(rn) && !is.null(state$rows_axis)) {
-        rn <- format_axis_array(daf, state$rows_axis)
+        rn <- format_axis_array(daf, state$rows_axis)$value
         if (!is.null(state$row_indices)) rn <- rn[state$row_indices]
     }
     cn <- colnames(m)
     if (is.null(cn) && !is.null(state$cols_axis)) {
-        cn <- format_axis_array(daf, state$cols_axis)
+        cn <- format_axis_array(daf, state$cols_axis)$value
     }
     flat <- as.character(as.vector(m))
     idx <- match(flat, target_entries)
@@ -896,7 +896,7 @@ NULL
     rows <- state$axis
     cols <- state$matrix_cols_axis
     prop <- state$matrix_property
-    cols_arr <- format_axis_array(daf, cols)
+    cols_arr <- format_axis_array(daf, cols)$value
     col_idx <- match(as.character(node$value), cols_arr)
     if (is.na(col_idx)) {
         stop(sprintf(
@@ -905,10 +905,10 @@ NULL
         ), call. = FALSE)
     }
     vec <- if (format_has_matrix(daf, rows, cols, prop)) {
-        m <- format_get_matrix(daf, rows, cols, prop)
+        m <- format_get_matrix(daf, rows, cols, prop)$value
         m[, col_idx, drop = TRUE]
     } else if (format_has_matrix(daf, cols, rows, prop)) {
-        m <- format_get_matrix(daf, cols, rows, prop)
+        m <- format_get_matrix(daf, cols, rows, prop)$value
         m[col_idx, , drop = TRUE]
     } else {
         stop(sprintf(
@@ -947,7 +947,7 @@ NULL
     rows <- state$axis
     cols <- state$matrix_cols_axis
     prop <- state$matrix_property
-    cols_arr <- format_axis_array(daf, cols)
+    cols_arr <- format_axis_array(daf, cols)$value
     col_idx <- match(as.character(node$value), cols_arr)
     if (is.na(col_idx)) {
         stop(sprintf(
@@ -956,9 +956,9 @@ NULL
         ), call. = FALSE)
     }
     vec <- if (format_has_matrix(daf, rows, cols, prop)) {
-        format_get_matrix(daf, rows, cols, prop)[, col_idx, drop = TRUE]
+        format_get_matrix(daf, rows, cols, prop)$value[, col_idx, drop = TRUE]
     } else if (format_has_matrix(daf, cols, rows, prop)) {
-        format_get_matrix(daf, cols, rows, prop)[col_idx, , drop = TRUE]
+        format_get_matrix(daf, cols, rows, prop)$value[col_idx, , drop = TRUE]
     } else {
         stop(sprintf(
             "no matrix %s on axes %s, %s",
@@ -981,7 +981,7 @@ NULL
             sQuote(prop), sQuote(rows)
         ), call. = FALSE)
     }
-    rows_arr <- format_axis_array(daf, rows)
+    rows_arr <- format_axis_array(daf, rows)$value
     idx <- match(as.character(node$value), rows_arr)
     if (is.na(idx)) {
         stop(sprintf(
@@ -989,7 +989,7 @@ NULL
             sQuote(node$value), sQuote(rows)
         ), call. = FALSE)
     }
-    m <- format_get_matrix(daf, rows, rows, prop)
+    m <- format_get_matrix(daf, rows, rows, prop)$value
     vec <- if (identical(node$op, "SquareRowIs")) {
         m[idx, , drop = TRUE]
     } else {
@@ -1040,7 +1040,7 @@ NULL
             sQuote(prop), sQuote(rows)
         ), call. = FALSE)
     }
-    rows_arr <- format_axis_array(daf, rows)
+    rows_arr <- format_axis_array(daf, rows)$value
     idx <- match(as.character(node$value), rows_arr)
     if (is.na(idx)) {
         stop(sprintf(
@@ -1048,7 +1048,7 @@ NULL
             sQuote(node$value), sQuote(rows)
         ), call. = FALSE)
     }
-    m <- format_get_matrix(daf, rows, rows, prop)
+    m <- format_get_matrix(daf, rows, rows, prop)$value
     vec <- if (identical(node$op, "SquareRowIs")) {
         m[idx, , drop = TRUE]
     } else {
@@ -1072,7 +1072,7 @@ NULL
     }
     negated <- identical(node$op, "BeginNegatedMask")
     if (format_has_vector(daf, state$axis, node$property)) {
-        vec <- format_get_vector(daf, state$axis, node$property)
+        vec <- format_get_vector(daf, state$axis, node$property)$value
         mask <- if (is.logical(vec)) vec else !is.na(vec) & vec != 0
         state$pending_mask <- mask
         state$pending_property <- node$property
@@ -1098,7 +1098,7 @@ NULL
 
 .apply_end_mask <- function(node, state, daf) {
     axis <- state$axis
-    entries <- format_axis_array(daf, axis)
+    entries <- format_axis_array(daf, axis)$value
     mask <- state$pending_mask
     if (isTRUE(state$pending_mask_negated)) {
         # Outer-bracket negation (`[ ! ... ]`) is applied to the final mask
@@ -1138,7 +1138,7 @@ NULL
         state$matrix_combinator_prior <- state$pending_mask
         return(state)
     }
-    vec <- format_get_vector(daf, state$axis, node$property)
+    vec <- format_get_vector(daf, state$axis, node$property)$value
     m <- if (is.logical(vec)) vec else !is.na(vec) & vec != 0
     if (negated) m <- !m
     combined <- switch(op,
@@ -1337,7 +1337,7 @@ NULL
         ), call. = FALSE)
     }
     entry <- as.character(node$value)
-    axis_entries <- format_axis_array(daf, state$pick_axis)
+    axis_entries <- format_axis_array(daf, state$pick_axis)$value
     idx <- match(entry, axis_entries)
     if (is.na(idx)) {
         stop(sprintf(
@@ -1363,7 +1363,7 @@ NULL
         ), call. = FALSE)
     }
     entry <- as.character(node$value)
-    axis_entries <- format_axis_array(daf, state$pick_axis)
+    axis_entries <- format_axis_array(daf, state$pick_axis)$value
     idx <- match(entry, axis_entries)
     if (is.na(idx)) {
         stop(sprintf(
@@ -1381,7 +1381,7 @@ NULL
     }
     if (methods::is(vec, "sparseVector") || methods::is(vec, "Matrix")) {
         vec <- as.numeric(vec)
-        names(vec) <- format_axis_array(daf, remaining_axis)
+        names(vec) <- format_axis_array(daf, remaining_axis)$value
     }
     list(kind = "vector", value = vec, axis = remaining_axis)
 }
@@ -1407,9 +1407,9 @@ NULL
             "no vector %s on axis %s", sQuote(prop), sQuote(axis)
         ), call. = FALSE)
     }
-    vec <- format_get_vector(daf, axis, prop)
+    vec <- format_get_vector(daf, axis, prop)$value
     entry <- as.character(node$value)
-    axis_entries <- format_axis_array(daf, axis)
+    axis_entries <- format_axis_array(daf, axis)$value
     idx <- match(entry, axis_entries)
     if (is.na(idx)) {
         stop(sprintf(
@@ -1449,8 +1449,8 @@ NULL
             ), call. = FALSE)
         }
     }
-    rows_array <- format_axis_array(daf, rows)
-    cols_array <- format_axis_array(daf, cols)
+    rows_array <- format_axis_array(daf, rows)$value
+    cols_array <- format_axis_array(daf, cols)$value
     row_idx <- match(state$row_value, rows_array)
     col_idx <- match(as.character(node$value), cols_array)
     if (is.na(row_idx)) {
@@ -1466,10 +1466,10 @@ NULL
         ), call. = FALSE)
     }
     m <- if (transposed) {
-        m_stored <- format_get_matrix(daf, cols, rows, prop)
+        m_stored <- format_get_matrix(daf, cols, rows, prop)$value
         m_stored[col_idx, row_idx]
     } else {
-        m_stored <- format_get_matrix(daf, rows, cols, prop)
+        m_stored <- format_get_matrix(daf, rows, cols, prop)$value
         m_stored[row_idx, col_idx]
     }
     val <- as.numeric(m)[[1L]]
@@ -1491,7 +1491,7 @@ NULL
     rows <- state$rows_axis
     cols <- state$cols_axis
     prop <- state$matrix_property
-    rows_array <- format_axis_array(daf, rows)
+    rows_array <- format_axis_array(daf, rows)$value
     row_names <- if (is.null(state$row_indices)) {
         rows_array
     } else {
@@ -1516,7 +1516,7 @@ NULL
         ), call. = FALSE)
     }
 
-    cols_array <- format_axis_array(daf, cols)
+    cols_array <- format_axis_array(daf, cols)$value
     col_idx <- match(as.character(node$value), cols_array)
     if (is.na(col_idx)) {
         stop(sprintf(
@@ -1525,7 +1525,7 @@ NULL
         ), call. = FALSE)
     }
 
-    m <- format_get_matrix(daf, rows, cols, prop)
+    m <- format_get_matrix(daf, rows, cols, prop)$value
     vec <- m[, col_idx, drop = TRUE]
     if (!is.null(state$row_indices)) {
         vec <- vec[state$row_indices]
@@ -1543,7 +1543,7 @@ NULL
 .apply_square_slice_axis <- function(node, state, daf) {
     rows <- state$rows_axis
     prop <- state$matrix_property
-    rows_array <- format_axis_array(daf, rows)
+    rows_array <- format_axis_array(daf, rows)$value
     row_names <- if (is.null(state$row_indices)) {
         rows_array
     } else {
@@ -1576,7 +1576,7 @@ NULL
         ), call. = FALSE)
     }
 
-    m <- format_get_matrix(daf, rows, rows, prop)
+    m <- format_get_matrix(daf, rows, rows, prop)$value
     vec <- if (identical(node$op, "SquareRowIs")) {
         m[idx, , drop = TRUE]
     } else {
@@ -1623,10 +1623,10 @@ NULL
     }
     m <- state$value
     if (identical(node$op, "SquareRowIs")) {
-        rows <- format_axis_array(daf, state$rows_axis)
+        rows <- format_axis_array(daf, state$rows_axis)$value
         idx <- match(node$value, rows)
         if (is.na(idx)) stop(sprintf("no row %s", sQuote(node$value)), call. = FALSE)
-        cols <- format_axis_array(daf, state$cols_axis)
+        cols <- format_axis_array(daf, state$cols_axis)$value
         return(list(
             kind = "vector",
             axis = state$cols_axis,
@@ -1634,10 +1634,10 @@ NULL
         ))
     }
     # SquareColumnIs
-    cols <- format_axis_array(daf, state$cols_axis)
+    cols <- format_axis_array(daf, state$cols_axis)$value
     idx <- match(node$value, cols)
     if (is.na(idx)) stop(sprintf("no column %s", sQuote(node$value)), call. = FALSE)
-    rows <- format_axis_array(daf, state$rows_axis)
+    rows <- format_axis_array(daf, state$rows_axis)$value
     list(
         kind = "vector",
         axis = state$rows_axis,
@@ -1821,7 +1821,7 @@ NULL
     # helper pairs — more infrastructure than the duplication it removes.
     if (identical(node$op, "ReduceToColumn")) {
         row_names <- if (is_dense) rownames(m) else m@Dimnames[[1L]]
-        if (is.null(row_names)) row_names <- format_axis_array(daf, state$rows_axis)
+        if (is.null(row_names)) row_names <- format_axis_array(daf, state$rows_axis)$value
         vals <- switch(builtin,
             Sum   = if (is_sparse) Matrix::rowSums(m) else rowSums(m),
             Mean  = if (is_sparse) Matrix::rowMeans(m) else rowMeans(m),
@@ -1926,7 +1926,7 @@ NULL
     }
     # ReduceToRow: column-wise reduction
     col_names <- if (is_dense) colnames(m) else m@Dimnames[[2L]]
-    if (is.null(col_names)) col_names <- format_axis_array(daf, state$cols_axis)
+    if (is.null(col_names)) col_names <- format_axis_array(daf, state$cols_axis)$value
     vals <- switch(builtin,
         Sum   = if (is_sparse) Matrix::colSums(m) else colSums(m),
         Mean  = if (is_sparse) Matrix::colMeans(m) else colMeans(m),
@@ -2036,7 +2036,7 @@ NULL
         # ReduceToColumn: collapse across columns within each row -> one value per
         # row, result indexed by rows_axis.  margin = 1L (apply over rows).
         row_names <- rownames(m)
-        if (is.null(row_names)) row_names <- format_axis_array(daf, state$rows_axis)
+        if (is.null(row_names)) row_names <- format_axis_array(daf, state$rows_axis)$value
         vals <- apply(m, 1L, function(row) do.call(fn, c(list(row), params)))
         return(list(
             kind = "vector", axis = state$rows_axis,
@@ -2046,7 +2046,7 @@ NULL
     # ReduceToRow: collapse across rows within each column -> one value per
     # column, result indexed by cols_axis.  margin = 2L (apply over columns).
     col_names <- colnames(m)
-    if (is.null(col_names)) col_names <- format_axis_array(daf, state$cols_axis)
+    if (is.null(col_names)) col_names <- format_axis_array(daf, state$cols_axis)$value
     vals <- apply(m, 2L, function(col) do.call(fn, c(list(col), params)))
     list(
         kind = "vector", axis = state$cols_axis,
@@ -2176,7 +2176,7 @@ NULL
             target_axis <- state$grouped_as_axis
         }
         if (!is.null(target_axis) && format_has_axis(daf, target_axis)) {
-            axis_levels <- format_axis_array(daf, target_axis)
+            axis_levels <- format_axis_array(daf, target_axis)$value
         }
     }
     # Preserve group first-appearance order via factor levels.
@@ -2553,14 +2553,14 @@ NULL
         if (is_g2) {
             rn <- lvls
             cn <- if (!is.null(colnames(m))) colnames(m)
-                  else format_axis_array(daf, state$cols_axis)
+                  else format_axis_array(daf, state$cols_axis)$value
             dimnames(out) <- list(rn, cn)
             return(list(kind = "matrix", value = out,
                 rows_axis = NULL, cols_axis = state$cols_axis))
         }
         # G3
         rn <- if (!is.null(rownames(m))) rownames(m)
-              else format_axis_array(daf, state$rows_axis)
+              else format_axis_array(daf, state$rows_axis)$value
         cn <- lvls
         dimnames(out) <- list(rn, cn)
         return(list(kind = "matrix", value = out,
@@ -2660,7 +2660,7 @@ NULL
     rows <- state$axis
     cols <- state$matrix_cols_axis
     prop <- state$matrix_property
-    cols_arr <- format_axis_array(daf, cols)
+    cols_arr <- format_axis_array(daf, cols)$value
     col_idx <- match(as.character(node$value), cols_arr)
     if (is.na(col_idx)) {
         stop(sprintf(
@@ -2669,9 +2669,9 @@ NULL
         ), call. = FALSE)
     }
     grp <- if (format_has_matrix(daf, rows, cols, prop)) {
-        format_get_matrix(daf, rows, cols, prop)[, col_idx, drop = TRUE]
+        format_get_matrix(daf, rows, cols, prop)$value[, col_idx, drop = TRUE]
     } else if (format_has_matrix(daf, cols, rows, prop)) {
-        format_get_matrix(daf, cols, rows, prop)[col_idx, , drop = TRUE]
+        format_get_matrix(daf, cols, rows, prop)$value[col_idx, , drop = TRUE]
     } else {
         stop(sprintf(
             "no matrix %s on axes %s, %s",
@@ -2702,7 +2702,7 @@ NULL
             sQuote(prop), sQuote(rows)
         ), call. = FALSE)
     }
-    rows_arr <- format_axis_array(daf, rows)
+    rows_arr <- format_axis_array(daf, rows)$value
     idx <- match(as.character(node$value), rows_arr)
     if (is.na(idx)) {
         stop(sprintf(
@@ -2710,7 +2710,7 @@ NULL
             sQuote(node$value), sQuote(rows)
         ), call. = FALSE)
     }
-    m <- format_get_matrix(daf, rows, rows, prop)
+    m <- format_get_matrix(daf, rows, rows, prop)$value
     grp <- if (identical(node$op, "SquareRowIs")) {
         m[idx, , drop = TRUE]
     } else {
@@ -2738,7 +2738,7 @@ NULL
     cols <- state$matrix_cols_axis
     prop <- state$matrix_property
     rows <- group_axis_name
-    cols_arr <- format_axis_array(daf, cols)
+    cols_arr <- format_axis_array(daf, cols)$value
     col_idx <- match(as.character(node$value), cols_arr)
     if (is.na(col_idx)) {
         stop(sprintf(
@@ -2747,9 +2747,9 @@ NULL
         ), call. = FALSE)
     }
     grp <- if (format_has_matrix(daf, rows, cols, prop)) {
-        format_get_matrix(daf, rows, cols, prop)[, col_idx, drop = TRUE]
+        format_get_matrix(daf, rows, cols, prop)$value[, col_idx, drop = TRUE]
     } else if (format_has_matrix(daf, cols, rows, prop)) {
-        format_get_matrix(daf, cols, rows, prop)[col_idx, , drop = TRUE]
+        format_get_matrix(daf, cols, rows, prop)$value[col_idx, , drop = TRUE]
     } else {
         stop(sprintf(
             "no matrix %s on axes %s, %s",
@@ -2771,7 +2771,7 @@ NULL
             sQuote(prop), sQuote(rows)
         ), call. = FALSE)
     }
-    rows_arr <- format_axis_array(daf, rows)
+    rows_arr <- format_axis_array(daf, rows)$value
     idx <- match(as.character(node$value), rows_arr)
     if (is.na(idx)) {
         stop(sprintf(
@@ -2779,7 +2779,7 @@ NULL
             sQuote(node$value), sQuote(rows)
         ), call. = FALSE)
     }
-    m <- format_get_matrix(daf, rows, rows, prop)
+    m <- format_get_matrix(daf, rows, rows, prop)$value
     grp <- if (identical(node$op, "SquareRowIs")) {
         m[idx, , drop = TRUE]
     } else {
@@ -2854,7 +2854,7 @@ NULL
         ), call. = FALSE)
     }
     cols2_axis <- state$matrix2_cols_axis
-    cols2_arr <- format_axis_array(daf, cols2_axis)
+    cols2_arr <- format_axis_array(daf, cols2_axis)$value
     col_idx <- match(as.character(node$value), cols2_arr)
     if (is.na(col_idx)) {
         stop(sprintf(
@@ -2866,9 +2866,9 @@ NULL
     prop2 <- state$matrix2_property
     # The matrix2 column slice is a vector along target_axis: vec[v] = m2[v, entry].
     slice <- if (format_has_matrix(daf, target_axis, cols2_axis, prop2)) {
-        format_get_matrix(daf, target_axis, cols2_axis, prop2)[, col_idx, drop = TRUE]
+        format_get_matrix(daf, target_axis, cols2_axis, prop2)$value[, col_idx, drop = TRUE]
     } else if (format_has_matrix(daf, cols2_axis, target_axis, prop2)) {
-        format_get_matrix(daf, cols2_axis, target_axis, prop2)[col_idx, , drop = TRUE]
+        format_get_matrix(daf, cols2_axis, target_axis, prop2)$value[col_idx, , drop = TRUE]
     } else {
         stop(sprintf(
             "no matrix %s on axes %s, %s",
@@ -2888,7 +2888,7 @@ NULL
             sQuote(prop2), sQuote(target_axis)
         ), call. = FALSE)
     }
-    target_entries <- format_axis_array(daf, target_axis)
+    target_entries <- format_axis_array(daf, target_axis)$value
     idx <- match(as.character(node$value), target_entries)
     if (is.na(idx)) {
         stop(sprintf(
@@ -2896,7 +2896,7 @@ NULL
             sQuote(node$value), sQuote(target_axis)
         ), call. = FALSE)
     }
-    m2 <- format_get_matrix(daf, target_axis, target_axis, prop2)
+    m2 <- format_get_matrix(daf, target_axis, target_axis, prop2)$value
     slice <- if (identical(node$op, "SquareRowIs")) {
         m2[idx, , drop = TRUE]
     } else {
@@ -2914,15 +2914,15 @@ NULL
         slice <- as.numeric(slice)
     }
     target_axis <- state$chain_target_axis
-    target_entries <- format_axis_array(daf, target_axis)
+    target_entries <- format_axis_array(daf, target_axis)$value
     m1 <- state$value
     rn <- rownames(m1)
     if (is.null(rn) && !is.null(state$rows_axis)) {
-        rn <- format_axis_array(daf, state$rows_axis)
+        rn <- format_axis_array(daf, state$rows_axis)$value
     }
     cn <- colnames(m1)
     if (is.null(cn) && !is.null(state$cols_axis)) {
-        cn <- format_axis_array(daf, state$cols_axis)
+        cn <- format_axis_array(daf, state$cols_axis)$value
     }
     flat <- as.character(as.vector(m1))
     idx <- match(flat, target_entries)
@@ -2953,7 +2953,7 @@ NULL
         state$matrix_property <- node$property
         return(state)
     }
-    grp <- format_get_vector(daf, state$axis, node$property)
+    grp <- format_get_vector(daf, state$axis, node$property)$value
     # If a prior mask narrowed the axis (state$indices set), restrict the
     # group labels to the surviving cells so they line up with state$value.
     if (!is.null(state$indices)) {
@@ -2979,7 +2979,7 @@ NULL
         state$matrix_property <- node$property
         return(state)
     }
-    grp <- format_get_vector(daf, state$rows_axis, node$property)
+    grp <- format_get_vector(daf, state$rows_axis, node$property)$value
     state$pending_row_groups <- grp
     state$kind <- "grouped_matrix_rows"
     state
@@ -2996,7 +2996,7 @@ NULL
         state$matrix_property <- node$property
         return(state)
     }
-    grp <- format_get_vector(daf, state$cols_axis, node$property)
+    grp <- format_get_vector(daf, state$cols_axis, node$property)$value
     state$pending_col_groups <- grp
     state$kind <- "grouped_matrix_cols"
     state
@@ -3018,7 +3018,7 @@ NULL
     rows <- state$axis
     cols <- state$matrix_cols_axis
     prop <- state$matrix_property
-    cols_arr <- format_axis_array(daf, cols)
+    cols_arr <- format_axis_array(daf, cols)$value
     col_idx <- match(as.character(node$value), cols_arr)
     if (is.na(col_idx)) {
         stop(sprintf(
@@ -3027,9 +3027,9 @@ NULL
         ), call. = FALSE)
     }
     b <- if (format_has_matrix(daf, rows, cols, prop)) {
-        format_get_matrix(daf, rows, cols, prop)[, col_idx, drop = TRUE]
+        format_get_matrix(daf, rows, cols, prop)$value[, col_idx, drop = TRUE]
     } else if (format_has_matrix(daf, cols, rows, prop)) {
-        format_get_matrix(daf, cols, rows, prop)[col_idx, , drop = TRUE]
+        format_get_matrix(daf, cols, rows, prop)$value[col_idx, , drop = TRUE]
     } else {
         stop(sprintf(
             "no matrix %s on axes %s, %s",
@@ -3059,7 +3059,7 @@ NULL
             sQuote(prop), sQuote(rows)
         ), call. = FALSE)
     }
-    rows_arr <- format_axis_array(daf, rows)
+    rows_arr <- format_axis_array(daf, rows)$value
     idx <- match(as.character(node$value), rows_arr)
     if (is.na(idx)) {
         stop(sprintf(
@@ -3067,7 +3067,7 @@ NULL
             sQuote(node$value), sQuote(rows)
         ), call. = FALSE)
     }
-    m <- format_get_matrix(daf, rows, rows, prop)
+    m <- format_get_matrix(daf, rows, rows, prop)$value
     b <- if (identical(node$op, "SquareRowIs")) {
         m[idx, , drop = TRUE]
     } else {
@@ -3106,7 +3106,7 @@ NULL
         return(state)
     }
     a <- state$value
-    b <- format_get_vector(daf, state$axis, node$property)
+    b <- format_get_vector(daf, state$axis, node$property)$value
     # Defer matrix materialisation so a subsequent `: prop` can pivot the
     # b column through its property's axis (matching Julia's
     # lookup_vector_by_vector + compute_count_matrix sequence).
@@ -3139,9 +3139,9 @@ NULL
         ), call. = FALSE)
     }
     pivot <- state$b_per_cell
-    target_entries <- format_axis_array(daf, target_axis)
+    target_entries <- format_axis_array(daf, target_axis)$value
     idx <- match(pivot, target_entries)
-    lookup_vec <- format_get_vector(daf, target_axis, node$name)
+    lookup_vec <- format_get_vector(daf, target_axis, node$name)$value
     new_b <- rep(NA, length(pivot))
     mode(new_b) <- mode(lookup_vec)
     ok <- !is.na(idx)

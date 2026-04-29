@@ -20,7 +20,7 @@ test_that("format_axis_length + format_axis_array + format_axis_dict are consist
     dict <- list2env(list(A = 1L, B = 2L, C = 3L), parent = emptyenv())
     d@internal$axes$cell <- list(entries = c("A", "B", "C"), dict = dict)
     expect_equal(format_axis_length(d, "cell"), 3L)
-    expect_equal(format_axis_array(d, "cell"), c("A", "B", "C"))
+    expect_equal(format_axis_array(d, "cell")$value, c("A", "B", "C"))
     expect_identical(format_axis_dict(d, "cell"), dict)
 })
 
@@ -34,7 +34,7 @@ test_that("format_axis_* reject unknown axis", {
 test_that("format_add_axis stores entries + builds a 1-based index dict", {
     d <- memory_daf()
     format_add_axis(d, "cell", c("A", "B", "C"))
-    expect_equal(format_axis_array(d, "cell"), c("A", "B", "C"))
+    expect_equal(format_axis_array(d, "cell")$value, c("A", "B", "C"))
     expect_equal(format_axis_length(d, "cell"), 3L)
     dict <- format_axis_dict(d, "cell")
     expect_equal(dict$A, 1L)

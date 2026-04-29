@@ -21,7 +21,7 @@ test_that("format_get_vector returns the stored SEXP unchanged", {
     vectors <- S7::prop(d, "internal")$vectors
     vectors$cell <- new.env(parent = emptyenv())
     vectors$cell$score <- c(1.5, 2.5)
-    expect_equal(format_get_vector(d, "cell", "score"), c(1.5, 2.5))
+    expect_equal(format_get_vector(d, "cell", "score")$value, c(1.5, 2.5))
 })
 
 test_that("format_get_vector errors on unknown axis / vector", {
@@ -36,7 +36,7 @@ test_that("format_set_vector stores dense numeric/integer/logical/character vect
     add_axis(d, "cell", c("A", "B", "C"))
     for (v in list(c(1.0, 2.0, 3.0), c(1L, 2L, 3L), c(TRUE, FALSE, TRUE), c("x", "y", "z"))) {
         format_set_vector(d, "cell", "v", v, overwrite = TRUE)
-        expect_identical(format_get_vector(d, "cell", "v"), v)
+        expect_identical(format_get_vector(d, "cell", "v")$value, v)
     }
 })
 
@@ -47,7 +47,7 @@ test_that("format_set_vector strips names to the axis entry order (named input)"
         c(B = 20.0, A = 10.0, C = 30.0),
         overwrite = FALSE
     )
-    got <- format_get_vector(d, "cell", "v")
+    got <- format_get_vector(d, "cell", "v")$value
     expect_equal(got, c(10.0, 20.0, 30.0), ignore_attr = TRUE)
     expect_null(names(got))
 })
@@ -90,7 +90,7 @@ test_that("format_set_vector honours overwrite", {
         "already exists"
     )
     format_set_vector(d, "cell", "v", c(3.0, 4.0), overwrite = TRUE)
-    expect_equal(format_get_vector(d, "cell", "v"), c(3.0, 4.0))
+    expect_equal(format_get_vector(d, "cell", "v")$value, c(3.0, 4.0))
 })
 
 test_that("format_set_vector bumps the vector version counter", {

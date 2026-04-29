@@ -235,7 +235,7 @@ viewer <- function(daf, name = NULL, axes = NULL, data = NULL) {
     for (view_name in names(view_axes)) {
         q <- view_axes[[view_name]]
         base_axis <- renames[[view_name]]
-        base_entries <- format_axis_array(daf, base_axis)
+        base_entries <- format_axis_array(daf, base_axis)$value
         if (identical(q, "=") || identical(q, view_name)) {
             out[[view_name]] <- seq_along(base_entries)
         } else {
@@ -478,7 +478,8 @@ S7::method(
     format_get_scalar,
     list(ViewDaf, S7::class_character)
 ) <- function(daf, name) {
-    get_query(daf@base, .view_query_for_scalar(daf, name))
+    value <- get_query(daf@base, .view_query_for_scalar(daf, name))
+    .cache_group_value(value, MEMORY_DATA)
 }
 
 S7::method(format_scalars_set, ViewDaf) <- function(daf) {
@@ -517,7 +518,8 @@ S7::method(
 ) <- function(daf, axis) {
     idx <- daf@view_axis_indices[[axis]]
     base_axis <- daf@view_axis_renames[[axis]]
-    format_axis_array(daf@base, base_axis)[idx]
+    inner <- format_axis_array(daf@base, base_axis)
+    .cache_group_value(inner$value[idx], MEMORY_DATA)
 }
 
 S7::method(
@@ -550,7 +552,7 @@ S7::method(
     }
     raw <- get_query(daf@base, q_str)
     idx <- daf@view_axis_indices[[axis]]
-    raw[idx]
+    .cache_group_value(raw[idx], MEMORY_DATA)
 }
 
 S7::method(
@@ -584,5 +586,5 @@ S7::method(
     raw <- get_query(daf@base, q_str)
     r_idx <- daf@view_axis_indices[[rows_axis]]
     c_idx <- daf@view_axis_indices[[columns_axis]]
-    raw[r_idx, c_idx, drop = FALSE]
+    .cache_group_value(raw[r_idx, c_idx, drop = FALSE], MEMORY_DATA)
 }

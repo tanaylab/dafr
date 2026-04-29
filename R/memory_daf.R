@@ -66,7 +66,10 @@ S7::method(
     if (!exists(name, envir = scalars, inherits = FALSE)) {
         stop(sprintf("scalar %s does not exist", sQuote(name)), call. = FALSE)
     }
-    get(name, envir = scalars, inherits = FALSE)
+    .cache_group_value(
+        get(name, envir = scalars, inherits = FALSE),
+        MEMORY_DATA
+    )
 }
 
 S7::method(format_scalars_set, MemoryDaf) <- function(daf) {
@@ -87,7 +90,7 @@ S7::method(
         stop(sprintf("scalar %s already exists; use overwrite = TRUE", sQuote(name)), call. = FALSE)
     }
     assign(name, value, envir = scalars)
-    invisible()
+    MEMORY_DATA
 }
 
 S7::method(
@@ -129,7 +132,7 @@ S7::method(format_axis_length, list(MemoryDaf, S7::class_character)) <- function
 }
 
 S7::method(format_axis_array, list(MemoryDaf, S7::class_character)) <- function(daf, axis) {
-    .memory_axis(daf, axis)$entries
+    .cache_group_value(.memory_axis(daf, axis)$entries, MEMORY_DATA)
 }
 
 S7::method(format_axis_dict, list(MemoryDaf, S7::class_character)) <- function(daf, axis) {
@@ -248,7 +251,10 @@ S7::method(
             sQuote(name), sQuote(axis)
         ), call. = FALSE)
     }
-    get(name, envir = env, inherits = FALSE)
+    .cache_group_value(
+        get(name, envir = env, inherits = FALSE),
+        MEMORY_DATA
+    )
 }
 
 # ---- Vectors: mutation ------------------------------------------------------
@@ -267,7 +273,7 @@ S7::method(
     }
     assign(name, vec, envir = env)
     bump_vector_counter(daf, axis, name)
-    invisible()
+    MEMORY_DATA
 }
 
 S7::method(
@@ -353,7 +359,10 @@ S7::method(
             call. = FALSE
         )
     }
-    get(name, envir = env, inherits = FALSE)
+    .cache_group_value(
+        get(name, envir = env, inherits = FALSE),
+        MEMORY_DATA
+    )
 }
 
 # ---- Matrices: mutation -----------------------------------------------------
@@ -401,7 +410,7 @@ S7::method(
     }
     assign(name, mat, envir = env)
     bump_matrix_counter(daf, rows_axis, columns_axis, name)
-    invisible()
+    MEMORY_DATA
 }
 
 S7::method(
@@ -429,7 +438,7 @@ S7::method(
     format_relayout_matrix,
     list(MemoryDaf, S7::class_character, S7::class_character, S7::class_character)
 ) <- function(daf, rows_axis, columns_axis, name) {
-    src <- format_get_matrix(daf, rows_axis, columns_axis, name)
+    src <- format_get_matrix(daf, rows_axis, columns_axis, name)$value
     transposed <- if (methods::is(src, "dgCMatrix") || methods::is(src, "lgCMatrix")) {
         Matrix::t(src)
     } else {

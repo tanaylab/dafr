@@ -160,7 +160,7 @@ complete_daf <- function(leaf, mode = "r", name = NULL) {
         d <- open_daf(path, open_mode)
         stack <- c(stack, list(d))
         next_path <- if (format_has_scalar(d, "base_daf_repository")) {
-            base <- format_get_scalar(d, "base_daf_repository")
+            base <- format_get_scalar(d, "base_daf_repository")$value
             if (!.is_absolute_path(base)) {
                 base <- normalizePath(file.path(dirname(path), base),
                                       mustWork = FALSE)
@@ -183,7 +183,7 @@ complete_daf <- function(leaf, mode = "r", name = NULL) {
     }
     if (format_has_scalar(leaf_daf, "base_daf_view")) {
         spec <- jsonlite::fromJSON(
-            format_get_scalar(leaf_daf, "base_daf_view"),
+            format_get_scalar(leaf_daf, "base_daf_view")$value,
             simplifyVector = FALSE
         )
         chain <- viewer(chain, name = chain_name,

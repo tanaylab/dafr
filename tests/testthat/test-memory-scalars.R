@@ -4,7 +4,7 @@ test_that("format_has_scalar / format_get_scalar / format_scalars_set query scal
     expect_equal(format_scalars_set(d), character(0L))
     d@internal$scalars$pi <- 3.14
     expect_true(format_has_scalar(d, "pi"))
-    expect_equal(format_get_scalar(d, "pi"), 3.14)
+    expect_equal(format_get_scalar(d, "pi")$value, 3.14)
     expect_equal(format_scalars_set(d), "pi")
 })
 
@@ -16,16 +16,16 @@ test_that("format_get_scalar errors on unknown name", {
 test_that("format_set_scalar stores new scalars and respects overwrite=FALSE", {
     d <- memory_daf()
     format_set_scalar(d, "foo", "bar", overwrite = FALSE)
-    expect_equal(format_get_scalar(d, "foo"), "bar")
+    expect_equal(format_get_scalar(d, "foo")$value, "bar")
     expect_error(format_set_scalar(d, "foo", "baz", overwrite = FALSE), "already exists")
-    expect_equal(format_get_scalar(d, "foo"), "bar")
+    expect_equal(format_get_scalar(d, "foo")$value, "bar")
 })
 
 test_that("format_set_scalar with overwrite=TRUE replaces value", {
     d <- memory_daf()
     format_set_scalar(d, "foo", "bar", overwrite = FALSE)
     format_set_scalar(d, "foo", "baz", overwrite = TRUE)
-    expect_equal(format_get_scalar(d, "foo"), "baz")
+    expect_equal(format_get_scalar(d, "foo")$value, "baz")
 })
 
 test_that("format_set_scalar rejects NA, NULL, and length != 1", {

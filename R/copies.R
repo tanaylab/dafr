@@ -64,7 +64,7 @@ copy_scalar <- function(destination, source, name,
         return(invisible(destination))
     }
     if (format_has_scalar(source, name)) {
-        value <- format_get_scalar(source, name)
+        value <- format_get_scalar(source, name)$value
     } else if (.is_undef(default)) {
         stop(sprintf("missing scalar: %s in the daf data: %s",
                      sQuote(name), S7::prop(source, "name")),
@@ -120,7 +120,7 @@ copy_axis <- function(destination, source, axis,
         }
         format_delete_axis(destination, final_axis, must_exist = TRUE)
     }
-    format_add_axis(destination, final_axis, format_axis_array(source, axis))
+    format_add_axis(destination, final_axis, format_axis_array(source, axis)$value)
     invisible(destination)
 }
 
@@ -193,7 +193,7 @@ copy_vector <- function(destination, source, axis, name,
 
     # Fetch source value or resolve default.
     if (format_has_vector(source, axis, name)) {
-        value <- format_get_vector(source, axis, name)
+        value <- format_get_vector(source, axis, name)$value
     } else if (.is_undef(default)) {
         stop(sprintf(
             "missing vector: %s for the axis: %s in the daf data: %s",
@@ -209,12 +209,12 @@ copy_vector <- function(destination, source, axis, name,
     }
 
     relation <- .verify_axis_relation(source, axis, destination, final_axis)
-    dest_entries <- format_axis_array(destination, final_axis)
+    dest_entries <- format_axis_array(destination, final_axis)$value
 
     if (identical(relation, "same")) {
         out <- value
     } else if (identical(relation, "destination_is_subset")) {
-        src_entries <- format_axis_array(source, axis)
+        src_entries <- format_axis_array(source, axis)$value
         idx <- match(dest_entries, src_entries)
         out <- value[idx]
     } else if (identical(relation, "source_is_subset")) {
@@ -224,7 +224,7 @@ copy_vector <- function(destination, source, axis, name,
                 sQuote(axis), S7::prop(source, "name"), sQuote(name)
             ), call. = FALSE)
         }
-        src_entries <- format_axis_array(source, axis)
+        src_entries <- format_axis_array(source, axis)$value
         out <- rep(empty, length(dest_entries))
         idx <- match(src_entries, dest_entries)
         out[idx] <- value
@@ -239,8 +239,8 @@ copy_vector <- function(destination, source, axis, name,
 # Returns one of: "same", "destination_is_subset", "source_is_subset".
 # Raises for disjoint / partially-overlapping (non-subset) axes.
 .verify_axis_relation <- function(source, source_axis, destination, dest_axis) {
-    src_entries <- format_axis_array(source, source_axis)
-    dest_entries <- format_axis_array(destination, dest_axis)
+    src_entries <- format_axis_array(source, source_axis)$value
+    dest_entries <- format_axis_array(destination, dest_axis)$value
     if (length(src_entries) == length(dest_entries) &&
         identical(src_entries, dest_entries)) {
         return("same")
@@ -331,7 +331,7 @@ copy_matrix <- function(destination, source,
 
     # Resolve source matrix or default.
     if (format_has_matrix(source, rows_axis, columns_axis, name)) {
-        value <- format_get_matrix(source, rows_axis, columns_axis, name)
+        value <- format_get_matrix(source, rows_axis, columns_axis, name)$value
     } else if (.is_undef(default)) {
         stop(sprintf(
             "missing matrix: %s for rows axis: %s and columns axis: %s in the daf data: %s",
@@ -389,10 +389,10 @@ copy_matrix <- function(destination, source,
                                         source, rows_axis, columns_axis,
                                         destination, final_rows, final_cols,
                                         rows_rel, cols_rel, empty, name) {
-    src_rows <- format_axis_array(source, rows_axis)
-    src_cols <- format_axis_array(source, columns_axis)
-    dest_rows <- format_axis_array(destination, final_rows)
-    dest_cols <- format_axis_array(destination, final_cols)
+    src_rows <- format_axis_array(source, rows_axis)$value
+    src_cols <- format_axis_array(source, columns_axis)$value
+    dest_rows <- format_axis_array(destination, final_rows)$value
+    dest_cols <- format_axis_array(destination, final_cols)$value
 
     if (identical(rows_rel, "same") && identical(cols_rel, "same")) {
         return(value)
@@ -495,7 +495,7 @@ copy_tensor <- function(destination, source,
              call. = FALSE)
     }
     base_rename <- if (is.null(rename)) name else rename
-    for (entry in format_axis_array(destination, main_axis)) {
+    for (entry in format_axis_array(destination, main_axis)$value) {
         src_mat_name <- paste0(entry, "_", name)
         dest_mat_name <- paste0(entry, "_", base_rename)
         default <- if (is.null(empty)) .DAFR_UNDEF else empty

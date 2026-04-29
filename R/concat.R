@@ -102,9 +102,9 @@ concatenate <- function(destination, axis, sources,
         for (ax in format_axes_set(src)) {
             if (ax %in% axes) next
             if (!format_has_axis(destination, ax)) {
-                format_add_axis(destination, ax, format_axis_array(src, ax))
-            } else if (!identical(format_axis_array(destination, ax),
-                                  format_axis_array(src, ax))) {
+                format_add_axis(destination, ax, format_axis_array(src, ax)$value)
+            } else if (!identical(format_axis_array(destination, ax)$value,
+                                  format_axis_array(src, ax)$value)) {
                 stop(sprintf(
                     "different entries for the axis: %s between dafs", sQuote(ax)
                 ), call. = FALSE)
@@ -164,7 +164,7 @@ concatenate <- function(destination, axis, sources,
                              do_prefix, all_prefixes, prefixed, empty,
                              overwrite, sparse_threshold) {
     per_src <- lapply(seq_along(sources), function(i) {
-        e <- format_axis_array(sources[[i]], axis)
+        e <- format_axis_array(sources[[i]], axis)$value
         if (isTRUE(do_prefix)) paste(dataset_names[[i]], e, sep = ".") else e
     })
     combined <- unlist(per_src, use.names = FALSE)
@@ -208,7 +208,7 @@ concatenate <- function(destination, axis, sources,
     for (i in seq_along(sources)) {
         src <- sources[[i]]
         if (format_has_vector(src, axis, name)) {
-            v <- format_get_vector(src, axis, name)
+            v <- format_get_vector(src, axis, name)$value
         } else {
             key <- paste(axis, name, sep = "|")
             fill <- if (is.null(empty)) NULL else empty[[key]]
@@ -257,9 +257,9 @@ concatenate <- function(destination, axis, sources,
                          S7::prop(src, "name"), sQuote(name)), call. = FALSE)
         }
         mat <- if (format_has_matrix(src, other_axis, axis, name)) {
-            format_get_matrix(src, other_axis, axis, name)
+            format_get_matrix(src, other_axis, axis, name)$value
         } else if (format_has_matrix(src, axis, other_axis, name)) {
-            m <- format_get_matrix(src, axis, other_axis, name)
+            m <- format_get_matrix(src, axis, other_axis, name)$value
             if (inherits(m, "dgCMatrix")) Matrix::t(m) else t(m)
         } else {
             key <- paste(other_axis, axis, name, sep = "|")
@@ -284,8 +284,8 @@ concatenate <- function(destination, axis, sources,
         combined <- do.call(cbind, lapply(parts, function(m)
             if (inherits(m, "dgCMatrix")) as.matrix(m) else m))
     }
-    dest_rows <- format_axis_array(destination, other_axis)
-    dest_cols <- format_axis_array(destination, axis)
+    dest_rows <- format_axis_array(destination, other_axis)$value
+    dest_cols <- format_axis_array(destination, axis)$value
     dimnames(combined) <- list(dest_rows, dest_cols)
     format_set_matrix(destination, other_axis, axis, name, combined,
                       overwrite = overwrite)
@@ -322,7 +322,7 @@ concatenate <- function(destination, axis, sources,
         for (i in rev(seq_along(sources))) {
             if (format_has_scalar(sources[[i]], name)) {
                 format_set_scalar(destination, name,
-                                  format_get_scalar(sources[[i]], name),
+                                  format_get_scalar(sources[[i]], name)$value,
                                   overwrite = overwrite)
                 return(invisible())
             }
@@ -337,7 +337,7 @@ concatenate <- function(destination, axis, sources,
             ), call. = FALSE)
         }
         vals <- lapply(sources, function(s)
-            if (format_has_scalar(s, name)) format_get_scalar(s, name) else NA)
+            if (format_has_scalar(s, name)) format_get_scalar(s, name)$value else NA)
         format_set_vector(destination, dataset_axis, name,
                           do.call(c, vals), overwrite = overwrite)
     }
@@ -350,7 +350,7 @@ concatenate <- function(destination, axis, sources,
         for (i in rev(seq_along(sources))) {
             if (format_has_vector(sources[[i]], axis, name)) {
                 format_set_vector(destination, axis, name,
-                                  format_get_vector(sources[[i]], axis, name),
+                                  format_get_vector(sources[[i]], axis, name)$value,
                                   overwrite = overwrite)
                 return(invisible())
             }
@@ -367,12 +367,12 @@ concatenate <- function(destination, axis, sources,
         src_len <- format_axis_length(destination, axis)
         n_src <- length(sources)
         out <- matrix(NA, nrow = src_len, ncol = n_src,
-                      dimnames = list(format_axis_array(destination, axis),
+                      dimnames = list(format_axis_array(destination, axis)$value,
                                       dataset_names))
         for (i in seq_along(sources)) {
             s <- sources[[i]]
             if (format_has_vector(s, axis, name)) {
-                out[, i] <- format_get_vector(s, axis, name)
+                out[, i] <- format_get_vector(s, axis, name)$value
             }
         }
         format_set_matrix(destination, axis, dataset_axis, name, out,

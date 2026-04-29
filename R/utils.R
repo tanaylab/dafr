@@ -60,7 +60,7 @@
     }
     n <- format_axis_length(daf, axis)
     if (!is.null(names(vec))) {
-        entries <- format_axis_array(daf, axis)
+        entries <- format_axis_array(daf, axis)$value
         missing <- setdiff(names(vec), entries)
         if (length(missing)) {
             stop(

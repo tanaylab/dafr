@@ -14,7 +14,7 @@ S7::method(
         ), call. = FALSE)
     }
     .write_scalar_json(p, value)
-    invisible()
+    MEMORY_DATA
 }
 
 S7::method(
@@ -232,7 +232,7 @@ S7::method(
         .files_write_vector_sparse_numeric(vdir, name, nz, vec[nz], eltype, indtype)
     }
     bump_vector_counter(daf, axis, name)
-    invisible()
+    MEMORY_DATA
 }
 
 .files_set_vector_sparse_input <- function(daf, axis, name, sv, overwrite) {
@@ -261,7 +261,7 @@ S7::method(
         as.integer(sv@i), sv@x, eltype, indtype
     )
     bump_vector_counter(daf, axis, name)
-    invisible()
+    MEMORY_DATA
 }
 
 S7::method(
@@ -350,7 +350,7 @@ S7::method(
     if (methods::is(mat, "dgCMatrix") || methods::is(mat, "lgCMatrix")) {
         .files_write_matrix_sparse(mdir, name, mat)
         bump_matrix_counter(daf, rows_axis, columns_axis, name)
-        return(invisible())
+        return(MEMORY_DATA)
     }
     dtype <- .dtype_for_r_vector(as.vector(mat))
     if (dtype == "String") {
@@ -368,7 +368,7 @@ S7::method(
     }
     .write_descriptor_dense(desc_path, dtype)
     bump_matrix_counter(daf, rows_axis, columns_axis, name)
-    invisible()
+    MEMORY_DATA
 }
 
 S7::method(
@@ -401,7 +401,7 @@ S7::method(
     format_relayout_matrix,
     list(FilesDaf, S7::class_character, S7::class_character, S7::class_character)
 ) <- function(daf, rows_axis, columns_axis, name) {
-    src <- format_get_matrix(daf, rows_axis, columns_axis, name)
+    src <- format_get_matrix(daf, rows_axis, columns_axis, name)$value
     transposed <- if (methods::is(src, "dgCMatrix") || methods::is(src, "lgCMatrix")) {
         Matrix::t(src)
     } else {

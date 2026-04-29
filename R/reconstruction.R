@@ -61,7 +61,7 @@ reconstruct_axis <- function(daf, existing_axis, implicit_axis,
         ), call. = FALSE)
     }
 
-    impl_vec <- format_get_vector(daf, existing_axis, implicit_axis)
+    impl_vec <- format_get_vector(daf, existing_axis, implicit_axis)$value
     impl_str <- as.character(impl_vec)
     if (!is.null(empty_implicit)) {
         impl_str[impl_str == as.character(empty_implicit)] <- ""
@@ -83,7 +83,7 @@ reconstruct_axis <- function(daf, existing_axis, implicit_axis,
     empty_values <- list()
 
     for (prop in all_vecs) {
-        values <- format_get_vector(daf, existing_axis, prop)
+        values <- format_get_vector(daf, existing_axis, prop)$value
         mapping <- list()
         empty_v <- NULL
         consistent <- TRUE

@@ -1,3 +1,31 @@
+# dafr 0.2.0 (development)
+
+## Internal: per-item cache_group refactor (slice 14)
+
+The internal format API now returns per-item cache classifications,
+matching `DataAxesFormats.jl` v0.2.0 (upstream commit `49fbba1`).
+**No user-visible behavior change.**
+
+- Every backend `format_get_*` method (scalar/axis_array/vector/matrix)
+  returns `list(value, cache_group)` instead of a bare value.
+- Every backend `format_set_*` method returns the cache_group constant
+  for the just-written value (or `NULL`) instead of `invisible()`.
+- New exported character constants `MEMORY_DATA`, `MAPPED_DATA`,
+  `QUERY_DATA` — accepted by `empty_cache(daf, clear = ...)` /
+  `keep = ...` alongside the existing lowercase forms.
+- The reader-level cache (`R/readers.R`) now consults the
+  backend-returned cache_group when storing fresh reads, instead of
+  hardcoding the `"memory"` tier. mmap-eligible reads on
+  `files_daf` now correctly land in the `"mapped"` tier.
+- Per-item classification: `files_daf` returns `MEMORY_DATA` for
+  string/factor reads (R's CHARSXP cache makes mmap moot for strings)
+  and `MAPPED_DATA` for everything else. Matches upstream's
+  structural classification — no size thresholds.
+
+This refactor is preparatory for the Slice 16+ `ZarrDaf` and
+`HttpDaf` backends, which require per-item classification to drive
+their internal caching.
+
 # dafr 0.1.0 (development)
 
 ## Query DSL: Julia-parity parser additions

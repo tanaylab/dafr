@@ -295,7 +295,7 @@ contractor <- function(computation, contract, daf,
             # back to this tensor's tracker. If the main axis is missing we
             # skip — the tensor verify step reports that as its own error.
             if (format_has_axis(daf, rec$main_axis)) {
-                entries <- format_axis_array(daf, rec$main_axis)
+                entries <- format_axis_array(daf, rec$main_axis)$value
                 for (entry in entries) {
                     mat_name <- sprintf("%s_%s", entry, rec$name)
                     idx_key <- .access_key_matrix(rec$rows_axis, rec$columns_axis, mat_name)
@@ -684,7 +684,7 @@ S7::method(
             tracker$expectation, name, comp, dname
         ), call. = FALSE)
     }
-    value <- format_get_scalar(base, name)
+    value <- format_get_scalar(base, name)$value
     if (!.type_ok(value, tracker$type)) {
         stop(sprintf(
             "unexpected type: %s instead of type: %s for the %s scalar: %s for the computation: %s on the daf data: %s",
@@ -717,7 +717,7 @@ S7::method(
             tracker$expectation, name, axis, comp, dname
         ), call. = FALSE)
     }
-    v <- format_get_vector(base, axis, name)
+    v <- format_get_vector(base, axis, name)$value
     if (!.vector_type_ok(v, tracker$type)) {
         stop(sprintf(
             "unexpected type: %s instead of type: %s for the %s vector: %s of the axis: %s for the computation: %s on the daf data: %s",
@@ -751,7 +751,7 @@ S7::method(
             tracker$expectation, name, ra, ca, comp, dname
         ), call. = FALSE)
     }
-    m <- format_get_matrix(base, ra, ca, name)
+    m <- format_get_matrix(base, ra, ca, name)$value
     if (!.matrix_type_ok(m, tracker$type)) {
         stop(sprintf(
             "unexpected type: %s instead of type: %s for the %s matrix: %s of the rows axis: %s and the columns axis: %s for the computation: %s on the daf data: %s",
@@ -778,7 +778,7 @@ S7::method(
         }
         return(invisible())
     }
-    entries <- format_axis_array(base, main)
+    entries <- format_axis_array(base, main)$value
     for (entry in entries) {
         mat_name <- sprintf("%s_%s", entry, rec$name)
         has_it <- format_has_matrix(base, ra, ca, mat_name)
@@ -876,7 +876,7 @@ S7::method(
             ca <- parts[[4L]]
             tname <- parts[[5L]]
             if (!format_has_axis(base, main)) next
-            entries <- format_axis_array(base, main)
+            entries <- format_axis_array(base, main)$value
             all_present <- length(entries) > 0L && all(vapply(entries,
                 function(e) format_has_matrix(base, ra, ca,
                     sprintf("%s_%s", e, tname)),

@@ -23,8 +23,8 @@ test_that("complete_daf re-applies base_daf_view on reopen", {
     expect_true(inherits(reopened, "dafr::ViewDaf"))
     expect_setequal(format_axes_set(reopened), c("cell", "gene"))
 
-    v1 <- format_get_matrix(reopened, "cell", "gene", "umi")
-    v2 <- format_get_matrix(base, "cell", "gene", "umi")
+    v1 <- format_get_matrix(reopened, "cell", "gene", "umi")$value
+    v2 <- format_get_matrix(base, "cell", "gene", "umi")$value
     expect_equal(unname(as.matrix(v1)), unname(as.matrix(v2)))
 })
 
