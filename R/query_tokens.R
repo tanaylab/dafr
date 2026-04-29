@@ -93,24 +93,29 @@ NULL
     # any non-ASCII Unicode), with `\X` consuming the next character
     # literally so axis-entry names containing otherwise-special characters
     # can be embedded inline (e.g. `gene = AL627309\.1`).
-    out <- character(0)
-    j <- start
-    while (j <= n) {
-        ch <- substr(s, j, j)
-        if (ch == "\\" && j < n) {
-            out <- c(out, substr(s, j + 1L, j + 1L))
-            j <- j + 2L
-            next
-        }
-        if (grepl("^(?:[0-9a-zA-Z_.+\\-]|[^\\x00-\\x7F])$", ch, perl = TRUE)) {
-            out <- c(out, ch)
-            j <- j + 1L
-            next
-        }
-        break
-    }
-    if (length(out) == 0L) {
+    #
+    # Single regex match (O(n) for the whole run) rather than a per-char R
+    # loop (O(n^2) due to the c(out, ch) accumulation, ~5s for a 50k-char
+    # value, a denial-of-service vector for any caller that forwards user
+    # input into a query).
+    rest <- substr(s, start, n)
+    m <- regmatches(
+        rest,
+        regexpr(
+            "^(?:\\\\.|[0-9a-zA-Z_.+\\-]|[^\\x00-\\x7F])+",
+            rest, perl = TRUE
+        )
+    )
+    if (length(m) != 1L || !nzchar(m)) {
+        # If the run starts with `\` but the regex couldn't pair it with a
+        # following char (orphan trailing backslash) the caller gets the
+        # same "unexpected character" path as before.
         return(NULL)
     }
-    list(value = paste0(out, collapse = ""), next_pos = j)
+    consumed <- nchar(m)
+    # Strip the `\` from each `\X` escape; R's regex engine uses `\1` for
+    # backreferences in replacement strings, so we leave the captured char
+    # alone.
+    value <- gsub("\\\\(.)", "\\1", m, perl = TRUE)
+    list(value = value, next_pos = start + consumed)
 }

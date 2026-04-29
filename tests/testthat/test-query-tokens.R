@@ -70,6 +70,27 @@ test_that(".tokenize_query produces an empty-value token for `''`", {
     expect_equal(vals,  c("@", "metacell", ":", "type", "=", ""))
 })
 
+test_that(".tokenize_query is linear in value length (DoS guard)", {
+    # Pre-fix this was O(n^2) due to a per-char loop with `c(out, ch)`,
+    # so a 100k-char value blew past the 2s test timeout. After the fix,
+    # 100k characters tokenize in well under a second on any modern host.
+    big <- strrep("a", 100000L)
+    t <- system.time(toks <- .tokenize_query(big))
+    expect_length(toks, 1L)
+    expect_equal(nchar(toks[[1]]$value), 100000L)
+    expect_lt(t["elapsed"], 1.0)
+})
+
+test_that(".tokenize_query unescapes embedded `\\X` runs in linear time", {
+    # Mixed escape + non-escape pattern. Should be fast and produce a
+    # single value with the escape characters dropped.
+    big <- paste0(strrep("a\\.", 10000L), "z")
+    t <- system.time(toks <- .tokenize_query(big))
+    expect_length(toks, 1L)
+    expect_equal(nchar(toks[[1]]$value), 20001L)
+    expect_lt(t["elapsed"], 1.0)
+})
+
 test_that(".tokenize_query treats `# ... <eol>` as a line comment", {
     # Per Julia tokens.jl SPACE_REGEX, `#` to end-of-line is whitespace.
     toks <- .tokenize_query("@ cell # this is a comment\n: donor")
