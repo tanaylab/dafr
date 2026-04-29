@@ -90,7 +90,7 @@ S7::method(
         stop(sprintf("scalar %s already exists; use overwrite = TRUE", sQuote(name)), call. = FALSE)
     }
     assign(name, value, envir = scalars)
-    invisible()
+    MEMORY_DATA
 }
 
 S7::method(
@@ -274,7 +274,7 @@ S7::method(
     }
     assign(name, vec, envir = env)
     bump_vector_counter(daf, axis, name)
-    invisible()
+    MEMORY_DATA
 }
 
 S7::method(
@@ -412,7 +412,7 @@ S7::method(
     }
     assign(name, mat, envir = env)
     bump_matrix_counter(daf, rows_axis, columns_axis, name)
-    invisible()
+    MEMORY_DATA
 }
 
 S7::method(

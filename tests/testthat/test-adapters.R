@@ -264,6 +264,6 @@ test_that("adapter: sparse pad-mode copy-back preserves sparsity", {
         relayout = FALSE
     )
     expect_identical(result, "ok")
-    res <- format_get_matrix(d, "cell", "gene", "UMIs")
+    res <- format_get_matrix(d, "cell", "gene", "UMIs")$value
     expect_s4_class(res, "dgCMatrix")
 })

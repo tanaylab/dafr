@@ -17,7 +17,7 @@ test_that("format_get_matrix returns stored dense matrix unchanged", {
     matrices$cell$gene$UMIs <- m
     expect_true(format_has_matrix(d, "cell", "gene", "UMIs"))
     expect_equal(format_matrices_set(d, "cell", "gene"), "UMIs")
-    expect_identical(format_get_matrix(d, "cell", "gene", "UMIs"), m)
+    expect_identical(format_get_matrix(d, "cell", "gene", "UMIs")$value, m)
 })
 
 test_that("format_get_matrix errors on unknown axes / missing matrix", {
@@ -39,9 +39,9 @@ test_that("format_set_matrix accepts dense double / int / logical with correct s
     format_set_matrix(d, "cell", "gene", "d", m_d, overwrite = FALSE)
     format_set_matrix(d, "cell", "gene", "i", m_i, overwrite = FALSE)
     format_set_matrix(d, "cell", "gene", "l", m_l, overwrite = FALSE)
-    expect_identical(format_get_matrix(d, "cell", "gene", "d"), m_d)
-    expect_identical(format_get_matrix(d, "cell", "gene", "i"), m_i)
-    expect_identical(format_get_matrix(d, "cell", "gene", "l"), m_l)
+    expect_identical(format_get_matrix(d, "cell", "gene", "d")$value, m_d)
+    expect_identical(format_get_matrix(d, "cell", "gene", "i")$value, m_i)
+    expect_identical(format_get_matrix(d, "cell", "gene", "l")$value, m_l)
 })
 
 test_that("format_set_matrix accepts dgCMatrix + lgCMatrix sparse", {
@@ -54,8 +54,8 @@ test_that("format_set_matrix accepts dgCMatrix + lgCMatrix sparse", {
     expect_s4_class(m_l, "lgCMatrix")
     format_set_matrix(d, "cell", "gene", "d", m_d, overwrite = FALSE)
     format_set_matrix(d, "cell", "gene", "l", m_l, overwrite = FALSE)
-    expect_equal(as.matrix(format_get_matrix(d, "cell", "gene", "d")), as.matrix(m_d))
-    expect_equal(as.matrix(format_get_matrix(d, "cell", "gene", "l")), as.matrix(m_l))
+    expect_equal(as.matrix(format_get_matrix(d, "cell", "gene", "d")$value), as.matrix(m_d))
+    expect_equal(as.matrix(format_get_matrix(d, "cell", "gene", "l")$value), as.matrix(m_l))
 })
 
 test_that("format_set_matrix rejects shape mismatch / non-matrix / overwrite", {
@@ -85,7 +85,7 @@ test_that("format_set_matrix rejects shape mismatch / non-matrix / overwrite", {
         "already exists"
     )
     format_set_matrix(d, "cell", "gene", "m", matrix(1, 2, 3), overwrite = TRUE)
-    expect_equal(format_get_matrix(d, "cell", "gene", "m"), matrix(1, 2, 3))
+    expect_equal(format_get_matrix(d, "cell", "gene", "m")$value, matrix(1, 2, 3))
 })
 
 test_that("format_set_matrix strips dimnames at storage layer", {
@@ -94,7 +94,7 @@ test_that("format_set_matrix strips dimnames at storage layer", {
     add_axis(d, "gene", c("X", "Y", "Z"))
     m <- matrix(seq_len(6), 2, 3, dimnames = list(c("A", "B"), c("X", "Y", "Z")))
     format_set_matrix(d, "cell", "gene", "m", m, overwrite = FALSE)
-    got <- format_get_matrix(d, "cell", "gene", "m")
+    got <- format_get_matrix(d, "cell", "gene", "m")$value
     expect_null(dimnames(got))
 })
 
@@ -129,7 +129,7 @@ test_that("format_relayout_matrix writes the transposed layout", {
     expect_false(format_has_matrix(d, "gene", "cell", "UMIs"))
     format_relayout_matrix(d, "cell", "gene", "UMIs")
     expect_true(format_has_matrix(d, "gene", "cell", "UMIs"))
-    expect_equal(format_get_matrix(d, "gene", "cell", "UMIs"), t(m))
+    expect_equal(format_get_matrix(d, "gene", "cell", "UMIs")$value, t(m))
 })
 
 test_that("format_relayout_matrix works for sparse (CSC -> transposed CSC)", {
@@ -139,7 +139,7 @@ test_that("format_relayout_matrix works for sparse (CSC -> transposed CSC)", {
     m <- Matrix::Matrix(c(0, 1, 2, 0, 0, 3), 2, 3, sparse = TRUE)
     format_set_matrix(d, "cell", "gene", "UMIs", m, overwrite = FALSE)
     format_relayout_matrix(d, "cell", "gene", "UMIs")
-    got <- format_get_matrix(d, "gene", "cell", "UMIs")
+    got <- format_get_matrix(d, "gene", "cell", "UMIs")$value
     expect_s4_class(got, "dgCMatrix")
     expect_equal(as.matrix(got), as.matrix(Matrix::t(m)))
 })

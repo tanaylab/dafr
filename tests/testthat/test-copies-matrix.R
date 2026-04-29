@@ -130,7 +130,7 @@ test_that("copy_matrix: sparse source + source-is-subset + empty=0 stays sparse"
 
     copy_matrix(dest, src, "cell", "gene", "UMIs",
                 empty = 0, relayout = FALSE)
-    result <- format_get_matrix(dest, "cell", "gene", "UMIs")
+    result <- format_get_matrix(dest, "cell", "gene", "UMIs")$value
     expect_s4_class(result, "dgCMatrix")
     expect_equal(unname(as.matrix(result)),
                  matrix(c(10,0,0, 0,20,0), 3, 2))
