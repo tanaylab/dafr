@@ -61,7 +61,8 @@ head(cells["@ donor [ age > 60 & sex = male ]"])
 
 # --- Vector lookup (jl:332) ----------------------------------------------
 metacells["@ metacell : type"]
-#> [1] "MPP"      "MPP"      "MEBEMP-L" "MEBEMP-E" "MPP"      "MEBEMP-E" "memory-B"
+#>   M1671.28   M2357.20   M2169.56   M2576.86   M1440.15    M756.63    M412.08 
+#>      "MPP"      "MPP" "MEBEMP-L" "MEBEMP-E"      "MPP" "MEBEMP-E" "memory-B" 
 
 # --- Matrix-by-axis column slice (jl:357) --------------------------------
 head(metacells["@ gene :: fraction @ metacell = M412.08"])
@@ -85,9 +86,11 @@ metacells["@ metacell : type : color"]
 
 # --- Eltwise + comparator on vector (jl:468, 498) ------------------------
 head(cells["@ donor : age % Clamp min 40 max 60 type Int64"])
-#> [1] 60 60 60 60 60 42
+#> N16 N17 N18 N59 N79 N83 
+#>  60  60  60  60  60  42 
 head(cells["@ donor : age > 60"])
-#> [1]  TRUE  TRUE  TRUE  TRUE  TRUE FALSE
+#>   N16   N17   N18   N59   N79   N83 
+#>  TRUE  TRUE  TRUE  TRUE  TRUE FALSE 
 
 # --- AsAxis explicit and named (jl:548, 566) -----------------------------
 metacells["@ metacell : type =@ : color"]

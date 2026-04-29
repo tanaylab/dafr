@@ -7,9 +7,19 @@ following two expressions are equivalent:
 
 ``` r
 head(d["@ cell : donor"])
-#> [1] "N89" "N84" "N86" "N84" "N89" "N89"
+#> demux_07_12_20_1_AACAAGATCCATTTCA-1 demux_07_12_20_1_AACGAAAGTCCAATCA-1 
+#>                               "N89"                               "N84" 
+#> demux_07_12_20_1_AAGACAAAGTTCCGTA-1 demux_07_12_20_1_AGACTCATCTATTGTC-1 
+#>                               "N86"                               "N84" 
+#> demux_07_12_20_1_AGATAGACATTCCTCG-1 demux_07_12_20_1_ATCGTAGTCCAGTGCG-1 
+#>                               "N89"                               "N89"
 head(d[Axis("cell") |> LookupVector("donor")])
-#> [1] "N89" "N84" "N86" "N84" "N89" "N89"
+#> demux_07_12_20_1_AACAAGATCCATTTCA-1 demux_07_12_20_1_AACGAAAGTCCAATCA-1 
+#>                               "N89"                               "N84" 
+#> demux_07_12_20_1_AAGACAAAGTTCCGTA-1 demux_07_12_20_1_AGACTCATCTATTGTC-1 
+#>                               "N86"                               "N84" 
+#> demux_07_12_20_1_AGATAGACATTCCTCG-1 demux_07_12_20_1_ATCGTAGTCCAGTGCG-1 
+#>                               "N89"                               "N89"
 ```
 
 ## String form
@@ -25,7 +35,12 @@ head(d["@ cell"])
 #> [5] "demux_07_12_20_1_AGATAGACATTCCTCG-1" "demux_07_12_20_1_ATCGTAGTCCAGTGCG-1"
 # Vector on axis
 head(d["@ cell : donor"])
-#> [1] "N89" "N84" "N86" "N84" "N89" "N89"
+#> demux_07_12_20_1_AACAAGATCCATTTCA-1 demux_07_12_20_1_AACGAAAGTCCAATCA-1 
+#>                               "N89"                               "N84" 
+#> demux_07_12_20_1_AAGACAAAGTTCCGTA-1 demux_07_12_20_1_AGACTCATCTATTGTC-1 
+#>                               "N86"                               "N84" 
+#> demux_07_12_20_1_AGATAGACATTCCTCG-1 demux_07_12_20_1_ATCGTAGTCCAGTGCG-1 
+#>                               "N89"                               "N89"
 # Matrix
 dim(d["@ cell @ gene :: UMIs"])
 #> [1] 856 683

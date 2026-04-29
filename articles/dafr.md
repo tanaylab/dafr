@@ -20,11 +20,11 @@ set_matrix(d, "cell", "gene", "UMIs",
 print(d)
 #> <dafr::MemoryDaf>
 #>  @ name                  : chr "demo"
-#>  @ internal              :<environment: 0x55f65daf40f8> 
-#>  @ cache                 :<environment: 0x55f65db0d1a8> 
-#>  @ axis_version_counter  :<environment: 0x55f65db11608> 
-#>  @ vector_version_counter:<environment: 0x55f65db11330> 
-#>  @ matrix_version_counter:<environment: 0x55f65db11058>
+#>  @ internal              :<environment: 0x555dcda5e1e8> 
+#>  @ cache                 :<environment: 0x555dcda77298> 
+#>  @ axis_version_counter  :<environment: 0x555dcda7b730> 
+#>  @ vector_version_counter:<environment: 0x555dcda7b458> 
+#>  @ matrix_version_counter:<environment: 0x555dcda7b148>
 ```
 
 ## Reading data
@@ -49,14 +49,16 @@ pipe-chain builders:
 
 ``` r
 get_query(d, "@ cell : donor")
-#> [1] "A" "B" "A"
+#>  c1  c2  c3 
+#> "A" "B" "A"
 get_query(d, ". organism")
 #> [1] "human"
 ```
 
 ``` r
 d[Axis("cell") |> LookupVector("donor")]
-#> [1] "A" "B" "A"
+#>  c1  c2  c3 
+#> "A" "B" "A"
 ```
 
 ## Data frames

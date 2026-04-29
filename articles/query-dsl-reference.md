@@ -158,7 +158,12 @@ head(cells["@ experiment"])
 length(cells["@ gene [ ! is_lateral ]"])
 #> [1] 245
 head(cells["@ cell : donor"])
-#> [1] "N89" "N84" "N86" "N84" "N89" "N89"
+#> demux_07_12_20_1_AACAAGATCCATTTCA-1 demux_07_12_20_1_AACGAAAGTCCAATCA-1 
+#>                               "N89"                               "N84" 
+#> demux_07_12_20_1_AAGACAAAGTTCCGTA-1 demux_07_12_20_1_AGACTCATCTATTGTC-1 
+#>                               "N86"                               "N84" 
+#> demux_07_12_20_1_AGATAGACATTCCTCG-1 demux_07_12_20_1_ATCGTAGTCCAGTGCG-1 
+#>                               "N89"                               "N89"
 # Per-row (per-gene) mean UMIs.
 head(cells["@ gene @ cell :: UMIs >- Mean"])
 #> demux_07_12_20_1_AACAAGATCCATTTCA-1 demux_07_12_20_1_AACGAAAGTCCAATCA-1 
