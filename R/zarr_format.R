@@ -675,3 +675,354 @@ S7::method(format_delete_vector,
     function(daf, axis, name, must_exist) {
         .zarr_read_only_guard("delete_vector")
     }
+
+# ---- Matrices ------------------------------------------------------------
+#
+# Layout (mirrors DataAxesFormats.jl/src/zarr_format.jl):
+#   matrices/{rows_axis}/{cols_axis}/{name}/
+#       Dense:  .zarray + 0.0   (shape = [n_cols, n_rows], order = "C")
+#       Sparse: .zgroup + colptr/, rowval/, [nzval/]
+#
+# Dense:   upstream stores `.zarray` shape REVERSED — [n_cols, n_rows] with
+#          order = "C". The on-disk bytes are Julia/R column-major (R's
+#          natural matrix layout). A Python zarr reader sees this as a
+#          C-contiguous (n_cols, n_rows) array — the transpose of the
+#          R/Julia view. Matches upstream exactly.
+#
+# Sparse:  on-disk colptr / rowval are 1-based (Julia SparseMatrixCSC native);
+#          Matrix's @p / @i are 0-based, so we convert with +1L on write,
+#          -1L on read. Upstream writes NO .zattrs for sparse matrices —
+#          shape comes from the axis lengths and "all-TRUE Bool" is inferred
+#          from the absence of `nzval/`.
+
+S7::method(format_has_matrix,
+           list(ZarrDaf, S7::class_character, S7::class_character,
+                S7::class_character)) <-
+    function(daf, rows_axis, columns_axis, name) {
+        .zarr_has_matrix(daf, rows_axis, columns_axis, name)
+    }
+S7::method(format_has_matrix,
+           list(ZarrDafReadOnly, S7::class_character, S7::class_character,
+                S7::class_character)) <-
+    function(daf, rows_axis, columns_axis, name) {
+        .zarr_has_matrix(daf, rows_axis, columns_axis, name)
+    }
+.zarr_has_matrix <- function(daf, rows_axis, columns_axis, name) {
+    store <- S7::prop(daf, "store")
+    base <- paste0("matrices/", rows_axis, "/", columns_axis, "/", name)
+    store_exists(store, paste0(base, "/.zarray")) ||
+        store_exists(store, paste0(base, "/.zgroup"))
+}
+
+S7::method(format_matrices_set,
+           list(ZarrDaf, S7::class_character, S7::class_character)) <-
+    function(daf, rows_axis, columns_axis) {
+        .zarr_matrices_set(daf, rows_axis, columns_axis)
+    }
+S7::method(format_matrices_set,
+           list(ZarrDafReadOnly, S7::class_character, S7::class_character)) <-
+    function(daf, rows_axis, columns_axis) {
+        .zarr_matrices_set(daf, rows_axis, columns_axis)
+    }
+.zarr_matrices_set <- function(daf, rows_axis, columns_axis) {
+    store <- S7::prop(daf, "store")
+    prefix <- paste0("matrices/", rows_axis, "/", columns_axis)
+    keys <- store_list(store, prefix)
+    if (length(keys) == 0L) return(character(0L))
+    rel <- sub(paste0("^", prefix, "/"), "", keys)
+    # Top-level dense:  "{name}/.zarray"  (one slash, ends .zarray)
+    # Top-level sparse: "{name}/.zgroup"  (one slash, ends .zgroup)
+    # Sparse children:  "{name}/colptr/.zarray" — multiple slashes, skip.
+    is_dense <- grepl("^[^/]+/\\.zarray$", rel)
+    is_sparse <- grepl("^[^/]+/\\.zgroup$", rel)
+    names <- c(
+        sub("/\\.zarray$", "", rel[is_dense]),
+        sub("/\\.zgroup$", "", rel[is_sparse])
+    )
+    sort(unique(names), method = "radix")
+}
+
+# Read the matrix at (rows_axis, columns_axis, name). Dispatches on
+# .zarray (dense) vs .zgroup (sparse).
+.zarr_get_matrix <- function(daf, rows_axis, columns_axis, name) {
+    store <- S7::prop(daf, "store")
+    base <- paste0("matrices/", rows_axis, "/", columns_axis, "/", name)
+    if (store_exists(store, paste0(base, "/.zarray"))) {
+        return(.zarr_get_dense_matrix(store, base))
+    }
+    if (store_exists(store, paste0(base, "/.zgroup"))) {
+        nr <- as.integer(format_axis_length(daf, rows_axis))
+        nc <- as.integer(format_axis_length(daf, columns_axis))
+        return(.zarr_get_sparse_matrix(store, base, nr, nc))
+    }
+    stop(sprintf(
+        "matrix %s does not exist on axes (%s, %s)",
+        sQuote(name), sQuote(rows_axis), sQuote(columns_axis)
+    ), call. = FALSE)
+}
+
+.zarr_get_dense_matrix <- function(store, base) {
+    zarray <- zarr_v2_read_zarray(store, base)
+    # Upstream writes .zarray shape REVERSED (Julia/R column-major bytes
+    # presented to Zarr's C-order metadata as [n_cols, n_rows]). So the
+    # *Daf* dimensions are (rows = shape[2], cols = shape[1]).
+    on_disk_d0 <- as.integer(zarray$shape[[1L]])
+    on_disk_d1 <- as.integer(zarray$shape[[2L]])
+    nr <- on_disk_d1
+    nc <- on_disk_d0
+    chunk_path <- paste0(base, "/0.0")
+    bytes <- store_get_bytes(store, chunk_path)
+    if (is.null(bytes)) {
+        stop(sprintf("matrix at %s missing chunk", sQuote(base)), call. = FALSE)
+    }
+    if (zarray$dtype == "|O") {
+        flat <- zarr_v2_decode_strings(bytes, n = nr * nc)
+    } else {
+        flat <- zarr_v2_decode_chunk(bytes, zarray$dtype, n = nr * nc,
+                                     compressor = zarray$compressor)
+    }
+    # The on-disk byte order is column-major in (nr, nc) — R's native fill.
+    dim(flat) <- c(nr, nc)
+    flat
+}
+
+.zarr_get_sparse_matrix <- function(store, base, nr, nc) {
+    # colptr (1-based on disk per upstream).
+    colptr_zarray <- zarr_v2_read_zarray(store, paste0(base, "/colptr"))
+    colptr <- zarr_v2_decode_chunk(
+        store_get_bytes(store, paste0(base, "/colptr/0")),
+        colptr_zarray$dtype,
+        n = as.integer(colptr_zarray$shape[[1L]]),
+        compressor = colptr_zarray$compressor
+    )
+    # rowval (1-based on disk per upstream).
+    rowval_zarray <- zarr_v2_read_zarray(store, paste0(base, "/rowval"))
+    rowval_n <- as.integer(rowval_zarray$shape[[1L]])
+    rowval <- if (rowval_n == 0L) integer(0L) else
+        zarr_v2_decode_chunk(
+            store_get_bytes(store, paste0(base, "/rowval/0")),
+            rowval_zarray$dtype, n = rowval_n,
+            compressor = rowval_zarray$compressor
+        )
+    has_nzval <- store_exists(store, paste0(base, "/nzval/.zarray"))
+    if (!has_nzval) {
+        # Upstream-compatible: absence of nzval => all-TRUE Bool sparse.
+        return(methods::new("lgCMatrix",
+            x = rep(TRUE, length(rowval)),
+            i = as.integer(rowval) - 1L,
+            p = as.integer(colptr) - 1L,
+            Dim = c(as.integer(nr), as.integer(nc)),
+            Dimnames = list(NULL, NULL)
+        ))
+    }
+    nzval_zarray <- zarr_v2_read_zarray(store, paste0(base, "/nzval"))
+    nzval_n <- as.integer(nzval_zarray$shape[[1L]])
+    nzval <- if (nzval_n == 0L) {
+        if (nzval_zarray$dtype == "|b1") logical(0L) else double(0L)
+    } else {
+        zarr_v2_decode_chunk(
+            store_get_bytes(store, paste0(base, "/nzval/0")),
+            nzval_zarray$dtype, n = nzval_n,
+            compressor = nzval_zarray$compressor
+        )
+    }
+    if (nzval_zarray$dtype == "|b1") {
+        return(methods::new("lgCMatrix",
+            x = as.logical(nzval),
+            i = as.integer(rowval) - 1L,
+            p = as.integer(colptr) - 1L,
+            Dim = c(as.integer(nr), as.integer(nc)),
+            Dimnames = list(NULL, NULL)
+        ))
+    }
+    methods::new("dgCMatrix",
+        x = as.double(nzval),
+        i = as.integer(rowval) - 1L,
+        p = as.integer(colptr) - 1L,
+        Dim = c(as.integer(nr), as.integer(nc)),
+        Dimnames = list(NULL, NULL)
+    )
+}
+
+S7::method(format_get_matrix,
+           list(ZarrDaf, S7::class_character, S7::class_character,
+                S7::class_character)) <-
+    function(daf, rows_axis, columns_axis, name) {
+        .cache_group_value(
+            .zarr_get_matrix(daf, rows_axis, columns_axis, name),
+            MEMORY_DATA
+        )
+    }
+S7::method(format_get_matrix,
+           list(ZarrDafReadOnly, S7::class_character, S7::class_character,
+                S7::class_character)) <-
+    function(daf, rows_axis, columns_axis, name) {
+        .cache_group_value(
+            .zarr_get_matrix(daf, rows_axis, columns_axis, name),
+            MEMORY_DATA
+        )
+    }
+
+S7::method(
+    format_set_matrix,
+    list(ZarrDaf, S7::class_character, S7::class_character,
+         S7::class_character, S7::class_any, S7::class_logical)
+) <- function(daf, rows_axis, columns_axis, name, mat, overwrite) {
+    if (!format_has_axis(daf, rows_axis)) {
+        stop(sprintf("axis %s does not exist", sQuote(rows_axis)),
+             call. = FALSE)
+    }
+    if (!format_has_axis(daf, columns_axis)) {
+        stop(sprintf("axis %s does not exist", sQuote(columns_axis)),
+             call. = FALSE)
+    }
+    nr <- format_axis_length(daf, rows_axis)
+    nc <- format_axis_length(daf, columns_axis)
+    d <- dim(mat)
+    if (is.null(d) || d[[1L]] != nr || d[[2L]] != nc) {
+        stop(sprintf(
+            "matrix %s has dim %s but axes (%s, %s) require %d x %d",
+            sQuote(name),
+            paste(d, collapse = " x "),
+            sQuote(rows_axis), sQuote(columns_axis),
+            nr, nc
+        ), call. = FALSE)
+    }
+    store <- S7::prop(daf, "store")
+    base <- paste0("matrices/", rows_axis, "/", columns_axis, "/", name)
+    exists_dense <- store_exists(store, paste0(base, "/.zarray"))
+    exists_sparse <- store_exists(store, paste0(base, "/.zgroup"))
+    if ((exists_dense || exists_sparse) && !overwrite) {
+        stop(sprintf(
+            "matrix %s already exists on axes (%s, %s); use overwrite = TRUE",
+            sQuote(name), sQuote(rows_axis), sQuote(columns_axis)
+        ), call. = FALSE)
+    }
+    if (exists_dense) {
+        store_delete(store, paste0(base, "/.zarray"))
+        store_delete(store, paste0(base, "/0.0"))
+    }
+    if (exists_sparse) {
+        for (k in store_list(store, base)) store_delete(store, k)
+    }
+    is_sparse <- methods::is(mat, "dgCMatrix") || methods::is(mat, "lgCMatrix")
+    if (is_sparse) {
+        .zarr_write_sparse_matrix(store, base, mat)
+    } else {
+        .zarr_write_dense_matrix(store, base, mat, nr, nc)
+    }
+    bump_matrix_counter(daf, rows_axis, columns_axis, name)
+    MEMORY_DATA
+}
+S7::method(
+    format_set_matrix,
+    list(ZarrDafReadOnly, S7::class_character, S7::class_character,
+         S7::class_character, S7::class_any, S7::class_logical)
+) <- function(daf, rows_axis, columns_axis, name, mat, overwrite) {
+    .zarr_read_only_guard("set_matrix")
+}
+
+.zarr_write_dense_matrix <- function(store, base, mat, nr, nc) {
+    dimnames(mat) <- NULL
+    flat <- as.vector(mat)  # R column-major flatten — bytes match Julia.
+    dtype <- zarr_v2_dtype_for_r(flat)
+    # Shape on disk is REVERSED [n_cols, n_rows]; order = "C". Matches upstream.
+    zarray <- zarr_v2_zarray(shape = c(nc, nr), dtype = dtype, order = "C")
+    if (dtype == "|O") {
+        zarray$filters <- list(list(id = "vlen-utf8"))
+        chunk <- zarr_v2_encode_strings(flat)
+    } else {
+        chunk <- zarr_v2_encode_chunk(flat, dtype)
+    }
+    zarr_v2_write_zarray(store, base, zarray)
+    store_set_bytes(store, paste0(base, "/0.0"), chunk)
+}
+
+.zarr_write_sparse_matrix <- function(store, base, mat) {
+    store_set_bytes(store, paste0(base, "/.zgroup"), .ZARR_ZGROUP_BYTES)
+    is_lg <- methods::is(mat, "lgCMatrix")
+    is_all_true_bool <- is_lg && length(mat@x) > 0L &&
+                        all(mat@x, na.rm = FALSE)
+    # No .zattrs for sparse matrices — upstream-compatible.
+    # colptr (Matrix's @p is 0-based; on disk we want 1-based per upstream).
+    colptr_1 <- as.integer(mat@p) + 1L
+    colptr_dtype <- "<i4"
+    colptr_zarray <- zarr_v2_zarray(shape = length(colptr_1),
+                                    dtype = colptr_dtype)
+    zarr_v2_write_zarray(store, paste0(base, "/colptr"), colptr_zarray)
+    store_set_bytes(store, paste0(base, "/colptr/0"),
+                    zarr_v2_encode_chunk(colptr_1, colptr_dtype))
+    # rowval (Matrix's @i is 0-based; on disk 1-based).
+    rowval_1 <- as.integer(mat@i) + 1L
+    rowval_dtype <- "<i4"
+    rowval_zarray <- zarr_v2_zarray(shape = length(rowval_1),
+                                    dtype = rowval_dtype)
+    zarr_v2_write_zarray(store, paste0(base, "/rowval"), rowval_zarray)
+    store_set_bytes(store, paste0(base, "/rowval/0"),
+                    zarr_v2_encode_chunk(rowval_1, rowval_dtype))
+    # nzval (skip for all-TRUE Bool — upstream-compatible compaction).
+    if (!is_all_true_bool) {
+        nzval_dtype <- if (is_lg) "|b1" else zarr_v2_dtype_for_r(mat@x)
+        nzval_zarray <- zarr_v2_zarray(shape = length(mat@x),
+                                       dtype = nzval_dtype)
+        zarr_v2_write_zarray(store, paste0(base, "/nzval"), nzval_zarray)
+        store_set_bytes(store, paste0(base, "/nzval/0"),
+                        zarr_v2_encode_chunk(mat@x, nzval_dtype))
+    }
+}
+
+S7::method(format_delete_matrix,
+           list(ZarrDaf, S7::class_character, S7::class_character,
+                S7::class_character, S7::class_logical)) <-
+    function(daf, rows_axis, columns_axis, name, must_exist) {
+        store <- S7::prop(daf, "store")
+        base <- paste0("matrices/", rows_axis, "/", columns_axis, "/", name)
+        exists_dense <- store_exists(store, paste0(base, "/.zarray"))
+        exists_sparse <- store_exists(store, paste0(base, "/.zgroup"))
+        if (!exists_dense && !exists_sparse) {
+            if (must_exist) {
+                stop(sprintf(
+                    "matrix %s does not exist on axes (%s, %s)",
+                    sQuote(name), sQuote(rows_axis), sQuote(columns_axis)
+                ), call. = FALSE)
+            }
+            return(invisible())
+        }
+        if (exists_dense) {
+            store_delete(store, paste0(base, "/.zarray"))
+            store_delete(store, paste0(base, "/0.0"))
+        }
+        if (exists_sparse) {
+            for (k in store_list(store, base)) store_delete(store, k)
+        }
+        bump_matrix_counter(daf, rows_axis, columns_axis, name)
+        invisible()
+    }
+S7::method(format_delete_matrix,
+           list(ZarrDafReadOnly, S7::class_character, S7::class_character,
+                S7::class_character, S7::class_logical)) <-
+    function(daf, rows_axis, columns_axis, name, must_exist) {
+        .zarr_read_only_guard("delete_matrix")
+    }
+
+# format_relayout_matrix: read from (rows, cols), write transposed at (cols, rows).
+S7::method(format_relayout_matrix,
+           list(ZarrDaf, S7::class_character, S7::class_character,
+                S7::class_character)) <-
+    function(daf, rows_axis, columns_axis, name) {
+        m <- .zarr_get_matrix(daf, rows_axis, columns_axis, name)
+        if (methods::is(m, "dgCMatrix") || methods::is(m, "lgCMatrix")) {
+            transposed <- Matrix::t(m)
+        } else {
+            transposed <- t(m)
+        }
+        format_set_matrix(daf, columns_axis, rows_axis, name, transposed,
+                          overwrite = TRUE)
+        invisible()
+    }
+S7::method(format_relayout_matrix,
+           list(ZarrDafReadOnly, S7::class_character, S7::class_character,
+                S7::class_character)) <-
+    function(daf, rows_axis, columns_axis, name) {
+        .zarr_read_only_guard("relayout_matrix")
+    }

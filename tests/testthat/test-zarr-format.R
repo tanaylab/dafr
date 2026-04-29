@@ -331,3 +331,230 @@ test_that("ZarrDaf set_vector overwrite=TRUE replaces dense with sparse", {
     out <- get_vector(d, "cell", "x")
     expect_equal(unname(out), c(0, 10, 0))
 })
+
+# ---- Matrices: dense ----------------------------------------------------
+
+test_that("ZarrDaf dense numeric matrix round-trip", {
+    d <- .fresh_zarr_daf()
+    add_axis(d, "cell", c("A", "B", "C"))
+    add_axis(d, "gene", c("X", "Y"))
+    m <- matrix(c(1, 2, 3, 4, 5, 6), nrow = 3)
+    set_matrix(d, "cell", "gene", "M", m)
+    out <- get_matrix(d, "cell", "gene", "M")
+    expect_equal(unname(out), m)
+})
+
+test_that("ZarrDaf dense integer matrix round-trip", {
+    d <- .fresh_zarr_daf()
+    add_axis(d, "cell", c("A", "B"))
+    add_axis(d, "gene", c("X", "Y", "Z"))
+    m <- matrix(c(10L, 20L, 30L, 40L, 50L, 60L), nrow = 2)
+    set_matrix(d, "cell", "gene", "M", m)
+    out <- get_matrix(d, "cell", "gene", "M")
+    expect_identical(unname(out), m)
+})
+
+test_that("ZarrDaf dense logical matrix round-trip", {
+    d <- .fresh_zarr_daf()
+    add_axis(d, "cell", c("A", "B"))
+    add_axis(d, "gene", c("X", "Y"))
+    m <- matrix(c(TRUE, FALSE, TRUE, FALSE), nrow = 2)
+    set_matrix(d, "cell", "gene", "M", m)
+    out <- get_matrix(d, "cell", "gene", "M")
+    expect_identical(unname(out), m)
+})
+
+test_that("ZarrDaf dense matrix shape on disk is reversed (upstream-compatible)", {
+    # Upstream stores .zarray shape as [n_cols, n_rows] with order = "C".
+    # Pin this so cross-language reads work.
+    d <- .fresh_zarr_daf()
+    add_axis(d, "cell", c("A", "B", "C"))
+    add_axis(d, "gene", c("X", "Y"))
+    m <- matrix(c(1, 2, 3, 4, 5, 6), nrow = 3)
+    set_matrix(d, "cell", "gene", "M", m)
+    store <- S7::prop(d, "store")
+    zarray <- zarr_v2_read_zarray(store, "matrices/cell/gene/M")
+    expect_identical(zarray$order, "C")
+    expect_equal(as.integer(zarray$shape[[1L]]), 2L)  # n_cols (gene)
+    expect_equal(as.integer(zarray$shape[[2L]]), 3L)  # n_rows (cell)
+})
+
+test_that("ZarrDaf matrices_set returns sorted names", {
+    d <- .fresh_zarr_daf()
+    add_axis(d, "cell", c("A", "B"))
+    add_axis(d, "gene", c("X", "Y"))
+    m <- matrix(c(1, 2, 3, 4), nrow = 2)
+    set_matrix(d, "cell", "gene", "z", m)
+    set_matrix(d, "cell", "gene", "x", m)
+    expect_identical(matrices_set(d, "cell", "gene"), c("x", "z"))
+})
+
+test_that("ZarrDaf set_matrix rejects shape mismatch", {
+    d <- .fresh_zarr_daf()
+    add_axis(d, "cell", c("A", "B", "C"))
+    add_axis(d, "gene", c("X", "Y"))
+    expect_error(
+        set_matrix(d, "cell", "gene", "M", matrix(c(1, 2, 3, 4), nrow = 2)),
+        "dim.*require"
+    )
+})
+
+test_that("ZarrDaf set_matrix overwrite errors", {
+    d <- .fresh_zarr_daf()
+    add_axis(d, "cell", c("A", "B"))
+    add_axis(d, "gene", c("X", "Y"))
+    m <- matrix(c(1, 2, 3, 4), nrow = 2)
+    set_matrix(d, "cell", "gene", "M", m)
+    expect_error(set_matrix(d, "cell", "gene", "M", m + 10),
+                 "already exists")
+})
+
+test_that("ZarrDaf delete_matrix removes matrix", {
+    d <- .fresh_zarr_daf()
+    add_axis(d, "cell", c("A", "B"))
+    add_axis(d, "gene", c("X", "Y"))
+    m <- matrix(c(1, 2, 3, 4), nrow = 2)
+    set_matrix(d, "cell", "gene", "M", m)
+    delete_matrix(d, "cell", "gene", "M")
+    expect_false(has_matrix(d, "cell", "gene", "M"))
+})
+
+test_that("ZarrDaf dense matrix persists through DirStore", {
+    tmp <- tempfile(fileext = ".daf.zarr")
+    d <- zarr_daf(tmp, mode = "w")
+    add_axis(d, "cell", c("A", "B", "C"))
+    add_axis(d, "gene", c("X", "Y"))
+    m <- matrix(c(1.0, 2.0, 3.0, 4.0, 5.0, 6.0), nrow = 3)
+    set_matrix(d, "cell", "gene", "M", m)
+    rm(d)
+    d2 <- zarr_daf(tmp, mode = "r")
+    out <- get_matrix(d2, "cell", "gene", "M")
+    expect_equal(unname(out), m)
+})
+
+# ---- Matrices: sparse ---------------------------------------------------
+
+test_that("ZarrDaf sparse numeric matrix round-trip", {
+    d <- .fresh_zarr_daf()
+    add_axis(d, "cell", c("A", "B", "C"))
+    add_axis(d, "gene", c("X", "Y"))
+    sp <- Matrix::sparseMatrix(
+        i = c(1L, 2L, 3L), j = c(1L, 2L, 1L),
+        x = c(10.0, 20.0, 30.0),
+        dims = c(3L, 2L)
+    )
+    set_matrix(d, "cell", "gene", "S", sp)
+    out <- get_matrix(d, "cell", "gene", "S")
+    expect_s4_class(out, "dgCMatrix")
+    expect_equal(as.matrix(unname(out)), as.matrix(sp))
+})
+
+test_that("ZarrDaf sparse Bool matrix mixed values", {
+    d <- .fresh_zarr_daf()
+    add_axis(d, "cell", c("A", "B"))
+    add_axis(d, "gene", c("X", "Y"))
+    sp <- Matrix::sparseMatrix(
+        i = c(1L, 2L), j = c(1L, 2L),
+        x = c(TRUE, FALSE),
+        dims = c(2L, 2L)
+    )
+    set_matrix(d, "cell", "gene", "F", sp)
+    out <- get_matrix(d, "cell", "gene", "F")
+    expect_s4_class(out, "lgCMatrix")
+    expect_identical(as.matrix(unname(out)), as.matrix(sp))
+})
+
+test_that("ZarrDaf sparse Bool all-TRUE skips nzval", {
+    d <- .fresh_zarr_daf()
+    add_axis(d, "cell", c("A", "B"))
+    add_axis(d, "gene", c("X", "Y"))
+    sp <- Matrix::sparseMatrix(
+        i = c(1L, 2L), j = c(1L, 2L),
+        x = c(TRUE, TRUE),
+        dims = c(2L, 2L)
+    )
+    set_matrix(d, "cell", "gene", "F", sp)
+    store <- S7::prop(d, "store")
+    expect_false(store_exists(store, "matrices/cell/gene/F/nzval/.zarray"))
+    expect_true(store_exists(store, "matrices/cell/gene/F/colptr/.zarray"))
+    expect_true(store_exists(store, "matrices/cell/gene/F/rowval/.zarray"))
+    out <- get_matrix(d, "cell", "gene", "F")
+    expect_s4_class(out, "lgCMatrix")
+    expect_identical(as.matrix(unname(out)), as.matrix(sp))
+})
+
+test_that("ZarrDaf sparse matrix on-disk indices are 1-based (upstream-compatible)", {
+    d <- .fresh_zarr_daf()
+    add_axis(d, "cell", c("A", "B", "C"))
+    add_axis(d, "gene", c("X", "Y"))
+    sp <- Matrix::sparseMatrix(
+        i = c(1L, 3L), j = c(1L, 2L),
+        x = c(10.0, 20.0),
+        dims = c(3L, 2L)
+    )
+    set_matrix(d, "cell", "gene", "S", sp)
+    store <- S7::prop(d, "store")
+    # rowval on disk should be 1-based.
+    rowval_zarray <- zarr_v2_read_zarray(store, "matrices/cell/gene/S/rowval")
+    rowval <- zarr_v2_decode_chunk(
+        store_get_bytes(store, "matrices/cell/gene/S/rowval/0"),
+        rowval_zarray$dtype,
+        n = as.integer(rowval_zarray$shape[[1L]])
+    )
+    expect_identical(as.integer(rowval), c(1L, 3L))
+    # colptr on disk should be 1-based: starts at 1.
+    colptr_zarray <- zarr_v2_read_zarray(store, "matrices/cell/gene/S/colptr")
+    colptr <- zarr_v2_decode_chunk(
+        store_get_bytes(store, "matrices/cell/gene/S/colptr/0"),
+        colptr_zarray$dtype,
+        n = as.integer(colptr_zarray$shape[[1L]])
+    )
+    expect_equal(as.integer(colptr[[1L]]), 1L)
+})
+
+test_that("ZarrDaf sparse matrix persists through DirStore", {
+    tmp <- tempfile(fileext = ".daf.zarr")
+    d <- zarr_daf(tmp, mode = "w")
+    add_axis(d, "cell", c("A", "B", "C"))
+    add_axis(d, "gene", c("X", "Y"))
+    sp <- Matrix::sparseMatrix(
+        i = c(1L, 3L), j = c(1L, 2L),
+        x = c(10.0, 20.0),
+        dims = c(3L, 2L)
+    )
+    set_matrix(d, "cell", "gene", "S", sp)
+    rm(d)
+    d2 <- zarr_daf(tmp, mode = "r")
+    out <- get_matrix(d2, "cell", "gene", "S")
+    expect_equal(as.matrix(unname(out)), as.matrix(sp))
+})
+
+test_that("ZarrDaf relayout_matrix creates flipped layout", {
+    d <- .fresh_zarr_daf()
+    add_axis(d, "cell", c("A", "B", "C"))
+    add_axis(d, "gene", c("X", "Y"))
+    m <- matrix(c(1, 2, 3, 4, 5, 6), nrow = 3)
+    set_matrix(d, "cell", "gene", "M", m)
+    relayout_matrix(d, "cell", "gene", "M")
+    expect_true(has_matrix(d, "gene", "cell", "M"))
+    out <- get_matrix(d, "gene", "cell", "M")
+    expect_equal(unname(out), t(m))
+})
+
+test_that("ZarrDafReadOnly rejects all matrix mutations", {
+    tmp <- tempfile(fileext = ".daf.zarr")
+    d <- zarr_daf(tmp, mode = "w")
+    add_axis(d, "cell", c("A", "B"))
+    add_axis(d, "gene", c("X", "Y"))
+    m <- matrix(c(1, 2, 3, 4), nrow = 2)
+    set_matrix(d, "cell", "gene", "M", m)
+    rm(d)
+    d_ro <- zarr_daf(tmp, mode = "r")
+    expect_error(set_matrix(d_ro, "cell", "gene", "M", m + 10,
+                            overwrite = TRUE),
+                 "read-only")
+    expect_error(delete_matrix(d_ro, "cell", "gene", "M"),
+                 "read-only")
+    expect_error(relayout_matrix(d_ro, "cell", "gene", "M"),
+                 "read-only")
+})
