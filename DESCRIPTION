@@ -108,6 +108,7 @@ Collate:
     'query_builders.R'
     'query_builders_exports.R'
     'reconstruction.R'
+    'reorder_plan.R'
     'threads.R'
     'top_k_per_col.R'
     'zzz.R'
