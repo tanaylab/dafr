@@ -20,14 +20,34 @@ test_that("open_daf with a filesystem path returns a files_daf", {
     expect_s7_class(d, FilesDaf)
 })
 
-test_that("open_daf rejects zarr URIs (slice-16 placeholder)", {
-    expect_error(open_daf("/some/path.daf.zarr"),
-                 "lands in slice 16")
-    expect_error(open_daf("/some/path.daf.zarr.zip"),
-                 "lands in slice 16")
+test_that("open_daf with .daf.zarr URI returns a ZarrDaf", {
+    tmp <- tempfile(fileext = ".daf.zarr")
+    d <- open_daf(tmp, mode = "w")
+    expect_s7_class(d, ZarrDaf)
 })
 
-test_that("open_daf rejects http URIs (slice-18 placeholder)", {
+test_that("open_daf with .daf.zarr URI mode='r' opens existing", {
+    tmp <- tempfile(fileext = ".daf.zarr")
+    d_w <- zarr_daf(tmp, mode = "w")
+    add_axis(d_w, "cell", c("A", "B"))
+    rm(d_w)
+    d <- open_daf(tmp, mode = "r")
+    expect_s7_class(d, ZarrDafReadOnly)
+    expect_identical(axis_vector(d, "cell"), c("A", "B"))
+})
+
+test_that("open_daf with name argument respects it for ZarrDaf", {
+    tmp <- tempfile(fileext = ".daf.zarr")
+    d <- open_daf(tmp, mode = "w", name = "demo-zarr")
+    expect_identical(S7::prop(d, "name"), "demo-zarr")
+})
+
+test_that("open_daf rejects .daf.zarr.zip with slice-17 placeholder", {
+    expect_error(open_daf("/path/to/foo.daf.zarr.zip"),
+                 "lands in slice 17")
+})
+
+test_that("open_daf still rejects http URIs (slice-18 placeholder)", {
     expect_error(open_daf("http://example.com/foo"),
                  "lands in slice 18")
     expect_error(open_daf("https://example.com/foo"),

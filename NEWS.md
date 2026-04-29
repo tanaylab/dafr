@@ -1,5 +1,29 @@
 # dafr 0.2.0 (development)
 
+## ZarrDaf backend (slice 16)
+
+- New `zarr_daf(uri, mode, name)` backend reading and writing Zarr v2.
+  Two store impls: `DirStore` (filesystem directory tree) and
+  `DictStore` (in-memory). Zip-backed Zarr (`MmapZipStore`) lands in
+  slice 17.
+- New `files_to_zarr(src, dst)` and `zarr_to_files(src, dst)`
+  conversion helpers (same-filesystem only; correctness-first
+  implementation re-encodes through the public API; hard-link
+  optimization deferred as a perf follow-up).
+- `open_daf("foo.daf.zarr")` now returns a `ZarrDaf`. The
+  `.daf.zarr.zip` placeholder error now points to slice 17.
+- Compression policy: dafr writes Zarr chunks uncompressed; reads
+  uncompressed and gzip; rejects blosc/zstd/lz4 with a clear error
+  pointing to re-save with `compressor=None`.
+- Sparse layouts mirror upstream `DataAxesFormats.jl`: 1-based
+  on-disk indices for `nzind` / `colptr` / `rowval`; sparse-Bool
+  all-`TRUE` skips `nzval` (storage compaction). Cross-language
+  parity is verified via gated Python `zarr.open()` smoke tests.
+- Mirrors `DataAxesFormats.jl` v0.2.0 commits `ea4b5f9` (Zarr v2
+  directory tree), `8cc3ff6` (in-memory store), `47e7693` (CRC
+  fix — N/A for our in-memory layer), `79034fd` (`.zmetadata`
+  consolidation), `46d4ab2` (Files↔Zarr conversion).
+
 ## reorder_axes() + open_daf() factory (slice 15)
 
 - New `reorder_axes(daf, axis = perm, ...)` permutes axis entries
