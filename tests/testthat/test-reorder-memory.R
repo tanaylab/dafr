@@ -120,3 +120,47 @@ test_that("memory_daf reorder both axes of a matrix simultaneously", {
     expect_identical(rownames(m), c("B", "A"))
     expect_identical(colnames(m), c("Z", "X", "Y"))
 })
+
+# ---- Public API ------------------------------------------------------------
+
+test_that("reorder_axes() with no permutations is a no-op", {
+    d <- memory_daf()
+    add_axis(d, "cell", c("A", "B"))
+    expect_silent(reorder_axes(d))
+    expect_identical(axis_vector(d, "cell"), c("A", "B"))
+})
+
+test_that("reorder_axes() rejects unnamed arguments", {
+    d <- memory_daf()
+    add_axis(d, "cell", c("A", "B"))
+    expect_error(reorder_axes(d, c(2L, 1L)),
+                 "must be named")
+})
+
+test_that("reorder_axes() permutes the axis", {
+    d <- memory_daf()
+    add_axis(d, "cell", c("A", "B", "C"))
+    set_vector(d, "cell", "x", c(10, 20, 30))
+    reorder_axes(d, cell = c(2L, 3L, 1L))
+    expect_identical(axis_vector(d, "cell"), c("B", "C", "A"))
+    expect_equal(unname(get_vector(d, "cell", "x")), c(20, 30, 10))
+})
+
+test_that("reorder_axes() permutes multiple axes simultaneously", {
+    d <- memory_daf()
+    add_axis(d, "cell", c("A", "B"))
+    add_axis(d, "gene", c("X", "Y", "Z"))
+    set_matrix(d, "cell", "gene", "M",
+               matrix(c(1, 2, 3, 4, 5, 6), nrow = 2))
+    reorder_axes(d, cell = c(2L, 1L), gene = c(3L, 1L, 2L))
+    expect_identical(axis_vector(d, "cell"), c("B", "A"))
+    expect_identical(axis_vector(d, "gene"), c("Z", "X", "Y"))
+    m <- get_matrix(d, "cell", "gene", "M")
+    expect_equal(unname(m[1, ]), c(6, 2, 4))  # cell B (was 2), genes Z/X/Y
+    expect_equal(unname(m[2, ]), c(5, 1, 3))  # cell A (was 1), genes Z/X/Y
+})
+
+test_that("reset_reorder_axes() on a fresh memory_daf is a no-op", {
+    d <- memory_daf()
+    expect_silent(reset_reorder_axes(d))
+})

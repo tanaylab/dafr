@@ -94,3 +94,32 @@ test_that("files_daf format_reset_reorder is no-op when no .reorder.backup/ exis
     copy_all(fd_w, d_mem, relayout = FALSE)
     expect_silent(dafr:::format_reset_reorder(fd_w))
 })
+
+# ---- Public API ------------------------------------------------------------
+
+test_that("reorder_axes() works end-to-end on files_daf with reopen", {
+    tmp <- tempfile()
+    d_mem <- memory_daf()
+    add_axis(d_mem, "cell", c("A", "B", "C"))
+    add_axis(d_mem, "gene", c("X", "Y"))
+    set_vector(d_mem, "cell", "x", c(10, 20, 30))
+    set_matrix(d_mem, "cell", "gene", "M", matrix(1:6, nrow = 3))
+    fd_w <- files_daf(tmp, mode = "w")
+    copy_all(fd_w, d_mem, relayout = FALSE)
+    reorder_axes(fd_w, cell = c(2L, 3L, 1L))
+    rm(fd_w)
+    fd_r <- files_daf(tmp, mode = "r")
+    expect_identical(axis_vector(fd_r, "cell"), c("B", "C", "A"))
+    expect_equal(unname(get_vector(fd_r, "cell", "x")), c(20, 30, 10))
+    m <- get_matrix(fd_r, "cell", "gene", "M")
+    expect_equal(unname(m[, 1]), c(2, 3, 1))
+})
+
+test_that("reset_reorder_axes() on a clean files_daf is a no-op", {
+    tmp <- tempfile()
+    d_mem <- memory_daf()
+    add_axis(d_mem, "cell", c("A"))
+    fd_w <- files_daf(tmp, mode = "w")
+    copy_all(fd_w, d_mem, relayout = FALSE)
+    expect_silent(reset_reorder_axes(fd_w))
+})
