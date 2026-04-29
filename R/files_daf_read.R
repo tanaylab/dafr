@@ -28,13 +28,13 @@ S7::method(
     format_get_scalar,
     list(FilesDaf, S7::class_character)
 ) <- function(daf, name) {
-    .files_get_scalar(daf, name)
+    .cache_group_value(.files_get_scalar(daf, name), MEMORY_DATA)
 }
 S7::method(
     format_get_scalar,
     list(FilesDafReadOnly, S7::class_character)
 ) <- function(daf, name) {
-    .files_get_scalar(daf, name)
+    .cache_group_value(.files_get_scalar(daf, name), MEMORY_DATA)
 }
 
 .files_scalars_set <- function(daf) {
@@ -130,13 +130,13 @@ S7::method(
     format_axis_array,
     list(FilesDaf, S7::class_character)
 ) <- function(daf, axis) {
-    .files_axis_require(daf, axis)$entries
+    .cache_group_value(.files_axis_require(daf, axis)$entries, MEMORY_DATA)
 }
 S7::method(
     format_axis_array,
     list(FilesDafReadOnly, S7::class_character)
 ) <- function(daf, axis) {
-    .files_axis_require(daf, axis)$entries
+    .cache_group_value(.files_axis_require(daf, axis)$entries, MEMORY_DATA)
 }
 
 S7::method(
@@ -344,13 +344,13 @@ S7::method(
     format_get_vector,
     list(FilesDaf, S7::class_character, S7::class_character)
 ) <- function(daf, axis, name) {
-    .files_get_vector_cached(daf, axis, name)
+    .cache_group_value(.files_get_vector_cached(daf, axis, name), MAPPED_DATA)
 }
 S7::method(
     format_get_vector,
     list(FilesDafReadOnly, S7::class_character, S7::class_character)
 ) <- function(daf, axis, name) {
-    .files_get_vector_cached(daf, axis, name)
+    .cache_group_value(.files_get_vector_cached(daf, axis, name), MAPPED_DATA)
 }
 
 # ---- matrices: query ----
@@ -562,11 +562,11 @@ S7::method(
     format_get_matrix,
     list(FilesDaf, S7::class_character, S7::class_character, S7::class_character)
 ) <- function(daf, rows_axis, columns_axis, name) {
-    .files_get_matrix_cached(daf, rows_axis, columns_axis, name)
+    .cache_group_value(.files_get_matrix_cached(daf, rows_axis, columns_axis, name), MAPPED_DATA)
 }
 S7::method(
     format_get_matrix,
     list(FilesDafReadOnly, S7::class_character, S7::class_character, S7::class_character)
 ) <- function(daf, rows_axis, columns_axis, name) {
-    .files_get_matrix_cached(daf, rows_axis, columns_axis, name)
+    .cache_group_value(.files_get_matrix_cached(daf, rows_axis, columns_axis, name), MAPPED_DATA)
 }
