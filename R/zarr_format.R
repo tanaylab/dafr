@@ -404,3 +404,274 @@ S7::method(
 ) <- function(daf, axis, must_exist) {
     .zarr_read_only_guard("delete_axis")
 }
+
+# ---- Vectors -------------------------------------------------------------
+
+# Group marker for sparse layouts (Zarr v2 .zgroup convention).
+.ZARR_ZGROUP_BYTES <- charToRaw('{"zarr_format":2}')
+
+S7::method(format_has_vector,
+           list(ZarrDaf, S7::class_character, S7::class_character)) <-
+    function(daf, axis, name) {
+        .zarr_has_vector(daf, axis, name)
+    }
+S7::method(format_has_vector,
+           list(ZarrDafReadOnly, S7::class_character, S7::class_character)) <-
+    function(daf, axis, name) {
+        .zarr_has_vector(daf, axis, name)
+    }
+.zarr_has_vector <- function(daf, axis, name) {
+    store <- S7::prop(daf, "store")
+    base <- paste0("vectors/", axis, "/", name)
+    # Either dense (.zarray at base) or sparse (.zgroup at base).
+    store_exists(store, paste0(base, "/.zarray")) ||
+        store_exists(store, paste0(base, "/.zgroup"))
+}
+
+S7::method(format_vectors_set,
+           list(ZarrDaf, S7::class_character)) <-
+    function(daf, axis) .zarr_vectors_set(daf, axis)
+S7::method(format_vectors_set,
+           list(ZarrDafReadOnly, S7::class_character)) <-
+    function(daf, axis) .zarr_vectors_set(daf, axis)
+.zarr_vectors_set <- function(daf, axis) {
+    store <- S7::prop(daf, "store")
+    prefix <- paste0("vectors/", axis)
+    keys <- store_list(store, prefix)
+    if (length(keys) == 0L) return(character(0L))
+    # Strip the "vectors/{axis}/" prefix and split remainder on "/".
+    rel <- sub(paste0("^", prefix, "/"), "", keys)
+    # Top-level dense:   "{name}/.zarray"          (one slash, ends .zarray)
+    # Top-level sparse:  "{name}/.zgroup"          (one slash, ends .zgroup)
+    # Sparse children:   "{name}/nzind/.zarray"    (multiple slashes — skip)
+    is_dense <- grepl("^[^/]+/\\.zarray$", rel)
+    is_sparse <- grepl("^[^/]+/\\.zgroup$", rel)
+    names <- c(
+        sub("/\\.zarray$", "", rel[is_dense]),
+        sub("/\\.zgroup$", "", rel[is_sparse])
+    )
+    sort(unique(names), method = "radix")
+}
+
+# format_get_vector dispatches based on dense vs sparse layout on disk.
+.zarr_get_vector <- function(daf, axis, name) {
+    store <- S7::prop(daf, "store")
+    base <- paste0("vectors/", axis, "/", name)
+    if (store_exists(store, paste0(base, "/.zarray"))) {
+        # Dense path
+        zarray <- zarr_v2_read_zarray(store, base)
+        n <- as.integer(zarray$shape[[1L]])
+        chunk <- store_get_bytes(store, paste0(base, "/0"))
+        if (is.null(chunk)) {
+            stop(sprintf("vector %s missing chunk", sQuote(name)),
+                 call. = FALSE)
+        }
+        if (zarray$dtype == "|O") {
+            return(zarr_v2_decode_strings(chunk, n = n))
+        }
+        return(zarr_v2_decode_chunk(chunk, zarray$dtype, n = n,
+                                    compressor = zarray$compressor))
+    }
+    if (store_exists(store, paste0(base, "/.zgroup"))) {
+        return(.zarr_get_sparse_vector(daf, axis, name))
+    }
+    stop(sprintf(
+        "vector %s does not exist on axis %s",
+        sQuote(name), sQuote(axis)
+    ), call. = FALSE)
+}
+
+.zarr_get_sparse_vector <- function(daf, axis, name) {
+    # Returns a DENSE atomic vector to match the existing dafr convention
+    # (FilesDaf densifies sparse vectors at the read boundary too — the
+    # user-facing get_vector contract is "named atomic vector"). On-disk
+    # layout is still sparse; densification happens on read.
+    store <- S7::prop(daf, "store")
+    base <- paste0("vectors/", axis, "/", name)
+    attrs <- zarr_v2_read_zattrs(store, base)
+    n <- if (is.null(attrs$n)) {
+        # Fallback to axis length if .zattrs lacks our dafr-specific "n".
+        as.integer(format_axis_length(daf, axis))
+    } else {
+        as.integer(attrs$n)
+    }
+    nzind_zarray <- zarr_v2_read_zarray(store, paste0(base, "/nzind"))
+    nzind_n <- as.integer(nzind_zarray$shape[[1L]])
+    nzind <- zarr_v2_decode_chunk(
+        store_get_bytes(store, paste0(base, "/nzind/0")),
+        nzind_zarray$dtype, n = nzind_n,
+        compressor = nzind_zarray$compressor
+    )
+    # Upstream stores 1-based indices on disk (Julia SparseVector convention).
+    nzind_1 <- as.integer(nzind)
+
+    if (isTRUE(attrs$all_true)) {
+        # All-TRUE Bool sparse: nzval was omitted on write; synthesize.
+        out <- logical(n)
+        out[nzind_1] <- TRUE
+        return(out)
+    }
+    nzval_zarray <- zarr_v2_read_zarray(store, paste0(base, "/nzval"))
+    nzval_n <- as.integer(nzval_zarray$shape[[1L]])
+    nzval <- zarr_v2_decode_chunk(
+        store_get_bytes(store, paste0(base, "/nzval/0")),
+        nzval_zarray$dtype, n = nzval_n,
+        compressor = nzval_zarray$compressor
+    )
+    out <- if (is.logical(nzval)) {
+        logical(n)
+    } else if (is.integer(nzval)) {
+        integer(n)
+    } else {
+        numeric(n)
+    }
+    out[nzind_1] <- nzval
+    out
+}
+
+S7::method(format_get_vector,
+           list(ZarrDaf, S7::class_character, S7::class_character)) <-
+    function(daf, axis, name) {
+        .cache_group_value(.zarr_get_vector(daf, axis, name), MEMORY_DATA)
+    }
+S7::method(format_get_vector,
+           list(ZarrDafReadOnly, S7::class_character, S7::class_character)) <-
+    function(daf, axis, name) {
+        .cache_group_value(.zarr_get_vector(daf, axis, name), MEMORY_DATA)
+    }
+
+# format_set_vector dispatches based on input type (dense vs sparse).
+S7::method(
+    format_set_vector,
+    list(ZarrDaf, S7::class_character, S7::class_character,
+         S7::class_any, S7::class_logical)
+) <- function(daf, axis, name, vec, overwrite) {
+    if (!format_has_axis(daf, axis)) {
+        stop(sprintf("axis %s does not exist", sQuote(axis)), call. = FALSE)
+    }
+    n_axis <- format_axis_length(daf, axis)
+    store <- S7::prop(daf, "store")
+    base <- paste0("vectors/", axis, "/", name)
+    exists_dense <- store_exists(store, paste0(base, "/.zarray"))
+    exists_sparse <- store_exists(store, paste0(base, "/.zgroup"))
+    if ((exists_dense || exists_sparse) && !overwrite) {
+        stop(sprintf(
+            "vector %s already exists on axis %s; use overwrite = TRUE",
+            sQuote(name), sQuote(axis)
+        ), call. = FALSE)
+    }
+    # Validate length BEFORE deleting existing form, so a length mismatch
+    # leaves the prior data intact.
+    if (methods::is(vec, "sparseVector")) {
+        if (vec@length != n_axis) {
+            stop(sprintf(
+                "vector %s length %d != axis %s length %d",
+                sQuote(name), vec@length, sQuote(axis), n_axis
+            ), call. = FALSE)
+        }
+    } else {
+        if (length(vec) != n_axis) {
+            stop(sprintf(
+                "vector %s length %d != axis %s length %d",
+                sQuote(name), length(vec), sQuote(axis), n_axis
+            ), call. = FALSE)
+        }
+    }
+    # Delete any existing form before overwriting.
+    if (exists_dense) {
+        store_delete(store, paste0(base, "/.zarray"))
+        store_delete(store, paste0(base, "/0"))
+    }
+    if (exists_sparse) {
+        for (k in store_list(store, base)) store_delete(store, k)
+    }
+    if (methods::is(vec, "sparseVector")) {
+        .zarr_write_sparse_vector(store, base, vec)
+    } else {
+        .zarr_write_dense_vector(store, base, vec)
+    }
+    bump_vector_counter(daf, axis, name)
+    MEMORY_DATA
+}
+S7::method(
+    format_set_vector,
+    list(ZarrDafReadOnly, S7::class_character, S7::class_character,
+         S7::class_any, S7::class_logical)
+) <- function(daf, axis, name, vec, overwrite) {
+    .zarr_read_only_guard("set_vector")
+}
+
+.zarr_write_dense_vector <- function(store, base, vec) {
+    dtype <- zarr_v2_dtype_for_r(vec)
+    zarray <- zarr_v2_zarray(shape = length(vec), dtype = dtype)
+    if (dtype == "|O") {
+        zarray$filters <- list(list(id = "vlen-utf8"))
+        chunk <- zarr_v2_encode_strings(vec)
+    } else {
+        chunk <- zarr_v2_encode_chunk(vec, dtype)
+    }
+    zarr_v2_write_zarray(store, base, zarray)
+    store_set_bytes(store, paste0(base, "/0"), chunk)
+}
+
+.zarr_write_sparse_vector <- function(store, base, vec) {
+    # Mark as group.
+    store_set_bytes(store, paste0(base, "/.zgroup"), .ZARR_ZGROUP_BYTES)
+    is_all_true_bool <- is.logical(vec@x) && length(vec@x) > 0L &&
+                        all(vec@x, na.rm = FALSE)
+    attrs <- list(
+        format = "sparse",
+        n = as.integer(vec@length),
+        all_true = is_all_true_bool
+    )
+    zarr_v2_write_zattrs(store, base, attrs)
+    # Write nzind: 1-based indices (upstream Julia SparseVector convention).
+    nzind <- as.integer(vec@i)
+    nzind_dtype <- "<i4"  # int32; upgrade to <i8 if/when we hit huge axes.
+    nzind_zarray <- zarr_v2_zarray(shape = length(nzind), dtype = nzind_dtype)
+    zarr_v2_write_zarray(store, paste0(base, "/nzind"), nzind_zarray)
+    store_set_bytes(store, paste0(base, "/nzind/0"),
+                    zarr_v2_encode_chunk(nzind, nzind_dtype))
+    # Write nzval (skip for all-TRUE Bool — upstream-compatible compaction).
+    if (!is_all_true_bool) {
+        nzval_dtype <- zarr_v2_dtype_for_r(vec@x)
+        nzval_zarray <- zarr_v2_zarray(shape = length(vec@x),
+                                       dtype = nzval_dtype)
+        zarr_v2_write_zarray(store, paste0(base, "/nzval"), nzval_zarray)
+        store_set_bytes(store, paste0(base, "/nzval/0"),
+                        zarr_v2_encode_chunk(vec@x, nzval_dtype))
+    }
+}
+
+S7::method(format_delete_vector,
+           list(ZarrDaf, S7::class_character, S7::class_character,
+                S7::class_logical)) <-
+    function(daf, axis, name, must_exist) {
+        store <- S7::prop(daf, "store")
+        base <- paste0("vectors/", axis, "/", name)
+        exists_dense <- store_exists(store, paste0(base, "/.zarray"))
+        exists_sparse <- store_exists(store, paste0(base, "/.zgroup"))
+        if (!exists_dense && !exists_sparse) {
+            if (must_exist) {
+                stop(sprintf("vector %s does not exist on axis %s",
+                             sQuote(name), sQuote(axis)),
+                     call. = FALSE)
+            }
+            return(invisible())
+        }
+        if (exists_dense) {
+            store_delete(store, paste0(base, "/.zarray"))
+            store_delete(store, paste0(base, "/0"))
+        }
+        if (exists_sparse) {
+            for (k in store_list(store, base)) store_delete(store, k)
+        }
+        bump_vector_counter(daf, axis, name)
+        invisible()
+    }
+S7::method(format_delete_vector,
+           list(ZarrDafReadOnly, S7::class_character, S7::class_character,
+                S7::class_logical)) <-
+    function(daf, axis, name, must_exist) {
+        .zarr_read_only_guard("delete_vector")
+    }

@@ -167,3 +167,167 @@ test_that("ZarrDaf axis with multibyte UTF-8 round-trips", {
         c("café", "naïve", "α")
     )
 })
+
+# ---- Vectors: dense ------------------------------------------------------
+
+test_that("ZarrDaf dense numeric vector round-trip", {
+    d <- .fresh_zarr_daf()
+    add_axis(d, "cell", c("A", "B", "C"))
+    set_vector(d, "cell", "x", c(1.5, 2.5, 3.5))
+    expect_equal(unname(get_vector(d, "cell", "x")), c(1.5, 2.5, 3.5))
+})
+
+test_that("ZarrDaf dense integer vector round-trip", {
+    d <- .fresh_zarr_daf()
+    add_axis(d, "cell", c("A", "B", "C"))
+    set_vector(d, "cell", "x", c(10L, 20L, 30L))
+    expect_identical(unname(get_vector(d, "cell", "x")), c(10L, 20L, 30L))
+})
+
+test_that("ZarrDaf dense logical vector round-trip", {
+    d <- .fresh_zarr_daf()
+    add_axis(d, "cell", c("A", "B", "C"))
+    set_vector(d, "cell", "x", c(TRUE, FALSE, TRUE))
+    expect_identical(unname(get_vector(d, "cell", "x")), c(TRUE, FALSE, TRUE))
+})
+
+test_that("ZarrDaf dense character vector round-trip", {
+    d <- .fresh_zarr_daf()
+    add_axis(d, "cell", c("A", "B", "C"))
+    set_vector(d, "cell", "label", c("alpha", "beta", "gamma"))
+    expect_identical(unname(get_vector(d, "cell", "label")),
+                     c("alpha", "beta", "gamma"))
+})
+
+test_that("ZarrDaf vectors_set returns sorted names", {
+    d <- .fresh_zarr_daf()
+    add_axis(d, "cell", c("A", "B"))
+    set_vector(d, "cell", "z", c(1, 2))
+    set_vector(d, "cell", "x", c(3, 4))
+    expect_identical(vectors_set(d, "cell"), c("x", "z"))
+})
+
+test_that("ZarrDaf set_vector rejects length mismatch", {
+    d <- .fresh_zarr_daf()
+    add_axis(d, "cell", c("A", "B", "C"))
+    expect_error(set_vector(d, "cell", "x", c(1, 2)),
+                 "length 2.*length 3")
+})
+
+test_that("ZarrDaf set_vector overwrite=FALSE errors on existing", {
+    d <- .fresh_zarr_daf()
+    add_axis(d, "cell", c("A", "B"))
+    set_vector(d, "cell", "x", c(1, 2))
+    expect_error(set_vector(d, "cell", "x", c(3, 4)),
+                 "already exists")
+})
+
+test_that("ZarrDaf delete_vector removes the vector", {
+    d <- .fresh_zarr_daf()
+    add_axis(d, "cell", c("A", "B"))
+    set_vector(d, "cell", "x", c(1, 2))
+    delete_vector(d, "cell", "x")
+    expect_false(has_vector(d, "cell", "x"))
+})
+
+test_that("ZarrDaf vectors persist through DirStore round-trip", {
+    tmp <- tempfile(fileext = ".daf.zarr")
+    d <- zarr_daf(tmp, mode = "w")
+    add_axis(d, "cell", c("A", "B", "C"))
+    set_vector(d, "cell", "x", c(1.0, 2.0, 3.0))
+    set_vector(d, "cell", "label", c("alpha", "beta", "gamma"))
+    rm(d)
+    d2 <- zarr_daf(tmp, mode = "r")
+    expect_equal(unname(get_vector(d2, "cell", "x")), c(1.0, 2.0, 3.0))
+    expect_identical(unname(get_vector(d2, "cell", "label")),
+                     c("alpha", "beta", "gamma"))
+})
+
+# ---- Vectors: sparse -----------------------------------------------------
+
+test_that("ZarrDaf sparse numeric vector round-trip (densified on read)", {
+    d <- .fresh_zarr_daf()
+    add_axis(d, "cell", paste0("c", 1:5))
+    sp <- Matrix::sparseVector(x = c(10, 20), i = c(2L, 4L), length = 5L)
+    set_vector(d, "cell", "x", sp)
+    # Stored sparse but read densified — matches FilesDaf contract
+    # (api convention is named atomic vector, not S4 sparseVector).
+    store <- S7::prop(d, "store")
+    expect_true(store_exists(store, "vectors/cell/x/.zgroup"))
+    out <- get_vector(d, "cell", "x")
+    expect_equal(unname(out), c(0, 10, 0, 20, 0))
+})
+
+test_that("ZarrDaf sparse Bool vector with mixed values", {
+    d <- .fresh_zarr_daf()
+    add_axis(d, "cell", paste0("c", 1:4))
+    sp <- Matrix::sparseVector(x = c(TRUE, FALSE), i = c(1L, 3L), length = 4L)
+    set_vector(d, "cell", "flag", sp)
+    out <- get_vector(d, "cell", "flag")
+    # Sparse stores only the explicit nzind positions; FALSE in @x for an
+    # explicit position still rounds-trips to FALSE (zero-fill).
+    expect_identical(unname(out), c(TRUE, FALSE, FALSE, FALSE))
+})
+
+test_that("ZarrDaf sparse Bool all-TRUE skips nzval (storage compaction)", {
+    d <- .fresh_zarr_daf()
+    add_axis(d, "cell", paste0("c", 1:5))
+    sp <- Matrix::sparseVector(x = c(TRUE, TRUE, TRUE),
+                               i = c(1L, 3L, 5L), length = 5L)
+    set_vector(d, "cell", "flag", sp)
+    # Verify nzval/.zarray does NOT exist in the store.
+    store <- S7::prop(d, "store")
+    expect_false(store_exists(store, "vectors/cell/flag/nzval/.zarray"))
+    expect_true(store_exists(store, "vectors/cell/flag/nzind/.zarray"))
+    # Round-trip preserves all-TRUE meaning.
+    out <- get_vector(d, "cell", "flag")
+    expect_identical(unname(out), c(TRUE, FALSE, TRUE, FALSE, TRUE))
+})
+
+test_that("ZarrDaf sparse vector persists through DirStore", {
+    tmp <- tempfile(fileext = ".daf.zarr")
+    d <- zarr_daf(tmp, mode = "w")
+    add_axis(d, "cell", paste0("c", 1:5))
+    sp <- Matrix::sparseVector(x = c(10, 20), i = c(2L, 4L), length = 5L)
+    set_vector(d, "cell", "x", sp)
+    rm(d)
+    d2 <- zarr_daf(tmp, mode = "r")
+    out <- get_vector(d2, "cell", "x")
+    expect_equal(unname(out), c(0, 10, 0, 20, 0))
+})
+
+test_that("ZarrDaf vectors_set picks up both dense and sparse names", {
+    d <- .fresh_zarr_daf()
+    add_axis(d, "cell", paste0("c", 1:5))
+    set_vector(d, "cell", "dense_x", c(1.0, 2.0, 3.0, 4.0, 5.0))
+    sp <- Matrix::sparseVector(x = c(10), i = c(2L), length = 5L)
+    set_vector(d, "cell", "sparse_x", sp)
+    expect_identical(vectors_set(d, "cell"), c("dense_x", "sparse_x"))
+})
+
+test_that("ZarrDafReadOnly rejects set_vector / delete_vector", {
+    tmp <- tempfile(fileext = ".daf.zarr")
+    d <- zarr_daf(tmp, mode = "w")
+    add_axis(d, "cell", c("A", "B"))
+    set_vector(d, "cell", "x", c(1, 2))
+    rm(d)
+    d_ro <- zarr_daf(tmp, mode = "r")
+    expect_error(set_vector(d_ro, "cell", "x", c(3, 4), overwrite = TRUE),
+                 "read-only")
+    expect_error(delete_vector(d_ro, "cell", "x"),
+                 "read-only")
+})
+
+test_that("ZarrDaf set_vector overwrite=TRUE replaces dense with sparse", {
+    d <- .fresh_zarr_daf()
+    add_axis(d, "cell", c("A", "B", "C"))
+    set_vector(d, "cell", "x", c(1, 2, 3))
+    sp <- Matrix::sparseVector(x = c(10), i = c(2L), length = 3L)
+    set_vector(d, "cell", "x", sp, overwrite = TRUE)
+    # On disk the layout flipped to sparse subgroup.
+    store <- S7::prop(d, "store")
+    expect_true(store_exists(store, "vectors/cell/x/.zgroup"))
+    expect_false(store_exists(store, "vectors/cell/x/.zarray"))
+    out <- get_vector(d, "cell", "x")
+    expect_equal(unname(out), c(0, 10, 0))
+})
