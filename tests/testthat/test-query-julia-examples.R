@@ -312,6 +312,72 @@ test_that("IfMissing accepts both `|| v Type` and `|| v type Type`", {
     expect_equal(cells[". missing || 0 type Float32"], 0)
 })
 
+test_that("mask combinator with matrix-slice: [ a & UMIs @ gene > 0 ]", {
+    cells <- .fx_cells()
+    gene <- cells["@ gene"][1]
+    a <- cells[sprintf("@ cell [ UMIs @ gene = %s > 0 ]", gene)]
+    b <- cells["@ cell [ UMIs @ gene = PARK7 > 0 ]"]
+    both <- cells[sprintf(
+        "@ cell [ UMIs @ gene = %s > 0 & UMIs @ gene = PARK7 > 0 ]", gene)]
+    either <- cells[sprintf(
+        "@ cell [ UMIs @ gene = %s > 0 | UMIs @ gene = PARK7 > 0 ]", gene)]
+    # Inclusion / exclusion: |A| + |B| - |A ∩ B| == |A ∪ B|
+    expect_equal(length(a) + length(b) - length(both), length(either))
+})
+
+test_that("group-by vector × matrix-slice: : t / fraction @ gene = X >> Mode", {
+    metacells <- .fx_metacells()
+    out <- metacells["@ metacell : type / fraction @ gene = RPL22 >> Mode"]
+    expect_true(is.character(out))
+    expect_gt(length(out), 0L)
+})
+
+test_that("group-by vector × square-matrix slice: / edge_weight @|", {
+    metacells <- .fx_metacells()
+    out <- metacells["@ metacell : type / edge_weight @| M412.08 >> Mode"]
+    expect_true(is.character(out))
+})
+
+test_that("group-by matrix × matrix-slice: -/ edge_weight @|", {
+    metacells <- .fx_metacells()
+    out <- metacells[
+        "@ metacell @ gene :: fraction -/ edge_weight @| M412.08 >- Mean"]
+    # Three distinct edge_weight values in the example daf, 683 genes.
+    expect_equal(dim(out), c(3L, 683L))
+})
+
+test_that("count vec × matrix-slice: : t * edge_weight @|", {
+    metacells <- .fx_metacells()
+    res <- metacells["@ metacell : type * edge_weight @| M412.08"]
+    # Rows: 4 unique types in example daf; cols: 3 unique edge weights
+    # (0, 0.1, 0.5).
+    expect_equal(dim(res), c(4L, 3L))
+})
+
+test_that("count: trailing `=@` annotation is a no-op", {
+    cells <- .fx_cells()
+    base <- cells["@ cell : experiment * donor : sex"]
+    via_as_axis <- cells["@ cell : experiment * donor =@ : sex"]
+    expect_equal(dim(base), dim(via_as_axis))
+    expect_equal(unname(as.matrix(base)), unname(as.matrix(via_as_axis)))
+})
+
+test_that("3-deep matrix chain :: m1 :: m2 @ axis = entry", {
+    d <- memory_daf(name = "t")
+    add_axis(d, "cell", c("X", "Y"))
+    add_axis(d, "gene", c("A", "B", "C"))
+    add_axis(d, "type", c("U", "V"))
+    add_axis(d, "kind", c("K1", "K2"))
+    set_matrix(d, "cell", "gene", "type",
+        matrix(c("U", "V", "V", "U", "U", "V"), nrow = 2, ncol = 3))
+    set_matrix(d, "type", "kind", "color",
+        matrix(c("red", "blue", "green", "yellow"), nrow = 2, ncol = 2))
+    out <- d["@ cell @ gene :: type :: color @ kind = K1"]
+    expect_equal(dim(out), c(2L, 3L))
+    expect_equal(out["X", "A"], "red")    # cell X, gene A: type U, kind K1
+    expect_equal(out["Y", "A"], "blue")   # cell Y, gene A: type V, kind K1
+})
+
 test_that("tokenizer: `''` is the empty-value token; `#` starts a line comment", {
     metacells <- .fx_metacells()
     # `''` round-trips with Julia's escape_value("").

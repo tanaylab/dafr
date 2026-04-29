@@ -220,6 +220,36 @@ NULL
         state$kind <- "mask_matrix_pending_pick"
         return(state)
     }
+    if (identical(state$kind, "mask_matrix_pending_combinator")) {
+        state$matrix_cols_axis <- node$axis_name
+        state$kind <- "mask_matrix_pending_combinator_pick"
+        return(state)
+    }
+    if (identical(state$kind, "groupby_vector_matrix_pending_axis")) {
+        state$matrix_cols_axis <- node$axis_name
+        state$kind <- "groupby_vector_matrix_pending_pick"
+        return(state)
+    }
+    if (identical(state$kind, "groupby_matrix_rows_pending_axis")) {
+        state$matrix_cols_axis <- node$axis_name
+        state$kind <- "groupby_matrix_rows_pending_pick"
+        return(state)
+    }
+    if (identical(state$kind, "groupby_matrix_cols_pending_axis")) {
+        state$matrix_cols_axis <- node$axis_name
+        state$kind <- "groupby_matrix_cols_pending_pick"
+        return(state)
+    }
+    if (identical(state$kind, "countby_matrix_pending_axis")) {
+        state$matrix_cols_axis <- node$axis_name
+        state$kind <- "countby_matrix_pending_pick"
+        return(state)
+    }
+    if (identical(state$kind, "matrix_chain_pending_axis")) {
+        state$matrix2_cols_axis <- node$axis_name
+        state$kind <- "matrix_chain_pending_pick"
+        return(state)
+    }
     if (identical(state$kind, "axis")) {
         # second axis -> matrix dimension in scope.
         # If the first axis was mask-filtered, carry its surviving-entry
@@ -406,6 +436,35 @@ NULL
 }
 
 .apply_lookup_matrix <- function(node, state, daf) {
+    if (identical(state$kind, "matrix")) {
+        # `:: matrix-of-axis-entries :: matrix2 @ axis = entry` — for each
+        # cell of the in-scope matrix (whose values are entries on some
+        # axis named after the prior matrix property), look up matrix2
+        # indexed by (entry, axis-entry-from-IsEqual). The result has the
+        # same shape as the in-scope matrix. Julia phrase
+        # lookup_matrix_column_by_matrix and the square_matrix_*_by_matrix
+        # cousins. The actual slice is finalised once Axis+IsEqual (or the
+        # @|/@- square slice) arrives.
+        if (is.null(node$name)) {
+            stop("'::' on a matrix requires a matrix property name",
+                call. = FALSE)
+        }
+        target_axis <- state$matrix_property
+        if (is.null(target_axis) || !format_has_axis(daf, target_axis)) {
+            stop("matrix-of-axis-entries chain requires the prior matrix property name to match an axis",
+                call. = FALSE)
+        }
+        return(list(
+            kind = "matrix_chain_pending_axis",
+            value = state$value,
+            rows_axis = state$rows_axis,
+            cols_axis = state$cols_axis,
+            chain_target_axis = target_axis,
+            matrix2_property = node$name,
+            if_missing = state$if_missing,
+            if_missing_type = state$if_missing_type
+        ))
+    }
     if (identical(state$kind, "init")) {
         # Top-level `:: m @ rows = R @ cols = C` — Julia lookup_matrix_entry.
         # Stash the property; subsequent Axis/IsEqual nodes complete it.
@@ -528,6 +587,18 @@ NULL
         # `: prop =@` after a GroupBy: marks the chained group labels as
         # entries on `prop`'s axis. Treated as a no-op annotation for now.
         state$grouped_as_axis <- node$axis_name %||% TRUE
+        return(state)
+    }
+    if (identical(state$kind, "pending_count")) {
+        # `* prop =@` (and `* prop =@ axis_name`) marks the count's
+        # b-side as entries on its (or `axis_name`'s) axis. CountBy
+        # already pivots through `b_pivot_axis`, so `=@` is an explicit
+        # annotation that doesn't change the result; tracked so a
+        # future Julia-strict mode can verify the axis name matches.
+        if (is.character(node$axis_name)) {
+            state$b_pivot_axis <- node$axis_name
+        }
+        state$count_as_axis <- node$axis_name %||% TRUE
         return(state)
     }
     if (!identical(state$kind, "vector")) {
@@ -861,6 +932,106 @@ NULL
     state
 }
 
+# Combinator counterpart of `.apply_mask_matrix_axis_entry`: invoked
+# after `& matrix-prop @ cols = entry` (or `|`/`^`, optionally negated).
+# Resolves the column slice into pending_vec, combines it with the prior
+# pending_mask via the combinator op, and leaves the state ready for an
+# optional trailing comparator (which uses pending_combinator_* to refine
+# the combined mask, mirroring the vector-property combinator path).
+.apply_mask_matrix_axis_entry_combinator <- function(node, state, daf) {
+    if (!identical(node$op, "IsEqual")) {
+        stop(sprintf(
+            "matrix mask combinator on axis %s expects '@ %s = <entry>', got %s",
+            sQuote(state$matrix_cols_axis),
+            sQuote(state$matrix_cols_axis),
+            sQuote(node$op)
+        ), call. = FALSE)
+    }
+    rows <- state$axis
+    cols <- state$matrix_cols_axis
+    prop <- state$matrix_property
+    cols_arr <- format_axis_array(daf, cols)
+    col_idx <- match(as.character(node$value), cols_arr)
+    if (is.na(col_idx)) {
+        stop(sprintf(
+            "no entry %s on axis %s",
+            sQuote(node$value), sQuote(cols)
+        ), call. = FALSE)
+    }
+    vec <- if (format_has_matrix(daf, rows, cols, prop)) {
+        format_get_matrix(daf, rows, cols, prop)[, col_idx, drop = TRUE]
+    } else if (format_has_matrix(daf, cols, rows, prop)) {
+        format_get_matrix(daf, cols, rows, prop)[col_idx, , drop = TRUE]
+    } else {
+        stop(sprintf(
+            "no matrix %s on axes %s, %s",
+            sQuote(prop), sQuote(rows), sQuote(cols)
+        ), call. = FALSE)
+    }
+    if (methods::is(vec, "sparseVector") || methods::is(vec, "Matrix")) {
+        vec <- as.numeric(vec)
+    }
+    .combine_mask_with_vec(state, vec)
+}
+
+# Square-matrix counterpart of the combinator resolver.
+.apply_mask_matrix_square_slice_combinator <- function(node, state, daf) {
+    rows <- state$axis
+    prop <- state$matrix_property
+    if (!format_has_matrix(daf, rows, rows, prop)) {
+        stop(sprintf(
+            "no square matrix %s on axis %s",
+            sQuote(prop), sQuote(rows)
+        ), call. = FALSE)
+    }
+    rows_arr <- format_axis_array(daf, rows)
+    idx <- match(as.character(node$value), rows_arr)
+    if (is.na(idx)) {
+        stop(sprintf(
+            "no entry %s on axis %s",
+            sQuote(node$value), sQuote(rows)
+        ), call. = FALSE)
+    }
+    m <- format_get_matrix(daf, rows, rows, prop)
+    vec <- if (identical(node$op, "SquareRowIs")) {
+        m[idx, , drop = TRUE]
+    } else {
+        m[, idx, drop = TRUE]
+    }
+    if (methods::is(vec, "sparseVector") || methods::is(vec, "Matrix")) {
+        vec <- as.numeric(vec)
+    }
+    .combine_mask_with_vec(state, vec)
+}
+
+# Shared finaliser for the combinator-with-matrix-slice paths above. Folds
+# `vec` (the resolved column slice) into the prior pending mask via the
+# stashed combinator op, sets pending_combinator_* so a trailing comparator
+# can replace `vec`'s truthy default with a comparison result, and returns
+# to the regular `mask` state.
+.combine_mask_with_vec <- function(state, vec) {
+    m <- if (is.logical(vec)) vec else !is.na(vec) & vec != 0
+    if (isTRUE(state$matrix_negated)) m <- !m
+    op <- state$matrix_combinator_op
+    prior <- state$matrix_combinator_prior
+    combined <- switch(op,
+        And = prior & m,
+        Or  = prior | m,
+        Xor = xor(prior, m)
+    )
+    list(
+        kind = "mask",
+        axis = state$axis,
+        pending_mask = combined,
+        pending_property = state$matrix_property,
+        pending_vec = vec,
+        pending_combinator_mask = prior,
+        pending_combinator_op = op,
+        pending_combinator_neg = isTRUE(state$matrix_negated),
+        pending_mask_negated = state$pending_mask_negated
+    )
+}
+
 # `[ square-matrix @| entry ]` / `[ ... @- entry ]` — column or row slice
 # of a SQUARE matrix indexed by the in-scope axis.
 .apply_mask_matrix_square_slice <- function(node, state, daf) {
@@ -953,11 +1124,26 @@ NULL
     if (!identical(state$kind, "mask")) {
         stop("logical mask combinator outside of mask", call. = FALSE)
     }
+    negated <- grepl("NegatedMask$", node$op)
+    op <- if (startsWith(node$op, "And")) "And"
+          else if (startsWith(node$op, "Or")) "Or"
+          else "Xor"
+    if (!format_has_vector(daf, state$axis, node$property)) {
+        # Property isn't a vector on the in-scope axis - defer to
+        # `mask_matrix_pending_combinator`. Subsequent `@ axis = entry`
+        # (or `@| / @-`) supplies the column slice, then a comparator
+        # combines the resulting per-axis vector with the prior mask via
+        # `op` (negated by `negated`).
+        state$kind <- "mask_matrix_pending_combinator"
+        state$matrix_property <- node$property
+        state$matrix_negated <- negated
+        state$matrix_combinator_op <- op
+        state$matrix_combinator_prior <- state$pending_mask
+        return(state)
+    }
     vec <- format_get_vector(daf, state$axis, node$property)
     m <- if (is.logical(vec)) vec else !is.na(vec) & vec != 0
-    negated <- grepl("NegatedMask$", node$op)
     if (negated) m <- !m
-    op <- if (startsWith(node$op, "And")) "And" else if (startsWith(node$op, "Or")) "Or" else "Xor"
     combined <- switch(op,
         And = state$pending_mask & m,
         Or  = state$pending_mask | m,
@@ -1004,6 +1190,24 @@ NULL
     }
     if (identical(state$kind, "mask_matrix_pending_pick")) {
         return(.apply_mask_matrix_axis_entry(node, state, daf))
+    }
+    if (identical(state$kind, "mask_matrix_pending_combinator_pick")) {
+        return(.apply_mask_matrix_axis_entry_combinator(node, state, daf))
+    }
+    if (identical(state$kind, "groupby_vector_matrix_pending_pick")) {
+        return(.apply_groupby_vector_matrix_entry(node, state, daf))
+    }
+    if (identical(state$kind, "groupby_matrix_rows_pending_pick")) {
+        return(.apply_groupby_matrix_rows_matrix_entry(node, state, daf))
+    }
+    if (identical(state$kind, "groupby_matrix_cols_pending_pick")) {
+        return(.apply_groupby_matrix_cols_matrix_entry(node, state, daf))
+    }
+    if (identical(state$kind, "countby_matrix_pending_pick")) {
+        return(.apply_countby_matrix_entry(node, state, daf))
+    }
+    if (identical(state$kind, "matrix_chain_pending_pick")) {
+        return(.apply_matrix_chain_matrix_entry(node, state, daf))
     }
     if (identical(state$kind, "vector")) {
         # `: vec > x` etc. - element-wise comparator over a vector returns a
@@ -1398,6 +1602,24 @@ NULL
     }
     if (identical(state$kind, "mask_matrix_pending_axis")) {
         return(.apply_mask_matrix_square_slice(node, state, daf))
+    }
+    if (identical(state$kind, "mask_matrix_pending_combinator")) {
+        return(.apply_mask_matrix_square_slice_combinator(node, state, daf))
+    }
+    if (identical(state$kind, "groupby_vector_matrix_pending_axis")) {
+        return(.apply_groupby_vector_matrix_square_slice(node, state, daf))
+    }
+    if (identical(state$kind, "groupby_matrix_rows_pending_axis")) {
+        return(.apply_groupby_matrix_rows_matrix_square_slice(node, state, daf))
+    }
+    if (identical(state$kind, "groupby_matrix_cols_pending_axis")) {
+        return(.apply_groupby_matrix_cols_matrix_square_slice(node, state, daf))
+    }
+    if (identical(state$kind, "countby_matrix_pending_axis")) {
+        return(.apply_countby_matrix_square_slice(node, state, daf))
+    }
+    if (identical(state$kind, "matrix_chain_pending_axis")) {
+        return(.apply_matrix_chain_matrix_square_slice(node, state, daf))
     }
     if (!identical(state$kind, "matrix")) {
         stop("square slice requires a matrix in scope", call. = FALSE)
@@ -2407,9 +2629,315 @@ NULL
     )
 }
 
+# Resolve `vec / matrix-prop @ cols-axis = entry` into a group-label
+# vector and switch to "grouped_vector". The column slice's per-row
+# values become the group labels for the in-scope vector. Subsequent
+# `?? : prop` chains and `>> Op` reductions then work as for the
+# vector-property GroupBy path.
+.apply_groupby_vector_matrix_entry <- function(node, state, daf) {
+    if (!identical(node$op, "IsEqual")) {
+        stop(sprintf(
+            "matrix-column GroupBy on axis %s expects '@ %s = <entry>', got %s",
+            sQuote(state$matrix_cols_axis),
+            sQuote(state$matrix_cols_axis),
+            sQuote(node$op)
+        ), call. = FALSE)
+    }
+    rows <- state$axis
+    cols <- state$matrix_cols_axis
+    prop <- state$matrix_property
+    cols_arr <- format_axis_array(daf, cols)
+    col_idx <- match(as.character(node$value), cols_arr)
+    if (is.na(col_idx)) {
+        stop(sprintf(
+            "no entry %s on axis %s",
+            sQuote(node$value), sQuote(cols)
+        ), call. = FALSE)
+    }
+    grp <- if (format_has_matrix(daf, rows, cols, prop)) {
+        format_get_matrix(daf, rows, cols, prop)[, col_idx, drop = TRUE]
+    } else if (format_has_matrix(daf, cols, rows, prop)) {
+        format_get_matrix(daf, cols, rows, prop)[col_idx, , drop = TRUE]
+    } else {
+        stop(sprintf(
+            "no matrix %s on axes %s, %s",
+            sQuote(prop), sQuote(rows), sQuote(cols)
+        ), call. = FALSE)
+    }
+    if (methods::is(grp, "sparseVector") || methods::is(grp, "Matrix")) {
+        grp <- as.numeric(grp)
+    }
+    if (!is.null(state$indices)) {
+        grp <- grp[state$indices]
+    }
+    state$pending_groups <- grp
+    state$pending_groups_axis <- prop
+    state$matrix_property <- NULL
+    state$matrix_cols_axis <- NULL
+    state$kind <- "grouped_vector"
+    state
+}
+
+# `vec / square-matrix @| entry` and `vec / ... @- entry`.
+.apply_groupby_vector_matrix_square_slice <- function(node, state, daf) {
+    rows <- state$axis
+    prop <- state$matrix_property
+    if (!format_has_matrix(daf, rows, rows, prop)) {
+        stop(sprintf(
+            "no square matrix %s on axis %s",
+            sQuote(prop), sQuote(rows)
+        ), call. = FALSE)
+    }
+    rows_arr <- format_axis_array(daf, rows)
+    idx <- match(as.character(node$value), rows_arr)
+    if (is.na(idx)) {
+        stop(sprintf(
+            "no entry %s on axis %s",
+            sQuote(node$value), sQuote(rows)
+        ), call. = FALSE)
+    }
+    m <- format_get_matrix(daf, rows, rows, prop)
+    grp <- if (identical(node$op, "SquareRowIs")) {
+        m[idx, , drop = TRUE]
+    } else {
+        m[, idx, drop = TRUE]
+    }
+    if (methods::is(grp, "sparseVector") || methods::is(grp, "Matrix")) {
+        grp <- as.numeric(grp)
+    }
+    if (!is.null(state$indices)) {
+        grp <- grp[state$indices]
+    }
+    state$pending_groups <- grp
+    state$pending_groups_axis <- prop
+    state$matrix_property <- NULL
+    state$kind <- "grouped_vector"
+    state
+}
+
+# Helpers for `:: m -/ matrix-prop @ axis = entry` and `... |/ ...`. The
+# row (or column) groups come from a matrix-column slice instead of a
+# vector property. Both shapes share the same lookup logic; the only
+# difference is which axis is the group axis (rows_axis vs cols_axis)
+# and which slot the group labels land in.
+.matrix_slice_for_group <- function(state, node, daf, group_axis_name) {
+    cols <- state$matrix_cols_axis
+    prop <- state$matrix_property
+    rows <- group_axis_name
+    cols_arr <- format_axis_array(daf, cols)
+    col_idx <- match(as.character(node$value), cols_arr)
+    if (is.na(col_idx)) {
+        stop(sprintf(
+            "no entry %s on axis %s",
+            sQuote(node$value), sQuote(cols)
+        ), call. = FALSE)
+    }
+    grp <- if (format_has_matrix(daf, rows, cols, prop)) {
+        format_get_matrix(daf, rows, cols, prop)[, col_idx, drop = TRUE]
+    } else if (format_has_matrix(daf, cols, rows, prop)) {
+        format_get_matrix(daf, cols, rows, prop)[col_idx, , drop = TRUE]
+    } else {
+        stop(sprintf(
+            "no matrix %s on axes %s, %s",
+            sQuote(prop), sQuote(rows), sQuote(cols)
+        ), call. = FALSE)
+    }
+    if (methods::is(grp, "sparseVector") || methods::is(grp, "Matrix")) {
+        grp <- as.numeric(grp)
+    }
+    grp
+}
+
+.matrix_square_slice_for_group <- function(state, node, daf, group_axis_name) {
+    rows <- group_axis_name
+    prop <- state$matrix_property
+    if (!format_has_matrix(daf, rows, rows, prop)) {
+        stop(sprintf(
+            "no square matrix %s on axis %s",
+            sQuote(prop), sQuote(rows)
+        ), call. = FALSE)
+    }
+    rows_arr <- format_axis_array(daf, rows)
+    idx <- match(as.character(node$value), rows_arr)
+    if (is.na(idx)) {
+        stop(sprintf(
+            "no entry %s on axis %s",
+            sQuote(node$value), sQuote(rows)
+        ), call. = FALSE)
+    }
+    m <- format_get_matrix(daf, rows, rows, prop)
+    grp <- if (identical(node$op, "SquareRowIs")) {
+        m[idx, , drop = TRUE]
+    } else {
+        m[, idx, drop = TRUE]
+    }
+    if (methods::is(grp, "sparseVector") || methods::is(grp, "Matrix")) {
+        grp <- as.numeric(grp)
+    }
+    grp
+}
+
+.apply_groupby_matrix_rows_matrix_entry <- function(node, state, daf) {
+    if (!identical(node$op, "IsEqual")) {
+        stop(sprintf(
+            "matrix-column GroupRowsBy on axis %s expects '@ %s = <entry>', got %s",
+            sQuote(state$matrix_cols_axis),
+            sQuote(state$matrix_cols_axis),
+            sQuote(node$op)
+        ), call. = FALSE)
+    }
+    grp <- .matrix_slice_for_group(state, node, daf, state$rows_axis)
+    state$pending_row_groups <- grp
+    state$matrix_property <- NULL
+    state$matrix_cols_axis <- NULL
+    state$kind <- "grouped_matrix_rows"
+    state
+}
+
+.apply_groupby_matrix_rows_matrix_square_slice <- function(node, state, daf) {
+    grp <- .matrix_square_slice_for_group(state, node, daf, state$rows_axis)
+    state$pending_row_groups <- grp
+    state$matrix_property <- NULL
+    state$kind <- "grouped_matrix_rows"
+    state
+}
+
+.apply_groupby_matrix_cols_matrix_entry <- function(node, state, daf) {
+    if (!identical(node$op, "IsEqual")) {
+        stop(sprintf(
+            "matrix-column GroupColumnsBy on axis %s expects '@ %s = <entry>', got %s",
+            sQuote(state$matrix_cols_axis),
+            sQuote(state$matrix_cols_axis),
+            sQuote(node$op)
+        ), call. = FALSE)
+    }
+    grp <- .matrix_slice_for_group(state, node, daf, state$cols_axis)
+    state$pending_col_groups <- grp
+    state$matrix_property <- NULL
+    state$matrix_cols_axis <- NULL
+    state$kind <- "grouped_matrix_cols"
+    state
+}
+
+.apply_groupby_matrix_cols_matrix_square_slice <- function(node, state, daf) {
+    grp <- .matrix_square_slice_for_group(state, node, daf, state$cols_axis)
+    state$pending_col_groups <- grp
+    state$matrix_property <- NULL
+    state$kind <- "grouped_matrix_cols"
+    state
+}
+
+# Resolve `:: m1 :: m2 @ cols-axis = entry` (Julia
+# lookup_matrix_column_by_matrix). For every cell `v` of m1, fetch
+# m2[v, entry]. Result keeps m1's shape but holds m2-property values.
+.apply_matrix_chain_matrix_entry <- function(node, state, daf) {
+    if (!identical(node$op, "IsEqual")) {
+        stop(sprintf(
+            "matrix-chain matrix slice on axis %s expects '@ %s = <entry>', got %s",
+            sQuote(state$matrix2_cols_axis),
+            sQuote(state$matrix2_cols_axis),
+            sQuote(node$op)
+        ), call. = FALSE)
+    }
+    cols2_axis <- state$matrix2_cols_axis
+    cols2_arr <- format_axis_array(daf, cols2_axis)
+    col_idx <- match(as.character(node$value), cols2_arr)
+    if (is.na(col_idx)) {
+        stop(sprintf(
+            "no entry %s on axis %s",
+            sQuote(node$value), sQuote(cols2_axis)
+        ), call. = FALSE)
+    }
+    target_axis <- state$chain_target_axis
+    prop2 <- state$matrix2_property
+    # The matrix2 column slice is a vector along target_axis: vec[v] = m2[v, entry].
+    slice <- if (format_has_matrix(daf, target_axis, cols2_axis, prop2)) {
+        format_get_matrix(daf, target_axis, cols2_axis, prop2)[, col_idx, drop = TRUE]
+    } else if (format_has_matrix(daf, cols2_axis, target_axis, prop2)) {
+        format_get_matrix(daf, cols2_axis, target_axis, prop2)[col_idx, , drop = TRUE]
+    } else {
+        stop(sprintf(
+            "no matrix %s on axes %s, %s",
+            sQuote(prop2), sQuote(target_axis), sQuote(cols2_axis)
+        ), call. = FALSE)
+    }
+    .matrix_chain_apply_slice(state, slice, daf)
+}
+
+# Square-matrix variants: `:: m1 :: m2 @| entry` / `... @- entry`.
+.apply_matrix_chain_matrix_square_slice <- function(node, state, daf) {
+    target_axis <- state$chain_target_axis
+    prop2 <- state$matrix2_property
+    if (!format_has_matrix(daf, target_axis, target_axis, prop2)) {
+        stop(sprintf(
+            "no square matrix %s on axis %s",
+            sQuote(prop2), sQuote(target_axis)
+        ), call. = FALSE)
+    }
+    target_entries <- format_axis_array(daf, target_axis)
+    idx <- match(as.character(node$value), target_entries)
+    if (is.na(idx)) {
+        stop(sprintf(
+            "no entry %s on axis %s",
+            sQuote(node$value), sQuote(target_axis)
+        ), call. = FALSE)
+    }
+    m2 <- format_get_matrix(daf, target_axis, target_axis, prop2)
+    slice <- if (identical(node$op, "SquareRowIs")) {
+        m2[idx, , drop = TRUE]
+    } else {
+        m2[, idx, drop = TRUE]
+    }
+    .matrix_chain_apply_slice(state, slice, daf)
+}
+
+# Shared finaliser: `slice` is a vector indexed by `chain_target_axis`.
+# For every cell of the in-scope matrix (which holds entries of that
+# axis), look up `slice[entry]` and put the result in the corresponding
+# cell of a same-shape output matrix.
+.matrix_chain_apply_slice <- function(state, slice, daf) {
+    if (methods::is(slice, "sparseVector") || methods::is(slice, "Matrix")) {
+        slice <- as.numeric(slice)
+    }
+    target_axis <- state$chain_target_axis
+    target_entries <- format_axis_array(daf, target_axis)
+    m1 <- state$value
+    rn <- rownames(m1)
+    if (is.null(rn) && !is.null(state$rows_axis)) {
+        rn <- format_axis_array(daf, state$rows_axis)
+    }
+    cn <- colnames(m1)
+    if (is.null(cn) && !is.null(state$cols_axis)) {
+        cn <- format_axis_array(daf, state$cols_axis)
+    }
+    flat <- as.character(as.vector(m1))
+    idx <- match(flat, target_entries)
+    out <- rep(NA, length(flat))
+    mode(out) <- mode(slice)
+    ok <- !is.na(idx) & nzchar(flat)
+    out[ok] <- slice[idx[ok]]
+    new_m <- matrix(out, nrow = nrow(m1), ncol = ncol(m1),
+        dimnames = list(rn, cn))
+    list(
+        kind = "matrix",
+        value = new_m,
+        rows_axis = state$rows_axis,
+        cols_axis = state$cols_axis,
+        matrix_property = state$matrix2_property
+    )
+}
+
 .apply_groupby_vector <- function(node, state, daf) {
     if (!identical(state$kind, "vector")) {
         stop("GroupBy requires a vector in scope", call. = FALSE)
+    }
+    if (!format_has_vector(daf, state$axis, node$property)) {
+        # `/ matrix-prop @ axis = entry` (or `@| / @-`) - the group labels
+        # come from a matrix-column slice, not a vector. Defer until the
+        # column axis arrives. (Julia lookup_vector_group_by_*_matrix_*.)
+        state$kind <- "groupby_vector_matrix_pending_axis"
+        state$matrix_property <- node$property
+        return(state)
     }
     grp <- format_get_vector(daf, state$axis, node$property)
     # If a prior mask narrowed the axis (state$indices set), restrict the
@@ -2430,6 +2958,13 @@ NULL
     if (!identical(state$kind, "matrix")) {
         stop("GroupRowsBy requires a matrix in scope", call. = FALSE)
     }
+    if (!format_has_vector(daf, state$rows_axis, node$property)) {
+        # `:: m -/ matrix-prop @ axis = entry`: row groups come from a
+        # matrix-column slice. Defer until the column axis arrives.
+        state$kind <- "groupby_matrix_rows_pending_axis"
+        state$matrix_property <- node$property
+        return(state)
+    }
     grp <- format_get_vector(daf, state$rows_axis, node$property)
     state$pending_row_groups <- grp
     state$kind <- "grouped_matrix_rows"
@@ -2440,10 +2975,101 @@ NULL
     if (!identical(state$kind, "matrix")) {
         stop("GroupColumnsBy requires a matrix in scope", call. = FALSE)
     }
+    if (!format_has_vector(daf, state$cols_axis, node$property)) {
+        # `:: m |/ matrix-prop @ axis = entry`: column groups come from a
+        # matrix-column slice on the cols axis. Defer.
+        state$kind <- "groupby_matrix_cols_pending_axis"
+        state$matrix_property <- node$property
+        return(state)
+    }
     grp <- format_get_vector(daf, state$cols_axis, node$property)
     state$pending_col_groups <- grp
     state$kind <- "grouped_matrix_cols"
     state
+}
+
+# Resolve `: vec * matrix-prop @ cols-axis = entry` into a deferred
+# count-matrix state: the b-side per-cell vector is the matrix-column
+# slice. Subsequent `: prop` chains pivot it the same way as the plain
+# count-by, and end-of-evaluation materialises the count matrix.
+.apply_countby_matrix_entry <- function(node, state, daf) {
+    if (!identical(node$op, "IsEqual")) {
+        stop(sprintf(
+            "matrix-column CountBy on axis %s expects '@ %s = <entry>', got %s",
+            sQuote(state$matrix_cols_axis),
+            sQuote(state$matrix_cols_axis),
+            sQuote(node$op)
+        ), call. = FALSE)
+    }
+    rows <- state$axis
+    cols <- state$matrix_cols_axis
+    prop <- state$matrix_property
+    cols_arr <- format_axis_array(daf, cols)
+    col_idx <- match(as.character(node$value), cols_arr)
+    if (is.na(col_idx)) {
+        stop(sprintf(
+            "no entry %s on axis %s",
+            sQuote(node$value), sQuote(cols)
+        ), call. = FALSE)
+    }
+    b <- if (format_has_matrix(daf, rows, cols, prop)) {
+        format_get_matrix(daf, rows, cols, prop)[, col_idx, drop = TRUE]
+    } else if (format_has_matrix(daf, cols, rows, prop)) {
+        format_get_matrix(daf, cols, rows, prop)[col_idx, , drop = TRUE]
+    } else {
+        stop(sprintf(
+            "no matrix %s on axes %s, %s",
+            sQuote(prop), sQuote(rows), sQuote(cols)
+        ), call. = FALSE)
+    }
+    if (methods::is(b, "sparseVector") || methods::is(b, "Matrix")) {
+        b <- as.numeric(b)
+    }
+    list(
+        kind = "pending_count",
+        a_per_cell = state$value,
+        b_per_cell = b,
+        a_axis_label = state$property %||% state$axis,
+        b_axis_label = prop,
+        b_pivot_axis = prop
+    )
+}
+
+# `: vec * square-matrix @| entry` and `... @- entry`.
+.apply_countby_matrix_square_slice <- function(node, state, daf) {
+    rows <- state$axis
+    prop <- state$matrix_property
+    if (!format_has_matrix(daf, rows, rows, prop)) {
+        stop(sprintf(
+            "no square matrix %s on axis %s",
+            sQuote(prop), sQuote(rows)
+        ), call. = FALSE)
+    }
+    rows_arr <- format_axis_array(daf, rows)
+    idx <- match(as.character(node$value), rows_arr)
+    if (is.na(idx)) {
+        stop(sprintf(
+            "no entry %s on axis %s",
+            sQuote(node$value), sQuote(rows)
+        ), call. = FALSE)
+    }
+    m <- format_get_matrix(daf, rows, rows, prop)
+    b <- if (identical(node$op, "SquareRowIs")) {
+        m[idx, , drop = TRUE]
+    } else {
+        m[, idx, drop = TRUE]
+    }
+    if (methods::is(b, "sparseVector") || methods::is(b, "Matrix")) {
+        b <- as.numeric(b)
+    }
+    list(
+        kind = "pending_count",
+        a_per_cell = state$value,
+        b_per_cell = b,
+        a_axis_label = state$property %||% state$axis,
+        b_axis_label = prop,
+        b_pivot_axis = prop
+    )
 }
 
 .apply_countby <- function(node, state, daf) {
@@ -2455,6 +3081,15 @@ NULL
     }
     if (!identical(state$kind, "vector")) {
         stop("* CountBy requires a vector in scope", call. = FALSE)
+    }
+    if (!format_has_vector(daf, state$axis, node$property)) {
+        # `: vec * matrix-prop @ axis = entry` (or `@| / @-`): the b-side
+        # of the count comes from a matrix-column slice. Defer until the
+        # column axis arrives. (Julia lookup_matrix_column_count and the
+        # square_matrix_*_count phrases.)
+        state$kind <- "countby_matrix_pending_axis"
+        state$matrix_property <- node$property
+        return(state)
     }
     a <- state$value
     b <- format_get_vector(daf, state$axis, node$property)
