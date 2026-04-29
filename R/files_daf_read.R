@@ -3,6 +3,34 @@ NULL
 
 .files_root <- function(daf) S7::prop(daf, "internal")$path
 
+# Per-item cache_group classifier for files_daf reads. Mirrors upstream
+# DataAxesFormats.jl `src/files_format.jl` post-49fbba1 thresholds.
+#
+# Upstream classifies MappedData vs MemoryData based on whether the returned
+# value is mmap-backed or fully materialized into heap memory. There are NO
+# size-based thresholds. MemoryData is returned for:
+#   - string/character vectors (dense or sparse-string reconstructed)
+#   - sparse-Bool vectors/matrices where .nzval file was absent (synthesized)
+#   - sparse-string matrices (reconstructed in-memory)
+#
+# In R all reads go through readBin (no real mmap), but we mirror the upstream
+# classification: character/factor → MEMORY_DATA; everything else → MAPPED_DATA.
+# The synthesized-Bool case is indistinguishable from the returned value alone,
+# so it correctly stays MAPPED_DATA (same as upstream's non-absent nzval path).
+#
+# CALLED ONLY from format_get_vector / format_get_matrix S7 methods on
+# FilesDaf / FilesDafReadOnly. The wrap site uses the returned constant to
+# populate the cache_group field.
+.files_daf_classify_vector <- function(value) {
+    if (is.character(value) || is.factor(value)) return(MEMORY_DATA)
+    MAPPED_DATA
+}
+
+.files_daf_classify_matrix <- function(value) {
+    if (is.character(value) || is.factor(value)) return(MEMORY_DATA)
+    MAPPED_DATA
+}
+
 # ---- scalars: query ----
 S7::method(
     format_has_scalar,
@@ -344,13 +372,15 @@ S7::method(
     format_get_vector,
     list(FilesDaf, S7::class_character, S7::class_character)
 ) <- function(daf, axis, name) {
-    .cache_group_value(.files_get_vector_cached(daf, axis, name), MAPPED_DATA)
+    v <- .files_get_vector_cached(daf, axis, name)
+    .cache_group_value(v, .files_daf_classify_vector(v))
 }
 S7::method(
     format_get_vector,
     list(FilesDafReadOnly, S7::class_character, S7::class_character)
 ) <- function(daf, axis, name) {
-    .cache_group_value(.files_get_vector_cached(daf, axis, name), MAPPED_DATA)
+    v <- .files_get_vector_cached(daf, axis, name)
+    .cache_group_value(v, .files_daf_classify_vector(v))
 }
 
 # ---- matrices: query ----
@@ -562,11 +592,13 @@ S7::method(
     format_get_matrix,
     list(FilesDaf, S7::class_character, S7::class_character, S7::class_character)
 ) <- function(daf, rows_axis, columns_axis, name) {
-    .cache_group_value(.files_get_matrix_cached(daf, rows_axis, columns_axis, name), MAPPED_DATA)
+    m <- .files_get_matrix_cached(daf, rows_axis, columns_axis, name)
+    .cache_group_value(m, .files_daf_classify_matrix(m))
 }
 S7::method(
     format_get_matrix,
     list(FilesDafReadOnly, S7::class_character, S7::class_character, S7::class_character)
 ) <- function(daf, rows_axis, columns_axis, name) {
-    .cache_group_value(.files_get_matrix_cached(daf, rows_axis, columns_axis, name), MAPPED_DATA)
+    m <- .files_get_matrix_cached(daf, rows_axis, columns_axis, name)
+    .cache_group_value(m, .files_daf_classify_matrix(m))
 }
