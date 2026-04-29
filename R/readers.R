@@ -309,14 +309,13 @@ get_vector <- function(daf, axis, name, default) {
     raw <- res$value
     tier <- .canonical_tier(res$cache_group)
     hit <- cache_lookup(cache_env, tier, cache_key, stamp_now)
-    if (!is.null(hit)) {
-        return(hit)
-    }
-    out <- raw
+    out <- if (is.null(hit)) raw else hit
     if (is.null(names(out))) names(out) <- entries
-    cache_store(cache_env, tier, cache_key, out, stamp_now,
-        size_bytes = object.size(out)
-    )
+    if (is.null(hit)) {
+        cache_store(cache_env, tier, cache_key, out, stamp_now,
+            size_bytes = object.size(out)
+        )
+    }
     out
 }
 

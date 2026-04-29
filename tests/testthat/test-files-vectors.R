@@ -333,3 +333,20 @@ test_that("set_vector accepts Matrix::sparseVector and writes sparse uncondition
     d2 <- files_daf(dir, mode = "r")
     expect_equal(unname(get_vector(d2, "cell", "sv")), c(0, 10, 0, 30))
 })
+
+test_that("get_vector on files_daf preserves axis-entry names (slice-14 regression guard)", {
+    tmp <- tempfile(fileext = ".daf")
+    d <- memory_daf()
+    add_axis(d, "cell", c("A", "B", "C"))
+    set_vector(d, "cell", "x", c(1.0, 2.0, 3.0))
+    fd_w <- files_daf(tmp, mode = "w")
+    copy_all(fd_w, d, relayout = FALSE)
+    fd <- files_daf(tmp, mode = "r")
+    v <- get_vector(fd, "cell", "x")
+    expect_equal(names(v), c("A", "B", "C"))
+    expect_equal(unname(v), c(1.0, 2.0, 3.0))
+
+    # Also after a second call (cache hit path) — names must persist:
+    v2 <- get_vector(fd, "cell", "x")
+    expect_equal(names(v2), c("A", "B", "C"))
+})
