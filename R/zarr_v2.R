@@ -199,3 +199,87 @@ zarr_v2_decode_chunk <- function(bytes, dtype, n, compressor = NULL) {
     stop(sprintf("zarr_v2_decode_chunk: unsupported dtype %s", sQuote(dtype)),
          call. = FALSE)
 }
+
+# ---- vlen-utf8 strings ---------------------------------------------------
+#
+# Wire format (numcodecs.VLenUTF8):
+#   [N: uint32 LE]                              -- count of strings
+#   For each string i in 0..N-1:
+#     [len_i: uint32 LE]                        -- byte length of UTF-8 encoded string
+#     [utf8_bytes_i: bytes]                     -- UTF-8 payload (len_i bytes)
+#
+# Ground truth: numcodecs.VLenUTF8 in Python's zarr stack.
+# Verified against fixture: see test-zarr-v2-strings.R (the 19-byte
+# fixture for c("A","B","C") was generated with
+# `python3 -c 'import numcodecs, numpy; ...'` — see Phase 4 notes).
+
+zarr_v2_encode_strings <- function(strings) {
+    if (!is.character(strings)) {
+        stop("zarr_v2_encode_strings: input must be a character vector",
+             call. = FALSE)
+    }
+    n <- length(strings)
+    # Convert each string to its UTF-8 byte representation.
+    utf8_bytes_list <- lapply(strings, function(s) {
+        if (is.na(s)) {
+            stop("zarr_v2_encode_strings: NA strings not supported",
+                 call. = FALSE)
+        }
+        charToRaw(enc2utf8(s))
+    })
+    # Concatenate header + per-string records.
+    con <- rawConnection(raw(0L), "wb")
+    on.exit(close(con))
+    writeBin(as.integer(n), con, size = 4L, endian = "little")
+    for (b in utf8_bytes_list) {
+        writeBin(as.integer(length(b)), con, size = 4L, endian = "little")
+        if (length(b) > 0L) {
+            writeBin(b, con)
+        }
+    }
+    rawConnectionValue(con)
+}
+
+zarr_v2_decode_strings <- function(bytes, n = NA_integer_) {
+    if (length(bytes) < 4L) {
+        stop("zarr_v2_decode_strings: bytes truncated (no count header)",
+             call. = FALSE)
+    }
+    con <- rawConnection(bytes, "rb")
+    on.exit(close(con))
+    n_in_chunk <- readBin(con, "integer", n = 1L, size = 4L, endian = "little")
+    if (!is.na(n) && n_in_chunk != n) {
+        stop(sprintf(
+            "zarr_v2_decode_strings: chunk count %d differs from expected %d",
+            n_in_chunk, n
+        ), call. = FALSE)
+    }
+    out <- character(n_in_chunk)
+    for (i in seq_len(n_in_chunk)) {
+        len_i <- readBin(con, "integer", n = 1L, size = 4L, endian = "little")
+        if (length(len_i) != 1L) {
+            stop(sprintf(
+                "zarr_v2_decode_strings: truncated length header at index %d",
+                i
+            ), call. = FALSE)
+        }
+        if (len_i < 0L) {
+            stop(sprintf("zarr_v2_decode_strings: negative length %d at index %d",
+                         len_i, i), call. = FALSE)
+        }
+        if (len_i == 0L) {
+            out[[i]] <- ""
+        } else {
+            payload <- readBin(con, "raw", n = len_i)
+            if (length(payload) != len_i) {
+                stop(sprintf(
+                    "zarr_v2_decode_strings: truncated string at index %d (%d/%d bytes)",
+                    i, length(payload), len_i
+                ), call. = FALSE)
+            }
+            out[[i]] <- rawToChar(payload)
+            Encoding(out[[i]]) <- "UTF-8"
+        }
+    }
+    out
+}
