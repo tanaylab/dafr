@@ -17,6 +17,26 @@ NULL
             i <- i + 1L
             next
         }
+        # `# ... <eol>` line comment, per Julia tokens.jl SPACE_REGEX. Skip
+        # to the next \r / \n or end of string.
+        if (ch == "#") {
+            j <- i + 1L
+            while (j <= n && !(substr(s, j, j) %in% c("\n", "\r"))) {
+                j <- j + 1L
+            }
+            i <- j
+            next
+        }
+        # `''` is the canonical empty-string value token (round-trip with
+        # Julia's escape_value("") == "''"). Must beat the operator regex
+        # so the leading `'` isn't treated as an unexpected character.
+        if (ch == "'" && i < n && substr(s, i + 1L, i + 1L) == "'") {
+            tokens[[length(tokens) + 1L]] <- list(
+                type = "value", value = "", pos = i
+            )
+            i <- i + 2L
+            next
+        }
         op <- regmatches(
             substr(s, i, n),
             regexpr(.QUERY_OP_REGEX, substr(s, i, n), perl = TRUE)

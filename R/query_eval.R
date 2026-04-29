@@ -196,6 +196,30 @@ NULL
         state$kind <- "axis_pending_matrix_pick"
         return(state)
     }
+    if (identical(state$kind, "vector_entry_pending_axis")) {
+        # `: vec @ axis = entry` — record the axis; IsEqual completes it.
+        state$axis <- node$axis_name
+        state$kind <- "vector_entry_pending_pick"
+        return(state)
+    }
+    if (identical(state$kind, "matrix_entry_pending_first_axis")) {
+        state$rows_axis <- node$axis_name
+        state$kind <- "matrix_entry_pending_first_pick"
+        return(state)
+    }
+    if (identical(state$kind, "matrix_entry_pending_second_axis")) {
+        state$cols_axis <- node$axis_name
+        state$kind <- "matrix_entry_pending_second_pick"
+        return(state)
+    }
+    if (identical(state$kind, "mask_matrix_pending_axis")) {
+        # `[ matrix-prop @ cols-axis = entry ...`: capture cols_axis; the
+        # comparator (IsEqual) finalises the column slice and switches to
+        # the regular `mask` state.
+        state$matrix_cols_axis <- node$axis_name
+        state$kind <- "mask_matrix_pending_pick"
+        return(state)
+    }
     if (identical(state$kind, "axis")) {
         # second axis -> matrix dimension in scope.
         # If the first axis was mask-filtered, carry its surviving-entry
@@ -315,6 +339,24 @@ NULL
     if (identical(state$kind, "mask")) {
         return(.apply_chained_lookup_mask(node, state, daf))
     }
+    if (identical(state$kind, "matrix")) {
+        return(.apply_chained_lookup_matrix(node, state, daf))
+    }
+    if (identical(state$kind, "init")) {
+        # Top-level `: vec @ axis = entry` — Julia lookup_vector_entry. The
+        # axis (and the entry to pick) arrives in the following nodes, so
+        # stash the property name on a pending state.
+        if (is.null(node$name)) {
+            stop("':' requires an axis in scope to list vector names",
+                call. = FALSE)
+        }
+        return(list(
+            kind = "vector_entry_pending_axis",
+            property = node$name,
+            if_missing = state$if_missing,
+            if_missing_type = state$if_missing_type
+        ))
+    }
     if (!identical(state$kind, "axis")) {
         stop(sprintf("':' requires an axis in scope (got %s)", state$kind),
             call. = FALSE
@@ -364,6 +406,20 @@ NULL
 }
 
 .apply_lookup_matrix <- function(node, state, daf) {
+    if (identical(state$kind, "init")) {
+        # Top-level `:: m @ rows = R @ cols = C` — Julia lookup_matrix_entry.
+        # Stash the property; subsequent Axis/IsEqual nodes complete it.
+        if (is.null(node$name)) {
+            stop("'::' requires two axes in scope to list matrix names",
+                call. = FALSE)
+        }
+        return(list(
+            kind = "matrix_entry_pending_first_axis",
+            matrix_property = node$name,
+            if_missing = state$if_missing,
+            if_missing_type = state$if_missing_type
+        ))
+    }
     if (identical(state$kind, "axis")) {
         # `@ axis :: matrix-prop ...`: the matrix lookup is completed once a
         # second axis (or a square slice) arrives. Stash the property name
@@ -444,7 +500,8 @@ NULL
     list(
         kind = "matrix",
         value = m,
-        rows_axis = rows, cols_axis = cols
+        rows_axis = rows, cols_axis = cols,
+        matrix_property = node$name
     )
 }
 .apply_if_not <- function(node, state, daf) {
@@ -487,6 +544,12 @@ NULL
     # names of chain_target_axis. Look up node$name on chain_target_axis,
     # index by pivot_values. Missing / empty pivot values either drop
     # rows (bare IfNot) or substitute the IfNot sentinel.
+    #
+    # Once an entry has been "finalised" by a `??` sentinel, the sentinel
+    # is the entry's terminal value: subsequent chained lookups must NOT
+    # try to look it up against the next axis (which would either fail or
+    # silently substitute a later `??` sentinel). We track this through
+    # `state$pending_final_mask`, mirroring Julia's pending_final_values.
     base_axis <- state$axis
     pivot_values <- state$value
     target_axis <- state$chain_target_axis
@@ -505,6 +568,12 @@ NULL
             sQuote(target_axis)
         ), call. = FALSE)
     }
+
+    final_mask <- state$pending_final_mask
+    if (is.null(final_mask)) {
+        final_mask <- rep(FALSE, length(pivot_values))
+    }
+
     lookup_vec <- format_get_vector(daf, target_axis, node$name)
     target_entries <- format_axis_array(daf, target_axis)
     indices <- match(pivot_values, target_entries)
@@ -513,7 +582,15 @@ NULL
         (is.character(pivot_values) & !nzchar(pivot_values))
     out <- rep(NA, length(pivot_values))
     mode(out) <- mode(lookup_vec)
-    out[!empty_mask] <- lookup_vec[indices[!empty_mask]]
+    do_lookup <- !empty_mask & !final_mask
+    out[do_lookup] <- lookup_vec[indices[do_lookup]]
+    # Already-final entries keep the value the prior `??` sentinel wrote.
+    if (any(final_mask)) {
+        prior_finals <- methods::as(
+            pivot_values[final_mask], class(lookup_vec)[[1L]]
+        )
+        out[final_mask] <- prior_finals
+    }
 
     # Post-first-hop, pivot_values carries surviving axis names set by a prior
     # .apply_chained_lookup_vector call; use them to preserve any '??' row drop.
@@ -526,20 +603,26 @@ NULL
     }
     if (isTRUE(state$if_not_present)) {
         sentinel <- state$if_not_value
+        # `??` only applies to entries whose pivot is empty AND that aren't
+        # already finalised by a prior `??`.
+        new_empty <- empty_mask & !final_mask
         if (is.null(sentinel)) {
-            keep <- !empty_mask
+            keep <- !new_empty
             out <- out[keep]
             base_entries <- base_entries[keep]
+            final_mask <- final_mask[keep]
         } else {
             sentinel_typed <- methods::as(sentinel, class(lookup_vec)[[1L]])
-            out[empty_mask] <- sentinel_typed
+            out[new_empty] <- sentinel_typed
+            final_mask[new_empty] <- TRUE
         }
     } else {
-        if (any(empty_mask)) {
+        unhandled_empty <- empty_mask & !final_mask
+        if (any(unhandled_empty)) {
             stop(
                 sprintf(
                     "chain lookup on axis %s has %d empty pivot values and no '??' sentinel",
-                    sQuote(base_axis), sum(empty_mask)
+                    sQuote(base_axis), sum(unhandled_empty)
                 ),
                 call. = FALSE
             )
@@ -561,7 +644,8 @@ NULL
         value    = out,
         axis     = base_axis,
         indices  = out_indices,
-        property = node$name
+        property = node$name,
+        pending_final_mask = final_mask
     )
 }
 .apply_chained_lookup_grouped <- function(node, state, daf) {
@@ -670,17 +754,177 @@ NULL
     state
 }
 
+# `:: m : prop` — the matrix values are axis-of-prop entries on some axis
+# (taken from the matrix property name unless `=@` overrode it). Replace
+# every cell of the matrix with the looked-up `prop` value, preserving
+# shape and dimnames. (Julia lookup_vector_by_matrix.)
+.apply_chained_lookup_matrix <- function(node, state, daf) {
+    target_axis <- state$matrix_chain_target_axis
+    if (is.null(target_axis)) {
+        # axis_of_property: when the matrix property name happens to also
+        # be the name of an axis, that axis is the implicit chain target.
+        guess <- attr(state, "matrix_property") %||% state$matrix_property
+        if (is.character(guess) && format_has_axis(daf, guess)) {
+            target_axis <- guess
+        } else {
+            stop("matrix chain requires AsAxis or a matrix property whose name matches an axis",
+                call. = FALSE)
+        }
+    }
+    if (!format_has_vector(daf, target_axis, node$name)) {
+        stop(sprintf(
+            "no vector %s on axis %s",
+            sQuote(node$name), sQuote(target_axis)
+        ), call. = FALSE)
+    }
+    target_entries <- format_axis_array(daf, target_axis)
+    lookup_vec <- format_get_vector(daf, target_axis, node$name)
+    m <- state$value
+    rn <- rownames(m)
+    if (is.null(rn) && !is.null(state$rows_axis)) {
+        rn <- format_axis_array(daf, state$rows_axis)
+        if (!is.null(state$row_indices)) rn <- rn[state$row_indices]
+    }
+    cn <- colnames(m)
+    if (is.null(cn) && !is.null(state$cols_axis)) {
+        cn <- format_axis_array(daf, state$cols_axis)
+    }
+    flat <- as.character(as.vector(m))
+    idx <- match(flat, target_entries)
+    out <- rep(NA, length(flat))
+    mode(out) <- mode(lookup_vec)
+    ok <- !is.na(idx) & nzchar(flat)
+    out[ok] <- lookup_vec[idx[ok]]
+    if (isTRUE(state$if_not_present)) {
+        sentinel <- state$if_not_value
+        if (!is.null(sentinel)) {
+            sentinel_typed <- methods::as(sentinel, class(lookup_vec)[[1L]])
+            out[!ok] <- sentinel_typed
+        }
+        # bare `??` for matrix doesn't have a row/col to drop; leave NA.
+        state$if_not_present <- NULL
+        state$if_not_value <- NULL
+    }
+    new_m <- matrix(out, nrow = nrow(m), ncol = ncol(m),
+        dimnames = list(rn, cn))
+    state$value <- new_m
+    state$matrix_property <- node$name
+    state$matrix_chain_target_axis <- NULL
+    state
+}
+
+# Resolve `[ matrix-prop @ cols-axis = entry ...`: the column slice is
+# fetched and reduced to a per-rows-axis vector; downstream comparators
+# work on that vector exactly like the vector-mask path.
+.apply_mask_matrix_axis_entry <- function(node, state, daf) {
+    if (!identical(node$op, "IsEqual")) {
+        stop(sprintf(
+            "matrix mask on axis %s expects '@ %s = <entry>', got %s",
+            sQuote(state$matrix_cols_axis),
+            sQuote(state$matrix_cols_axis),
+            sQuote(node$op)
+        ), call. = FALSE)
+    }
+    rows <- state$axis
+    cols <- state$matrix_cols_axis
+    prop <- state$matrix_property
+    cols_arr <- format_axis_array(daf, cols)
+    col_idx <- match(as.character(node$value), cols_arr)
+    if (is.na(col_idx)) {
+        stop(sprintf(
+            "no entry %s on axis %s",
+            sQuote(node$value), sQuote(cols)
+        ), call. = FALSE)
+    }
+    vec <- if (format_has_matrix(daf, rows, cols, prop)) {
+        m <- format_get_matrix(daf, rows, cols, prop)
+        m[, col_idx, drop = TRUE]
+    } else if (format_has_matrix(daf, cols, rows, prop)) {
+        m <- format_get_matrix(daf, cols, rows, prop)
+        m[col_idx, , drop = TRUE]
+    } else {
+        stop(sprintf(
+            "no matrix %s on axes %s, %s",
+            sQuote(prop), sQuote(rows), sQuote(cols)
+        ), call. = FALSE)
+    }
+    if (methods::is(vec, "sparseVector") || methods::is(vec, "Matrix")) {
+        vec <- as.numeric(vec)
+    }
+    mask <- if (is.logical(vec)) vec else !is.na(vec) & vec != 0
+    state$kind <- "mask"
+    state$pending_mask <- mask
+    state$pending_property <- prop
+    state$pending_vec <- vec
+    state$matrix_property <- NULL
+    state$matrix_cols_axis <- NULL
+    state
+}
+
+# `[ square-matrix @| entry ]` / `[ ... @- entry ]` — column or row slice
+# of a SQUARE matrix indexed by the in-scope axis.
+.apply_mask_matrix_square_slice <- function(node, state, daf) {
+    rows <- state$axis
+    prop <- state$matrix_property
+    if (!format_has_matrix(daf, rows, rows, prop)) {
+        stop(sprintf(
+            "no square matrix %s on axis %s",
+            sQuote(prop), sQuote(rows)
+        ), call. = FALSE)
+    }
+    rows_arr <- format_axis_array(daf, rows)
+    idx <- match(as.character(node$value), rows_arr)
+    if (is.na(idx)) {
+        stop(sprintf(
+            "no entry %s on axis %s",
+            sQuote(node$value), sQuote(rows)
+        ), call. = FALSE)
+    }
+    m <- format_get_matrix(daf, rows, rows, prop)
+    vec <- if (identical(node$op, "SquareRowIs")) {
+        m[idx, , drop = TRUE]
+    } else {
+        m[, idx, drop = TRUE]
+    }
+    if (methods::is(vec, "sparseVector") || methods::is(vec, "Matrix")) {
+        vec <- as.numeric(vec)
+    }
+    mask <- if (is.logical(vec)) vec else !is.na(vec) & vec != 0
+    state$kind <- "mask"
+    state$pending_mask <- mask
+    state$pending_property <- prop
+    state$pending_vec <- vec
+    state$matrix_property <- NULL
+    state
+}
+
 .apply_begin_mask <- function(node, state, daf) {
     if (!identical(state$kind, "axis")) {
         stop("'[' mask requires an axis in scope", call. = FALSE)
     }
-    vec <- format_get_vector(daf, state$axis, node$property)
-    mask <- if (is.logical(vec)) vec else !is.na(vec) & vec != 0
-    if (identical(node$op, "BeginNegatedMask")) mask <- !mask
-    state$pending_mask <- mask
-    state$pending_property <- node$property
-    state$pending_vec <- vec
-    state$kind <- "mask"
+    negated <- identical(node$op, "BeginNegatedMask")
+    if (format_has_vector(daf, state$axis, node$property)) {
+        vec <- format_get_vector(daf, state$axis, node$property)
+        mask <- if (is.logical(vec)) vec else !is.na(vec) & vec != 0
+        state$pending_mask <- mask
+        state$pending_property <- node$property
+        state$pending_vec <- vec
+        # The Julia BeginNegatedMask flag is applied at apply_mask (=
+        # EndMask) time over the FINAL accumulated mask, so a trailing
+        # comparator's result is negated correctly. (Pre-negating here
+        # would be discarded the moment a comparator overwrites
+        # pending_mask.)
+        state$pending_mask_negated <- negated
+        state$kind <- "mask"
+        return(state)
+    }
+    # Vector lookup failed: the property is (presumably) a matrix and the
+    # column axis arrives next via `@ axis = entry` or `@| / @-`. Defer to
+    # the matrix-mask resolver. (Julia lookup_matrix_column_mask /
+    # lookup_square_matrix_*_mask phrases.)
+    state$kind <- "mask_matrix_pending_axis"
+    state$matrix_property <- node$property
+    state$pending_mask_negated <- negated
     state
 }
 
@@ -688,6 +932,12 @@ NULL
     axis <- state$axis
     entries <- format_axis_array(daf, axis)
     mask <- state$pending_mask
+    if (isTRUE(state$pending_mask_negated)) {
+        # Outer-bracket negation (`[ ! ... ]`) is applied to the final mask
+        # so a `!` propagates over a trailing comparator (`[ ! age > 60 ]`
+        # means NOT(age > 60), not (NOT-age) > 60).
+        mask <- !mask
+    }
     keep <- !is.na(mask) & mask
     # Carry the surviving-entry indices forward so that a subsequent
     # LookupVector / LookupMatrix subsets by the mask rather than returning
@@ -735,6 +985,26 @@ NULL
     if (identical(state$kind, "axis_pending_matrix_pick")) {
         return(.apply_matrix_column_by_axis(node, state, daf))
     }
+    if (identical(state$kind, "vector_entry_pending_pick")) {
+        return(.apply_top_level_vector_entry(node, state, daf))
+    }
+    if (identical(state$kind, "matrix_entry_pending_first_pick")) {
+        if (!identical(node$op, "IsEqual")) {
+            stop(sprintf(
+                "matrix entry-pick on axis %s expects '= <entry>', got %s",
+                sQuote(state$rows_axis), sQuote(node$op)
+            ), call. = FALSE)
+        }
+        state$row_value <- as.character(node$value)
+        state$kind <- "matrix_entry_pending_second_axis"
+        return(state)
+    }
+    if (identical(state$kind, "matrix_entry_pending_second_pick")) {
+        return(.apply_top_level_matrix_entry(node, state, daf))
+    }
+    if (identical(state$kind, "mask_matrix_pending_pick")) {
+        return(.apply_mask_matrix_axis_entry(node, state, daf))
+    }
     if (identical(state$kind, "vector")) {
         # `: vec > x` etc. - element-wise comparator over a vector returns a
         # bool vector along the same axis. (Julia compare_vector phrase.)
@@ -748,6 +1018,69 @@ NULL
             IsGreaterEqual = vec >= .coerce_cmp(node$value, vec),
             IsMatch        = grepl(node$pattern, as.character(vec), perl = TRUE),
             IsNotMatch     = !grepl(node$pattern, as.character(vec), perl = TRUE)
+        )
+        state$value <- test
+        return(state)
+    }
+    if (identical(state$kind, "axis")) {
+        # `@ axis != value`: compare each axis entry name against `value`,
+        # returning a bool vector along the axis. Mirrors Julia's compare on
+        # the axis-name vector.
+        vec <- state$value
+        test <- switch(node$op,
+            IsLess         = vec <  .coerce_cmp(node$value, vec),
+            IsLessEqual    = vec <= .coerce_cmp(node$value, vec),
+            IsEqual        = vec == .coerce_cmp(node$value, vec),
+            IsNotEqual     = vec != .coerce_cmp(node$value, vec),
+            IsGreater      = vec >  .coerce_cmp(node$value, vec),
+            IsGreaterEqual = vec >= .coerce_cmp(node$value, vec),
+            IsMatch        = grepl(node$pattern, as.character(vec), perl = TRUE),
+            IsNotMatch     = !grepl(node$pattern, as.character(vec), perl = TRUE)
+        )
+        return(list(
+            kind = "vector", axis = state$axis, value = test,
+            indices = state$indices
+        ))
+    }
+    if (identical(state$kind, "matrix")) {
+        # `:: m > x` etc. - element-wise comparator over a matrix returns a
+        # bool matrix along the same two axes. (Julia compare_matrix phrase.)
+        m <- state$value
+        rhs <- .coerce_cmp(node$value, m)
+        test <- switch(node$op,
+            IsLess         = m <  rhs,
+            IsLessEqual    = m <= rhs,
+            IsEqual        = m == rhs,
+            IsNotEqual     = m != rhs,
+            IsGreater      = m >  rhs,
+            IsGreaterEqual = m >= rhs,
+            IsMatch        = matrix(
+                grepl(node$pattern, as.character(m), perl = TRUE),
+                nrow = nrow(m), ncol = ncol(m),
+                dimnames = dimnames(m)
+            ),
+            IsNotMatch     = matrix(
+                !grepl(node$pattern, as.character(m), perl = TRUE),
+                nrow = nrow(m), ncol = ncol(m),
+                dimnames = dimnames(m)
+            )
+        )
+        state$value <- test
+        return(state)
+    }
+    if (identical(state$kind, "scalar")) {
+        # `. v > x` - comparator on a scalar lookup returns a scalar bool.
+        v <- state$value
+        rhs <- .coerce_cmp(node$value, v)
+        test <- switch(node$op,
+            IsLess         = v <  rhs,
+            IsLessEqual    = v <= rhs,
+            IsEqual        = v == rhs,
+            IsNotEqual     = v != rhs,
+            IsGreater      = v >  rhs,
+            IsGreaterEqual = v >= rhs,
+            IsMatch        = grepl(node$pattern, as.character(v), perl = TRUE),
+            IsNotMatch     = !grepl(node$pattern, as.character(v), perl = TRUE)
         )
         state$value <- test
         return(state)
@@ -850,6 +1183,96 @@ NULL
         names(vec) <- format_axis_array(daf, remaining_axis)
     }
     list(kind = "vector", value = vec, axis = remaining_axis)
+}
+
+# Resolve top-level `: vec @ axis = entry` (Julia lookup_vector_entry).
+.apply_top_level_vector_entry <- function(node, state, daf) {
+    if (!identical(node$op, "IsEqual")) {
+        stop(sprintf(
+            "vector entry-pick on axis %s expects '= <entry>', got %s",
+            sQuote(state$axis), sQuote(node$op)
+        ), call. = FALSE)
+    }
+    axis <- state$axis
+    prop <- state$property
+    if (!format_has_vector(daf, axis, prop)) {
+        if (!is.null(state$if_missing)) {
+            default <- .coerce_if_missing_default(
+                state$if_missing, state$if_missing_type
+            )
+            return(list(kind = "scalar", value = default))
+        }
+        stop(sprintf(
+            "no vector %s on axis %s", sQuote(prop), sQuote(axis)
+        ), call. = FALSE)
+    }
+    vec <- format_get_vector(daf, axis, prop)
+    entry <- as.character(node$value)
+    axis_entries <- format_axis_array(daf, axis)
+    idx <- match(entry, axis_entries)
+    if (is.na(idx)) {
+        stop(sprintf(
+            "no entry %s on axis %s", sQuote(entry), sQuote(axis)
+        ), call. = FALSE)
+    }
+    val <- vec[[idx]]
+    names(val) <- NULL
+    list(kind = "scalar", value = val)
+}
+
+# Resolve top-level `:: m @ rows = R @ cols = C` (Julia lookup_matrix_entry).
+.apply_top_level_matrix_entry <- function(node, state, daf) {
+    if (!identical(node$op, "IsEqual")) {
+        stop(sprintf(
+            "matrix entry-pick on axis %s expects '= <entry>', got %s",
+            sQuote(state$cols_axis), sQuote(node$op)
+        ), call. = FALSE)
+    }
+    rows <- state$rows_axis
+    cols <- state$cols_axis
+    prop <- state$matrix_property
+    transposed <- FALSE
+    if (!format_has_matrix(daf, rows, cols, prop)) {
+        if (format_has_matrix(daf, cols, rows, prop)) {
+            transposed <- TRUE
+        } else {
+            if (!is.null(state$if_missing)) {
+                default <- .coerce_if_missing_default(
+                    state$if_missing, state$if_missing_type
+                )
+                return(list(kind = "scalar", value = default))
+            }
+            stop(sprintf(
+                "no matrix %s [%s, %s]",
+                sQuote(prop), sQuote(rows), sQuote(cols)
+            ), call. = FALSE)
+        }
+    }
+    rows_array <- format_axis_array(daf, rows)
+    cols_array <- format_axis_array(daf, cols)
+    row_idx <- match(state$row_value, rows_array)
+    col_idx <- match(as.character(node$value), cols_array)
+    if (is.na(row_idx)) {
+        stop(sprintf(
+            "no entry %s on axis %s",
+            sQuote(state$row_value), sQuote(rows)
+        ), call. = FALSE)
+    }
+    if (is.na(col_idx)) {
+        stop(sprintf(
+            "no entry %s on axis %s",
+            sQuote(node$value), sQuote(cols)
+        ), call. = FALSE)
+    }
+    m <- if (transposed) {
+        m_stored <- format_get_matrix(daf, cols, rows, prop)
+        m_stored[col_idx, row_idx]
+    } else {
+        m_stored <- format_get_matrix(daf, rows, cols, prop)
+        m_stored[row_idx, col_idx]
+    }
+    val <- as.numeric(m)[[1L]]
+    list(kind = "scalar", value = val)
 }
 
 # Resolve `@ rows-axis :: matrix-prop @ cols-axis = entry` once the IsEqual
@@ -973,6 +1396,9 @@ NULL
     if (identical(state$kind, "axis_pending_matrix")) {
         return(.apply_square_slice_axis(node, state, daf))
     }
+    if (identical(state$kind, "mask_matrix_pending_axis")) {
+        return(.apply_mask_matrix_square_slice(node, state, daf))
+    }
     if (!identical(state$kind, "matrix")) {
         stop("square slice requires a matrix in scope", call. = FALSE)
     }
@@ -1000,8 +1426,16 @@ NULL
     )
 }
 .apply_eltwise <- function(node, state, daf) {
+    if (identical(state$kind, "scalar")) {
+        # `. v % Abs` etc. - eltwise on a scalar is a 1-element apply.
+        fn <- get_eltwise(node$name)
+        params <- .coerce_params(node$params)
+        state$value <- do.call(fn, c(list(state$value), params))
+        return(state)
+    }
     if (!state$kind %in% c("vector", "matrix")) {
-        stop("'%' eltwise requires vector or matrix in scope", call. = FALSE)
+        stop("'%' eltwise requires scalar, vector, or matrix in scope",
+            call. = FALSE)
     }
     fn <- get_eltwise(node$name)
     params <- .coerce_params(node$params)

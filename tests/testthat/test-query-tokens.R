@@ -58,3 +58,30 @@ test_that(".tokenize_query unescapes `\\X` inside an unquoted value", {
     vals <- vapply(toks, `[[`, "", "value")
     expect_equal(vals, c("@", "gene", "=", "AL627309.1"))
 })
+
+test_that(".tokenize_query produces an empty-value token for `''`", {
+    # Round-trip with Julia's escape_value(\"\") == \"''\". Required so a
+    # query string emitted by Julia (or by dafr's own canonicaliser for
+    # an empty-string axis entry) parses back identically.
+    toks <- .tokenize_query("@ metacell : type = ''")
+    types <- vapply(toks, `[[`, "", "type")
+    vals  <- vapply(toks, `[[`, "", "value")
+    expect_equal(types, c("operator", "value", "operator", "value", "operator", "value"))
+    expect_equal(vals,  c("@", "metacell", ":", "type", "=", ""))
+})
+
+test_that(".tokenize_query treats `# ... <eol>` as a line comment", {
+    # Per Julia tokens.jl SPACE_REGEX, `#` to end-of-line is whitespace.
+    toks <- .tokenize_query("@ cell # this is a comment\n: donor")
+    vals <- vapply(toks, `[[`, "", "value")
+    expect_equal(vals, c("@", "cell", ":", "donor"))
+    # Leading and trailing comments also collapse to whitespace.
+    expect_equal(
+        vapply(.tokenize_query("# leading\n@ cell"), `[[`, "", "value"),
+        c("@", "cell")
+    )
+    expect_equal(
+        vapply(.tokenize_query("@ cell # trailing"), `[[`, "", "value"),
+        c("@", "cell")
+    )
+})

@@ -213,3 +213,111 @@ test_that("Q jl:889  group rows by with AsAxis (relayout-required)", {
     out <- metacells["@ metacell @ gene :: fraction -/ type =@ >- Mean"]
     expect_equal(dim(out), c(4L, 683L))
 })
+
+# --- Audit-driven additions (post-2026-04-29 sweep, see audit/queries) ----
+# These exercise patterns that the doctests don't cover but that DAF.jl
+# supports per its `PHRASES` table and `test/queries.jl`.
+
+test_that("scalar entry-pick on a vector at top level", {
+    cells <- .fx_cells()
+    expect_equal(unname(cells[": age @ donor = N16"]), 61)
+})
+
+test_that("scalar entry-pick on a matrix at top level", {
+    metacells <- .fx_metacells()
+    expect_equal(
+        unname(metacells[":: edge_weight @ metacell = M412.08 @ metacell = M756.63"]),
+        0.9, tolerance = 0.0001
+    )
+})
+
+test_that("compare_matrix returns a bool matrix", {
+    cells <- .fx_cells()
+    out <- cells["@ cell @ gene :: UMIs > 0"]
+    expect_equal(dim(out), c(856L, 683L))
+    expect_true(is.logical(out))
+})
+
+test_that("compare on @ axis returns a bool vector along the axis", {
+    metacells <- .fx_metacells()
+    out <- metacells["@ metacell != ''"]
+    expect_length(out, 7L)
+    expect_true(all(out))
+})
+
+test_that("matrix-derived mask: cells expressing a gene", {
+    cells <- .fx_cells()
+    expressing <- cells["@ cell [ UMIs @ gene = RPL22 > 0 ]"]
+    not_expressing <- cells["@ cell [ ! UMIs @ gene = RPL22 > 0 ]"]
+    expect_equal(length(expressing) + length(not_expressing), 856L)
+})
+
+test_that("square-matrix mask: outgoing edges from a metacell are non-zero", {
+    metacells <- .fx_metacells()
+    kept <- metacells["@ metacell [ edge_weight @| M412.08 > 0 ]"]
+    # The doctest shows weights 0.5 and 0.1 are non-zero, the rest are 0.
+    expect_equal(length(kept), 2L)
+})
+
+test_that("[ ! prop > val ] negates the comparator (regression)", {
+    # Pre-fix this returned the same set as `[ prop > val ]` because the
+    # leading `!` was applied to the truthy mask before the comparator
+    # overwrote it.
+    cells <- .fx_cells()
+    young <- cells["@ donor [ ! age > 60 ]"]
+    old <- cells["@ donor [ age > 60 ]"]
+    total <- length(cells["@ donor"])
+    expect_equal(length(young) + length(old), total)
+})
+
+test_that("chained ?? sentinels are not clobbered by later chains", {
+    # Reproduces DataAxesFormats.jl test/queries.jl:610.
+    d <- memory_daf(name = "t")
+    add_axis(d, "cell", c("A", "B", "C"))
+    add_axis(d, "metacell", c("X", "Y"))
+    add_axis(d, "type", c("U", "V"))
+    set_vector(d, "cell", "metacell", c("X", "Y", ""))
+    set_vector(d, "metacell", "type", c("U", ""))
+    set_vector(d, "type", "color", c("red", "green"))
+    out <- d["@ cell : metacell ?? blue : type ?? magenta : color"]
+    expect_equal(unname(out), c("red", "magenta", "blue"))
+})
+
+test_that("3-deep matrix chain `:: type : color` (lookup_vector_by_matrix)", {
+    d <- memory_daf(name = "t")
+    add_axis(d, "cell", c("X", "Y"))
+    add_axis(d, "gene", c("A", "B", "C"))
+    add_axis(d, "type", c("U", "V"))
+    set_matrix(d, "cell", "gene", "type",
+        matrix(c("U", "V", "U", "V", "U", "V"), nrow = 2, ncol = 3))
+    set_vector(d, "type", "color", c("red", "green"))
+    out <- d["@ cell @ gene :: type : color"]
+    expect_equal(dim(out), c(2L, 3L))
+    expect_equal(out["X", "B"], "red")
+    expect_equal(out["Y", "C"], "green")
+})
+
+test_that("eltwise on a scalar applies the function to a single value", {
+    d <- memory_daf(name = "t")
+    set_scalar(d, "score", -3.5)
+    expect_equal(d[". score % Abs"], 3.5)
+})
+
+test_that("IfMissing accepts both `|| v Type` and `|| v type Type`", {
+    cells <- .fx_cells()
+    # Bare type form (Julia parity).
+    expect_equal(cells[". missing || 0 Float32"], 0)
+    expect_equal(cells[". missing || 1 Int64"], 1L)
+    # Legacy `type` keyword still works.
+    expect_equal(cells[". missing || 0 type Float32"], 0)
+})
+
+test_that("tokenizer: `''` is the empty-value token; `#` starts a line comment", {
+    metacells <- .fx_metacells()
+    # `''` round-trips with Julia's escape_value("").
+    out <- metacells["@ metacell : type != ''"]
+    expect_length(out, 7L)
+    # Hash comments are whitespace.
+    out2 <- metacells["@ metacell # filter to all\n: type"]
+    expect_length(out2, 7L)
+})

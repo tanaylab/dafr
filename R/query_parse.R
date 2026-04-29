@@ -316,7 +316,10 @@ parse_query <- function(query_string) {
     if (i + 1L <= length(tokens) && tokens[[i + 1L]]$type == "value") {
         default <- tokens[[i + 1L]]$value
         j <- i + 2L
-        # Optional `type T` suffix — Julia parity with `IfMissing(value, T)`.
+        # Optional type suffix. Julia accepts both `|| <val> <Type>`
+        # (bare type name, queries.jl:1048-1060) and the dafr-historical
+        # `|| <val> type <Type>` two-token form. Recognise either; bare
+        # form must not consume a token that's actually the next operation.
         type <- NULL
         if (j + 1L <= length(tokens) &&
             tokens[[j]]$type == "value" &&
@@ -324,6 +327,16 @@ parse_query <- function(query_string) {
             tokens[[j + 1L]]$type == "value") {
             type <- tokens[[j + 1L]]$value
             j <- j + 2L
+        } else if (j <= length(tokens) &&
+                   tokens[[j]]$type == "value" &&
+                   tokens[[j]]$value %in% c(
+                       "Bool", "String",
+                       "Int8", "Int16", "Int32", "Int64",
+                       "UInt8", "UInt16", "UInt32", "UInt64",
+                       "Float32", "Float64"
+                   )) {
+            type <- tokens[[j]]$value
+            j <- j + 1L
         }
         list(node = .qop_if_missing(default, type = type), next_index = j)
     } else {
