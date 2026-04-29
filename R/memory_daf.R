@@ -66,7 +66,10 @@ S7::method(
     if (!exists(name, envir = scalars, inherits = FALSE)) {
         stop(sprintf("scalar %s does not exist", sQuote(name)), call. = FALSE)
     }
-    get(name, envir = scalars, inherits = FALSE)
+    .cache_group_value(
+        get(name, envir = scalars, inherits = FALSE),
+        MEMORY_DATA
+    )
 }
 
 S7::method(format_scalars_set, MemoryDaf) <- function(daf) {
@@ -129,7 +132,7 @@ S7::method(format_axis_length, list(MemoryDaf, S7::class_character)) <- function
 }
 
 S7::method(format_axis_array, list(MemoryDaf, S7::class_character)) <- function(daf, axis) {
-    .memory_axis(daf, axis)$entries
+    .cache_group_value(.memory_axis(daf, axis)$entries, MEMORY_DATA)
 }
 
 S7::method(format_axis_dict, list(MemoryDaf, S7::class_character)) <- function(daf, axis) {
@@ -249,7 +252,10 @@ S7::method(
             sQuote(name), sQuote(axis)
         ), call. = FALSE)
     }
-    get(name, envir = env, inherits = FALSE)
+    .cache_group_value(
+        get(name, envir = env, inherits = FALSE),
+        MEMORY_DATA
+    )
 }
 
 # ---- Vectors: mutation ------------------------------------------------------
@@ -355,7 +361,10 @@ S7::method(
             call. = FALSE
         )
     }
-    get(name, envir = env, inherits = FALSE)
+    .cache_group_value(
+        get(name, envir = env, inherits = FALSE),
+        MEMORY_DATA
+    )
 }
 
 # ---- Matrices: mutation -----------------------------------------------------
