@@ -98,14 +98,13 @@ test_that("R jl:218  has_axis(metacells, metacell)", {
 })
 
 # readers.jl:246 -- axis_version_counter(metacells, "type") sequence
-# Real divergence: Julia bumps only on delete_axis! (0 -> 1).
-# R bumps on both add_axis and delete_axis (1 -> 3 after delete + add).
-test_that("R jl:246  axis_version_counter delete+add (R semantics: 1 -> 3)", {
-    m <- example_metacells_daf()
-    expect_identical(axis_version_counter(m, "type"), 1L)
+test_that("R jl:246  axis_version_counter delete+add (Julia parity: 0 -> 1)", {
+    fx <- .fx("readers_axis_version_counter_type")
+    m  <- example_metacells_daf()
+    expect_identical(axis_version_counter(m, "type"), as.integer(fx$before))
     delete_axis(m, "type")
     add_axis(m, "type", c("Foo", "Bar", "Baz"))
-    expect_identical(axis_version_counter(m, "type"), 3L)
+    expect_identical(axis_version_counter(m, "type"), as.integer(fx$after))
 })
 
 # readers.jl:273 -- axes_set(example_cells_daf())

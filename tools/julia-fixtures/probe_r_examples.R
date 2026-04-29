@@ -65,16 +65,14 @@ add("readers_get_scalar_metacells_default_nothing", function() {
 add("readers_has_axis_cells_metacell",   function() list(want = read_fx("readers_has_axis_cells_metacell")$value,   got = has_axis(cells(), "metacell")))
 add("readers_has_axis_metacells_metacell", function() list(want = read_fx("readers_has_axis_metacells_metacell")$value, got = has_axis(metacells(), "metacell")))
 add("readers_axis_version_counter_type", function() {
-    # Real divergence: Julia bumps only on delete_axis! (Julia: 0 -> 1).
-    # R bumps on both add_axis and delete_axis (R: 1 -> 3 after delete+add).
-    # Pin R-side behavior; the example still runs identically.
+    fx <- read_fx("readers_axis_version_counter_type")
     m <- metacells()
     before <- axis_version_counter(m, "type")
     delete_axis(m, "type")
     add_axis(m, "type", c("Foo", "Bar", "Baz"))
     after <- axis_version_counter(m, "type")
-    list(before = list(want = 1L, got = before),
-         after  = list(want = 3L, got = after))
+    list(before = list(want = fx$before, got = before),
+         after  = list(want = fx$after,  got = after))
 })
 add("readers_axes_set_cells", function() list(want = read_fx("readers_axes_set_cells")$values, got = sort(axes_set(cells()))))
 add("readers_axis_vector_metacells_type", function() list(want = read_fx("readers_axis_vector_metacells_type")$values, got = axis_vector(metacells(), "type")))

@@ -162,7 +162,6 @@ S7::method(
     dict <- new.env(parent = emptyenv(), size = length(entries))
     for (i in seq_along(entries)) assign(entries[[i]], i, envir = dict)
     assign(axis, list(entries = entries, dict = dict), envir = axes)
-    bump_axis_counter(daf, axis)
     invisible()
 }
 
@@ -286,7 +285,6 @@ S7::method(
         return(invisible())
     }
     rm(list = name, envir = env)
-    bump_vector_counter(daf, axis, name)
     invisible()
 }
 
@@ -424,7 +422,6 @@ S7::method(
         return(invisible())
     }
     rm(list = name, envir = env)
-    bump_matrix_counter(daf, rows_axis, columns_axis, name)
     invisible()
 }
 

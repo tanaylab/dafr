@@ -18,8 +18,9 @@ matrix_version_counter(daf, rows_axis, columns_axis, name)
 }
 \description{
 Returns the monotonic counter for the \code{name} matrix on
-\verb{(rows_axis, columns_axis)}. Incremented on \code{set_matrix} /
-\code{delete_matrix} / \code{relayout_matrix}. Returns \code{0L} if never mutated.
+\verb{(rows_axis, columns_axis)}. Mirrors Julia DAF: incremented every
+time \code{set_matrix} is called (NOT on \code{delete_matrix} or
+\code{relayout_matrix}). Returns \code{0L} if never set.
 }
 \examples{
 # Mirrors readers.jl jldoctest at line 1088.

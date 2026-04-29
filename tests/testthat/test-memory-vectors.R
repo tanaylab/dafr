@@ -164,14 +164,15 @@ test_that("get_vector cache invalidates when the axis counter bumps", {
     cache_env <- S7::prop(d, "cache")
     key <- cache_key_vector("cell", "v")
     stale_entry <- get(key, envir = cache_env$memory, inherits = FALSE)
-    expect_equal(stale_entry$stamp[[1L]], 1L) # axis counter == 1 when first cached
+    # Julia parity: add_axis does NOT bump; counter is 0 when first cached.
+    expect_equal(stale_entry$stamp[[1L]], 0L)
 
     bump_axis_counter(d, "cell")
     # Cached entry's stamp now disagrees with current axis_stamp.
     second <- get_vector(d, "cell", "v")
     expect_identical(first, second) # values unchanged (no data mutation)
     fresh_entry <- get(key, envir = cache_env$memory, inherits = FALSE)
-    expect_equal(fresh_entry$stamp[[1L]], 2L) # restamped to current axis counter
+    expect_equal(fresh_entry$stamp[[1L]], 1L) # restamped to current axis counter
 })
 
 test_that("set_vector with named input reorders by axis entries", {

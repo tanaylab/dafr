@@ -18,8 +18,9 @@ vector_version_counter(daf, axis, name)
 }
 \description{
 Returns the monotonic counter for the \code{name} vector on \code{axis}.
-Incremented on \code{set_vector} / \code{delete_vector}. Returns \code{0L} if the
-vector has never been mutated.
+Mirrors Julia DAF: incremented every time \code{set_vector} is called
+(NOT on \code{delete_vector}). Returns \code{0L} if the vector has never been
+set.
 }
 \examples{
 # Mirrors readers.jl jldoctest at line 566.

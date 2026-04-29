@@ -93,7 +93,6 @@ S7::method(
     assign(axis, list(entries = entries, dict = dict),
         envir = S7::prop(daf, "internal")$axes
     )
-    bump_axis_counter(daf, axis)
     invisible()
 }
 
@@ -282,7 +281,6 @@ S7::method(
     }
     unlink(desc_path, force = TRUE)
     .files_vector_unlink_payload(vdir, name)
-    bump_vector_counter(daf, axis, name)
     invisible()
 }
 
@@ -396,7 +394,6 @@ S7::method(
     }
     unlink(desc_path, force = TRUE)
     .files_matrix_unlink_payload(mdir, name)
-    bump_matrix_counter(daf, rows_axis, columns_axis, name)
     invisible()
 }
 

@@ -42,12 +42,12 @@ test_that("format_add_axis stores entries + builds a 1-based index dict", {
     expect_equal(dict$C, 3L)
 })
 
-test_that("format_add_axis bumps the axis version counter", {
+test_that("format_add_axis does NOT bump the axis version counter (Julia parity)", {
     d <- memory_daf()
     counters <- S7::prop(d, "axis_version_counter")
     expect_null(counters$cell)
     format_add_axis(d, "cell", c("A"))
-    expect_equal(counters$cell, 1L)
+    expect_null(counters$cell)
 })
 
 test_that("format_add_axis rejects duplicate axis", {
@@ -68,10 +68,10 @@ test_that("format_delete_axis removes axis + bumps counter", {
     d <- memory_daf()
     format_add_axis(d, "cell", c("A"))
     counters <- S7::prop(d, "axis_version_counter")
-    stamp <- counters$cell
+    expect_null(counters$cell) # add_axis does not bump (Julia parity)
     format_delete_axis(d, "cell", must_exist = TRUE)
     expect_false(format_has_axis(d, "cell"))
-    expect_gt(counters$cell, stamp)
+    expect_equal(counters$cell, 1L)
 })
 
 test_that("format_delete_axis with must_exist=FALSE ignores missing", {
