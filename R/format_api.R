@@ -52,3 +52,26 @@ format_relayout_matrix <- S7::new_generic(
     "format_relayout_matrix",
     c("daf", "rows_axis", "columns_axis", "name")
 )
+
+# ---- Reorder (Julia: Reorder.format_replace_reorder!, etc.) ----
+format_replace_reorder <- S7::new_generic(
+    "format_replace_reorder",
+    c("daf", "plan"),
+    function(daf, plan, crash_counter = NULL) {
+        S7::S7_dispatch()
+    }
+)
+format_cleanup_reorder <- S7::new_generic(
+    "format_cleanup_reorder",
+    c("daf", "plan"),
+    function(daf, plan, crash_counter = NULL) {
+        S7::S7_dispatch()
+    }
+)
+format_reset_reorder <- S7::new_generic(
+    "format_reset_reorder",
+    c("daf"),
+    function(daf, crash_counter = NULL) {
+        S7::S7_dispatch()
+    }
+)

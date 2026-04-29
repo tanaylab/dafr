@@ -51,7 +51,7 @@ files_daf <- function(path, mode = c("r", "r+", "w", "w+"), name = NULL) {
     internal$mode <- mode
     internal$axes <- new.env(parent = emptyenv())
     ctor <- if (mode == "r") FilesDafReadOnly else FilesDaf
-    ctor(
+    daf <- ctor(
         name                   = name,
         internal               = internal,
         cache                  = new_cache_env(),
@@ -59,6 +59,14 @@ files_daf <- function(path, mode = c("r", "r+", "w", "w+"), name = NULL) {
         vector_version_counter = new_counter_env(),
         matrix_version_counter = new_counter_env()
     )
+    # Recovery: a writeable open inherits any leftover .reorder.backup/
+    # from a previously-crashed reorder. Roll it back BEFORE returning the
+    # daf so the caller never sees a partially-replaced store. Read-only
+    # opens leave the backup alone (no permission to mutate).
+    if (mode %in% c("r+", "w+")) {
+        .files_daf_recover_reorder(daf)
+    }
+    daf
 }
 
 #' File-backed Daf writer class.

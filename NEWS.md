@@ -1,5 +1,25 @@
 # dafr 0.2.0 (development)
 
+## reorder_axes() + open_daf() factory (slice 15)
+
+- New `reorder_axes(daf, axis = perm, ...)` permutes axis entries
+  in place, rewriting every vector and matrix that depends on the
+  axis. On `files_daf` the operation is crash-recoverable via a
+  `.reorder.backup/` directory of hardlinks; on the next
+  `files_daf(path, mode = "r+" | "w+")` open, any in-progress reorder
+  is automatically rolled back to the pre-reorder state.
+- New `reset_reorder_axes(daf)` to manually trigger recovery (mostly
+  redundant given the auto-recovery on open).
+- New `open_daf(uri, mode, name)` factory function — dispatches on
+  path / URL pattern. `memory://` (or no path) → `memory_daf`,
+  filesystem path → `files_daf`. Future backends (`*.daf.zarr` and
+  `http(s)://`) are stubbed with explicit error messages pointing
+  to the slices that will land them (16 and 18 respectively). The
+  factory replaces the previous filesystem-only `open_daf` from
+  `R/complete.R`.
+- Mirrors `DataAxesFormats.jl` v0.2.0 commits `90301ff`, `070bd34`
+  (axis reordering) and `b40377f` (`open_daf` factory).
+
 ## Internal: per-item cache_group refactor (slice 14)
 
 The internal format API now returns per-item cache classifications,
