@@ -29,7 +29,7 @@ Character vector.
 ## Examples
 
 ``` r
-d <- example_cells_daf()
-matrices_set(d, "gene", "cell")
+# Mirrors readers.jl jldoctest at line 801.
+matrices_set(example_cells_daf(), "gene", "cell") # "UMIs"
 #> [1] "UMIs"
 ```

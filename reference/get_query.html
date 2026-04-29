@@ -76,7 +76,13 @@ regression is caught by <code>R CMD check</code>.</p>
 </dl></div>
     <div class="section level2">
     <h2 id="value">Value<a class="anchor" aria-label="anchor" href="#value"></a></h2>
-    <p>A scalar, vector, matrix, names set, or NULL if missing.</p>
+    <p>A scalar, vector, matrix, names set, or NULL if missing.
+Data-bearing results carry axis-entry names: vectors are returned
+with <code><a href="https://rdrr.io/r/base/names.html" class="external-link">names()</a></code> set to the axis entries (filtered by any mask) and
+matrices with <code><a href="https://rdrr.io/r/base/dimnames.html" class="external-link">dimnames()</a></code> set to
+<code>list(rows-axis-entries, cols-axis-entries)</code>. Names-set queries
+(<code>?</code>) and axis-only queries (whose values <em>are</em> the entry names)
+are returned unnamed.</p>
     </div>
 
     <div class="section level2">

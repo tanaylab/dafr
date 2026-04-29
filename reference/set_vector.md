@@ -39,10 +39,15 @@ Invisibly the input `daf`.
 ## Examples
 
 ``` r
-d <- memory_daf()
-add_axis(d, "cell", c("c1", "c2", "c3"))
-set_vector(d, "cell", "donor", c("d1", "d2", "d1"))
-get_vector(d, "cell", "donor")
-#>   c1   c2   c3 
-#> "d1" "d2" "d1" 
+# Mirrors writers.jl jldoctest at line 300.
+m <- example_metacells_daf()
+has_vector(m, "type", "is_mebemp")                       # FALSE
+#> [1] FALSE
+set_vector(m, "type", "is_mebemp", c(TRUE, TRUE, FALSE, FALSE))
+has_vector(m, "type", "is_mebemp")                       # TRUE
+#> [1] TRUE
+set_vector(m, "type", "is_mebemp",
+           c(TRUE, TRUE, TRUE, FALSE), overwrite = TRUE)
+has_vector(m, "type", "is_mebemp")                       # TRUE
+#> [1] TRUE
 ```

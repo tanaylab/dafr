@@ -39,17 +39,15 @@ Named atomic vector.
 ## Examples
 
 ``` r
-d <- example_cells_daf()
-donor <- get_vector(d, "cell", "donor")
-head(donor)
-#> demux_07_12_20_1_AACAAGATCCATTTCA-1 demux_07_12_20_1_AACGAAAGTCCAATCA-1 
-#>                               "N89"                               "N84" 
-#> demux_07_12_20_1_AAGACAAAGTTCCGTA-1 demux_07_12_20_1_AGACTCATCTATTGTC-1 
-#>                               "N86"                               "N84" 
-#> demux_07_12_20_1_AGATAGACATTCCTCG-1 demux_07_12_20_1_ATCGTAGTCCAGTGCG-1 
-#>                               "N89"                               "N89" 
-# default value for a missing vector (recycled to axis length):
-head(get_vector(d, "cell", "missing_vec", default = NA_character_))
+# Mirrors readers.jl jldoctest at line 633.
+get_vector(example_metacells_daf(), "type", "color")
+#>    memory-B    MEBEMP-E    MEBEMP-L         MPP 
+#> "steelblue"   "#eebb6e"      "plum"      "gold" 
+# memory-B="steelblue" MEBEMP-E="#eebb6e" MEBEMP-L="plum" MPP="gold"
+
+# Default for a missing vector (recycled to axis length):
+head(get_vector(example_cells_daf(), "cell", "missing_vec",
+                default = NA_character_))
 #> demux_07_12_20_1_AACAAGATCCATTTCA-1 demux_07_12_20_1_AACGAAAGTCCAATCA-1 
 #>                                  NA                                  NA 
 #> demux_07_12_20_1_AAGACAAAGTTCCGTA-1 demux_07_12_20_1_AGACTCATCTATTGTC-1 

@@ -25,9 +25,10 @@ An environment mapping entry names to integer positions.
 ## Examples
 
 ``` r
-d <- memory_daf()
-add_axis(d, "cell", c("c1", "c2", "c3"))
-dict <- axis_dict(d, "cell")
-dict[["c2"]]
-#> [1] 2
+# Mirrors readers.jl jldoctest at line 353.
+dict <- axis_dict(example_metacells_daf(), "type")
+dict[["memory-B"]] # 1
+#> [1] 1
+dict[["MPP"]]      # 4
+#> [1] 4
 ```

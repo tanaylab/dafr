@@ -23,18 +23,42 @@ Character scalar.
 ## Examples
 
 ``` r
-d <- memory_daf(name = "demo")
-set_scalar(d, "organism", "human")
-add_axis(d, "cell", c("c1", "c2"))
-set_vector(d, "cell", "donor", c("d1", "d2"))
-cat(description(d))
-#> name: demo
-#> type: MemoryDaf
+# Mirrors readers.jl jldoctest at line 1170 (description of the chain).
+cat(description(example_chain_daf()))
+#> name: chain!
+#> type: WriteChainDaf
 #> scalars:
 #>   organism: "human"
+#>   reference: "test"
 #> axes:
-#>   cell: 2 entries
+#>   cell: 856 entries
+#>   donor: 95 entries
+#>   experiment: 23 entries
+#>   gene: 683 entries
+#>   metacell: 7 entries
+#>   type: 4 entries
 #> vectors:
 #>   cell:
 #>     donor
+#>     experiment
+#>     metacell
+#>   donor:
+#>     age
+#>     sex
+#>   gene:
+#>     is_lateral
+#>     is_marker
+#>   metacell:
+#>     type
+#>   type:
+#>     color
+#> matrices:
+#>   cell,gene:
+#>     UMIs
+#>   gene,cell:
+#>     UMIs
+#>   gene,metacell:
+#>     fraction
+#>   metacell,metacell:
+#>     edge_weight
 ```

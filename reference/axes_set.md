@@ -21,7 +21,7 @@ Character vector of axis names.
 ## Examples
 
 ``` r
-d <- example_cells_daf()
-axes_set(d)
+# Mirrors readers.jl jldoctest at line 273.
+axes_set(example_cells_daf()) # "cell" "donor" "experiment" "gene"
 #> [1] "cell"       "donor"      "experiment" "gene"      
 ```

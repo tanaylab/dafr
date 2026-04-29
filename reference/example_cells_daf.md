@@ -25,9 +25,31 @@ pre-populated with 856 cells, 683 genes, 95 donors, and 23 experiments.
 ## Examples
 
 ``` r
+# Mirrors example_data.jl jldoctest at line 22.
 d <- example_cells_daf()
-axes_set(d)
-#> [1] "cell"       "donor"      "experiment" "gene"      
-axis_length(d, "cell")
-#> [1] 856
+cat(description(d))
+#> name: cells!
+#> type: MemoryDaf
+#> scalars:
+#>   organism: "human"
+#>   reference: "test"
+#> axes:
+#>   cell: 856 entries
+#>   donor: 95 entries
+#>   experiment: 23 entries
+#>   gene: 683 entries
+#> vectors:
+#>   cell:
+#>     donor
+#>     experiment
+#>   donor:
+#>     age
+#>     sex
+#>   gene:
+#>     is_lateral
+#> matrices:
+#>   cell,gene:
+#>     UMIs
+#>   gene,cell:
+#>     UMIs
 ```

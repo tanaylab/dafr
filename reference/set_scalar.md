@@ -34,8 +34,12 @@ Invisibly the input `daf`.
 ## Examples
 
 ``` r
-d <- memory_daf()
-set_scalar(d, "organism", "human")
-get_scalar(d, "organism")
-#> [1] "human"
+# Mirrors writers.jl jldoctest at line 63.
+d <- example_cells_daf()
+set_scalar(d, "version", 1.0)
+get_scalar(d, "version")                          # 1.0
+#> [1] 1
+set_scalar(d, "version", 2.0, overwrite = TRUE)
+get_scalar(d, "version")                          # 2.0
+#> [1] 2
 ```

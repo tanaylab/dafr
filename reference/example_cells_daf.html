@@ -79,11 +79,33 @@ and 23 experiments.</p>
 
     <div class="section level2">
     <h2 id="ref-examples">Examples<a class="anchor" aria-label="anchor" href="#ref-examples"></a></h2>
-    <div class="sourceCode"><pre class="sourceCode r"><code><span class="r-in"><span><span class="va">d</span> <span class="op">&lt;-</span> <span class="fu">example_cells_daf</span><span class="op">(</span><span class="op">)</span></span></span>
-<span class="r-in"><span><span class="fu"><a href="axes_set.html">axes_set</a></span><span class="op">(</span><span class="va">d</span><span class="op">)</span></span></span>
-<span class="r-out co"><span class="r-pr">#&gt;</span> [1] "cell"       "donor"      "experiment" "gene"      </span>
-<span class="r-in"><span><span class="fu"><a href="axis_length.html">axis_length</a></span><span class="op">(</span><span class="va">d</span>, <span class="st">"cell"</span><span class="op">)</span></span></span>
-<span class="r-out co"><span class="r-pr">#&gt;</span> [1] 856</span>
+    <div class="sourceCode"><pre class="sourceCode r"><code><span class="r-in"><span><span class="co"># Mirrors example_data.jl jldoctest at line 22.</span></span></span>
+<span class="r-in"><span><span class="va">d</span> <span class="op">&lt;-</span> <span class="fu">example_cells_daf</span><span class="op">(</span><span class="op">)</span></span></span>
+<span class="r-in"><span><span class="fu"><a href="https://rdrr.io/r/base/cat.html" class="external-link">cat</a></span><span class="op">(</span><span class="fu"><a href="description.html">description</a></span><span class="op">(</span><span class="va">d</span><span class="op">)</span><span class="op">)</span></span></span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> name: cells!</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> type: MemoryDaf</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> scalars:</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span>   organism: "human"</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span>   reference: "test"</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> axes:</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span>   cell: 856 entries</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span>   donor: 95 entries</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span>   experiment: 23 entries</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span>   gene: 683 entries</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> vectors:</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span>   cell:</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span>     donor</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span>     experiment</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span>   donor:</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span>     age</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span>     sex</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span>   gene:</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span>     is_lateral</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> matrices:</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span>   cell,gene:</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span>     UMIs</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span>   gene,cell:</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span>     UMIs</span>
 </code></pre></div>
     </div>
   </main><aside class="col-md-3"><nav id="toc" aria-label="Table of contents"><h2>On this page</h2>

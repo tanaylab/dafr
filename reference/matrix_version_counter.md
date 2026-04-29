@@ -1,8 +1,9 @@
 # Per-matrix version counter.
 
 Returns the monotonic counter for the `name` matrix on
-`(rows_axis, columns_axis)`. Incremented on `set_matrix` /
-`delete_matrix` / `relayout_matrix`. Returns `0L` if never mutated.
+`(rows_axis, columns_axis)`. Mirrors Julia DAF: incremented every time
+`set_matrix` is called (NOT on `delete_matrix` or `relayout_matrix`).
+Returns `0L` if never set.
 
 ## Usage
 
@@ -31,9 +32,13 @@ matrix_version_counter(daf, rows_axis, columns_axis, name)
 ## Examples
 
 ``` r
-d <- memory_daf()
-add_axis(d, "cell", c("c1", "c2"))
-add_axis(d, "gene", c("g1", "g2", "g3"))
-matrix_version_counter(d, "cell", "gene", "UMIs") # 0L
-#> [1] 0
+# Mirrors readers.jl jldoctest at line 1088.
+m <- example_metacells_daf()
+matrix_version_counter(m, "gene", "metacell", "fraction") # 1L
+#> [1] 1
+set_matrix(m, "gene", "metacell", "fraction",
+           matrix(stats::runif(683L * 7L), 683L, 7L),
+           overwrite = TRUE)
+matrix_version_counter(m, "gene", "metacell", "fraction") # 2L
+#> [1] 2
 ```

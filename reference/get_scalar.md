@@ -30,10 +30,9 @@ The scalar value.
 ## Examples
 
 ``` r
-d <- memory_daf()
-set_scalar(d, "organism", "human")
-get_scalar(d, "organism")
+# Mirrors readers.jl jldoctests at lines 157 + 165.
+get_scalar(example_cells_daf(), "organism") # "human"
 #> [1] "human"
-get_scalar(d, "reference", default = "GRCh38")
-#> [1] "GRCh38"
+get_scalar(example_metacells_daf(), "organism", default = NULL) # NULL
+#> NULL
 ```

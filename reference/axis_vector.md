@@ -29,10 +29,10 @@ Character vector of entry names.
 ## Examples
 
 ``` r
-d <- memory_daf()
-add_axis(d, "cell", c("c1", "c2", "c3"))
-axis_vector(d, "cell")
-#> [1] "c1" "c2" "c3"
-axis_vector(d, "gene", null_if_missing = TRUE)
+# Mirrors readers.jl jldoctest at line 308.
+axis_vector(example_metacells_daf(), "type")
+#> [1] "memory-B" "MEBEMP-E" "MEBEMP-L" "MPP"     
+# "memory-B" "MEBEMP-E" "MEBEMP-L" "MPP"
+axis_vector(example_cells_daf(), "missing", null_if_missing = TRUE)
 #> NULL
 ```

@@ -25,7 +25,7 @@ Character vector.
 ## Examples
 
 ``` r
-d <- example_cells_daf()
-vectors_set(d, "cell")
+# Mirrors readers.jl jldoctest at line 595.
+vectors_set(example_cells_daf(), "cell") # "donor" "experiment"
 #> [1] "donor"      "experiment"
 ```

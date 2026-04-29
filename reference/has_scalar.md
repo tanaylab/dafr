@@ -25,10 +25,9 @@ Logical scalar.
 ## Examples
 
 ``` r
-d <- memory_daf()
-set_scalar(d, "organism", "human")
-has_scalar(d, "organism")
+# Mirrors readers.jl jldoctests at lines 92 + 100.
+has_scalar(example_cells_daf(),     "organism") # TRUE
 #> [1] TRUE
-has_scalar(d, "reference")
+has_scalar(example_metacells_daf(), "organism") # FALSE
 #> [1] FALSE
 ```

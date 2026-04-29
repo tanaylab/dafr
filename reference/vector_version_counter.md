@@ -1,8 +1,8 @@
 # Per-vector version counter.
 
-Returns the monotonic counter for the `name` vector on `axis`.
-Incremented on `set_vector` / `delete_vector`. Returns `0L` if the
-vector has never been mutated.
+Returns the monotonic counter for the `name` vector on `axis`. Mirrors
+Julia DAF: incremented every time `set_vector` is called (NOT on
+`delete_vector`). Returns `0L` if the vector has never been set.
 
 ## Usage
 
@@ -31,11 +31,11 @@ vector_version_counter(daf, axis, name)
 ## Examples
 
 ``` r
-d <- memory_daf()
-add_axis(d, "cell", c("c1", "c2"))
-vector_version_counter(d, "cell", "donor") # 0L
-#> [1] 0
-set_vector(d, "cell", "donor", c("A", "B"))
-vector_version_counter(d, "cell", "donor") # 1L
+# Mirrors readers.jl jldoctest at line 566.
+m <- example_metacells_daf()
+vector_version_counter(m, "type", "color")                       # 1L
 #> [1] 1
+set_vector(m, "type", "color", as.character(1:4), overwrite = TRUE)
+vector_version_counter(m, "type", "color")                       # 2L
+#> [1] 2
 ```

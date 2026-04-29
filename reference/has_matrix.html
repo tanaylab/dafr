@@ -51,7 +51,7 @@
 
     <div class="section level2">
     <h2 id="ref-usage">Usage<a class="anchor" aria-label="anchor" href="#ref-usage"></a></h2>
-    <div class="sourceCode"><pre class="sourceCode r"><code><span><span class="fu">has_matrix</span><span class="op">(</span><span class="va">daf</span>, <span class="va">rows_axis</span>, <span class="va">columns_axis</span>, <span class="va">name</span><span class="op">)</span></span></code></pre></div>
+    <div class="sourceCode"><pre class="sourceCode r"><code><span><span class="fu">has_matrix</span><span class="op">(</span><span class="va">daf</span>, <span class="va">rows_axis</span>, <span class="va">columns_axis</span>, <span class="va">name</span>, relayout <span class="op">=</span> <span class="cn">TRUE</span><span class="op">)</span></span></code></pre></div>
     </div>
 
     <div class="section level2">
@@ -73,6 +73,14 @@
 <dt id="arg-name">name<a class="anchor" aria-label="anchor" href="#arg-name"></a></dt>
 <dd><p>Matrix name.</p></dd>
 
+
+<dt id="arg-relayout">relayout<a class="anchor" aria-label="anchor" href="#arg-relayout"></a></dt>
+<dd><p>If <code>TRUE</code> (default), also report <code>TRUE</code> when the
+matrix is stored only at the flipped axis pair
+<code>(columns_axis, rows_axis)</code>. Set to <code>FALSE</code> to ask the strict
+"this exact layout?" question. Mirrors Julia
+<code>has_matrix(...; relayout)</code>.</p></dd>
+
 </dl></div>
     <div class="section level2">
     <h2 id="value">Value<a class="anchor" aria-label="anchor" href="#value"></a></h2>
@@ -81,10 +89,12 @@
 
     <div class="section level2">
     <h2 id="ref-examples">Examples<a class="anchor" aria-label="anchor" href="#ref-examples"></a></h2>
-    <div class="sourceCode"><pre class="sourceCode r"><code><span class="r-in"><span><span class="va">d</span> <span class="op">&lt;-</span> <span class="fu"><a href="example_cells_daf.html">example_cells_daf</a></span><span class="op">(</span><span class="op">)</span></span></span>
-<span class="r-in"><span><span class="fu">has_matrix</span><span class="op">(</span><span class="va">d</span>, <span class="st">"gene"</span>, <span class="st">"cell"</span>, <span class="st">"UMIs"</span><span class="op">)</span></span></span>
+    <div class="sourceCode"><pre class="sourceCode r"><code><span class="r-in"><span><span class="co"># Mirrors readers.jl jldoctest at line 748.</span></span></span>
+<span class="r-in"><span><span class="fu">has_matrix</span><span class="op">(</span><span class="fu"><a href="example_cells_daf.html">example_cells_daf</a></span><span class="op">(</span><span class="op">)</span>, <span class="st">"gene"</span>, <span class="st">"cell"</span>, <span class="st">"UMIs"</span><span class="op">)</span> <span class="co"># TRUE</span></span></span>
 <span class="r-out co"><span class="r-pr">#&gt;</span> [1] TRUE</span>
-<span class="r-in"><span><span class="fu">has_matrix</span><span class="op">(</span><span class="va">d</span>, <span class="st">"cell"</span>, <span class="st">"gene"</span>, <span class="st">"UMIs"</span><span class="op">)</span></span></span>
+<span class="r-in"><span></span></span>
+<span class="r-in"><span><span class="co"># `relayout = FALSE` asks the strict "this exact layout?" question:</span></span></span>
+<span class="r-in"><span><span class="fu">has_matrix</span><span class="op">(</span><span class="fu"><a href="example_cells_daf.html">example_cells_daf</a></span><span class="op">(</span><span class="op">)</span>, <span class="st">"gene"</span>, <span class="st">"cell"</span>, <span class="st">"UMIs"</span>, relayout <span class="op">=</span> <span class="cn">FALSE</span><span class="op">)</span></span></span>
 <span class="r-out co"><span class="r-pr">#&gt;</span> [1] TRUE</span>
 </code></pre></div>
     </div>

@@ -70,9 +70,30 @@ metacells, and 4 types.</p>
 
     <div class="section level2">
     <h2 id="ref-examples">Examples<a class="anchor" aria-label="anchor" href="#ref-examples"></a></h2>
-    <div class="sourceCode"><pre class="sourceCode r"><code><span class="r-in"><span><span class="va">m</span> <span class="op">&lt;-</span> <span class="fu">example_metacells_daf</span><span class="op">(</span><span class="op">)</span></span></span>
-<span class="r-in"><span><span class="fu"><a href="axes_set.html">axes_set</a></span><span class="op">(</span><span class="va">m</span><span class="op">)</span></span></span>
-<span class="r-out co"><span class="r-pr">#&gt;</span> [1] "cell"     "gene"     "metacell" "type"    </span>
+    <div class="sourceCode"><pre class="sourceCode r"><code><span class="r-in"><span><span class="co"># Mirrors example_data.jl jldoctest at line 62.</span></span></span>
+<span class="r-in"><span><span class="va">m</span> <span class="op">&lt;-</span> <span class="fu">example_metacells_daf</span><span class="op">(</span><span class="op">)</span></span></span>
+<span class="r-in"><span><span class="fu"><a href="https://rdrr.io/r/base/cat.html" class="external-link">cat</a></span><span class="op">(</span><span class="fu"><a href="description.html">description</a></span><span class="op">(</span><span class="va">m</span><span class="op">)</span><span class="op">)</span></span></span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> name: metacells!</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> type: MemoryDaf</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> axes:</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span>   cell: 856 entries</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span>   gene: 683 entries</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span>   metacell: 7 entries</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span>   type: 4 entries</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> vectors:</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span>   cell:</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span>     metacell</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span>   gene:</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span>     is_marker</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span>   metacell:</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span>     type</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span>   type:</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span>     color</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> matrices:</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span>   gene,metacell:</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span>     fraction</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span>   metacell,metacell:</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span>     edge_weight</span>
 </code></pre></div>
     </div>
   </main><aside class="col-md-3"><nav id="toc" aria-label="Table of contents"><h2>On this page</h2>

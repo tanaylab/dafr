@@ -1,8 +1,9 @@
 # Per-axis version counter.
 
-Returns the monotonic counter for `axis` on `daf`. Incremented on
-`add_axis` / `delete_axis`. Returns `0L` if the axis has never been
-mutated (including non-existent axes, to match wrapper semantics).
+Returns the monotonic counter for `axis` on `daf`. Mirrors Julia DAF:
+incremented every time `delete_axis` is called (NOT on `add_axis`).
+Returns `0L` if `axis` has never been deleted (including non-existent
+axes, to match wrapper semantics).
 
 ## Usage
 
@@ -32,10 +33,12 @@ axis_version_counter(daf, axis)
 ## Examples
 
 ``` r
-d <- memory_daf()
-axis_version_counter(d, "cell") # 0L
+# Mirrors readers.jl jldoctest at line 246.
+m <- example_metacells_daf()
+axis_version_counter(m, "type")           # 0L
 #> [1] 0
-add_axis(d, "cell", c("c1", "c2"))
-axis_version_counter(d, "cell") # 1L
+delete_axis(m, "type")
+add_axis(m, "type", c("Foo", "Bar", "Baz"))
+axis_version_counter(m, "type")           # 1L
 #> [1] 1
 ```

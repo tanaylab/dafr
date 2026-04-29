@@ -5,7 +5,7 @@ Entry names of an axis (full or by index).
 ## Usage
 
 ``` r
-axis_entries(daf, axis, indices = NULL)
+axis_entries(daf, axis, indices = NULL, allow_empty = FALSE)
 ```
 
 ## Arguments
@@ -20,7 +20,14 @@ axis_entries(daf, axis, indices = NULL)
 
 - indices:
 
-  Optional integer index vector (1-based).
+  Optional integer index vector (1-based). When `allow_empty = TRUE`, a
+  zero or negative index is allowed and is translated to the empty
+  string `""` in the result.
+
+- allow_empty:
+
+  If `TRUE`, treat zero/negative `indices` as the empty string `""` in
+  the result (mirrors Julia `axis_entries(...; allow_empty=true)`).
 
 ## Value
 
@@ -29,10 +36,9 @@ Character vector.
 ## Examples
 
 ``` r
-d <- memory_daf()
-add_axis(d, "cell", c("c1", "c2", "c3", "c4"))
-axis_entries(d, "cell")
-#> [1] "c1" "c2" "c3" "c4"
-axis_entries(d, "cell", indices = c(1L, 3L))
-#> [1] "c1" "c3"
+# Mirrors readers.jl jldoctest at line 448.
+axis_entries(example_metacells_daf(), "type",
+             indices = c(3L, 0L), allow_empty = TRUE)
+#> [1] "MEBEMP-L" ""        
+# "MEBEMP-L" ""
 ```

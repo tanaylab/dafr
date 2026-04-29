@@ -26,8 +26,43 @@ and
 ## Examples
 
 ``` r
+# Mirrors example_data.jl jldoctest at line 205.
 ch <- example_chain_daf()
-axes_set(ch)
-#> [1] "cell"       "donor"      "experiment" "gene"       "metacell"  
-#> [6] "type"      
+cat(description(ch))
+#> name: chain!
+#> type: WriteChainDaf
+#> scalars:
+#>   organism: "human"
+#>   reference: "test"
+#> axes:
+#>   cell: 856 entries
+#>   donor: 95 entries
+#>   experiment: 23 entries
+#>   gene: 683 entries
+#>   metacell: 7 entries
+#>   type: 4 entries
+#> vectors:
+#>   cell:
+#>     donor
+#>     experiment
+#>     metacell
+#>   donor:
+#>     age
+#>     sex
+#>   gene:
+#>     is_lateral
+#>     is_marker
+#>   metacell:
+#>     type
+#>   type:
+#>     color
+#> matrices:
+#>   cell,gene:
+#>     UMIs
+#>   gene,cell:
+#>     UMIs
+#>   gene,metacell:
+#>     fraction
+#>   metacell,metacell:
+#>     edge_weight
 ```

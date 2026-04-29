@@ -29,9 +29,11 @@ Invisibly the input `daf`.
 ## Examples
 
 ``` r
-d <- memory_daf()
-set_scalar(d, "organism", "human")
+# Mirrors writers.jl jldoctest at line 109.
+d <- example_cells_daf()
+has_scalar(d, "organism")    # TRUE
+#> [1] TRUE
 delete_scalar(d, "organism")
-has_scalar(d, "organism")
+has_scalar(d, "organism")    # FALSE
 #> [1] FALSE
 ```

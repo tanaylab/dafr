@@ -30,10 +30,11 @@ Invisibly the input `daf`.
 ## Examples
 
 ``` r
-d <- memory_daf()
-add_axis(d, "cell", c("c1", "c2"))
-add_axis(d, "gene", c("g1", "g2", "g3"))
-delete_axis(d, "gene")
-axes_set(d)
-#> [1] "cell"
+# Mirrors writers.jl jldoctest at line 217.
+m <- example_metacells_daf()
+has_axis(m, "type")    # TRUE
+#> [1] TRUE
+delete_axis(m, "type")
+has_axis(m, "type")    # FALSE
+#> [1] FALSE
 ```

@@ -25,7 +25,14 @@ get_query(daf, query_string)
 
 ## Value
 
-A scalar, vector, matrix, names set, or NULL if missing.
+A scalar, vector, matrix, names set, or NULL if missing. Data-bearing
+results carry axis-entry names: vectors are returned with
+[`names()`](https://rdrr.io/r/base/names.html) set to the axis entries
+(filtered by any mask) and matrices with
+[`dimnames()`](https://rdrr.io/r/base/dimnames.html) set to
+`list(rows-axis-entries, cols-axis-entries)`. Names-set queries (`?`)
+and axis-only queries (whose values *are* the entry names) are returned
+unnamed.
 
 ## Examples
 

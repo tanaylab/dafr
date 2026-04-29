@@ -82,10 +82,14 @@ exists; if <code>TRUE</code> replace.</p></dd>
 
     <div class="section level2">
     <h2 id="ref-examples">Examples<a class="anchor" aria-label="anchor" href="#ref-examples"></a></h2>
-    <div class="sourceCode"><pre class="sourceCode r"><code><span class="r-in"><span><span class="va">d</span> <span class="op">&lt;-</span> <span class="fu"><a href="memory_daf.html">memory_daf</a></span><span class="op">(</span><span class="op">)</span></span></span>
-<span class="r-in"><span><span class="fu">set_scalar</span><span class="op">(</span><span class="va">d</span>, <span class="st">"organism"</span>, <span class="st">"human"</span><span class="op">)</span></span></span>
-<span class="r-in"><span><span class="fu"><a href="get_scalar.html">get_scalar</a></span><span class="op">(</span><span class="va">d</span>, <span class="st">"organism"</span><span class="op">)</span></span></span>
-<span class="r-out co"><span class="r-pr">#&gt;</span> [1] "human"</span>
+    <div class="sourceCode"><pre class="sourceCode r"><code><span class="r-in"><span><span class="co"># Mirrors writers.jl jldoctest at line 63.</span></span></span>
+<span class="r-in"><span><span class="va">d</span> <span class="op">&lt;-</span> <span class="fu"><a href="example_cells_daf.html">example_cells_daf</a></span><span class="op">(</span><span class="op">)</span></span></span>
+<span class="r-in"><span><span class="fu">set_scalar</span><span class="op">(</span><span class="va">d</span>, <span class="st">"version"</span>, <span class="fl">1.0</span><span class="op">)</span></span></span>
+<span class="r-in"><span><span class="fu"><a href="get_scalar.html">get_scalar</a></span><span class="op">(</span><span class="va">d</span>, <span class="st">"version"</span><span class="op">)</span>                          <span class="co"># 1.0</span></span></span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> [1] 1</span>
+<span class="r-in"><span><span class="fu">set_scalar</span><span class="op">(</span><span class="va">d</span>, <span class="st">"version"</span>, <span class="fl">2.0</span>, overwrite <span class="op">=</span> <span class="cn">TRUE</span><span class="op">)</span></span></span>
+<span class="r-in"><span><span class="fu"><a href="get_scalar.html">get_scalar</a></span><span class="op">(</span><span class="va">d</span>, <span class="st">"version"</span><span class="op">)</span>                          <span class="co"># 2.0</span></span></span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> [1] 2</span>
 </code></pre></div>
     </div>
   </main><aside class="col-md-3"><nav id="toc" aria-label="Table of contents"><h2>On this page</h2>

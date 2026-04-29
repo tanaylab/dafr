@@ -40,8 +40,15 @@ Dense `matrix` or sparse `dgCMatrix` / `lgCMatrix` with dimnames set.
 ## Examples
 
 ``` r
-d <- example_cells_daf()
-m <- get_matrix(d, "cell", "gene", "UMIs")
-dim(m)
-#> [1] 856 683
+# Mirrors readers.jl jldoctest at line 933.
+m <- get_matrix(example_metacells_daf(), "gene", "metacell", "fraction")
+dim(m)            # 683  7
+#> [1] 683   7
+colnames(m)       # 7 metacell IDs
+#> [1] "M1671.28" "M2357.20" "M2169.56" "M2576.86" "M1440.15" "M756.63"  "M412.08" 
+m[1:3, 1:2]
+#>           M1671.28     M2357.20
+#> RPL22 4.476663e-03 0.0041285986
+#> PARK7 8.523007e-05 0.0001541991
+#> ENO1  4.644479e-04 0.0004826086
 ```

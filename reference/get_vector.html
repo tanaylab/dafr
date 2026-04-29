@@ -87,17 +87,15 @@ length is an error. The vector's atomic type follows <code>default</code>
 
     <div class="section level2">
     <h2 id="ref-examples">Examples<a class="anchor" aria-label="anchor" href="#ref-examples"></a></h2>
-    <div class="sourceCode"><pre class="sourceCode r"><code><span class="r-in"><span><span class="va">d</span> <span class="op">&lt;-</span> <span class="fu"><a href="example_cells_daf.html">example_cells_daf</a></span><span class="op">(</span><span class="op">)</span></span></span>
-<span class="r-in"><span><span class="va">donor</span> <span class="op">&lt;-</span> <span class="fu">get_vector</span><span class="op">(</span><span class="va">d</span>, <span class="st">"cell"</span>, <span class="st">"donor"</span><span class="op">)</span></span></span>
-<span class="r-in"><span><span class="fu"><a href="https://rdrr.io/r/utils/head.html" class="external-link">head</a></span><span class="op">(</span><span class="va">donor</span><span class="op">)</span></span></span>
-<span class="r-out co"><span class="r-pr">#&gt;</span> demux_07_12_20_1_AACAAGATCCATTTCA-1 demux_07_12_20_1_AACGAAAGTCCAATCA-1 </span>
-<span class="r-out co"><span class="r-pr">#&gt;</span>                               "N89"                               "N84" </span>
-<span class="r-out co"><span class="r-pr">#&gt;</span> demux_07_12_20_1_AAGACAAAGTTCCGTA-1 demux_07_12_20_1_AGACTCATCTATTGTC-1 </span>
-<span class="r-out co"><span class="r-pr">#&gt;</span>                               "N86"                               "N84" </span>
-<span class="r-out co"><span class="r-pr">#&gt;</span> demux_07_12_20_1_AGATAGACATTCCTCG-1 demux_07_12_20_1_ATCGTAGTCCAGTGCG-1 </span>
-<span class="r-out co"><span class="r-pr">#&gt;</span>                               "N89"                               "N89" </span>
-<span class="r-in"><span><span class="co"># default value for a missing vector (recycled to axis length):</span></span></span>
-<span class="r-in"><span><span class="fu"><a href="https://rdrr.io/r/utils/head.html" class="external-link">head</a></span><span class="op">(</span><span class="fu">get_vector</span><span class="op">(</span><span class="va">d</span>, <span class="st">"cell"</span>, <span class="st">"missing_vec"</span>, default <span class="op">=</span> <span class="cn">NA_character_</span><span class="op">)</span><span class="op">)</span></span></span>
+    <div class="sourceCode"><pre class="sourceCode r"><code><span class="r-in"><span><span class="co"># Mirrors readers.jl jldoctest at line 633.</span></span></span>
+<span class="r-in"><span><span class="fu">get_vector</span><span class="op">(</span><span class="fu"><a href="example_metacells_daf.html">example_metacells_daf</a></span><span class="op">(</span><span class="op">)</span>, <span class="st">"type"</span>, <span class="st">"color"</span><span class="op">)</span></span></span>
+<span class="r-out co"><span class="r-pr">#&gt;</span>    memory-B    MEBEMP-E    MEBEMP-L         MPP </span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> "steelblue"   "#eebb6e"      "plum"      "gold" </span>
+<span class="r-in"><span><span class="co"># memory-B="steelblue" MEBEMP-E="#eebb6e" MEBEMP-L="plum" MPP="gold"</span></span></span>
+<span class="r-in"><span></span></span>
+<span class="r-in"><span><span class="co"># Default for a missing vector (recycled to axis length):</span></span></span>
+<span class="r-in"><span><span class="fu"><a href="https://rdrr.io/r/utils/head.html" class="external-link">head</a></span><span class="op">(</span><span class="fu">get_vector</span><span class="op">(</span><span class="fu"><a href="example_cells_daf.html">example_cells_daf</a></span><span class="op">(</span><span class="op">)</span>, <span class="st">"cell"</span>, <span class="st">"missing_vec"</span>,</span></span>
+<span class="r-in"><span>                default <span class="op">=</span> <span class="cn">NA_character_</span><span class="op">)</span><span class="op">)</span></span></span>
 <span class="r-out co"><span class="r-pr">#&gt;</span> demux_07_12_20_1_AACAAGATCCATTTCA-1 demux_07_12_20_1_AACGAAAGTCCAATCA-1 </span>
 <span class="r-out co"><span class="r-pr">#&gt;</span>                                  NA                                  NA </span>
 <span class="r-out co"><span class="r-pr">#&gt;</span> demux_07_12_20_1_AAGACAAAGTTCCGTA-1 demux_07_12_20_1_AGACTCATCTATTGTC-1 </span>

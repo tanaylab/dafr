@@ -77,13 +77,11 @@
 
     <div class="section level2">
     <h2 id="ref-examples">Examples<a class="anchor" aria-label="anchor" href="#ref-examples"></a></h2>
-    <div class="sourceCode"><pre class="sourceCode r"><code><span class="r-in"><span><span class="va">d</span> <span class="op">&lt;-</span> <span class="fu"><a href="memory_daf.html">memory_daf</a></span><span class="op">(</span><span class="op">)</span></span></span>
-<span class="r-in"><span><span class="fu"><a href="add_axis.html">add_axis</a></span><span class="op">(</span><span class="va">d</span>, <span class="st">"cell"</span>, <span class="fu"><a href="https://rdrr.io/r/base/c.html" class="external-link">c</a></span><span class="op">(</span><span class="st">"c1"</span>, <span class="st">"c2"</span><span class="op">)</span><span class="op">)</span></span></span>
-<span class="r-in"><span><span class="fu"><a href="set_vector.html">set_vector</a></span><span class="op">(</span><span class="va">d</span>, <span class="st">"cell"</span>, <span class="st">"donor"</span>, <span class="fu"><a href="https://rdrr.io/r/base/c.html" class="external-link">c</a></span><span class="op">(</span><span class="st">"d1"</span>, <span class="st">"d2"</span><span class="op">)</span><span class="op">)</span></span></span>
-<span class="r-in"><span><span class="fu">has_vector</span><span class="op">(</span><span class="va">d</span>, <span class="st">"cell"</span>, <span class="st">"donor"</span><span class="op">)</span></span></span>
-<span class="r-out co"><span class="r-pr">#&gt;</span> [1] TRUE</span>
-<span class="r-in"><span><span class="fu">has_vector</span><span class="op">(</span><span class="va">d</span>, <span class="st">"cell"</span>, <span class="st">"age"</span><span class="op">)</span></span></span>
+    <div class="sourceCode"><pre class="sourceCode r"><code><span class="r-in"><span><span class="co"># Mirrors readers.jl jldoctests at lines 525 + 533.</span></span></span>
+<span class="r-in"><span><span class="fu">has_vector</span><span class="op">(</span><span class="fu"><a href="example_cells_daf.html">example_cells_daf</a></span><span class="op">(</span><span class="op">)</span>,     <span class="st">"cell"</span>,     <span class="st">"type"</span><span class="op">)</span> <span class="co"># FALSE</span></span></span>
 <span class="r-out co"><span class="r-pr">#&gt;</span> [1] FALSE</span>
+<span class="r-in"><span><span class="fu">has_vector</span><span class="op">(</span><span class="fu"><a href="example_metacells_daf.html">example_metacells_daf</a></span><span class="op">(</span><span class="op">)</span>, <span class="st">"metacell"</span>, <span class="st">"type"</span><span class="op">)</span> <span class="co"># TRUE</span></span></span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> [1] TRUE</span>
 </code></pre></div>
     </div>
   </main><aside class="col-md-3"><nav id="toc" aria-label="Table of contents"><h2>On this page</h2>

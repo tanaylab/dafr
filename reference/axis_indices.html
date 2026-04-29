@@ -51,7 +51,7 @@
 
     <div class="section level2">
     <h2 id="ref-usage">Usage<a class="anchor" aria-label="anchor" href="#ref-usage"></a></h2>
-    <div class="sourceCode"><pre class="sourceCode r"><code><span><span class="fu">axis_indices</span><span class="op">(</span><span class="va">daf</span>, <span class="va">axis</span>, <span class="va">entries</span><span class="op">)</span></span></code></pre></div>
+    <div class="sourceCode"><pre class="sourceCode r"><code><span><span class="fu">axis_indices</span><span class="op">(</span><span class="va">daf</span>, <span class="va">axis</span>, <span class="va">entries</span>, allow_empty <span class="op">=</span> <span class="cn">FALSE</span>, allow_missing <span class="op">=</span> <span class="cn">FALSE</span><span class="op">)</span></span></code></pre></div>
     </div>
 
     <div class="section level2">
@@ -69,18 +69,32 @@
 <dt id="arg-entries">entries<a class="anchor" aria-label="anchor" href="#arg-entries"></a></dt>
 <dd><p>Character vector of entry names to resolve.</p></dd>
 
+
+<dt id="arg-allow-empty">allow_empty<a class="anchor" aria-label="anchor" href="#arg-allow-empty"></a></dt>
+<dd><p>If <code>TRUE</code>, the empty string <code>""</code> resolves to a zero
+index (mirrors Julia <code>axis_indices(...; allow_empty=true)</code>).</p></dd>
+
+
+<dt id="arg-allow-missing">allow_missing<a class="anchor" aria-label="anchor" href="#arg-allow-missing"></a></dt>
+<dd><p>If <code>TRUE</code>, any non-empty name that is not present
+in the axis resolves to a zero index (mirrors Julia
+<code>axis_indices(...; allow_missing=true)</code>).</p></dd>
+
 </dl></div>
     <div class="section level2">
     <h2 id="value">Value<a class="anchor" aria-label="anchor" href="#value"></a></h2>
-    <p>Integer vector of 1-based positions; same length as <code>entries</code>.</p>
+    <p>Integer vector of positions (1-based when present;
+<code>0L</code> when <code>allow_empty</code>/<code>allow_missing</code> substitutes for an empty or
+absent name); same length as <code>entries</code>.</p>
     </div>
 
     <div class="section level2">
     <h2 id="ref-examples">Examples<a class="anchor" aria-label="anchor" href="#ref-examples"></a></h2>
-    <div class="sourceCode"><pre class="sourceCode r"><code><span class="r-in"><span><span class="va">d</span> <span class="op">&lt;-</span> <span class="fu"><a href="memory_daf.html">memory_daf</a></span><span class="op">(</span><span class="op">)</span></span></span>
-<span class="r-in"><span><span class="fu"><a href="add_axis.html">add_axis</a></span><span class="op">(</span><span class="va">d</span>, <span class="st">"cell"</span>, <span class="fu"><a href="https://rdrr.io/r/base/c.html" class="external-link">c</a></span><span class="op">(</span><span class="st">"c1"</span>, <span class="st">"c2"</span>, <span class="st">"c3"</span><span class="op">)</span><span class="op">)</span></span></span>
-<span class="r-in"><span><span class="fu">axis_indices</span><span class="op">(</span><span class="va">d</span>, <span class="st">"cell"</span>, <span class="fu"><a href="https://rdrr.io/r/base/c.html" class="external-link">c</a></span><span class="op">(</span><span class="st">"c3"</span>, <span class="st">"c1"</span><span class="op">)</span><span class="op">)</span></span></span>
-<span class="r-out co"><span class="r-pr">#&gt;</span> [1] 3 1</span>
+    <div class="sourceCode"><pre class="sourceCode r"><code><span class="r-in"><span><span class="co"># Mirrors readers.jl jldoctest at line 389.</span></span></span>
+<span class="r-in"><span><span class="fu">axis_indices</span><span class="op">(</span><span class="fu"><a href="example_metacells_daf.html">example_metacells_daf</a></span><span class="op">(</span><span class="op">)</span>, <span class="st">"type"</span>,</span></span>
+<span class="r-in"><span>             <span class="fu"><a href="https://rdrr.io/r/base/c.html" class="external-link">c</a></span><span class="op">(</span><span class="st">"MPP"</span>, <span class="st">""</span><span class="op">)</span>, allow_empty <span class="op">=</span> <span class="cn">TRUE</span><span class="op">)</span></span></span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> [1] 4 0</span>
+<span class="r-in"><span><span class="co"># 4 0</span></span></span>
 </code></pre></div>
     </div>
   </main><aside class="col-md-3"><nav id="toc" aria-label="Table of contents"><h2>On this page</h2>

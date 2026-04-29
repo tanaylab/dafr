@@ -25,7 +25,7 @@ Integer scalar.
 ## Examples
 
 ``` r
-d <- example_cells_daf()
-axis_length(d, "cell")
-#> [1] 856
+# Mirrors readers.jl jldoctest at line 487.
+axis_length(example_metacells_daf(), "type") # 4
+#> [1] 4
 ```
