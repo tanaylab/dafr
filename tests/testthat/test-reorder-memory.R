@@ -164,3 +164,55 @@ test_that("reset_reorder_axes() on a fresh memory_daf is a no-op", {
     d <- memory_daf()
     expect_silent(reset_reorder_axes(d))
 })
+
+# ---- Integration: categorical + idempotency ------------------------------
+
+test_that("reorder_axes() preserves a categorical/factor vector's levels", {
+    d <- memory_daf()
+    add_axis(d, "cell", c("A", "B", "C", "D"))
+    f <- factor(c("low", "high", "low", "med"), levels = c("low", "med", "high"))
+    set_vector(d, "cell", "g", f)
+    reorder_axes(d, cell = c(4L, 2L, 1L, 3L))
+    out <- get_vector(d, "cell", "g")
+    expect_s3_class(out, "factor")
+    expect_identical(levels(out), c("low", "med", "high"))
+    expect_equal(as.character(unname(out)), c("med", "high", "low", "low"))
+})
+
+test_that("reorder_axes() with identity permutation is functionally a no-op", {
+    d <- memory_daf()
+    add_axis(d, "cell", c("A", "B", "C"))
+    set_vector(d, "cell", "x", c(10, 20, 30))
+    reorder_axes(d, cell = c(1L, 2L, 3L))
+    expect_identical(axis_vector(d, "cell"), c("A", "B", "C"))
+    expect_equal(unname(get_vector(d, "cell", "x")), c(10, 20, 30))
+})
+
+test_that("reorder_axes() applied twice with the same permutation = identity inverse", {
+    d <- memory_daf()
+    add_axis(d, "cell", c("A", "B", "C"))
+    set_vector(d, "cell", "x", c(10, 20, 30))
+    perm <- c(2L, 3L, 1L)
+    reorder_axes(d, cell = perm)
+    # Compute the inverse: for perm[i] = j, inverse[j] = i.
+    inverse <- integer(length(perm))
+    inverse[perm] <- seq_along(perm)
+    reorder_axes(d, cell = inverse)
+    expect_identical(axis_vector(d, "cell"), c("A", "B", "C"))
+    expect_equal(unname(get_vector(d, "cell", "x")), c(10, 20, 30))
+})
+
+test_that("reorder_axes() with empty axis (length 0) is a no-op", {
+    d <- memory_daf()
+    add_axis(d, "cell", character(0L))
+    expect_silent(reorder_axes(d, cell = integer(0L)))
+    expect_identical(axis_vector(d, "cell"), character(0L))
+})
+
+test_that("reset_reorder_axes() called repeatedly is idempotent", {
+    d <- memory_daf()
+    add_axis(d, "cell", c("A", "B"))
+    expect_silent(reset_reorder_axes(d))
+    expect_silent(reset_reorder_axes(d))
+    expect_silent(reset_reorder_axes(d))
+})
