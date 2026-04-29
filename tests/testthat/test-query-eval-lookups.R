@@ -34,7 +34,7 @@ test_that("get_query returns a vector", {
     d <- memory_daf(name = "t")
     add_axis(d, "cell", c("c1", "c2", "c3"))
     set_vector(d, "cell", "age", c(1, 2, 3))
-    expect_equal(get_query(d, "@ cell : age"), c(1, 2, 3))
+    expect_equal(get_query(d, "@ cell : age"), c(c1 = 1, c2 = 2, c3 = 3))
 })
 
 test_that("get_query with '@ axis : ?' returns vector names", {

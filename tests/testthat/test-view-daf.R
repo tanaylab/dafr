@@ -34,7 +34,7 @@ test_that("ViewDaf format_get_vector delegates via query", {
     add_axis(d, "cell", c("c1", "c2"))
     set_vector(d, "cell", "age", c(10, 20))
     v <- viewer(d, name = "v")
-    expect_equal(format_get_vector(v, "cell", "age"), c(10, 20))
+    expect_equal(format_get_vector(v, "cell", "age"), c(c1 = 10, c2 = 20))
 })
 
 test_that("ViewDaf with no overrides mirrors base daf (smoke)", {

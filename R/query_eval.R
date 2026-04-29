@@ -399,16 +399,15 @@ NULL
         return(state)
     }
     indices <- state$indices
+    entries <- format_axis_array(daf, axis)
+    out_names <- if (is.null(indices)) entries else entries[indices]
     if (!format_has_vector(daf, axis, node$name)) {
         if (!is.null(state$if_missing)) {
-            out_len <- if (is.null(indices)) {
-                format_axis_length(daf, axis)
-            } else {
-                length(indices)
-            }
+            out_value <- rep(state$if_missing, length(out_names))
+            names(out_value) <- out_names
             return(list(
                 kind = "vector",
-                value = rep(state$if_missing, out_len),
+                value = out_value,
                 axis = axis,
                 property = node$name
             ))
@@ -421,11 +420,8 @@ NULL
     value <- format_get_vector(daf, axis, node$name)
     if (!is.null(indices)) {
         value <- value[indices]
-        # Tag the surviving-axis-entry names so a subsequent chain
-        # (`.apply_chained_lookup_vector`) sees the masked subset rather
-        # than falling back to the full axis array.
-        names(value) <- format_axis_array(daf, axis)[indices]
     }
+    names(value) <- out_names
     list(
         kind = "vector",
         value = value,
@@ -510,6 +506,9 @@ NULL
         return(state)
     }
     row_indices <- state$row_indices
+    rows_entries <- format_axis_array(daf, rows)
+    out_rownames <- if (is.null(row_indices)) rows_entries else rows_entries[row_indices]
+    out_colnames <- format_axis_array(daf, cols)
     transposed <- FALSE
     if (!format_has_matrix(daf, rows, cols, node$name)) {
         if (format_has_matrix(daf, cols, rows, node$name)) {
@@ -519,18 +518,15 @@ NULL
             transposed <- TRUE
         } else {
             if (!is.null(state$if_missing)) {
-                nrow_out <- if (is.null(row_indices)) {
-                    format_axis_length(daf, rows)
-                } else {
-                    length(row_indices)
-                }
+                m <- matrix(
+                    state$if_missing,
+                    length(out_rownames),
+                    length(out_colnames),
+                    dimnames = list(out_rownames, out_colnames)
+                )
                 return(list(
                     kind = "matrix",
-                    value = matrix(
-                        state$if_missing,
-                        nrow_out,
-                        format_axis_length(daf, cols)
-                    ),
+                    value = m,
                     rows_axis = rows, cols_axis = cols
                 ))
             }
@@ -556,6 +552,7 @@ NULL
     if (!is.null(row_indices)) {
         m <- m[row_indices, , drop = FALSE]
     }
+    dimnames(m) <- list(out_rownames, out_colnames)
     list(
         kind = "matrix",
         value = m,

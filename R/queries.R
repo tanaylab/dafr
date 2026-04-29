@@ -16,6 +16,12 @@ NULL
 #'   [DafrQuery] object produced by the query builders (e.g.
 #'   `Axis("cell") |> LookupVector("donor")`).
 #' @return A scalar, vector, matrix, names set, or NULL if missing.
+#'   Data-bearing results carry axis-entry names: vectors are returned
+#'   with `names()` set to the axis entries (filtered by any mask) and
+#'   matrices with `dimnames()` set to
+#'   `list(rows-axis-entries, cols-axis-entries)`. Names-set queries
+#'   (`?`) and axis-only queries (whose values *are* the entry names)
+#'   are returned unnamed.
 #' @examples
 #' cells <- example_cells_daf()
 #' metacells <- example_metacells_daf()
