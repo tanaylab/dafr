@@ -178,6 +178,7 @@ S7::method(
             if (dir.exists(sp)) unlink(sp, recursive = TRUE, force = TRUE)
         }
         unlink(file.path(path, "daf.json"), force = TRUE)
+        unlink(file.path(path, ".reorder.backup"), recursive = TRUE, force = TRUE)
     }
     for (sub in c("scalars", "axes", "vectors", "matrices")) {
         dir.create(file.path(path, sub), recursive = TRUE, showWarnings = FALSE)

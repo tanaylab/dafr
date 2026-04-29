@@ -480,9 +480,8 @@ S7::method(
     backup_root <- .reorder_backup_root(daf)
     if (dir.exists(backup_root)) {
         stop(sprintf(
-            "files_daf: reorder backup directory already exists at %s; ",
-            sQuote(backup_root),
-            "call reset_reorder_axes() first"
+            "files_daf: reorder backup directory already exists at %s; delete it or call reset_reorder_axes() first",
+            sQuote(backup_root)
         ), call. = FALSE)
     }
     dir.create(backup_root, recursive = FALSE, showWarnings = FALSE)
@@ -733,9 +732,8 @@ S7::method(format_reset_reorder, FilesDaf) <-
         format_reset_reorder(daf),
         error = function(e) {
             warning(sprintf(
-                "files_daf: reorder backup at %s could not be restored (%s); ",
-                sQuote(backup_root), conditionMessage(e),
-                "removing leftover backup"
+                "files_daf: reorder backup at %s could not be restored (%s); removing leftover backup",
+                sQuote(backup_root), conditionMessage(e)
             ), call. = FALSE)
             unlink(backup_root, recursive = TRUE, force = TRUE)
             FALSE

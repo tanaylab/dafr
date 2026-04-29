@@ -216,3 +216,23 @@ test_that("reset_reorder_axes() called repeatedly is idempotent", {
     expect_silent(reset_reorder_axes(d))
     expect_silent(reset_reorder_axes(d))
 })
+
+# ---- Flipped-orientation matrix coverage ----------------------------------
+
+test_that("memory_daf reorder permutes columns when matrix is at flipped orientation", {
+    # Matrix stored as (gene, cell) where cell is being permuted.
+    # Cell-permute should permute matrix COLUMNS, not rows.
+    d <- memory_daf()
+    add_axis(d, "cell", c("A", "B", "C"))
+    add_axis(d, "gene", c("X", "Y"))
+    set_matrix(d, "gene", "cell", "M",
+               matrix(c(1, 2, 3, 4, 5, 6), nrow = 2))  # 2 genes x 3 cells
+    # M[X, A]=1, M[Y, A]=2, M[X, B]=3, M[Y, B]=4, M[X, C]=5, M[Y, C]=6
+    reorder_axes(d, cell = c(3L, 1L, 2L))
+    m <- get_matrix(d, "gene", "cell", "M")
+    # After permutation, cells in order C, A, B:
+    expect_equal(unname(m[1, ]), c(5, 1, 3))    # gene X across new cell order
+    expect_equal(unname(m[2, ]), c(6, 2, 4))    # gene Y
+    expect_identical(rownames(m), c("X", "Y"))      # rows unchanged
+    expect_identical(colnames(m), c("C", "A", "B")) # cols permuted
+})

@@ -195,3 +195,50 @@ test_that("files_daf reorder + read with names produces aligned output", {
     expect_identical(names(v), c("C", "A", "B"))
     expect_equal(unname(v), c(30.0, 10.0, 20.0))
 })
+
+# ---- I-1 regression: w+ open removes stale .reorder.backup/ --------------
+
+test_that("files_daf w+ open removes leftover .reorder.backup/", {
+    skip_on_cran()
+    tmp <- tempfile()
+    d_mem <- memory_daf()
+    add_axis(d_mem, "cell", c("A", "B", "C"))
+    set_vector(d_mem, "cell", "x", c(1.0, 2.0, 3.0))
+    fd_w <- files_daf(tmp, mode = "w")
+    copy_all(fd_w, d_mem, relayout = FALSE)
+    # Crash mid-reorder to leave a backup
+    expect_error(
+        reorder_axes(fd_w, cell = c(2L, 3L, 1L),
+                     crash_counter = dafr:::new_crash_counter(1L)),
+        class = "SimulatedCrash"
+    )
+    expect_true(dir.exists(file.path(tmp, ".reorder.backup")))
+    rm(fd_w)
+    # w+ open should NOT resurrect from backup -- should produce a clean store
+    fd_clean <- files_daf(tmp, mode = "w+")
+    expect_false(dir.exists(file.path(tmp, ".reorder.backup")))
+    expect_length(axes_set(fd_clean), 0L)
+    expect_length(scalars_set(fd_clean), 0L)
+})
+
+# ---- Flipped-orientation matrix coverage ----------------------------------
+
+test_that("files_daf reorder permutes columns when matrix is at flipped orientation", {
+    skip_on_cran()
+    tmp <- tempfile()
+    d_mem <- memory_daf()
+    add_axis(d_mem, "cell", c("A", "B", "C"))
+    add_axis(d_mem, "gene", c("X", "Y"))
+    set_matrix(d_mem, "gene", "cell", "M",
+               matrix(c(1, 2, 3, 4, 5, 6), nrow = 2))
+    fd_w <- files_daf(tmp, mode = "w")
+    copy_all(fd_w, d_mem, relayout = FALSE)
+    reorder_axes(fd_w, cell = c(3L, 1L, 2L))
+    rm(fd_w)
+    fd_r <- files_daf(tmp, mode = "r")
+    m <- get_matrix(fd_r, "gene", "cell", "M")
+    expect_equal(unname(m[1, ]), c(5, 1, 3))
+    expect_equal(unname(m[2, ]), c(6, 2, 4))
+    expect_identical(rownames(m), c("X", "Y"))
+    expect_identical(colnames(m), c("C", "A", "B"))
+})
