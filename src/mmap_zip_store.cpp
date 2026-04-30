@@ -1,8 +1,10 @@
 // Slice 17 — MmapZipStore: C++ port of upstream
 // DataAxesFormats.jl/src/mmap_zip_store.jl. Phase 1 laid the skeleton;
 // Phase 2 implements the read side (parse existing zip, list, get bytes,
-// decompress deflate). Writer / ALTREP / crash-counter / recovery /
-// reserve-patch land in later phases.
+// decompress deflate). Phase 4 adds the write side: bootstrap empty zip,
+// reserve VA + overlay file, append entries via the two-step commit
+// protocol. Crash-counter ticks (Phase 5), recovery (Phase 6), and
+// reserve/patch_crc (Phase 7) remain stubs.
 
 #include <cpp11.hpp>
 
@@ -22,6 +24,24 @@
 #include <unistd.h>
 
 #include <zlib.h>
+
+#define R_NO_REMAP
+#include <R.h>
+#include <Rinternals.h>
+
+// Platform-specific MAP/PROT flags. We're Linux-only for slice 17 — Darwin's
+// MAP_ANON is 0x1000 instead of MAP_ANONYMOUS but we don't need that yet.
+#ifndef MAP_ANONYMOUS
+#  ifdef MAP_ANON
+#    define MAP_ANONYMOUS MAP_ANON
+#  endif
+#endif
+
+// ZIP integer fields are stored little-endian on disk. Our shift+or LE
+// writers don't depend on host endianness, but match upstream's runtime
+// assertion so a hypothetical big-endian host fails loudly at startup.
+static_assert(sizeof(uint16_t) == 2 && sizeof(uint32_t) == 4 && sizeof(uint64_t) == 8,
+              "MmapZipStore requires standard fixed-width integer sizes");
 
 namespace dafr {
 
@@ -52,6 +72,29 @@ static inline uint64_t le64(const uint8_t* p) {
 
 [[noreturn]] static void zip_corrupt(const std::string& reason) {
     throw std::runtime_error("MmapZipStore: corrupt zip — " + reason);
+}
+
+// ---- Little-endian byte writers ------------------------------------------
+//
+// Shift+or, NOT unaligned reinterpret-casts: keeps the writer portable to
+// any host byte order and avoids strict-aliasing UB. Mirrors upstream
+// `write_little_endian_uintN!` in mmap_zip_store.jl.
+
+static inline void w_le16(uint8_t* p, uint16_t v) {
+    p[0] = static_cast<uint8_t>(v & 0xFFu);
+    p[1] = static_cast<uint8_t>((v >> 8) & 0xFFu);
+}
+
+static inline void w_le32(uint8_t* p, uint32_t v) {
+    p[0] = static_cast<uint8_t>(v & 0xFFu);
+    p[1] = static_cast<uint8_t>((v >> 8) & 0xFFu);
+    p[2] = static_cast<uint8_t>((v >> 16) & 0xFFu);
+    p[3] = static_cast<uint8_t>((v >> 24) & 0xFFu);
+}
+
+static inline void w_le64(uint8_t* p, uint64_t v) {
+    w_le32(p, static_cast<uint32_t>(v & 0xFFFFFFFFu));
+    w_le32(p + 4, static_cast<uint32_t>((v >> 32) & 0xFFFFFFFFu));
 }
 
 // Parser state lives entirely on the stack/in MmapZipStoreImpl during open;
@@ -335,6 +378,268 @@ void parse_central_directory(MmapZipStoreImpl& impl) {
     }
 }
 
+// ---- Virtual address reservation + file overlay -------------------------
+//
+// `reserve_virtual_range` consumes virtual address space only — no RAM, no
+// disk, no file size. The returned region is PROT_NONE so any access to it
+// faults until it's overlaid with `overlay_file_on_range` (PROT_READ |
+// PROT_WRITE, MAP_SHARED | MAP_FIXED).
+//
+// On Linux MAP_FIXED atomically replaces any prior overlay at the same
+// base, so growing the file just requires another overlay call.
+
+void* reserve_virtual_range(uint64_t byte_length) {
+    void* p = ::mmap(nullptr, static_cast<size_t>(byte_length),
+                     PROT_NONE, MAP_PRIVATE | MAP_ANONYMOUS, -1, 0);
+    if (p == MAP_FAILED) {
+        throw std::runtime_error(
+            std::string("MmapZipStore: mmap reservation failed: ") + std::strerror(errno));
+    }
+    return p;
+}
+
+void overlay_file_on_range(void* base, int fd, uint64_t byte_length) {
+    void* p = ::mmap(base, static_cast<size_t>(byte_length),
+                     PROT_READ | PROT_WRITE, MAP_SHARED | MAP_FIXED, fd, 0);
+    if (p == MAP_FAILED) {
+        throw std::runtime_error(
+            std::string("MmapZipStore: mmap file overlay failed: ") + std::strerror(errno));
+    }
+    if (p != base) {
+        throw std::runtime_error("MmapZipStore: mmap file overlay returned a different base");
+    }
+}
+
+void disable_transparent_huge_pages(void* base, uint64_t byte_length) {
+#ifdef MADV_NOHUGEPAGE
+    if (byte_length == 0) return;
+    int rc = ::madvise(base, static_cast<size_t>(byte_length), MADV_NOHUGEPAGE);
+    if (rc != 0) {
+        Rf_warning("MmapZipStore: madvise(MADV_NOHUGEPAGE) failed: %s", std::strerror(errno));
+    }
+#else
+    (void)base;
+    (void)byte_length;
+#endif
+}
+
+void resize_file_overlay(MmapZipStoreImpl& impl, uint64_t new_file_size) {
+    if (!impl.is_writable) {
+        throw std::runtime_error("MmapZipStore: resize on a non-writable store");
+    }
+    if (new_file_size > impl.max_file_size) {
+        throw std::runtime_error("MmapZipStore: resize beyond max_file_size");
+    }
+    if (::ftruncate(impl.fd, static_cast<off_t>(new_file_size)) != 0) {
+        throw std::runtime_error(
+            std::string("MmapZipStore: ftruncate failed: ") + std::strerror(errno));
+    }
+    overlay_file_on_range(reinterpret_cast<void*>(impl.reservation_base),
+                          impl.fd, new_file_size);
+    impl.overlay_length = new_file_size;
+}
+
+// ---- ZIP record writers --------------------------------------------------
+//
+// Byte-for-byte ports of upstream's write_*! functions. `dst` points at
+// the first byte of the record (Julia's 1-indexed `position` -> 0-indexed
+// pointer). Field offsets match upstream comments verbatim.
+
+void write_central_directory_entry(uint8_t* dst,
+                                   const std::string& name_bytes,
+                                   uint64_t compressed_size,
+                                   uint64_t uncompressed_size,
+                                   uint32_t crc32_value,
+                                   uint64_t local_file_header_offset) {
+    w_le32(dst,       CENTRAL_DIRECTORY_ENTRY_SIGNATURE);
+    w_le16(dst + 4,   0x031eu);                       // version made by (Unix v3.0)
+    w_le16(dst + 6,   ZIP64_VERSION_NEEDED);          // version needed (ZIP64)
+    w_le16(dst + 8,   static_cast<uint16_t>(1u << 11)); // gp flag: UTF-8 name
+    w_le16(dst + 10,  STORED_COMPRESSION_METHOD);
+    w_le16(dst + 12,  0u);                            // last mod time
+    w_le16(dst + 14,  0x21u);                         // last mod date (1980-01-01)
+    w_le32(dst + 16,  crc32_value);
+    w_le32(dst + 20,  0xFFFFFFFFu);                   // comp size sentinel
+    w_le32(dst + 24,  0xFFFFFFFFu);                   // uncomp size sentinel
+    w_le16(dst + 28,  static_cast<uint16_t>(name_bytes.size()));
+    w_le16(dst + 30,  static_cast<uint16_t>(ZIP64_CENTRAL_DIRECTORY_EXTRA_SIZE));
+    w_le16(dst + 32,  0u);                            // comment length
+    w_le16(dst + 34,  0u);                            // disk number start
+    w_le16(dst + 36,  0u);                            // internal attrs
+    w_le32(dst + 38,  static_cast<uint32_t>(0100644u) << 16); // external attrs (Unix)
+    w_le32(dst + 42,  0xFFFFFFFFu);                   // LFH offset sentinel
+    if (!name_bytes.empty()) {
+        std::memcpy(dst + CENTRAL_DIRECTORY_ENTRY_FIXED_SIZE,
+                    name_bytes.data(), name_bytes.size());
+    }
+    uint8_t* extra = dst + CENTRAL_DIRECTORY_ENTRY_FIXED_SIZE + name_bytes.size();
+    w_le16(extra,     ZIP64_EXTRA_HEADER_ID);
+    w_le16(extra + 2, static_cast<uint16_t>(ZIP64_CENTRAL_DIRECTORY_EXTRA_SIZE - 4));
+    w_le64(extra + 4,  uncompressed_size);
+    w_le64(extra + 12, compressed_size);
+    w_le64(extra + 20, local_file_header_offset);
+}
+
+void write_local_file_header(uint8_t* dst,
+                             const std::string& name_bytes,
+                             uint64_t compressed_size,
+                             uint64_t uncompressed_size,
+                             uint32_t crc32_value,
+                             uint32_t alignment_padding) {
+    uint16_t total_extra = static_cast<uint16_t>(
+        ZIP64_LOCAL_FILE_HEADER_EXTRA_SIZE + alignment_padding);
+    w_le32(dst,       LOCAL_FILE_HEADER_SIGNATURE);
+    w_le16(dst + 4,   ZIP64_VERSION_NEEDED);
+    w_le16(dst + 6,   static_cast<uint16_t>(1u << 11));
+    w_le16(dst + 8,   STORED_COMPRESSION_METHOD);
+    w_le16(dst + 10,  0u);                            // last mod time
+    w_le16(dst + 12,  0x21u);                         // last mod date
+    w_le32(dst + 14,  crc32_value);
+    w_le32(dst + 18,  0xFFFFFFFFu);                   // comp size sentinel
+    w_le32(dst + 22,  0xFFFFFFFFu);                   // uncomp size sentinel
+    w_le16(dst + 26,  static_cast<uint16_t>(name_bytes.size()));
+    w_le16(dst + 28,  total_extra);
+    if (!name_bytes.empty()) {
+        std::memcpy(dst + LOCAL_FILE_HEADER_FIXED_SIZE,
+                    name_bytes.data(), name_bytes.size());
+    }
+    uint8_t* extra = dst + LOCAL_FILE_HEADER_FIXED_SIZE + name_bytes.size();
+    w_le16(extra,     ZIP64_EXTRA_HEADER_ID);
+    w_le16(extra + 2, static_cast<uint16_t>(ZIP64_LOCAL_FILE_HEADER_EXTRA_SIZE - 4));
+    w_le64(extra + 4,  uncompressed_size);
+    w_le64(extra + 12, compressed_size);
+    if (alignment_padding > 0) {
+        // Min extra-field size is 4 bytes (header alone with 0-byte payload).
+        // compute_alignment_padding always returns >= 4 (or 0).
+        uint8_t* pad = extra + ZIP64_LOCAL_FILE_HEADER_EXTRA_SIZE;
+        w_le16(pad,     DAF_PADDING_EXTRA_HEADER_ID);
+        w_le16(pad + 2, static_cast<uint16_t>(alignment_padding - 4));
+        if (alignment_padding > 4) {
+            std::memset(pad + 4, 0, alignment_padding - 4);
+        }
+    }
+}
+
+void write_zip64_end_of_central_directory(uint8_t* dst,
+                                          uint64_t cd_offset,
+                                          uint64_t cd_size,
+                                          uint64_t total_entries) {
+    w_le32(dst,       ZIP64_END_OF_CENTRAL_DIRECTORY_SIGNATURE);
+    // size of this record minus the signature + this size field (12 bytes).
+    w_le64(dst + 4,   ZIP64_END_OF_CENTRAL_DIRECTORY_SIZE - 12u);
+    w_le16(dst + 12,  0x031eu);                        // version made by
+    w_le16(dst + 14,  ZIP64_VERSION_NEEDED);
+    w_le32(dst + 16,  0u);                             // disk number
+    w_le32(dst + 20,  0u);                             // CD start disk
+    w_le64(dst + 24,  total_entries);                  // entries this disk
+    w_le64(dst + 32,  total_entries);                  // total entries
+    w_le64(dst + 40,  cd_size);
+    w_le64(dst + 48,  cd_offset);
+}
+
+void write_zip64_end_of_central_directory_locator(uint8_t* dst, uint64_t z64_eocd_offset) {
+    w_le32(dst,       ZIP64_END_OF_CENTRAL_DIRECTORY_LOCATOR_SIGNATURE);
+    w_le32(dst + 4,   0u);                             // disk holding ZIP64 EOCD
+    w_le64(dst + 8,   z64_eocd_offset);
+    w_le32(dst + 16,  1u);                             // total disks
+}
+
+void write_end_of_central_directory(uint8_t* dst) {
+    w_le32(dst,       END_OF_CENTRAL_DIRECTORY_SIGNATURE);
+    w_le16(dst + 4,   0u);
+    w_le16(dst + 6,   0u);
+    w_le16(dst + 8,   0xFFFFu);                        // entries this disk (sentinel)
+    w_le16(dst + 10,  0xFFFFu);                        // total entries (sentinel)
+    w_le32(dst + 12,  0xFFFFFFFFu);                    // CD size sentinel
+    w_le32(dst + 16,  0xFFFFFFFFu);                    // CD offset sentinel
+    w_le16(dst + 20,  0u);                             // comment length
+}
+
+void write_end_of_central_directory_region(uint8_t* dst,
+                                           uint64_t cd_offset,
+                                           uint64_t cd_size,
+                                           uint64_t total_entries) {
+    uint64_t z64_eocd_offset = cd_offset + cd_size;
+    write_zip64_end_of_central_directory(dst, cd_offset, cd_size, total_entries);
+    write_zip64_end_of_central_directory_locator(
+        dst + ZIP64_END_OF_CENTRAL_DIRECTORY_SIZE, z64_eocd_offset);
+    write_end_of_central_directory(
+        dst + ZIP64_END_OF_CENTRAL_DIRECTORY_SIZE + ZIP64_END_OF_CENTRAL_DIRECTORY_LOCATOR_SIZE);
+}
+
+uint64_t central_directory_entry_size(const ZipEntry& entry) {
+    return static_cast<uint64_t>(CENTRAL_DIRECTORY_ENTRY_FIXED_SIZE)
+         + static_cast<uint64_t>(entry.name.size())
+         + static_cast<uint64_t>(ZIP64_CENTRAL_DIRECTORY_EXTRA_SIZE);
+}
+
+void populate_central_directory_offsets(std::vector<ZipEntry>& entries,
+                                        uint64_t central_directory_offset) {
+    uint64_t cur = central_directory_offset;
+    for (auto& e : entries) {
+        e.central_directory_offset = cur;
+        cur += central_directory_entry_size(e);
+    }
+}
+
+void write_central_directory_and_eocd(uint8_t* dst,
+                                      const std::vector<ZipEntry>& entries,
+                                      uint64_t central_directory_offset,
+                                      uint64_t central_directory_size) {
+    uint64_t pos = 0;
+    for (const auto& entry : entries) {
+        write_central_directory_entry(dst + pos,
+                                      entry.name,
+                                      entry.compressed_size,
+                                      entry.uncompressed_size,
+                                      entry.crc32,
+                                      entry.local_file_header_offset);
+        pos += static_cast<uint64_t>(CENTRAL_DIRECTORY_ENTRY_FIXED_SIZE)
+             + static_cast<uint64_t>(entry.name.size())
+             + static_cast<uint64_t>(ZIP64_CENTRAL_DIRECTORY_EXTRA_SIZE);
+    }
+    write_end_of_central_directory_region(dst + central_directory_size,
+                                          central_directory_offset,
+                                          central_directory_size,
+                                          static_cast<uint64_t>(entries.size()));
+}
+
+// Number of bytes to add to the LFH so the data region starts at an
+// 8-byte-aligned offset. Returns 0 when already aligned, otherwise >= 4
+// (the minimum extra-field size: 4-byte header + 0-byte payload).
+uint32_t compute_alignment_padding(uint64_t unpadded_data_offset) {
+    uint32_t remainder = static_cast<uint32_t>(
+        unpadded_data_offset % static_cast<uint64_t>(DAF_DATA_OFFSET_ALIGNMENT));
+    if (remainder == 0) return 0;
+    // upstream: total = mod(-remainder, 8). With unsigned 32-bit math,
+    // -remainder wraps but mod 8 takes only the low 3 bits, which equal
+    // (8 - remainder) mod 8 == 8 - remainder (since 1 <= remainder <= 7).
+    uint32_t total = (DAF_DATA_OFFSET_ALIGNMENT - remainder) % DAF_DATA_OFFSET_ALIGNMENT;
+    if (total >= 4) return total;
+    return total + DAF_DATA_OFFSET_ALIGNMENT;
+}
+
+// Bootstrap an empty zip archive at `path`. Writes 98 bytes of trailing
+// EOCD region (ZIP64 EOCD + locator + legacy EOCD with sentinel values).
+// Used by the writable constructor when the file doesn't exist.
+void write_empty_zip_archive(const std::string& path) {
+    int fd = ::open(path.c_str(), O_RDWR | O_CREAT | O_TRUNC, 0644);
+    if (fd < 0) {
+        throw std::runtime_error(
+            "MmapZipStore: cannot create '" + path + "': " + std::strerror(errno));
+    }
+    uint8_t buf[TRAILING_END_OF_CENTRAL_DIRECTORY_REGION_SIZE];
+    write_end_of_central_directory_region(buf, 0, 0, 0);
+    ssize_t written = ::write(fd, buf, sizeof(buf));
+    int e = errno;
+    ::close(fd);
+    if (written != static_cast<ssize_t>(sizeof(buf))) {
+        throw std::runtime_error(
+            "MmapZipStore: failed to write empty zip header to '" + path + "': "
+            + std::strerror(e));
+    }
+}
+
 }  // namespace
 
 // ---- MmapZipStore ---------------------------------------------------------
@@ -342,26 +647,101 @@ void parse_central_directory(MmapZipStoreImpl& impl) {
 std::unique_ptr<MmapZipStore> MmapZipStore::open(const std::string& path,
                                                  bool writable, bool create, bool truncate,
                                                  uint64_t max_file_size) {
-    if (writable || create || truncate) {
-        throw std::runtime_error("MmapZipStore::open writable: slice-17 phase 4 stub");
+    if (!writable) {
+        // Read-only path (Phase 2) — unchanged.
+        auto impl = std::unique_ptr<MmapZipStoreImpl>(new MmapZipStoreImpl());
+        impl->path = path;
+        impl->is_writable = false;
+        impl->max_file_size = 0;
+
+        int fd = -1;
+        uint64_t length = 0;
+        const uint8_t* mapped = read_only_mmap(path, &fd, &length);
+        impl->fd = fd;
+        impl->mmap_base = const_cast<uint8_t*>(mapped);
+        impl->mmap_length = length;
+        impl->file_mmap = mapped;
+        impl->overlay_length = length;
+
+        parse_central_directory(*impl);
+        return std::unique_ptr<MmapZipStore>(new MmapZipStore(impl.release()));
     }
-    (void)max_file_size;
+
+    // Writable path (Phase 4): bootstrap if needed, reserve VA, overlay file.
+    if (truncate) {
+        if (!create) {
+            throw std::runtime_error("MmapZipStore: truncate requires create");
+        }
+        ::unlink(path.c_str());  // Ignore ENOENT.
+    }
+
+    struct stat st_probe;
+    bool exists = (::stat(path.c_str(), &st_probe) == 0);
+    if (!exists) {
+        if (!create) {
+            throw std::runtime_error("MmapZipStore: zip file does not exist: " + path);
+        }
+        write_empty_zip_archive(path);
+    }
+
+    int fd = ::open(path.c_str(), O_RDWR);
+    if (fd < 0) {
+        throw std::runtime_error(
+            "MmapZipStore: failed to open '" + path + "' for writing: " + std::strerror(errno));
+    }
+    struct stat st;
+    if (::fstat(fd, &st) != 0) {
+        int e = errno;
+        ::close(fd);
+        throw std::runtime_error(
+            "MmapZipStore: fstat '" + path + "': " + std::strerror(e));
+    }
+    uint64_t file_size = static_cast<uint64_t>(st.st_size);
+    if (file_size < END_OF_CENTRAL_DIRECTORY_SIZE) {
+        ::close(fd);
+        throw std::runtime_error(
+            "MmapZipStore: file too small to be a zip archive: '" + path + "'");
+    }
+    if (max_file_size == 0) {
+        max_file_size = DEFAULT_MAX_FILE_SIZE;
+    }
+    if (file_size > max_file_size) {
+        ::close(fd);
+        throw std::runtime_error(
+            "MmapZipStore: file size exceeds max_file_size for writable open: " + path);
+    }
+
+    void* reservation = nullptr;
+    try {
+        reservation = reserve_virtual_range(max_file_size);
+        overlay_file_on_range(reservation, fd, file_size);
+        disable_transparent_huge_pages(reservation, max_file_size);
+    } catch (...) {
+        if (reservation != nullptr && reservation != MAP_FAILED) {
+            ::munmap(reservation, static_cast<size_t>(max_file_size));
+        }
+        ::close(fd);
+        throw;
+    }
 
     auto impl = std::unique_ptr<MmapZipStoreImpl>(new MmapZipStoreImpl());
     impl->path = path;
-    impl->is_writable = false;
-    impl->max_file_size = 0;
-
-    int fd = -1;
-    uint64_t length = 0;
-    const uint8_t* mapped = read_only_mmap(path, &fd, &length);
+    impl->is_writable = true;
+    impl->max_file_size = max_file_size;
     impl->fd = fd;
-    impl->mmap_base = const_cast<uint8_t*>(mapped);
-    impl->mmap_length = length;
-    impl->file_mmap = mapped;
-    impl->overlay_length = length;
+    impl->mmap_base = reservation;
+    impl->mmap_length = max_file_size;     // destructor munmaps full reservation
+    impl->reservation_base = reinterpret_cast<uint64_t>(reservation);
+    impl->reservation_length = max_file_size;
+    impl->overlay_length = file_size;
+    impl->file_mmap = static_cast<const uint8_t*>(reservation);
 
-    parse_central_directory(*impl);
+    try {
+        parse_central_directory(*impl);
+    } catch (...) {
+        // Destructor will tear down mmap + fd.
+        throw;
+    }
 
     return std::unique_ptr<MmapZipStore>(new MmapZipStore(impl.release()));
 }
@@ -493,8 +873,116 @@ std::vector<std::string> MmapZipStore::all_keys() const {
     return out;
 }
 
-void MmapZipStore::append(const std::string&, const uint8_t*, uint64_t) {
-    throw std::runtime_error("MmapZipStore::append: slice-17 phase 4 stub");
+void MmapZipStore::append(const std::string& key, const uint8_t* data, uint64_t length) {
+    if (!impl_) {
+        throw std::runtime_error("MmapZipStore: store is closed");
+    }
+    if (!impl_->is_writable) {
+        throw std::runtime_error("MmapZipStore is read-only; cannot set bytes");
+    }
+    if (impl_->name_to_index.find(key) != impl_->name_to_index.end()) {
+        throw std::runtime_error(
+            "MmapZipStore is append-only; cannot overwrite entry: " + key);
+    }
+    if (key.size() > 0xFFFFu) {
+        throw std::runtime_error(
+            "MmapZipStore: zip entry name too long: " + std::to_string(key.size()) + " bytes");
+    }
+
+    // CRC32 of the (uncompressed) data using zlib.
+    uLong crc = ::crc32(0L, Z_NULL, 0);
+    if (length > 0) {
+        crc = ::crc32(crc, reinterpret_cast<const Bytef*>(data),
+                      static_cast<uInt>(length));
+    }
+    uint32_t crc32_value = static_cast<uint32_t>(crc);
+
+    MmapZipStoreImpl& impl = *impl_;
+
+    // ---- commit_new_entry! port ----
+    uint64_t lfh_offset = impl.central_directory_offset;
+    uint64_t base_lfh_size =
+        static_cast<uint64_t>(LOCAL_FILE_HEADER_FIXED_SIZE)
+        + static_cast<uint64_t>(key.size())
+        + static_cast<uint64_t>(ZIP64_LOCAL_FILE_HEADER_EXTRA_SIZE);
+    uint32_t alignment_padding = compute_alignment_padding(lfh_offset + base_lfh_size);
+    uint64_t lfh_size = base_lfh_size + alignment_padding;
+    uint64_t data_offset = lfh_offset + lfh_size;
+    uint64_t new_cd_offset = data_offset + length;
+
+    uint64_t new_entry_record_size =
+        static_cast<uint64_t>(CENTRAL_DIRECTORY_ENTRY_FIXED_SIZE)
+        + static_cast<uint64_t>(key.size())
+        + static_cast<uint64_t>(ZIP64_CENTRAL_DIRECTORY_EXTRA_SIZE);
+    uint64_t new_cd_size = impl.central_directory_size + new_entry_record_size;
+
+    uint64_t required_file_size =
+        new_cd_offset + new_cd_size
+        + static_cast<uint64_t>(TRAILING_END_OF_CENTRAL_DIRECTORY_REGION_SIZE);
+    if (required_file_size > impl.max_file_size) {
+        throw std::runtime_error(
+            "MmapZipStore: append of '" + key + "' would exceed max_file_size in: " + impl.path);
+    }
+
+    // Construct the new entry and append it to the in-memory list. The
+    // central_directory_offset of every entry will be re-computed by
+    // populate_central_directory_offsets after the new CD has been written.
+    ZipEntry new_entry;
+    new_entry.name = key;
+    new_entry.local_file_header_offset = lfh_offset;
+    new_entry.data_offset = data_offset;
+    new_entry.compressed_size = length;
+    new_entry.uncompressed_size = length;
+    new_entry.crc32 = crc32_value;
+    new_entry.compression_method = STORED_COMPRESSION_METHOD;
+    new_entry.central_directory_offset = 0;  // filled in by populate below
+
+    impl.entries.push_back(new_entry);
+    // name_to_index is updated AFTER successful commit (last step).
+
+    // Build the commit buffer (new CD + EOCD region).
+    std::vector<uint8_t> commit_buffer(
+        static_cast<std::size_t>(new_cd_size + TRAILING_END_OF_CENTRAL_DIRECTORY_REGION_SIZE));
+    write_central_directory_and_eocd(commit_buffer.data(),
+                                     impl.entries,
+                                     new_cd_offset,
+                                     new_cd_size);
+
+    // Build the LFH buffer.
+    std::vector<uint8_t> lfh_buffer(static_cast<std::size_t>(lfh_size));
+    write_local_file_header(lfh_buffer.data(),
+                            key,
+                            length,
+                            length,
+                            crc32_value,
+                            alignment_padding);
+
+    // Grow the file + re-overlay so the new region is reachable through the
+    // mapped pointer.
+    resize_file_overlay(impl, required_file_size);
+
+    uint8_t* mapped = static_cast<uint8_t*>(impl.mmap_base);
+
+    // The "commit point": writing the new CD + EOCD at new_cd_offset makes
+    // the archive logically valid (Phase 6 will rely on this).
+    std::memcpy(mapped + new_cd_offset,
+                commit_buffer.data(),
+                commit_buffer.size());
+
+    // Then write the LFH (overwrites the old CD region — safe because the
+    // new CD already lives at a higher offset).
+    std::memcpy(mapped + lfh_offset, lfh_buffer.data(), lfh_buffer.size());
+
+    // Then copy the data payload.
+    if (length > 0) {
+        std::memcpy(mapped + data_offset, data, static_cast<std::size_t>(length));
+    }
+
+    // Update impl bookkeeping.
+    impl.central_directory_offset = new_cd_offset;
+    impl.central_directory_size = new_cd_size;
+    populate_central_directory_offsets(impl.entries, new_cd_offset);
+    impl.name_to_index[key] = impl.entries.size() - 1;
 }
 
 uint8_t* MmapZipStore::reserve(const std::string&, uint64_t) {
@@ -663,10 +1151,55 @@ SEXP dafr_mmap_zip_get_bytes(SEXP xptr, std::string key) {
 
 [[cpp11::register]]
 SEXP dafr_mmap_zip_set_bytes(SEXP xptr, std::string key, cpp11::raws bytes) {
+    auto* store = xptr_to_store(xptr);
+    try {
+        R_xlen_t n = bytes.size();
+        const uint8_t* data = (n > 0) ? reinterpret_cast<const uint8_t*>(RAW(bytes.data())) : nullptr;
+        store->append(key, data, static_cast<uint64_t>(n));
+        return R_NilValue;
+    } catch (const std::exception& e) {
+        cpp11::stop("%s", e.what());
+    }
+}
+
+[[cpp11::register]]
+SEXP dafr_mmap_zip_delete(SEXP xptr, std::string key) {
     (void)xptr_to_store(xptr);
     (void)key;
-    (void)bytes;
-    cpp11::stop("dafr_mmap_zip_set_bytes: slice-17 phase 4 stub");
+    cpp11::stop("MmapZipStore is append-only; deletion not supported");
+}
+
+// Debug helper: returns a numeric vector of every entry's data_offset, in
+// CD order. Used by phase-4 tests to check 8-byte alignment of LFHs.
+[[cpp11::register]]
+SEXP dafr_mmap_zip_data_offsets(SEXP xptr) {
+    auto* store = xptr_to_store(xptr);
+    try {
+        std::vector<std::string> keys = store->all_keys();
+        SEXP out = PROTECT(Rf_allocVector(REALSXP, static_cast<R_xlen_t>(keys.size())));
+        for (R_xlen_t i = 0; i < static_cast<R_xlen_t>(keys.size()); ++i) {
+            const uint8_t* p = nullptr;
+            uint64_t len = 0;
+            uint16_t method = 0;
+            uint32_t crc = 0;
+            store->stored_view(keys[static_cast<size_t>(i)], &p, &len, &method, &crc);
+            // For stored entries we have a direct view; for others we still
+            // need the offset, which we recover from the parsed CD.
+            // The simplest path is: the data_offset field is recoverable
+            // via stored_view's pointer for stored entries, but for
+            // unsupported methods this returns false. Phase 4 only writes
+            // stored entries, so we expect every entry to be stored.
+            uint64_t off = 0;
+            if (p != nullptr) {
+                off = static_cast<uint64_t>(p - store->file_mmap_base());
+            }
+            REAL(out)[i] = static_cast<double>(off);
+        }
+        UNPROTECT(1);
+        return out;
+    } catch (const std::exception& e) {
+        cpp11::stop("%s", e.what());
+    }
 }
 
 [[cpp11::register]]

@@ -99,3 +99,42 @@ with zipfile.ZipFile(out, "w", compression=method) as zf:
     }
     invisible(path)
 }
+
+# Read a zip via Python's `zipfile` and return a named list of raw vectors
+# (names = entry paths inside the archive, values = raw contents). Used to
+# verify cross-language readability of writes produced by MmapZipStore.
+read_zip_via_python <- function(path) {
+    skip_if_no_python_zipfile()
+    out_dir <- new_tempdir()
+    py <- '
+import os, zipfile
+src = os.environ["DAFR_TEST_IN"]
+out = os.environ["DAFR_TEST_OUT_DIR"]
+with zipfile.ZipFile(src, "r") as zf:
+    names = zf.namelist()
+    with open(os.path.join(out, "names.txt"), "w") as f:
+        for n in names:
+            f.write(n + "\\n")
+    for i, n in enumerate(names):
+        with open(os.path.join(out, "entry_%d.bin" % i), "wb") as f:
+            f.write(zf.read(n))
+'
+    rc <- withr::with_envvar(
+        new = c(DAFR_TEST_IN = path, DAFR_TEST_OUT_DIR = out_dir),
+        system2("python3", c("-c", shQuote(py)),
+                stdout = FALSE, stderr = FALSE)
+    )
+    if (rc != 0L) {
+        stop("python3 zipfile reader failed (rc=", rc, ")")
+    }
+    names_path <- file.path(out_dir, "names.txt")
+    if (!file.exists(names_path)) return(list())
+    names_vec <- readLines(names_path, warn = FALSE)
+    out <- vector("list", length(names_vec))
+    names(out) <- names_vec
+    for (i in seq_along(names_vec)) {
+        f <- file.path(out_dir, sprintf("entry_%d.bin", i - 1L))
+        out[[i]] <- readBin(f, what = "raw", n = file.info(f)$size)
+    }
+    out
+}

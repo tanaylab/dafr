@@ -115,12 +115,146 @@ test_that("store_list with a directory prefix returns matching keys", {
     expect_setequal(store_list(s, "dir"), c("dir/a", "dir/b"))
 })
 
-test_that("set_bytes / delete error informatively (write API in phase 4)", {
+test_that("set_bytes on a read-only store errors", {
     skip_if_no_python_zipfile()
     path <- new_tempfile("zip")
     build_zip(path, list("k" = "v"), compression = "stored")
     s <- new_mmap_zip_store(path, mode = "r")
     on.exit(dafr:::dafr_mmap_zip_close(S7::prop(s, "xptr")), add = TRUE)
-    expect_error(store_set_bytes(s, "x", as.raw(0L)), "phase 4")
-    expect_error(store_delete(s, "k"), "phase 4")
+    expect_error(store_set_bytes(s, "x", as.raw(0L)), "read-only|cannot set")
+})
+
+test_that("delete on a MmapZipStore errors with append-only message", {
+    skip_if_no_python_zipfile()
+    path <- new_tempfile("zip")
+    build_zip(path, list("k" = "v"), compression = "stored")
+    s <- new_mmap_zip_store(path, mode = "r")
+    on.exit(dafr:::dafr_mmap_zip_close(S7::prop(s, "xptr")), add = TRUE)
+    expect_error(store_delete(s, "k"), "append-only|deletion")
+})
+
+# ---- Phase 4 write-side tests --------------------------------------------
+
+test_that("creates an empty archive in mode='w'", {
+    path <- new_tempfile("zip")
+    s <- new_mmap_zip_store(path, mode = "w")
+    dafr:::dafr_mmap_zip_close(S7::prop(s, "xptr"))
+    # Reopen read-only — empty archive must list as character(0).
+    s2 <- new_mmap_zip_store(path, mode = "r")
+    on.exit(dafr:::dafr_mmap_zip_close(S7::prop(s2, "xptr")), add = TRUE)
+    expect_identical(store_list(s2, ""), character(0))
+})
+
+test_that("appends a single entry and reopens to read", {
+    path <- new_tempfile("zip")
+    payload <- charToRaw("phase-4 write payload")
+    s <- new_mmap_zip_store(path, mode = "w")
+    store_set_bytes(s, "k", payload)
+    dafr:::dafr_mmap_zip_close(S7::prop(s, "xptr"))
+
+    s2 <- new_mmap_zip_store(path, mode = "r")
+    on.exit(dafr:::dafr_mmap_zip_close(S7::prop(s2, "xptr")), add = TRUE)
+    expect_setequal(store_list(s2, ""), "k")
+    got <- store_get_bytes(s2, "k")
+    expect_identical(as.raw(got), payload)
+})
+
+test_that("appends multiple entries and reads each back", {
+    path <- new_tempfile("zip")
+    s <- new_mmap_zip_store(path, mode = "w")
+    store_set_bytes(s, "a", charToRaw("alpha"))
+    store_set_bytes(s, "b/c", charToRaw("beta-gamma"))
+    store_set_bytes(s, "really/deep/nested/key", charToRaw("zzz"))
+    dafr:::dafr_mmap_zip_close(S7::prop(s, "xptr"))
+
+    s2 <- new_mmap_zip_store(path, mode = "r")
+    on.exit(dafr:::dafr_mmap_zip_close(S7::prop(s2, "xptr")), add = TRUE)
+    expect_setequal(store_list(s2, ""), c("a", "b/c", "really/deep/nested/key"))
+    expect_identical(rawToChar(as.raw(store_get_bytes(s2, "a"))), "alpha")
+    expect_identical(rawToChar(as.raw(store_get_bytes(s2, "b/c"))), "beta-gamma")
+    expect_identical(rawToChar(as.raw(store_get_bytes(s2, "really/deep/nested/key"))), "zzz")
+})
+
+test_that("rejects overwriting an existing entry with append-only error", {
+    path <- new_tempfile("zip")
+    s <- new_mmap_zip_store(path, mode = "w")
+    on.exit(dafr:::dafr_mmap_zip_close(S7::prop(s, "xptr")), add = TRUE)
+    store_set_bytes(s, "k", charToRaw("first"))
+    expect_error(store_set_bytes(s, "k", charToRaw("second")),
+                 "append-only|cannot overwrite")
+})
+
+test_that("rejects entries with names longer than 64 KiB", {
+    path <- new_tempfile("zip")
+    s <- new_mmap_zip_store(path, mode = "w")
+    on.exit(dafr:::dafr_mmap_zip_close(S7::prop(s, "xptr")), add = TRUE)
+    long_key <- paste(rep("a", 70000L), collapse = "")
+    expect_error(store_set_bytes(s, long_key, as.raw(0L)),
+                 "name too long|too long")
+})
+
+test_that("data offsets for written entries are 8-byte aligned", {
+    path <- new_tempfile("zip")
+    s <- new_mmap_zip_store(path, mode = "w")
+    # Names of varying lengths so unaligned LFHs would be exposed.
+    store_set_bytes(s, "a", charToRaw("X"))
+    store_set_bytes(s, "ab", charToRaw("YY"))
+    store_set_bytes(s, "abc", charToRaw("ZZZ"))
+    store_set_bytes(s, "abcd", charToRaw("WWWW"))
+    store_set_bytes(s, "abcde", charToRaw("VVVVV"))
+    store_set_bytes(s, "abcdef", charToRaw("UUUUUU"))
+    store_set_bytes(s, "abcdefg", charToRaw("TTTTTTT"))
+    store_set_bytes(s, "abcdefgh", charToRaw("SSSSSSSS"))
+    dafr:::dafr_mmap_zip_close(S7::prop(s, "xptr"))
+
+    s2 <- new_mmap_zip_store(path, mode = "r")
+    on.exit(dafr:::dafr_mmap_zip_close(S7::prop(s2, "xptr")), add = TRUE)
+    offsets <- dafr:::dafr_mmap_zip_data_offsets(S7::prop(s2, "xptr"))
+    expect_length(offsets, 8L)
+    for (off in offsets) {
+        expect_equal(off %% 8, 0)
+    }
+})
+
+test_that("Python's zipfile reads entries written by MmapZipStore", {
+    skip_if_no_python_zipfile()
+    path <- new_tempfile("zip")
+    s <- new_mmap_zip_store(path, mode = "w")
+    store_set_bytes(s, "k", charToRaw("hello-from-dafr"))
+    store_set_bytes(s, "n/sub", charToRaw("nested-payload"))
+    dafr:::dafr_mmap_zip_close(S7::prop(s, "xptr"))
+
+    out <- read_zip_via_python(path)
+    expect_setequal(names(out), c("k", "n/sub"))
+    expect_identical(rawToChar(out[["k"]]), "hello-from-dafr")
+    expect_identical(rawToChar(out[["n/sub"]]), "nested-payload")
+})
+
+test_that("write empty bytes round-trips correctly", {
+    path <- new_tempfile("zip")
+    s <- new_mmap_zip_store(path, mode = "w")
+    store_set_bytes(s, "empty", raw(0))
+    dafr:::dafr_mmap_zip_close(S7::prop(s, "xptr"))
+
+    s2 <- new_mmap_zip_store(path, mode = "r")
+    on.exit(dafr:::dafr_mmap_zip_close(S7::prop(s2, "xptr")), add = TRUE)
+    got <- store_get_bytes(s2, "empty")
+    expect_equal(length(got), 0L)
+})
+
+test_that("w+ mode preserves existing entries and allows appends", {
+    path <- new_tempfile("zip")
+    s <- new_mmap_zip_store(path, mode = "w")
+    store_set_bytes(s, "first", charToRaw("AA"))
+    dafr:::dafr_mmap_zip_close(S7::prop(s, "xptr"))
+
+    s2 <- new_mmap_zip_store(path, mode = "w+")
+    store_set_bytes(s2, "second", charToRaw("BBB"))
+    dafr:::dafr_mmap_zip_close(S7::prop(s2, "xptr"))
+
+    s3 <- new_mmap_zip_store(path, mode = "r")
+    on.exit(dafr:::dafr_mmap_zip_close(S7::prop(s3, "xptr")), add = TRUE)
+    expect_setequal(store_list(s3, ""), c("first", "second"))
+    expect_identical(rawToChar(as.raw(store_get_bytes(s3, "first"))), "AA")
+    expect_identical(rawToChar(as.raw(store_get_bytes(s3, "second"))), "BBB")
 })

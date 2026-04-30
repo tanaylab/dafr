@@ -263,14 +263,17 @@ S7::method(store_list, list(MmapZipStore, S7::class_character)) <-
         dafr_mmap_zip_list(S7::prop(store, "xptr"), prefix)
     }
 
-# Phase 4 will replace these with real writers; until then surface a clear
-# message rather than the cryptic "no method for this combination" error.
 S7::method(store_set_bytes, list(MmapZipStore, S7::class_character, S7::class_any)) <-
     function(store, path, bytes) {
-        stop("MmapZipStore::set_bytes lands in slice 17 phase 4")
+        dafr_mmap_zip_set_bytes(S7::prop(store, "xptr"), path, as.raw(bytes))
+        invisible()
     }
 
+# MmapZipStore is append-only: deletion is unsupported by design (it's a
+# zip archive, not a file system). The C++ entry point throws a clear
+# error message; the R-side wrapper just calls into it.
 S7::method(store_delete, list(MmapZipStore, S7::class_character)) <-
     function(store, path) {
-        stop("MmapZipStore::delete lands in slice 17 phase 4")
+        dafr_mmap_zip_delete(S7::prop(store, "xptr"), path)
+        invisible()
     }

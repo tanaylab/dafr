@@ -209,6 +209,20 @@ extern "C" SEXP _dafr_dafr_mmap_zip_set_bytes(SEXP xptr, SEXP key, SEXP bytes) {
   END_CPP11
 }
 // mmap_zip_store.cpp
+SEXP dafr_mmap_zip_delete(SEXP xptr, std::string key);
+extern "C" SEXP _dafr_dafr_mmap_zip_delete(SEXP xptr, SEXP key) {
+  BEGIN_CPP11
+    return cpp11::as_sexp(dafr_mmap_zip_delete(cpp11::as_cpp<cpp11::decay_t<SEXP>>(xptr), cpp11::as_cpp<cpp11::decay_t<std::string>>(key)));
+  END_CPP11
+}
+// mmap_zip_store.cpp
+SEXP dafr_mmap_zip_data_offsets(SEXP xptr);
+extern "C" SEXP _dafr_dafr_mmap_zip_data_offsets(SEXP xptr) {
+  BEGIN_CPP11
+    return cpp11::as_sexp(dafr_mmap_zip_data_offsets(cpp11::as_cpp<cpp11::decay_t<SEXP>>(xptr)));
+  END_CPP11
+}
+// mmap_zip_store.cpp
 SEXP dafr_mmap_zip_exists(SEXP xptr, std::string key);
 extern "C" SEXP _dafr_dafr_mmap_zip_exists(SEXP xptr, SEXP key) {
   BEGIN_CPP11
@@ -271,6 +285,8 @@ static const R_CallMethodDef CallEntries[] = {
     {"_dafr_dafr_get_max_threads",            (DL_FUNC) &_dafr_dafr_get_max_threads,             0},
     {"_dafr_dafr_has_openmp",                 (DL_FUNC) &_dafr_dafr_has_openmp,                  0},
     {"_dafr_dafr_mmap_zip_close",             (DL_FUNC) &_dafr_dafr_mmap_zip_close,              1},
+    {"_dafr_dafr_mmap_zip_data_offsets",      (DL_FUNC) &_dafr_dafr_mmap_zip_data_offsets,       1},
+    {"_dafr_dafr_mmap_zip_delete",            (DL_FUNC) &_dafr_dafr_mmap_zip_delete,             2},
     {"_dafr_dafr_mmap_zip_exists",            (DL_FUNC) &_dafr_dafr_mmap_zip_exists,             2},
     {"_dafr_dafr_mmap_zip_get_bytes",         (DL_FUNC) &_dafr_dafr_mmap_zip_get_bytes,          2},
     {"_dafr_dafr_mmap_zip_list",              (DL_FUNC) &_dafr_dafr_mmap_zip_list,               2},

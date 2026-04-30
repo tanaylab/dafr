@@ -116,6 +116,14 @@ dafr_mmap_zip_set_bytes <- function(xptr, key, bytes) {
   .Call(`_dafr_dafr_mmap_zip_set_bytes`, xptr, key, bytes)
 }
 
+dafr_mmap_zip_delete <- function(xptr, key) {
+  .Call(`_dafr_dafr_mmap_zip_delete`, xptr, key)
+}
+
+dafr_mmap_zip_data_offsets <- function(xptr) {
+  .Call(`_dafr_dafr_mmap_zip_data_offsets`, xptr)
+}
+
 dafr_mmap_zip_exists <- function(xptr, key) {
   .Call(`_dafr_dafr_mmap_zip_exists`, xptr, key)
 }
