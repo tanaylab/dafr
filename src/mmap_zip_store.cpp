@@ -3,8 +3,11 @@
 // Phase 2 implements the read side (parse existing zip, list, get bytes,
 // decompress deflate). Phase 4 adds the write side: bootstrap empty zip,
 // reserve VA + overlay file, append entries via the two-step commit
-// protocol. Crash-counter ticks (Phase 5), recovery (Phase 6), and
-// reserve/patch_crc (Phase 7) remain stubs.
+// protocol. Phase 5 wires `tick_crash_counter` ticks at every commit-able
+// decision point inside `commit_new_entry`. Phase 6 adds `recover_interrupted_appends`
+// which runs after the CD parse on every writable open and rolls back any
+// trailing entry whose LFH signature is missing or whose data CRC doesn't
+// match the recorded CRC. Reserve/patch_crc (Phase 7) remain stubs.
 
 #include <cpp11.hpp>
 
@@ -97,6 +100,25 @@ static inline void w_le64(uint8_t* p, uint64_t v) {
     w_le32(p + 4, static_cast<uint32_t>((v >> 32) & 0xFFFFFFFFu));
 }
 
+// ---- Crash-counter tick ---------------------------------------------------
+//
+// Phase 5 instrumentation. `tick_crash_counter(impl)` is called at every
+// commit-able decision point inside `commit_new_entry`. When no counter is
+// set (the common case), the call is a no-op. When set, it invokes R's
+// `dafr:::tick_crash_counter(counter)`, which decrements the counter and
+// `stop()`s with a `SimulatedCrash` condition when it reaches zero.
+//
+// Safety: R's stop() longjmps. Plain longjmp through C++ frames bypasses
+// destructors, leaking mmap regions / fds / heap-allocated buffers. We
+// route the call through `cpp11::unwind_protect`, which performs an
+// internal setjmp → throws `cpp11::unwind_exception` on a longjmp →
+// C++ destructors run normally on the way out → the BEGIN_CPP11/END_CPP11
+// boundary catches `unwind_exception` and calls `R_ContinueUnwind` so R
+// observes the original `SimulatedCrash` condition unchanged.
+
+class MmapZipStoreImpl;
+static void tick_crash_counter_cpp(MmapZipStoreImpl& impl);
+
 // Parser state lives entirely on the stack/in MmapZipStoreImpl during open;
 // once parsing is done the impl owns the mmap and the parsed entries.
 class MmapZipStoreImpl {
@@ -138,8 +160,36 @@ public:
             ::close(fd);
             fd = -1;
         }
+        // Release crash-counter SEXP protections (paired with the
+        // R_PreserveObject calls in set_crash_counter).
+        if (crash_counter != R_NilValue) {
+            R_ReleaseObject(crash_counter);
+            crash_counter = R_NilValue;
+        }
+        if (namespace_env != R_NilValue) {
+            R_ReleaseObject(namespace_env);
+            namespace_env = R_NilValue;
+        }
     }
 };
+
+// Tick the crash counter, if set. When the R-side call longjmps out via
+// stop("SimulatedCrash"), cpp11::unwind_protect catches it and re-throws as
+// `cpp11::unwind_exception`. C++ destructors run normally on the way out;
+// the BEGIN_CPP11/END_CPP11 cpp11 entry-point boundary catches the
+// exception and calls R_ContinueUnwind to deliver the `SimulatedCrash`
+// condition to R unchanged.
+static void tick_crash_counter_cpp(MmapZipStoreImpl& impl) {
+    if (impl.crash_counter == R_NilValue || impl.namespace_env == R_NilValue) {
+        return;
+    }
+    cpp11::unwind_protect([&]() {
+        SEXP call = PROTECT(Rf_lang2(Rf_install("tick_crash_counter"),
+                                     impl.crash_counter));
+        Rf_eval(call, impl.namespace_env);
+        UNPROTECT(1);
+    });
+}
 
 namespace {
 
@@ -183,7 +233,14 @@ const uint8_t* read_only_mmap(const std::string& path, int* out_fd, uint64_t* ou
 // signature. The legacy EOCD has a variable-length comment trailer of up to
 // 0xFFFF bytes, so cap the search at 64 KiB + EOCD-size; that's the maximum
 // possible distance from EOCD start to file end.
-uint64_t find_eocd(const uint8_t* base, uint64_t length) {
+//
+// `tolerant` (writable opens, before recovery has run): if the strict
+// search fails because the trailing comment-length doesn't reach EOF
+// (which happens after a crash between resize and CD commit — the file
+// grew but the old EOCD bytes still live at the pre-grow offset), retry
+// without the comment-length check. Recovery will then truncate the file
+// back to a tidy size.
+uint64_t find_eocd(const uint8_t* base, uint64_t length, bool tolerant = false) {
     if (length < END_OF_CENTRAL_DIRECTORY_SIZE) {
         zip_corrupt("file shorter than EOCD record");
     }
@@ -202,18 +259,35 @@ uint64_t find_eocd(const uint8_t* base, uint64_t length) {
         }
         if (i == scan_start) break;
     }
+    if (tolerant) {
+        // Tolerant fallback: find the most recent EOCD signature
+        // regardless of comment-length validity. This handles the
+        // post-crash scenario where ftruncate added zeros past the
+        // valid EOCD.
+        for (uint64_t i = length - END_OF_CENTRAL_DIRECTORY_SIZE; ; --i) {
+            if (le32(base + i) == END_OF_CENTRAL_DIRECTORY_SIGNATURE) {
+                return i;
+            }
+            if (i == scan_start) break;
+        }
+    }
     zip_corrupt("end-of-central-directory record not found");
 }
 
 // Re-read the local file header at `lfh_offset` to compute the data offset.
 // Returns lfh_offset + 30 + name_len + extra_len. Validates the LFH
-// signature and bounds.
+// signature and bounds. When `tolerant` is true (writable opens, before
+// recovery has run), returns 0 instead of throwing on a missing/invalid
+// LFH so the parser can continue past corrupt trailing entries; recovery
+// then walks the parsed list and rolls them back.
 uint64_t compute_data_offset(const uint8_t* base, uint64_t length,
-                             uint64_t lfh_offset) {
+                             uint64_t lfh_offset, bool tolerant = false) {
     if (lfh_offset + LOCAL_FILE_HEADER_FIXED_SIZE > length) {
+        if (tolerant) return 0;
         zip_corrupt("local file header offset out of range");
     }
     if (le32(base + lfh_offset) != LOCAL_FILE_HEADER_SIGNATURE) {
+        if (tolerant) return 0;
         zip_corrupt("local file header signature missing");
     }
     uint16_t name_len  = le16(base + lfh_offset + 26);
@@ -222,6 +296,7 @@ uint64_t compute_data_offset(const uint8_t* base, uint64_t length,
                        + static_cast<uint64_t>(name_len)
                        + static_cast<uint64_t>(extra_len);
     if (data_off > length) {
+        if (tolerant) return 0;
         zip_corrupt("local file header extends past EOF");
     }
     return data_off;
@@ -229,11 +304,14 @@ uint64_t compute_data_offset(const uint8_t* base, uint64_t length,
 
 // Parse `path`'s zip metadata into `impl`. Caller must have populated
 // impl.file_mmap + impl.overlay_length. Throws on corrupt inputs.
-void parse_central_directory(MmapZipStoreImpl& impl) {
+// `tolerant` = true (writable opens) means: don't reject entries whose
+// LFH is missing/corrupt. Such entries get `data_offset = 0` and
+// `compressed_size` from the CD; recovery will roll them back.
+void parse_central_directory(MmapZipStoreImpl& impl, bool tolerant = false) {
     const uint8_t* base = impl.file_mmap;
     uint64_t length     = impl.overlay_length;
 
-    uint64_t eocd_offset = find_eocd(base, length);
+    uint64_t eocd_offset = find_eocd(base, length, tolerant);
 
     // Legacy EOCD fields.
     uint64_t cd_size_legacy   = le32(base + eocd_offset + 12);
@@ -356,9 +434,13 @@ void parse_central_directory(MmapZipStoreImpl& impl) {
             ex_cursor += 4 + hlen;
         }
 
-        uint64_t data_off = compute_data_offset(base, length, lfh_off);
-        if (data_off + comp_sz > length) {
-            zip_corrupt("entry data extends past EOF");
+        uint64_t data_off = compute_data_offset(base, length, lfh_off, tolerant);
+        if (data_off != 0 && data_off + comp_sz > length) {
+            if (!tolerant) {
+                zip_corrupt("entry data extends past EOF");
+            }
+            // In tolerant mode, mark entry as invalid by zeroing data_off.
+            data_off = 0;
         }
 
         ZipEntry entry;
@@ -619,6 +701,122 @@ uint32_t compute_alignment_padding(uint64_t unpadded_data_offset) {
     return total + DAF_DATA_OFFSET_ALIGNMENT;
 }
 
+// ---- Recovery (Phase 6) --------------------------------------------------
+//
+// Port of upstream `recover_interrupted_appends!` /
+// `entry_is_valid` / `roll_back_to_entry!` from
+// DataAxesFormats.jl/src/mmap_zip_store.jl (lines 975-1057).
+//
+// Called from `MmapZipStore::open` after the CD parse, only on writable
+// opens. Walks the parsed entries from back to front; the first run of
+// trailing entries failing `entry_is_valid` is rolled back: rebuild a fresh
+// CD+EOCD at the oldest invalid entry's `local_file_header_offset` and
+// `ftruncate` the file to the new EOA.
+//
+// `entry_is_valid` returns true iff (a) the LFH signature at
+// `entry.local_file_header_offset` is 0x04034b50 AND (b) the CRC32 of the
+// data range equals the recorded CRC. Non-stored entries trust the CD
+// (we never write deflate entries from this codebase, so the only way to
+// see a non-stored entry is via an externally-built archive — for which
+// rollback isn't meaningful).
+
+bool entry_is_valid(const MmapZipStoreImpl& impl, std::size_t idx) {
+    const ZipEntry& e = impl.entries[idx];
+    if (e.compression_method != STORED_COMPRESSION_METHOD) {
+        // We never write deflate from this codebase; trust the CD for
+        // externally-built archives.
+        return true;
+    }
+    const uint8_t* base = impl.file_mmap;
+    uint64_t length = impl.overlay_length;
+    if (e.local_file_header_offset + LOCAL_FILE_HEADER_FIXED_SIZE > length) return false;
+    if (le32(base + e.local_file_header_offset) != LOCAL_FILE_HEADER_SIGNATURE) {
+        return false;
+    }
+    // The tolerant parser may have left data_offset = 0 for entries
+    // whose LFH was unreadable at parse time. Re-compute now that we
+    // know the LFH signature is good. Failure to compute (out-of-range
+    // name/extra) → invalid.
+    uint64_t data_off = compute_data_offset(base, length,
+                                            e.local_file_header_offset,
+                                            /*tolerant=*/true);
+    if (data_off == 0) return false;
+    if (data_off + e.compressed_size > length) {
+        return false;
+    }
+    uLong crc = ::crc32(0L, Z_NULL, 0);
+    if (e.compressed_size > 0) {
+        crc = ::crc32(crc, reinterpret_cast<const Bytef*>(base + data_off),
+                      static_cast<uInt>(e.compressed_size));
+    }
+    return static_cast<uint32_t>(crc) == e.crc32;
+}
+
+void roll_back_to_entry(MmapZipStoreImpl& impl, std::size_t keep_count) {
+    // The LFH offset of the FIRST DROPPED entry becomes the new
+    // `central_directory_offset` (i.e., the new end of the data region).
+    if (keep_count >= impl.entries.size()) return;
+    uint64_t new_cd_offset =
+        impl.entries[keep_count].local_file_header_offset;
+
+    // Drop entries [keep_count..end).
+    for (std::size_t i = keep_count; i < impl.entries.size(); ++i) {
+        impl.name_to_index.erase(impl.entries[i].name);
+    }
+    impl.entries.resize(keep_count);
+
+    uint64_t new_cd_size = 0;
+    for (const auto& e : impl.entries) {
+        new_cd_size += central_directory_entry_size(e);
+    }
+
+    // Build the commit buffer (kept-entries CD + 98-byte EOCD trailer).
+    std::vector<uint8_t> commit_buffer(
+        static_cast<std::size_t>(new_cd_size + TRAILING_END_OF_CENTRAL_DIRECTORY_REGION_SIZE));
+    write_central_directory_and_eocd(commit_buffer.data(),
+                                     impl.entries,
+                                     new_cd_offset,
+                                     new_cd_size);
+
+    uint64_t new_file_size = new_cd_offset + new_cd_size
+        + static_cast<uint64_t>(TRAILING_END_OF_CENTRAL_DIRECTORY_REGION_SIZE);
+    resize_file_overlay(impl, new_file_size);
+
+    uint8_t* mapped = static_cast<uint8_t*>(impl.mmap_base);
+    std::memcpy(mapped + new_cd_offset, commit_buffer.data(), commit_buffer.size());
+
+    impl.central_directory_offset = new_cd_offset;
+    impl.central_directory_size = new_cd_size;
+    populate_central_directory_offsets(impl.entries, new_cd_offset);
+}
+
+void recover_interrupted_appends(MmapZipStoreImpl& impl) {
+    // Walk from the last entry backward, finding the highest index that
+    // is still valid. If every entry is valid, recovery is a no-op for
+    // the entry list — but we still truncate the file back to the
+    // canonical size (cd_offset + cd_size + EOCD region) in case the
+    // file was grown past it by a tick-#2-style crash.
+    std::size_t last_valid_plus_one = impl.entries.size();
+    while (last_valid_plus_one > 0) {
+        if (entry_is_valid(impl, last_valid_plus_one - 1)) {
+            break;
+        }
+        --last_valid_plus_one;
+    }
+    if (last_valid_plus_one < impl.entries.size()) {
+        roll_back_to_entry(impl, last_valid_plus_one);
+        return;
+    }
+    // All entries valid. If the file is larger than the canonical
+    // archive size, truncate the trailing junk away.
+    uint64_t canonical_size = impl.central_directory_offset
+        + impl.central_directory_size
+        + static_cast<uint64_t>(TRAILING_END_OF_CENTRAL_DIRECTORY_REGION_SIZE);
+    if (impl.overlay_length > canonical_size) {
+        resize_file_overlay(impl, canonical_size);
+    }
+}
+
 // Bootstrap an empty zip archive at `path`. Writes 98 bytes of trailing
 // EOCD region (ZIP64 EOCD + locator + legacy EOCD with sentinel values).
 // Used by the writable constructor when the file doesn't exist.
@@ -737,7 +935,12 @@ std::unique_ptr<MmapZipStore> MmapZipStore::open(const std::string& path,
     impl->file_mmap = static_cast<const uint8_t*>(reservation);
 
     try {
-        parse_central_directory(*impl);
+        // Tolerant parse: don't reject entries whose LFH is missing.
+        // Recovery will roll them back below.
+        parse_central_directory(*impl, /*tolerant=*/true);
+        // Phase 6: every writable open recovers from a previous crash that
+        // left trailing entries with missing LFHs or mismatched CRCs.
+        recover_interrupted_appends(*impl);
     } catch (...) {
         // Destructor will tear down mmap + fd.
         throw;
@@ -924,9 +1127,10 @@ void MmapZipStore::append(const std::string& key, const uint8_t* data, uint64_t 
             "MmapZipStore: append of '" + key + "' would exceed max_file_size in: " + impl.path);
     }
 
-    // Construct the new entry and append it to the in-memory list. The
-    // central_directory_offset of every entry will be re-computed by
-    // populate_central_directory_offsets after the new CD has been written.
+    // Construct the new entry. Pushed to impl.entries BELOW (after tick #1
+    // and the resize) so that a SimulatedCrash at tick #1 leaves the
+    // in-memory entry list unchanged — the post-crash store object is
+    // expected to be dropped, but the destructor still walks the list.
     ZipEntry new_entry;
     new_entry.name = key;
     new_entry.local_file_header_offset = lfh_offset;
@@ -937,8 +1141,21 @@ void MmapZipStore::append(const std::string& key, const uint8_t* data, uint64_t 
     new_entry.compression_method = STORED_COMPRESSION_METHOD;
     new_entry.central_directory_offset = 0;  // filled in by populate below
 
+    // ---- TICK #1 — before resize_file_overlay --------------------------
+    // Recovery state on interrupt: file size unchanged, old CD intact, no
+    // new entry visible on reopen. No rollback needed.
+    tick_crash_counter_cpp(impl);
+
+    // Grow the file + re-overlay so the new region is reachable through the
+    // mapped pointer.
+    resize_file_overlay(impl, required_file_size);
+
+    // Now we can safely push the new entry — the file is at least big
+    // enough to hold all the entries we're about to write to disk, and a
+    // crash from this point forward will be detected by recovery (either
+    // tick #2 fires before the new CD is committed and old CD remains
+    // authoritative, or ticks #3/#4 fire and recovery rolls back).
     impl.entries.push_back(new_entry);
-    // name_to_index is updated AFTER successful commit (last step).
 
     // Build the commit buffer (new CD + EOCD region).
     std::vector<uint8_t> commit_buffer(
@@ -957,32 +1174,59 @@ void MmapZipStore::append(const std::string& key, const uint8_t* data, uint64_t 
                             crc32_value,
                             alignment_padding);
 
-    // Grow the file + re-overlay so the new region is reachable through the
-    // mapped pointer.
-    resize_file_overlay(impl, required_file_size);
-
     uint8_t* mapped = static_cast<uint8_t*>(impl.mmap_base);
 
+    // ---- TICK #2 — after resize, before new CD is committed ------------
+    // Recovery state: file grew but the OLD CD/EOCD bytes still live at
+    // their original offsets (we haven't overwritten them yet). Reopen
+    // sees the old EOCD via the parser's backward-scan and yields the
+    // pre-append entry list. No rollback needed.
+    tick_crash_counter_cpp(impl);
+
     // The "commit point": writing the new CD + EOCD at new_cd_offset makes
-    // the archive logically valid (Phase 6 will rely on this).
+    // the archive logically valid. After this, the new CD claims the new
+    // entry and the old CD bytes are partially or fully overwritten.
     std::memcpy(mapped + new_cd_offset,
                 commit_buffer.data(),
                 commit_buffer.size());
 
+    // ---- TICK #3 — after CD copy, before LFH copy ----------------------
+    // **THE COMMIT POINT.** The new CD on disk references an entry whose
+    // LFH has not been written yet — at lfh_offset the bytes are still old
+    // CD content (no LFH signature). Recovery: walks new CD; entry's
+    // `entry_is_valid` returns false because LFH signature is missing;
+    // ROLLBACK to the prior entry count.
+    tick_crash_counter_cpp(impl);
+
     // Then write the LFH (overwrites the old CD region — safe because the
     // new CD already lives at a higher offset).
     std::memcpy(mapped + lfh_offset, lfh_buffer.data(), lfh_buffer.size());
+
+    // ---- TICK #4 — after LFH copy, before data copy --------------------
+    // Recovery state: LFH is valid (signature + sizes + CRC all present),
+    // but the data region is sparse zeros from ftruncate. CRC of zero
+    // bytes won't match the recorded CRC for any non-empty payload.
+    // ROLLBACK via the CRC mismatch path.
+    tick_crash_counter_cpp(impl);
 
     // Then copy the data payload.
     if (length > 0) {
         std::memcpy(mapped + data_offset, data, static_cast<std::size_t>(length));
     }
 
-    // Update impl bookkeeping.
+    // Update impl bookkeeping. Done before tick #5 because the on-disk
+    // state is fully valid at this point — recovery would be a no-op even
+    // if we crashed here.
     impl.central_directory_offset = new_cd_offset;
     impl.central_directory_size = new_cd_size;
     populate_central_directory_offsets(impl.entries, new_cd_offset);
     impl.name_to_index[key] = impl.entries.size() - 1;
+
+    // ---- TICK #5 — after data copy (entry fully committed) -------------
+    // No rollback needed. Included for symmetry: every commit-able decision
+    // ends with a tick. A future patch_crc protocol (Phase 7) places a
+    // similar "after CRC patch, archive valid" tick here.
+    tick_crash_counter_cpp(impl);
 }
 
 uint8_t* MmapZipStore::reserve(const std::string&, uint64_t) {
@@ -1037,8 +1281,23 @@ std::shared_ptr<AltrepRawSlot> MmapZipStore::register_altrep_slot(uint64_t offse
 }
 
 void MmapZipStore::set_crash_counter(SEXP counter, SEXP namespace_env) {
-    impl_->crash_counter = counter;
-    impl_->namespace_env = namespace_env;
+    // Release any previously-held protections.
+    if (impl_->crash_counter != R_NilValue) {
+        R_ReleaseObject(impl_->crash_counter);
+        impl_->crash_counter = R_NilValue;
+    }
+    if (impl_->namespace_env != R_NilValue) {
+        R_ReleaseObject(impl_->namespace_env);
+        impl_->namespace_env = R_NilValue;
+    }
+    if (counter != R_NilValue) {
+        R_PreserveObject(counter);
+        impl_->crash_counter = counter;
+    }
+    if (namespace_env != R_NilValue) {
+        R_PreserveObject(namespace_env);
+        impl_->namespace_env = namespace_env;
+    }
 }
 
 }  // namespace dafr
@@ -1157,6 +1416,12 @@ SEXP dafr_mmap_zip_set_bytes(SEXP xptr, std::string key, cpp11::raws bytes) {
         const uint8_t* data = (n > 0) ? reinterpret_cast<const uint8_t*>(RAW(bytes.data())) : nullptr;
         store->append(key, data, static_cast<uint64_t>(n));
         return R_NilValue;
+    } catch (const cpp11::unwind_exception&) {
+        // SimulatedCrash (or any other R-level error) raised inside the
+        // append protocol via tick_crash_counter. Let it propagate through
+        // the BEGIN_CPP11/END_CPP11 boundary unchanged so R observes the
+        // original condition class.
+        throw;
     } catch (const std::exception& e) {
         cpp11::stop("%s", e.what());
     }
