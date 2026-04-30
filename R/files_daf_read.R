@@ -48,7 +48,7 @@ S7::method(
 .files_get_scalar <- function(daf, name) {
     p <- .path_scalar(.files_root(daf), name)
     if (!file.exists(p)) {
-        stop(sprintf("scalar %s does not exist", sQuote(name)), call. = FALSE)
+        .require_scalar(daf, name)
     }
     .read_scalar_json(p)
 }
@@ -95,10 +95,9 @@ S7::method(format_scalars_set, FilesDafReadOnly) <- function(daf) {
         )
     }
     if (anyDuplicated(entries)) {
-        dup <- entries[duplicated(entries)][1L]
         stop(sprintf(
-            "files_daf: axis %s has duplicate entry %s",
-            sQuote(axis), sQuote(dup)
+            "non-unique entries for new axis: %s\nin the daf data: %s",
+            axis, S7::prop(daf, "name")
         ), call. = FALSE)
     }
     dict <- new.env(parent = emptyenv(), size = length(entries))
@@ -136,7 +135,7 @@ S7::method(format_axes_set, FilesDafReadOnly) <- function(daf) .files_axes_set(d
 .files_axis_require <- function(daf, axis) {
     parsed <- .files_axis_parsed(daf, axis)
     if (is.null(parsed)) {
-        stop(sprintf("axis %s does not exist", sQuote(axis)), call. = FALSE)
+        .require_axis(daf, "for: files backend", axis)
     }
     parsed
 }
@@ -337,10 +336,7 @@ S7::method(
     root <- .files_root(daf)
     desc_path <- .files_vector_desc_path(root, axis, name)
     if (!file.exists(desc_path)) {
-        stop(sprintf(
-            "vector %s does not exist on axis %s",
-            sQuote(name), sQuote(axis)
-        ), call. = FALSE)
+        .require_vector(daf, axis, name)
     }
     desc <- .read_descriptor(desc_path)
     n <- format_axis_length(daf, axis)
@@ -446,13 +442,7 @@ S7::method(
     root <- .files_root(daf)
     desc_path <- .files_matrix_desc_path(root, rows_axis, columns_axis, name)
     if (!file.exists(desc_path)) {
-        stop(
-            sprintf(
-                "matrix %s does not exist on axes (%s, %s)",
-                sQuote(name), sQuote(rows_axis), sQuote(columns_axis)
-            ),
-            call. = FALSE
-        )
+        .require_matrix(daf, rows_axis, columns_axis, name, relayout = FALSE)
     }
     desc <- .read_descriptor(desc_path)
     nr <- format_axis_length(daf, rows_axis)

@@ -22,11 +22,11 @@ test_that("format_get_matrix returns stored dense matrix unchanged", {
 
 test_that("format_get_matrix errors on unknown axes / missing matrix", {
     d <- memory_daf()
-    expect_error(format_get_matrix(d, "cell", "gene", "UMIs"), "axis .* does not exist")
+    expect_error(format_get_matrix(d, "cell", "gene", "UMIs"), "missing axis:")
     add_axis(d, "cell", "A")
-    expect_error(format_get_matrix(d, "cell", "gene", "UMIs"), "axis .* does not exist")
+    expect_error(format_get_matrix(d, "cell", "gene", "UMIs"), "missing axis:")
     add_axis(d, "gene", "X")
-    expect_error(format_get_matrix(d, "cell", "gene", "UMIs"), "matrix .* does not exist")
+    expect_error(format_get_matrix(d, "cell", "gene", "UMIs"), "missing matrix:")
 })
 
 test_that("format_set_matrix accepts dense double / int / logical with correct shape", {
@@ -82,7 +82,7 @@ test_that("format_set_matrix rejects shape mismatch / non-matrix / overwrite", {
             matrix(1, 2, 3),
             overwrite = FALSE
         ),
-        "already exists"
+        "existing matrix:"
     )
     format_set_matrix(d, "cell", "gene", "m", matrix(1, 2, 3), overwrite = TRUE)
     expect_equal(format_get_matrix(d, "cell", "gene", "m")$value, matrix(1, 2, 3))
@@ -116,7 +116,7 @@ test_that("format_delete_matrix removes + respects must_exist", {
     format_set_matrix(d, "cell", "gene", "m", matrix(1, 1, 1), overwrite = FALSE)
     format_delete_matrix(d, "cell", "gene", "m", must_exist = TRUE)
     expect_false(format_has_matrix(d, "cell", "gene", "m"))
-    expect_error(format_delete_matrix(d, "cell", "gene", "m", must_exist = TRUE), "does not exist")
+    expect_error(format_delete_matrix(d, "cell", "gene", "m", must_exist = TRUE), "missing matrix:")
     expect_silent(format_delete_matrix(d, "cell", "gene", "m", must_exist = FALSE))
 })
 
@@ -150,7 +150,7 @@ test_that("format_relayout_matrix errors when source matrix missing", {
     add_axis(d, "gene", "X")
     expect_error(
         format_relayout_matrix(d, "cell", "gene", "UMIs"),
-        "does not exist"
+        "missing matrix:"
     )
 })
 
@@ -180,7 +180,7 @@ test_that("get_matrix default returns a constant-valued dimnamed matrix", {
     d <- memory_daf()
     add_axis(d, "cell", c("A", "B"))
     add_axis(d, "gene", c("X", "Y"))
-    expect_error(get_matrix(d, "cell", "gene", "missing"), "does not exist")
+    expect_error(get_matrix(d, "cell", "gene", "missing"), "missing matrix:")
     m <- get_matrix(d, "cell", "gene", "missing", default = NA)
     expect_equal(dim(m), c(2L, 2L))
     expect_equal(rownames(m), c("A", "B"))
@@ -267,7 +267,7 @@ test_that("set_matrix round-trips dense + sparse + respects overwrite", {
         m,
         ignore_attr = TRUE
     )
-    expect_error(set_matrix(d, "cell", "gene", "UMIs", m), "already exists")
+    expect_error(set_matrix(d, "cell", "gene", "UMIs", m), "existing matrix:")
     set_matrix(d, "cell", "gene", "UMIs", m * 10, overwrite = TRUE)
     expect_equal(as.matrix(get_matrix(d, "cell", "gene", "UMIs")),
         m * 10,
@@ -282,7 +282,7 @@ test_that("delete_matrix removes + respects must_exist", {
     set_matrix(d, "cell", "gene", "m", matrix(1, 1, 1))
     delete_matrix(d, "cell", "gene", "m")
     expect_false(has_matrix(d, "cell", "gene", "m"))
-    expect_error(delete_matrix(d, "cell", "gene", "m"), "does not exist")
+    expect_error(delete_matrix(d, "cell", "gene", "m"), "missing matrix:")
     expect_silent(delete_matrix(d, "cell", "gene", "m", must_exist = FALSE))
 })
 

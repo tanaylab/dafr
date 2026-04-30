@@ -168,7 +168,7 @@ S7::method(format_has_scalar, list(ZarrDafReadOnly, S7::class_character)) <-
     path <- paste0("scalars/", name)
     zarray <- zarr_v2_read_zarray(store, path)
     if (is.null(zarray)) {
-        stop(sprintf("scalar %s does not exist", sQuote(name)), call. = FALSE)
+        .require_scalar(daf, name)
     }
     chunk_path <- paste0(path, "/0")
     bytes <- store_get_bytes(store, chunk_path)
@@ -215,13 +215,10 @@ S7::method(
     list(ZarrDaf, S7::class_character, S7::class_any, S7::class_logical)
 ) <- function(daf, name, value, overwrite) {
     .assert_scalar_value(name, value)
-    store <- S7::prop(daf, "store")
-    if (store_exists(store, paste0("scalars/", name, "/.zarray")) &&
-        !overwrite) {
-        stop(sprintf(
-            "scalar %s already exists; use overwrite = TRUE", sQuote(name)
-        ), call. = FALSE)
+    if (!overwrite) {
+        .require_no_scalar(daf, name)
     }
+    store <- S7::prop(daf, "store")
     .zarr_write_scalar(store, name, value)
     MEMORY_DATA
 }
@@ -254,9 +251,7 @@ S7::method(
     store <- S7::prop(daf, "store")
     if (!store_exists(store, paste0("scalars/", name, "/.zarray"))) {
         if (must_exist) {
-            stop(sprintf("scalar %s does not exist", sQuote(name)),
-                call. = FALSE
-            )
+            .require_scalar(daf, name)
         }
         return(invisible())
     }
@@ -305,7 +300,7 @@ S7::method(format_axes_set, ZarrDafReadOnly) <- function(daf) .zarr_axes_set(daf
     path <- paste0("axes/", axis)
     zarray <- zarr_v2_read_zarray(store, path)
     if (is.null(zarray)) {
-        stop(sprintf("axis %s does not exist", sQuote(axis)), call. = FALSE)
+        .require_axis(daf, "for: zarr backend", axis)
     }
     chunk_bytes <- store_get_bytes(store, paste0(path, "/0"))
     if (is.null(chunk_bytes)) {
@@ -363,18 +358,13 @@ S7::method(
         )
     }
     if (anyDuplicated(entries)) {
-        dup <- entries[duplicated(entries)][1L]
         stop(sprintf(
-            "axis %s has duplicate entry %s", sQuote(axis),
-            sQuote(dup)
+            "non-unique entries for new axis: %s\nin the daf data: %s",
+            axis, S7::prop(daf, "name")
         ), call. = FALSE)
     }
+    .require_no_axis(daf, axis)
     store <- S7::prop(daf, "store")
-    if (store_exists(store, paste0("axes/", axis, "/.zarray"))) {
-        stop(sprintf("axis %s already exists", sQuote(axis)),
-            call. = FALSE
-        )
-    }
     path <- paste0("axes/", axis)
     n <- length(entries)
     zarray <- zarr_v2_zarray(shape = n, dtype = "|O")
@@ -401,9 +391,7 @@ S7::method(
     store <- S7::prop(daf, "store")
     if (!store_exists(store, paste0("axes/", axis, "/.zarray"))) {
         if (must_exist) {
-            stop(sprintf("axis %s does not exist", sQuote(axis)),
-                call. = FALSE
-            )
+            .require_axis(daf, "for: delete_axis", axis)
         }
         return(invisible())
     }
@@ -490,10 +478,7 @@ S7::method(format_vectors_set,
     if (store_exists(store, paste0(base, "/.zgroup"))) {
         return(.zarr_get_sparse_vector(daf, axis, name))
     }
-    stop(sprintf(
-        "vector %s does not exist on axis %s",
-        sQuote(name), sQuote(axis)
-    ), call. = FALSE)
+    .require_vector(daf, axis, name)
 }
 
 .zarr_get_sparse_vector <- function(daf, axis, name) {
@@ -562,20 +547,15 @@ S7::method(
     list(ZarrDaf, S7::class_character, S7::class_character,
          S7::class_any, S7::class_logical)
 ) <- function(daf, axis, name, vec, overwrite) {
-    if (!format_has_axis(daf, axis)) {
-        stop(sprintf("axis %s does not exist", sQuote(axis)), call. = FALSE)
+    .require_axis(daf, sprintf("for the vector: %s", name), axis)
+    if (!overwrite) {
+        .require_no_vector(daf, axis, name)
     }
     n_axis <- format_axis_length(daf, axis)
     store <- S7::prop(daf, "store")
     base <- paste0("vectors/", axis, "/", name)
     exists_dense <- store_exists(store, paste0(base, "/.zarray"))
     exists_sparse <- store_exists(store, paste0(base, "/.zgroup"))
-    if ((exists_dense || exists_sparse) && !overwrite) {
-        stop(sprintf(
-            "vector %s already exists on axis %s; use overwrite = TRUE",
-            sQuote(name), sQuote(axis)
-        ), call. = FALSE)
-    }
     # Validate length BEFORE deleting existing form, so a length mismatch
     # leaves the prior data intact.
     if (methods::is(vec, "sparseVector")) {
@@ -667,9 +647,7 @@ S7::method(format_delete_vector,
         exists_sparse <- store_exists(store, paste0(base, "/.zgroup"))
         if (!exists_dense && !exists_sparse) {
             if (must_exist) {
-                stop(sprintf("vector %s does not exist on axis %s",
-                             sQuote(name), sQuote(axis)),
-                     call. = FALSE)
+                .require_vector(daf, axis, name)
             }
             return(invisible())
         }
@@ -770,10 +748,7 @@ S7::method(format_matrices_set,
         nc <- as.integer(format_axis_length(daf, columns_axis))
         return(.zarr_get_sparse_matrix(store, base, nr, nc))
     }
-    stop(sprintf(
-        "matrix %s does not exist on axes (%s, %s)",
-        sQuote(name), sQuote(rows_axis), sQuote(columns_axis)
-    ), call. = FALSE)
+    .require_matrix(daf, rows_axis, columns_axis, name, relayout = FALSE)
 }
 
 .zarr_get_dense_matrix <- function(store, base) {
@@ -883,13 +858,10 @@ S7::method(
     list(ZarrDaf, S7::class_character, S7::class_character,
          S7::class_character, S7::class_any, S7::class_logical)
 ) <- function(daf, rows_axis, columns_axis, name, mat, overwrite) {
-    if (!format_has_axis(daf, rows_axis)) {
-        stop(sprintf("axis %s does not exist", sQuote(rows_axis)),
-             call. = FALSE)
-    }
-    if (!format_has_axis(daf, columns_axis)) {
-        stop(sprintf("axis %s does not exist", sQuote(columns_axis)),
-             call. = FALSE)
+    .require_axis(daf, sprintf("for the rows of the matrix: %s", name), rows_axis)
+    .require_axis(daf, sprintf("for the columns of the matrix: %s", name), columns_axis)
+    if (!overwrite) {
+        .require_no_matrix(daf, rows_axis, columns_axis, name, relayout = FALSE)
     }
     nr <- format_axis_length(daf, rows_axis)
     nc <- format_axis_length(daf, columns_axis)
@@ -907,12 +879,6 @@ S7::method(
     base <- paste0("matrices/", rows_axis, "/", columns_axis, "/", name)
     exists_dense <- store_exists(store, paste0(base, "/.zarray"))
     exists_sparse <- store_exists(store, paste0(base, "/.zgroup"))
-    if ((exists_dense || exists_sparse) && !overwrite) {
-        stop(sprintf(
-            "matrix %s already exists on axes (%s, %s); use overwrite = TRUE",
-            sQuote(name), sQuote(rows_axis), sQuote(columns_axis)
-        ), call. = FALSE)
-    }
     if (exists_dense) {
         store_delete(store, paste0(base, "/.zarray"))
         store_delete(store, paste0(base, "/0/0"))
@@ -998,10 +964,7 @@ S7::method(format_delete_matrix,
         exists_sparse <- store_exists(store, paste0(base, "/.zgroup"))
         if (!exists_dense && !exists_sparse) {
             if (must_exist) {
-                stop(sprintf(
-                    "matrix %s does not exist on axes (%s, %s)",
-                    sQuote(name), sQuote(rows_axis), sQuote(columns_axis)
-                ), call. = FALSE)
+                .require_matrix(daf, rows_axis, columns_axis, name, relayout = FALSE)
             }
             return(invisible())
         }

@@ -22,7 +22,7 @@ test_that("copy_all: overwrite=FALSE insist=TRUE errors on conflict", {
     set_scalar(src, "x", 1L)
     dest <- memory_daf(name = "dest")
     set_scalar(dest, "x", 2L)
-    expect_error(copy_all(dest, src, relayout = FALSE), "already exists")
+    expect_error(copy_all(dest, src, relayout = FALSE), "existing scalar:")
 })
 
 test_that("copy_all: insist=FALSE skips existing destination entries", {

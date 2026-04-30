@@ -178,7 +178,7 @@ S7::method(
     for (d in rev(earlier)) {
         if (format_has_scalar(d, name)) {
             stop(sprintf(
-                "failed to delete the scalar: %s from the daf data: %s of the chain: %s because it exists in the earlier: %s",
+                "failed to delete the scalar: %s\nfrom the daf data: %s\nof the chain: %s\nbecause it exists in the earlier: %s",
                 name, S7::prop(.chain_writer(daf), "name"),
                 S7::prop(daf, "name"), S7::prop(d, "name")
             ), call. = FALSE)
@@ -204,7 +204,7 @@ S7::method(
     for (d in rev(.chain_dafs(daf))) {
         if (format_has_scalar(d, name)) return(format_get_scalar(d, name))
     }
-    stop(sprintf("scalar %s does not exist", sQuote(name)), call. = FALSE)
+    .require_scalar(daf, name)
 }
 
 S7::method(format_scalars_set, ReadOnlyChainDaf) <- function(daf) {
@@ -232,7 +232,7 @@ S7::method(
     for (d in rev(.chain_dafs(daf))) {
         if (format_has_scalar(d, name)) return(format_get_scalar(d, name))
     }
-    stop(sprintf("scalar %s does not exist", sQuote(name)), call. = FALSE)
+    .require_scalar(daf, name)
 }
 
 S7::method(format_scalars_set, WriteChainDaf) <- function(daf) {
@@ -268,7 +268,7 @@ S7::method(
     for (d in rev(.chain_dafs(daf))) {
         if (format_has_axis(d, axis)) return(format_axis_array(d, axis))
     }
-    stop(sprintf("axis %s does not exist", sQuote(axis)), call. = FALSE)
+    .require_axis(daf, "for: chain", axis)
 }
 
 S7::method(
@@ -278,7 +278,7 @@ S7::method(
     for (d in rev(.chain_dafs(daf))) {
         if (format_has_axis(d, axis)) return(format_axis_length(d, axis))
     }
-    stop(sprintf("axis %s does not exist", sQuote(axis)), call. = FALSE)
+    .require_axis(daf, "for: chain", axis)
 }
 
 S7::method(
@@ -288,7 +288,7 @@ S7::method(
     for (d in rev(.chain_dafs(daf))) {
         if (format_has_axis(d, axis)) return(format_axis_dict(d, axis))
     }
-    stop(sprintf("axis %s does not exist", sQuote(axis)), call. = FALSE)
+    .require_axis(daf, "for: chain", axis)
 }
 
 S7::method(
@@ -316,7 +316,7 @@ S7::method(
     for (d in rev(.chain_dafs(daf))) {
         if (format_has_axis(d, axis)) return(format_axis_array(d, axis))
     }
-    stop(sprintf("axis %s does not exist", sQuote(axis)), call. = FALSE)
+    .require_axis(daf, "for: chain", axis)
 }
 
 S7::method(
@@ -326,7 +326,7 @@ S7::method(
     for (d in rev(.chain_dafs(daf))) {
         if (format_has_axis(d, axis)) return(format_axis_length(d, axis))
     }
-    stop(sprintf("axis %s does not exist", sQuote(axis)), call. = FALSE)
+    .require_axis(daf, "for: chain", axis)
 }
 
 S7::method(
@@ -336,7 +336,7 @@ S7::method(
     for (d in rev(.chain_dafs(daf))) {
         if (format_has_axis(d, axis)) return(format_axis_dict(d, axis))
     }
-    stop(sprintf("axis %s does not exist", sQuote(axis)), call. = FALSE)
+    .require_axis(daf, "for: chain", axis)
 }
 
 S7::method(
@@ -358,10 +358,7 @@ S7::method(
             return(format_get_vector(d, axis, name))
         }
     }
-    stop(sprintf(
-        "vector %s does not exist on axis %s",
-        sQuote(name), sQuote(axis)
-    ), call. = FALSE)
+    .require_vector(daf, axis, name)
 }
 
 S7::method(
@@ -396,10 +393,7 @@ S7::method(
             return(format_get_vector(d, axis, name))
         }
     }
-    stop(sprintf(
-        "vector %s does not exist on axis %s",
-        sQuote(name), sQuote(axis)
-    ), call. = FALSE)
+    .require_vector(daf, axis, name)
 }
 
 S7::method(
@@ -438,10 +432,7 @@ S7::method(
             return(format_get_matrix(d, rows_axis, columns_axis, name))
         }
     }
-    stop(sprintf(
-        "matrix %s does not exist on axes (%s, %s)",
-        sQuote(name), sQuote(rows_axis), sQuote(columns_axis)
-    ), call. = FALSE)
+    .require_matrix(daf, rows_axis, columns_axis, name, relayout = FALSE)
 }
 
 S7::method(
@@ -480,10 +471,7 @@ S7::method(
             return(format_get_matrix(d, rows_axis, columns_axis, name))
         }
     }
-    stop(sprintf(
-        "matrix %s does not exist on axes (%s, %s)",
-        sQuote(name), sQuote(rows_axis), sQuote(columns_axis)
-    ), call. = FALSE)
+    .require_matrix(daf, rows_axis, columns_axis, name, relayout = FALSE)
 }
 
 S7::method(
@@ -515,7 +503,7 @@ S7::method(
     for (d in rev(earlier)) {
         if (format_has_axis(d, axis)) {
             stop(sprintf(
-                "failed to delete the axis: %s from the daf data: %s of the chain: %s because it exists in the earlier: %s",
+                "failed to delete the axis: %s\nfrom the daf data: %s\nof the chain: %s\nbecause it exists in the earlier: %s",
                 axis, S7::prop(.chain_writer(daf), "name"),
                 S7::prop(daf, "name"), S7::prop(d, "name")
             ), call. = FALSE)
@@ -536,7 +524,7 @@ S7::method(
             return(invisible())
         }
     }
-    stop(sprintf("axis %s does not exist in chain", sQuote(axis)), call. = FALSE)
+    .require_axis(daf, "for: chain", axis)
 }
 
 S7::method(
@@ -556,7 +544,7 @@ S7::method(
     for (d in rev(earlier)) {
         if (format_has_axis(d, axis) && format_has_vector(d, axis, name)) {
             stop(sprintf(
-                "failed to delete the vector: %s of the axis: %s from the daf data: %s of the chain: %s because it exists in the earlier: %s",
+                "failed to delete the vector: %s\nof the axis: %s\nfrom the daf data: %s\nof the chain: %s\nbecause it exists in the earlier: %s",
                 name, axis,
                 S7::prop(.chain_writer(daf), "name"),
                 S7::prop(daf, "name"), S7::prop(d, "name")
@@ -567,10 +555,7 @@ S7::method(
     if (format_has_axis(writer, axis) && format_has_vector(writer, axis, name)) {
         format_delete_vector(writer, axis, name, must_exist)
     } else if (must_exist) {
-        stop(sprintf(
-            "vector %s does not exist on axis %s",
-            sQuote(name), sQuote(axis)
-        ), call. = FALSE)
+        .require_vector(daf, axis, name)
     }
 }
 
@@ -594,7 +579,7 @@ S7::method(
             format_has_axis(d, columns_axis) &&
             format_has_matrix(d, rows_axis, columns_axis, name)) {
             stop(sprintf(
-                "failed to delete the matrix: %s for the rows axis: %s and the columns axis: %s from the daf data: %s of the chain: %s because it exists in the earlier: %s",
+                "failed to delete the matrix: %s\nfor the rows axis: %s\nand the columns axis: %s\nfrom the daf data: %s\nof the chain: %s\nbecause it exists in the earlier: %s",
                 name, rows_axis, columns_axis,
                 S7::prop(.chain_writer(daf), "name"),
                 S7::prop(daf, "name"), S7::prop(d, "name")
@@ -607,10 +592,7 @@ S7::method(
         format_has_matrix(writer, rows_axis, columns_axis, name)) {
         format_delete_matrix(writer, rows_axis, columns_axis, name, must_exist)
     } else if (must_exist) {
-        stop(sprintf(
-            "matrix %s does not exist on axes (%s, %s)",
-            sQuote(name), sQuote(rows_axis), sQuote(columns_axis)
-        ), call. = FALSE)
+        .require_matrix(daf, rows_axis, columns_axis, name, relayout = FALSE)
     }
 }
 
@@ -661,7 +643,7 @@ S7::method(
             }
             if (length(entries) != length(prior$entries)) {
                 stop(sprintf(
-                    "different number of entries: %d for the axis: %s in the daf data: %s from the number of entries: %d for the axis: %s in the daf data: %s in the chain: %s",
+                    "different number of entries: %d\nfor the axis: %s\nin the daf data: %s\nfrom the number of entries: %d\nfor the axis: %s\nin the daf data: %s\nin the chain: %s",
                     length(entries), axis, dname,
                     length(prior$entries), axis, prior$name, chain_name
                 ), call. = FALSE)
@@ -670,7 +652,7 @@ S7::method(
             if (length(mismatch)) {
                 i <- mismatch[[1L]]
                 stop(sprintf(
-                    "different entry#%d: %s for the axis: %s in the daf data: %s from the entry#%d: %s for the axis: %s in the daf data: %s in the chain: %s",
+                    "different entry#%d: %s\nfor the axis: %s\nin the daf data: %s\nfrom the entry#%d: %s\nfor the axis: %s\nin the daf data: %s\nin the chain: %s",
                     i, entries[[i]], axis, dname,
                     i, prior$entries[[i]], axis, prior$name, chain_name
                 ), call. = FALSE)

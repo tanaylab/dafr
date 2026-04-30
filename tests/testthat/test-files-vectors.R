@@ -119,7 +119,7 @@ test_that("format_get_vector errors on missing descriptor", {
     writeLines('{"version":[1,0]}', file.path(dir, "daf.json"))
     writeLines("A", file.path(dir, "axes", "cell.txt"))
     d <- files_daf(dir, mode = "r")
-    expect_error(format_get_vector(d, "cell", "nope"), "does not exist")
+    expect_error(format_get_vector(d, "cell", "nope"), "missing vector:")
 })
 
 test_that("format_get_vector errors on truncated payload", {
@@ -182,7 +182,7 @@ test_that("set_vector rejects wrong length / requires overwrite", {
     add_axis(d, "cell", c("A", "B"))
     expect_error(set_vector(d, "cell", "x", c(1, 2, 3)), "length")
     set_vector(d, "cell", "x", c(1, 2))
-    expect_error(set_vector(d, "cell", "x", c(3, 4)), "already exists")
+    expect_error(set_vector(d, "cell", "x", c(3, 4)), "existing vector:")
     set_vector(d, "cell", "x", c(3, 4), overwrite = TRUE)
 })
 
@@ -201,7 +201,7 @@ test_that("delete_vector must_exist=FALSE is a no-op on missing", {
     d <- files_daf(dir, mode = "w+")
     add_axis(d, "cell", "A")
     expect_silent(delete_vector(d, "cell", "nope", must_exist = FALSE))
-    expect_error(delete_vector(d, "cell", "nope"), "does not exist")
+    expect_error(delete_vector(d, "cell", "nope"), "missing vector:")
 })
 
 test_that("format_get_vector densifies a sparse Float64 vector written Julia-style", {

@@ -10,14 +10,14 @@ test_that("format_has_scalar / format_get_scalar / format_scalars_set query scal
 
 test_that("format_get_scalar errors on unknown name", {
     d <- memory_daf()
-    expect_error(format_get_scalar(d, "pi"), "does not exist")
+    expect_error(format_get_scalar(d, "pi"), "missing scalar:")
 })
 
 test_that("format_set_scalar stores new scalars and respects overwrite=FALSE", {
     d <- memory_daf()
     format_set_scalar(d, "foo", "bar", overwrite = FALSE)
     expect_equal(format_get_scalar(d, "foo")$value, "bar")
-    expect_error(format_set_scalar(d, "foo", "baz", overwrite = FALSE), "already exists")
+    expect_error(format_set_scalar(d, "foo", "baz", overwrite = FALSE), "existing scalar:")
     expect_equal(format_get_scalar(d, "foo")$value, "bar")
 })
 
@@ -41,7 +41,7 @@ test_that("format_delete_scalar removes + respects must_exist", {
     format_set_scalar(d, "foo", "bar", overwrite = FALSE)
     format_delete_scalar(d, "foo", must_exist = TRUE)
     expect_false(format_has_scalar(d, "foo"))
-    expect_error(format_delete_scalar(d, "foo", must_exist = TRUE), "does not exist")
+    expect_error(format_delete_scalar(d, "foo", must_exist = TRUE), "missing scalar:")
     expect_silent(format_delete_scalar(d, "foo", must_exist = FALSE))
 })
 
@@ -49,7 +49,7 @@ test_that("scalar user-facing round-trip with default handling", {
     d <- memory_daf()
     expect_false(has_scalar(d, "foo"))
     expect_equal(length(scalars_set(d)), 0L)
-    expect_error(get_scalar(d, "foo"), "does not exist")
+    expect_error(get_scalar(d, "foo"), "missing scalar:")
     expect_equal(get_scalar(d, "foo", default = 17), 17)
 
     set_scalar(d, "foo", "bar")
@@ -57,13 +57,13 @@ test_that("scalar user-facing round-trip with default handling", {
     expect_equal(get_scalar(d, "foo"), "bar")
     expect_equal(scalars_set(d), "foo")
 
-    expect_error(set_scalar(d, "foo", "baz"), "already exists")
+    expect_error(set_scalar(d, "foo", "baz"), "existing scalar:")
     set_scalar(d, "foo", "baz", overwrite = TRUE)
     expect_equal(get_scalar(d, "foo"), "baz")
 
     delete_scalar(d, "foo")
     expect_false(has_scalar(d, "foo"))
-    expect_error(delete_scalar(d, "foo"), "does not exist")
+    expect_error(delete_scalar(d, "foo"), "missing scalar:")
     expect_silent(delete_scalar(d, "foo", must_exist = FALSE))
 })
 
@@ -114,7 +114,7 @@ test_that("set_scalar round-trips numeric, integer, logical, and string types", 
 
 test_that("get_scalar(default = NULL) is distinct from omitting the default", {
     d <- memory_daf()
-    expect_error(get_scalar(d, "missing"), "does not exist")
+    expect_error(get_scalar(d, "missing"), "missing scalar:")
     expect_null(get_scalar(d, "missing", default = NULL))
 })
 

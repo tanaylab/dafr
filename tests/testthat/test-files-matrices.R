@@ -18,13 +18,13 @@ test_that("FilesDaf matrices_set lists descriptor-backed matrices", {
     expect_true(has_matrix(d, "cell", "gene", "m"))
 })
 
-test_that("has_matrix returns FALSE on missing axis", {
+test_that("has_matrix / matrices_set raise on missing axis (Julia parity)", {
     dir <- new_tempdir()
     dir.create(file.path(dir, "axes"), recursive = TRUE)
     writeLines('{"version":[1,0]}', file.path(dir, "daf.json"))
     d <- files_daf(dir, mode = "r")
-    expect_false(has_matrix(d, "cell", "gene", "m"))
-    expect_equal(matrices_set(d, "cell", "gene"), character(0L))
+    expect_error(has_matrix(d, "cell", "gene", "m"), "missing axis:")
+    expect_error(matrices_set(d, "cell", "gene"), "missing axis:")
 })
 
 test_that("format_get_matrix dense Float64 round-trips with correct shape", {
@@ -146,7 +146,7 @@ test_that("delete_matrix must_exist semantics", {
     add_axis(d, "cell", "A")
     add_axis(d, "gene", "X")
     expect_silent(delete_matrix(d, "cell", "gene", "nope", must_exist = FALSE))
-    expect_error(delete_matrix(d, "cell", "gene", "nope"), "does not exist")
+    expect_error(delete_matrix(d, "cell", "gene", "nope"), "missing matrix:")
 })
 
 test_that("format_get_matrix densifies sparse CSC written Julia-style", {

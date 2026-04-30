@@ -103,6 +103,7 @@ set_vector <- function(daf, axis, name, vec, overwrite = FALSE) {
     .assert_name(axis, "axis")
     .assert_name(name, "name")
     .assert_flag(overwrite, "overwrite")
+    .require_not_reserved(daf, axis, name)
     format_set_vector(daf, axis, name, vec, overwrite)
     invisible(daf)
 }
@@ -123,6 +124,7 @@ delete_vector <- function(daf, axis, name, must_exist = TRUE) {
     .assert_name(axis, "axis")
     .assert_name(name, "name")
     .assert_flag(must_exist, "must_exist")
+    .require_not_reserved(daf, axis, name)
     format_delete_vector(daf, axis, name, must_exist)
     invisible(daf)
 }
@@ -195,10 +197,7 @@ delete_matrix <- function(daf, rows_axis, columns_axis, name,
     relayout <- relayout && rows_axis != columns_axis
     if (must_exist && !format_has_matrix(daf, rows_axis, columns_axis, name) &&
         !(relayout && format_has_matrix(daf, columns_axis, rows_axis, name))) {
-        stop(sprintf(
-            "matrix %s does not exist on axes (%s, %s)",
-            sQuote(name), sQuote(rows_axis), sQuote(columns_axis)
-        ), call. = FALSE)
+        .require_matrix(daf, rows_axis, columns_axis, name, relayout = relayout)
     }
     if (format_has_matrix(daf, rows_axis, columns_axis, name)) {
         format_delete_matrix(daf, rows_axis, columns_axis, name, must_exist = FALSE)
@@ -225,10 +224,78 @@ delete_matrix <- function(daf, rows_axis, columns_axis, name,
 #' relayout_matrix(d, "cell", "gene", "counts")
 #' has_matrix(d, "gene", "cell", "counts")
 #' @export
-relayout_matrix <- function(daf, rows_axis, columns_axis, name) {
+relayout_matrix <- function(daf, rows_axis, columns_axis, name, overwrite = FALSE) {
     .assert_name(rows_axis, "rows_axis")
     .assert_name(columns_axis, "columns_axis")
     .assert_name(name, "name")
+    .assert_flag(overwrite, "overwrite")
+    .require_axis(daf, sprintf("for the rows of the matrix: %s", name), rows_axis)
+    .require_axis(daf, sprintf("for the columns of the matrix: %s", name), columns_axis)
+    if (rows_axis == columns_axis) {
+        stop(sprintf(
+            "can't relayout square matrix: %s\nof the axis: %s\ndue to daf representation limitations\nin the daf data: %s",
+            name, rows_axis, S7::prop(daf, "name")
+        ), call. = FALSE)
+    }
+    .require_matrix(daf, rows_axis, columns_axis, name, relayout = FALSE)
+    if (!overwrite) {
+        .require_no_matrix(daf, columns_axis, rows_axis, name, relayout = FALSE)
+    }
     format_relayout_matrix(daf, rows_axis, columns_axis, name)
     invisible(daf)
+}
+
+# Centralized "must not exist" helpers; emit the EXACT message text used by
+# DataAxesFormats.jl writers.jl (`require_no_*`). One-line forms for scalar /
+# axis, multi-line forms for vector / matrix, all rendering `daf.name` from
+# the S7 `name` slot.
+
+.require_no_scalar <- function(daf, name) {
+    if (format_has_scalar(daf, name)) {
+        stop(sprintf("existing scalar: %s\nin the daf data: %s",
+                     name, S7::prop(daf, "name")),
+             call. = FALSE)
+    }
+    invisible(NULL)
+}
+
+.require_no_axis <- function(daf, axis) {
+    if (format_has_axis(daf, axis)) {
+        stop(sprintf("existing axis: %s\nin the daf data: %s",
+                     axis, S7::prop(daf, "name")),
+             call. = FALSE)
+    }
+    invisible(NULL)
+}
+
+.require_no_vector <- function(daf, axis, name) {
+    if (format_has_vector(daf, axis, name)) {
+        stop(sprintf("existing vector: %s\nfor the axis: %s\nin the daf data: %s",
+                     name, axis, S7::prop(daf, "name")),
+             call. = FALSE)
+    }
+    invisible(NULL)
+}
+
+.require_not_reserved <- function(daf, axis, name) {
+    if (name == "name" || name == "index") {
+        stop(sprintf(
+            "setting the reserved vector: %s\nfor the axis: %s\nin the daf data: %s",
+            name, axis, S7::prop(daf, "name")
+        ), call. = FALSE)
+    }
+    invisible(NULL)
+}
+
+.require_no_matrix <- function(daf, rows_axis, columns_axis, name, relayout = TRUE) {
+    if (format_has_matrix(daf, rows_axis, columns_axis, name)) {
+        stop(sprintf(
+            "existing matrix: %s\nfor the rows axis: %s\nand the columns axis: %s\nin the daf data: %s",
+            name, rows_axis, columns_axis, S7::prop(daf, "name")
+        ), call. = FALSE)
+    }
+    if (isTRUE(relayout)) {
+        .require_no_matrix(daf, columns_axis, rows_axis, name, relayout = FALSE)
+    }
+    invisible(NULL)
 }

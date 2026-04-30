@@ -41,7 +41,7 @@ test_that("copy_matrix: insist=TRUE raises when destination has it", {
     set_matrix(dest, "cell", "gene", "UMIs", matrix(9, 1, 1,
                dimnames = list("c1", "g1")))
     expect_error(copy_matrix(dest, src, "cell", "gene", "UMIs"),
-                 "already exists")
+                 "existing matrix:")
 })
 
 test_that("copy_matrix: overwrite replaces destination matrix", {

@@ -12,7 +12,7 @@ test_that("format_has_vector / format_vectors_set reflect stored vectors", {
 
 test_that("format_vectors_set errors on unknown axis", {
     d <- memory_daf()
-    expect_error(format_vectors_set(d, "cell"), "does not exist")
+    expect_error(format_vectors_set(d, "cell"), "missing axis:")
 })
 
 test_that("format_get_vector returns the stored SEXP unchanged", {
@@ -26,9 +26,9 @@ test_that("format_get_vector returns the stored SEXP unchanged", {
 
 test_that("format_get_vector errors on unknown axis / vector", {
     d <- memory_daf()
-    expect_error(format_get_vector(d, "cell", "score"), "axis .* does not exist")
+    expect_error(format_get_vector(d, "cell", "score"), "missing axis:")
     add_axis(d, "cell", c("A", "B"))
-    expect_error(format_get_vector(d, "cell", "score"), "vector .* does not exist")
+    expect_error(format_get_vector(d, "cell", "score"), "missing vector:")
 })
 
 test_that("format_set_vector stores dense numeric/integer/logical/character vectors", {
@@ -57,11 +57,11 @@ test_that("format_set_vector errors on length mismatch / unknown axis / NULL", {
     add_axis(d, "cell", c("A", "B"))
     expect_error(
         format_set_vector(d, "gene", "v", c(1, 2), overwrite = FALSE),
-        "axis .* does not exist"
+        "missing axis:"
     )
     expect_error(
         format_set_vector(d, "cell", "v", c(1, 2, 3), overwrite = FALSE),
-        "length 3.*expected 2"
+        "the length: 3"
     )
     expect_error(
         format_set_vector(d, "cell", "v", NULL, overwrite = FALSE),
@@ -87,7 +87,7 @@ test_that("format_set_vector honours overwrite", {
     format_set_vector(d, "cell", "v", c(1.0, 2.0), overwrite = FALSE)
     expect_error(
         format_set_vector(d, "cell", "v", c(3.0, 4.0), overwrite = FALSE),
-        "already exists"
+        "existing vector:"
     )
     format_set_vector(d, "cell", "v", c(3.0, 4.0), overwrite = TRUE)
     expect_equal(format_get_vector(d, "cell", "v")$value, c(3.0, 4.0))
@@ -110,7 +110,7 @@ test_that("format_delete_vector removes + respects must_exist", {
     format_set_vector(d, "cell", "v", c(1.0, 2.0), overwrite = FALSE)
     format_delete_vector(d, "cell", "v", must_exist = TRUE)
     expect_false(format_has_vector(d, "cell", "v"))
-    expect_error(format_delete_vector(d, "cell", "v", must_exist = TRUE), "does not exist")
+    expect_error(format_delete_vector(d, "cell", "v", must_exist = TRUE), "missing vector:")
     expect_silent(format_delete_vector(d, "cell", "v", must_exist = FALSE))
 })
 
@@ -126,7 +126,7 @@ test_that("get_vector returns axis-named vector", {
 test_that("get_vector default recycles a scalar across the axis", {
     d <- memory_daf()
     add_axis(d, "cell", c("A", "B"))
-    expect_error(get_vector(d, "cell", "missing"), "does not exist")
+    expect_error(get_vector(d, "cell", "missing"), "missing vector:")
     na_vec <- get_vector(d, "cell", "missing", default = NA)
     expect_equal(names(na_vec), c("A", "B"))
     expect_true(all(is.na(na_vec)))
@@ -185,14 +185,14 @@ test_that("set_vector with named input reorders by axis entries", {
 test_that("set_vector rejects length mismatch", {
     d <- memory_daf()
     add_axis(d, "cell", c("A", "B", "C"))
-    expect_error(set_vector(d, "cell", "v", c(1.0, 2.0)), "length 2")
+    expect_error(set_vector(d, "cell", "v", c(1.0, 2.0)), "the length: 2")
 })
 
 test_that("set_vector respects overwrite = FALSE", {
     d <- memory_daf()
     add_axis(d, "cell", c("A"))
     set_vector(d, "cell", "v", 1.0)
-    expect_error(set_vector(d, "cell", "v", 2.0), "already exists")
+    expect_error(set_vector(d, "cell", "v", 2.0), "existing vector:")
     set_vector(d, "cell", "v", 2.0, overwrite = TRUE)
     expect_equal(unname(get_vector(d, "cell", "v")), 2.0)
 })
@@ -204,7 +204,7 @@ test_that("delete_vector invalidates cached read", {
     get_vector(d, "cell", "v") # populate cache
     delete_vector(d, "cell", "v")
     expect_false(has_vector(d, "cell", "v"))
-    expect_error(delete_vector(d, "cell", "v"), "does not exist")
+    expect_error(delete_vector(d, "cell", "v"), "missing vector:")
     expect_silent(delete_vector(d, "cell", "v", must_exist = FALSE))
 })
 

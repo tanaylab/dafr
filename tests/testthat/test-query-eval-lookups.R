@@ -41,8 +41,8 @@ test_that("get_query with '@ axis : ?' returns vector names", {
     d <- memory_daf(name = "t")
     add_axis(d, "cell", "c1")
     set_vector(d, "cell", "age", 1)
-    set_vector(d, "cell", "name", "x")
-    expect_setequal(get_query(d, "@ cell : ?"), c("age", "name"))
+    set_vector(d, "cell", "color", "x")
+    expect_setequal(get_query(d, "@ cell : ?"), c("age", "color"))
 })
 
 test_that("get_query returns a matrix", {

@@ -30,6 +30,7 @@ axes_set <- function(daf) format_axes_set(daf)
 #' @export
 axis_length <- function(daf, axis) {
     .assert_name(axis, "axis")
+    .require_axis(daf, "for: axis_length", axis)
     format_axis_length(daf, axis)
 }
 
@@ -47,12 +48,10 @@ axis_length <- function(daf, axis) {
 #' @export
 axis_vector <- function(daf, axis, null_if_missing = FALSE) {
     .assert_name(axis, "axis")
-    if (!format_has_axis(daf, axis)) {
-        if (isTRUE(null_if_missing)) {
-            return(NULL)
-        }
-        stop(sprintf("axis %s does not exist", sQuote(axis)), call. = FALSE)
+    if (isTRUE(null_if_missing) && !format_has_axis(daf, axis)) {
+        return(NULL)
     }
+    .require_axis(daf, "for: axis_vector", axis)
     format_axis_array(daf, axis)$value
 }
 
@@ -129,16 +128,15 @@ axis_indices <- function(daf, axis, entries, allow_empty = FALSE,
     .assert_flag(allow_missing, "allow_missing")
     if (!is.character(entries)) stop("`entries` must be a character vector", call. = FALSE)
     if (anyNA(entries)) stop("`entries` must not contain NA", call. = FALSE)
-    dict <- format_axis_dict(daf, axis)
+    dict <- axis_dict(daf, axis)
     out <- integer(length(entries))
-    missing_mask <- logical(length(entries))
     for (i in seq_along(entries)) {
         nm <- entries[[i]]
         if (!nzchar(nm)) {
             if (allow_empty) {
                 out[i] <- 0L
             } else {
-                missing_mask[i] <- TRUE
+                .require_axis_entry(daf, axis, nm)
             }
             next
         }
@@ -147,21 +145,11 @@ axis_indices <- function(daf, axis, entries, allow_empty = FALSE,
             if (allow_missing) {
                 out[i] <- 0L
             } else {
-                missing_mask[i] <- TRUE
+                .require_axis_entry(daf, axis, nm)
             }
         } else {
             out[i] <- as.integer(v)
         }
-    }
-    if (any(missing_mask)) {
-        stop(
-            sprintf(
-                "entries not found in axis %s: %s",
-                sQuote(axis),
-                paste(sQuote(entries[missing_mask]), collapse = ", ")
-            ),
-            call. = FALSE
-        )
     }
     out
 }
@@ -177,6 +165,7 @@ axis_indices <- function(daf, axis, entries, allow_empty = FALSE,
 #' @export
 axis_dict <- function(daf, axis) {
     .assert_name(axis, "axis")
+    .require_axis(daf, "for: axis_dict", axis)
     format_axis_dict(daf, axis)
 }
 
@@ -221,7 +210,7 @@ get_scalar <- function(daf, name, default) {
     if (!missing(default)) {
         return(default)
     }
-    stop(sprintf("scalar %s does not exist", sQuote(name)), call. = FALSE)
+    .require_scalar(daf, name)
 }
 
 #' Test whether a vector exists on an axis.
@@ -237,6 +226,7 @@ get_scalar <- function(daf, name, default) {
 has_vector <- function(daf, axis, name) {
     .assert_name(axis, "axis")
     .assert_name(name, "name")
+    .require_axis(daf, sprintf("for has_vector: %s", name), axis)
     format_has_vector(daf, axis, name)
 }
 
@@ -249,6 +239,7 @@ has_vector <- function(daf, axis, name) {
 #' @export
 vectors_set <- function(daf, axis) {
     .assert_name(axis, "axis")
+    .require_axis(daf, "for: vectors_set", axis)
     format_vectors_set(daf, axis)
 }
 
@@ -277,16 +268,11 @@ vectors_set <- function(daf, axis) {
 get_vector <- function(daf, axis, name, default) {
     .assert_name(axis, "axis")
     .assert_name(name, "name")
-    if (!format_has_axis(daf, axis)) {
-        stop(sprintf("axis %s does not exist", sQuote(axis)), call. = FALSE)
-    }
+    .require_axis(daf, sprintf("for the vector: %s", name), axis)
     entries <- format_axis_array(daf, axis)$value
     if (!format_has_vector(daf, axis, name)) {
         if (missing(default)) {
-            stop(sprintf(
-                "vector %s does not exist on axis %s",
-                sQuote(name), sQuote(axis)
-            ), call. = FALSE)
+            .require_vector(daf, axis, name)
         }
         n <- length(entries)
         if (length(default) == 1L) {
@@ -342,6 +328,8 @@ has_matrix <- function(daf, rows_axis, columns_axis, name, relayout = TRUE) {
     .assert_name(columns_axis, "columns_axis")
     .assert_name(name, "name")
     .assert_flag(relayout, "relayout")
+    .require_axis(daf, sprintf("for the rows of the matrix: %s", name), rows_axis)
+    .require_axis(daf, sprintf("for the columns of the matrix: %s", name), columns_axis)
     if (format_has_matrix(daf, rows_axis, columns_axis, name)) {
         return(TRUE)
     }
@@ -362,6 +350,8 @@ has_matrix <- function(daf, rows_axis, columns_axis, name, relayout = TRUE) {
 matrices_set <- function(daf, rows_axis, columns_axis) {
     .assert_name(rows_axis, "rows_axis")
     .assert_name(columns_axis, "columns_axis")
+    .require_axis(daf, "for the rows of: matrices_set", rows_axis)
+    .require_axis(daf, "for the columns of: matrices_set", columns_axis)
     format_matrices_set(daf, rows_axis, columns_axis)
 }
 
@@ -388,6 +378,8 @@ get_matrix <- function(daf, rows_axis, columns_axis, name, default) {
     .assert_name(rows_axis, "rows_axis")
     .assert_name(columns_axis, "columns_axis")
     .assert_name(name, "name")
+    .require_axis(daf, sprintf("for the rows of the matrix: %s", name), rows_axis)
+    .require_axis(daf, sprintf("for the columns of the matrix: %s", name), columns_axis)
 
     rows <- format_axis_array(daf, rows_axis)$value
     cols <- format_axis_array(daf, columns_axis)$value
@@ -397,13 +389,7 @@ get_matrix <- function(daf, rows_axis, columns_axis, name, default) {
 
     if (!primary && !flipped) {
         if (missing(default)) {
-            stop(
-                sprintf(
-                    "matrix %s does not exist on axes (%s, %s)",
-                    sQuote(name), sQuote(rows_axis), sQuote(columns_axis)
-                ),
-                call. = FALSE
-            )
+            .require_matrix(daf, rows_axis, columns_axis, name, relayout = TRUE)
         }
         out <- matrix(default,
             nrow = length(rows), ncol = length(cols),
@@ -512,6 +498,71 @@ description <- function(daf) {
         }
     }
     paste0(paste(lines, collapse = "\n"), "\n")
+}
+
+# Centralized error-raising helpers that emit the EXACT message text used
+# by DataAxesFormats.jl (readers.jl `require_*`, writers.jl `require_no_*`).
+# Mirror Julia's chomp-of-triple-quoted layout: multi-line, no trailing newline,
+# `daf.name` rendered verbatim from the S7 `name` slot.
+
+.require_scalar <- function(daf, name) {
+    if (!format_has_scalar(daf, name)) {
+        stop(sprintf("missing scalar: %s\nin the daf data: %s",
+                     name, S7::prop(daf, "name")),
+             call. = FALSE)
+    }
+    invisible(NULL)
+}
+
+.require_axis <- function(daf, what_for, axis) {
+    if (!format_has_axis(daf, axis)) {
+        stop(sprintf("missing axis: %s\n%s\nof the daf data: %s",
+                     axis, what_for, S7::prop(daf, "name")),
+             call. = FALSE)
+    }
+    invisible(NULL)
+}
+
+.require_vector <- function(daf, axis, name) {
+    if (!format_has_vector(daf, axis, name)) {
+        stop(sprintf("missing vector: %s\nfor the axis: %s\nin the daf data: %s",
+                     name, axis, S7::prop(daf, "name")),
+             call. = FALSE)
+    }
+    invisible(NULL)
+}
+
+.require_matrix <- function(daf, rows_axis, columns_axis, name, relayout = TRUE) {
+    has <- format_has_matrix(daf, rows_axis, columns_axis, name)
+    if (!has && relayout) {
+        has <- format_has_matrix(daf, columns_axis, rows_axis, name)
+    }
+    if (!has) {
+        extra <- if (isTRUE(relayout)) "\n(and the other way around)" else ""
+        stop(sprintf(
+            "missing matrix: %s\nfor the rows axis: %s\nand the columns axis: %s%s\nin the daf data: %s",
+            name, rows_axis, columns_axis, extra, S7::prop(daf, "name")
+        ), call. = FALSE)
+    }
+    invisible(NULL)
+}
+
+.require_axis_entry <- function(daf, axis, entry) {
+    stop(sprintf("missing entry: %s\nfor the axis: %s\nin the daf data: %s",
+                 entry, axis, S7::prop(daf, "name")),
+         call. = FALSE)
+}
+
+.require_axis_length <- function(daf, what_length, vector_name, axis) {
+    n <- format_axis_length(daf, axis)
+    if (what_length != n) {
+        stop(sprintf(
+            "the length: %d\nof the %s\nis different from the length: %d\nof the axis: %s\nin the daf data: %s",
+            as.integer(what_length), vector_name, as.integer(n),
+            axis, S7::prop(daf, "name")
+        ), call. = FALSE)
+    }
+    invisible(NULL)
 }
 
 .daf_type_name <- function(daf) {

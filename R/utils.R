@@ -72,28 +72,12 @@
                 call. = FALSE
             )
         }
-        if (length(vec) != n) {
-            stop(
-                sprintf(
-                    "vector %s has length %d (expected %d) on axis %s",
-                    sQuote(name), length(vec), n, sQuote(axis)
-                ),
-                call. = FALSE
-            )
-        }
+        .require_axis_length(daf, length(vec), sprintf("vector: %s", name), axis)
         # Reorder to axis order; drop names but preserve class (e.g. bit64).
         vec <- vec[entries]
         names(vec) <- NULL
     } else {
-        if (length(vec) != n) {
-            stop(
-                sprintf(
-                    "vector %s has length %d (expected %d) on axis %s",
-                    sQuote(name), length(vec), n, sQuote(axis)
-                ),
-                call. = FALSE
-            )
-        }
+        .require_axis_length(daf, length(vec), sprintf("vector: %s", name), axis)
     }
     vec
 }

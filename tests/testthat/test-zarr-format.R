@@ -78,7 +78,7 @@ test_that("ZarrDaf delete_scalar removes scalar", {
 test_that("ZarrDaf set_scalar overwrite=FALSE errors on existing", {
     d <- .fresh_zarr_daf()
     set_scalar(d, "x", 1L)
-    expect_error(set_scalar(d, "x", 2L), "already exists")
+    expect_error(set_scalar(d, "x", 2L), "existing scalar:")
 })
 
 test_that("ZarrDaf scalars persist through DirStore round-trip", {
@@ -112,7 +112,7 @@ test_that("ZarrDaf add_axis + axis_vector + axis_length", {
 
 test_that("ZarrDaf add_axis rejects duplicates / NA / empty", {
     d <- .fresh_zarr_daf()
-    expect_error(add_axis(d, "x", c("A", "A")), "duplicate")
+    expect_error(add_axis(d, "x", c("A", "A")), "non-unique entries")
     expect_error(add_axis(d, "x", c("A", NA_character_)), "NA")
     expect_error(add_axis(d, "x", c("A", "")), "empty")
 })
@@ -120,7 +120,7 @@ test_that("ZarrDaf add_axis rejects duplicates / NA / empty", {
 test_that("ZarrDaf add_axis rejects re-adding existing axis", {
     d <- .fresh_zarr_daf()
     add_axis(d, "cell", c("A"))
-    expect_error(add_axis(d, "cell", c("B")), "already exists")
+    expect_error(add_axis(d, "cell", c("B")), "existing axis:")
 })
 
 test_that("ZarrDaf delete_axis removes axis", {
@@ -219,7 +219,7 @@ test_that("ZarrDaf set_vector overwrite=FALSE errors on existing", {
     add_axis(d, "cell", c("A", "B"))
     set_vector(d, "cell", "x", c(1, 2))
     expect_error(set_vector(d, "cell", "x", c(3, 4)),
-                 "already exists")
+                 "existing vector:")
 })
 
 test_that("ZarrDaf delete_vector removes the vector", {
@@ -406,7 +406,7 @@ test_that("ZarrDaf set_matrix overwrite errors", {
     m <- matrix(c(1, 2, 3, 4), nrow = 2)
     set_matrix(d, "cell", "gene", "M", m)
     expect_error(set_matrix(d, "cell", "gene", "M", m + 10),
-                 "already exists")
+                 "existing matrix:")
 })
 
 test_that("ZarrDaf delete_matrix removes matrix", {
