@@ -22,8 +22,8 @@ A \code{ZarrDaf} (writeable) or \code{ZarrDafReadOnly}.
 \description{
 Path-aware constructor that picks the right backing store. A path
 ending in \code{.daf.zarr} (or any directory path) creates a \code{DirStore}.
-\verb{:memory:} or \code{NULL} creates a \code{DictStore}. \verb{*.daf.zarr.zip} errors
-with "lands in slice 17" pending the C++ MmapZipStore.
+\verb{:memory:} or \code{NULL} creates a \code{DictStore}. A path ending in
+\code{.daf.zarr.zip} creates an \code{MmapZipStore} (mmap-backed zip).
 }
 \examples{
 tmp <- tempfile(fileext = ".daf.zarr")

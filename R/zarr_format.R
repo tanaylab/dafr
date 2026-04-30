@@ -5,8 +5,8 @@ NULL
 #'
 #' Concrete `DafWriter` subclass instantiated by [zarr_daf()] when
 #' opened with mode `"w"` / `"w+"` / `"r+"`. Operates against any
-#' [ZarrStore]; today: `DirStore` (filesystem) and `DictStore`
-#' (in-memory). Zip-backed Zarr (`MmapZipStore`) lands in slice 17.
+#' [ZarrStore]; supported backends today: `DirStore` (filesystem),
+#' `DictStore` (in-memory), `MmapZipStore` (zip archive).
 #'
 #' @inheritParams DafReader
 #' @param store Internal [ZarrStore] instance (set by [zarr_daf()]);
@@ -55,8 +55,8 @@ ZarrDafReadOnly <- S7::new_class(
 #'
 #' Path-aware constructor that picks the right backing store. A path
 #' ending in `.daf.zarr` (or any directory path) creates a `DirStore`.
-#' `:memory:` or `NULL` creates a `DictStore`. `*.daf.zarr.zip` errors
-#' with "lands in slice 17" pending the C++ MmapZipStore.
+#' `:memory:` or `NULL` creates a `DictStore`. A path ending in
+#' `.daf.zarr.zip` creates an `MmapZipStore` (mmap-backed zip).
 #'
 #' @param uri Filesystem directory path, `:memory:`, or `NULL`.
 #' @param mode `"r"`, `"r+"`, `"w"`, or `"w+"`. `"w"` initializes a

@@ -56,12 +56,6 @@
     "DirStore"
 )
 
-# MmapZipStore stub
-test_that("new_mmap_zip_store errors pointing to slice 17", {
-    expect_error(new_mmap_zip_store("/some/path.daf.zarr.zip"),
-                 "lands in slice 17")
-})
-
 # Edge cases for DirStore: large bytes, binary data with all 256 byte values
 test_that("DirStore: round-trip 1 KiB of mixed binary content", {
     s <- new_dir_store(tempfile())

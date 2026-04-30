@@ -2,7 +2,7 @@
 # keyed by path strings. Concrete impls in this file:
 #   - DirStore (filesystem)
 #   - DictStore (in-memory, env-backed)
-#   - MmapZipStore (stub; errors with "lands in slice 17")
+#   - MmapZipStore (zip archive, mmap-backed; C++ in src/mmap_zip_store.cpp)
 #
 # Every Zarr v2 operation in R/zarr_v2.R goes through this interface.
 # Mirrors zarr-python's MutableMapping store: get / set / delete /
@@ -16,8 +16,7 @@
 #' @param root (`DirStore`) Filesystem root path; created if missing.
 #' @param env (`DictStore`) Internal environment used as the key-value
 #'   backing store; typically created by [new_dict_store()].
-#' @param path (`MmapZipStore`) Filesystem path to a zip archive
-#'   (stub; not yet functional — lands in slice 17).
+#' @param path (`MmapZipStore`) Filesystem path to a zip archive.
 #' @name ZarrStore
 #' @export
 ZarrStore <- S7::new_class("ZarrStore", abstract = TRUE)
@@ -43,7 +42,11 @@ DictStore <- S7::new_class(
 MmapZipStore <- S7::new_class(
     "MmapZipStore",
     parent = ZarrStore,
-    properties = list(path = S7::class_character)
+    properties = list(
+        path = S7::class_character,
+        mode = S7::class_character,
+        xptr = S7::class_any
+    )
 )
 
 # Constructors.
@@ -79,25 +82,40 @@ new_dict_store <- function() {
     DictStore(env = new.env(parent = emptyenv()))
 }
 
-#' Stub for the mmap-backed zip store (slice 17).
+#' Create a zip-archive-backed Zarr v2 store (mmap, append-only).
 #'
-#' Errors with a message pointing to slice 17. The constructor exists
-#' so future routing in `open_daf` can dispatch on `*.daf.zarr.zip`
-#' URIs without callers having to special-case the absence of the
-#' implementation.
+#' Opens (or creates) a single ZIP archive at `path` as a Zarr v2 store.
+#' Reads use a shared mmap of the archive (zero-copy for stored entries
+#' via ALTREP RAW); writes append entries with a crash-safe two-step
+#' commit protocol. Mirrors upstream
+#' `DataAxesFormats.MmapZipStores.MmapZipStore`.
 #'
-#' @param path Filesystem path to a zip archive.
-#' @return Throws.
+#' Modes: `"r"` (read existing), `"r+"` (read/write existing),
+#' `"w+"` (read/write, create if missing), `"w"` (truncate + create).
+#' On a writable open, the store reserves `max_file_size` bytes of
+#' virtual address space (no RAM cost) and grows the file via
+#' `ftruncate` as entries append. Default `max_file_size` is 1 TiB.
+#'
+#' @param path Filesystem path to a `.daf.zarr.zip` archive.
+#' @param mode One of `"r"`, `"r+"`, `"w+"`, `"w"`.
+#' @param max_file_size Cap on the writable virtual reservation, in
+#'   bytes. Ignored for read-only opens. Defaults to 1 TiB.
+#' @return A `MmapZipStore`.
 #' @examples
 #' \dontrun{
-#' new_mmap_zip_store("/path/to/foo.daf.zarr.zip")
+#' s <- new_mmap_zip_store("/path/to/foo.daf.zarr.zip", mode = "w")
 #' }
 #' @export
-new_mmap_zip_store <- function(path) {
-    stop(sprintf(
-        "MmapZipStore (%s) lands in slice 17; not yet supported",
-        sQuote(path)
-    ), call. = FALSE)
+new_mmap_zip_store <- function(path, mode = "r", max_file_size = 2^40) {
+    stopifnot(
+        is.character(path), length(path) == 1L, nzchar(path),
+        is.character(mode), length(mode) == 1L,
+        mode %in% c("r", "r+", "w+", "w"),
+        is.numeric(max_file_size), length(max_file_size) == 1L,
+        max_file_size > 0
+    )
+    xptr <- dafr_mmap_zip_open(path, mode, as.numeric(max_file_size))
+    MmapZipStore(path = path, mode = mode, xptr = xptr)
 }
 
 # Generics.

@@ -38,8 +38,8 @@ not intended for direct use.}
 \description{
 Concrete \code{DafWriter} subclass instantiated by \code{\link[=zarr_daf]{zarr_daf()}} when
 opened with mode \code{"w"} / \code{"w+"} / \code{"r+"}. Operates against any
-\link{ZarrStore}; today: \code{DirStore} (filesystem) and \code{DictStore}
-(in-memory). Zip-backed Zarr (\code{MmapZipStore}) lands in slice 17.
+\link{ZarrStore}; supported backends today: \code{DirStore} (filesystem),
+\code{DictStore} (in-memory), \code{MmapZipStore} (zip archive).
 }
 \examples{
 tmp <- tempfile(fileext = ".daf.zarr")

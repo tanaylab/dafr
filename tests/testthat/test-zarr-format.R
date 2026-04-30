@@ -39,12 +39,6 @@ test_that("zarr_daf() mode='r' returns ZarrDafReadOnly", {
     expect_s7_class(d, ZarrDafReadOnly)
 })
 
-test_that("zarr_daf() with .daf.zarr.zip errors with slice-17 placeholder", {
-    expect_error(zarr_daf("/some/path.daf.zarr.zip"),
-        "lands in slice 17"
-    )
-})
-
 # ---- Scalars ------------------------------------------------------------
 
 test_that("ZarrDaf scalars round-trip integer / double / logical / character", {
