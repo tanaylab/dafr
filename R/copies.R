@@ -58,17 +58,14 @@ copy_scalar <- function(destination, source, name,
     final_name <- if (is.null(rename)) name else rename
     if (format_has_scalar(destination, final_name) && !overwrite) {
         if (insist) {
-            stop(sprintf("scalar %s already exists in destination",
-                         sQuote(final_name)), call. = FALSE)
+            .require_no_scalar(destination, final_name)
         }
         return(invisible(destination))
     }
     if (format_has_scalar(source, name)) {
         value <- format_get_scalar(source, name)$value
     } else if (.is_undef(default)) {
-        stop(sprintf("missing scalar: %s in the daf data: %s",
-                     sQuote(name), S7::prop(source, "name")),
-             call. = FALSE)
+        .require_scalar(source, name)
     } else if (is.null(default)) {
         return(invisible(destination))
     } else {
@@ -105,16 +102,11 @@ copy_axis <- function(destination, source, axis,
     .assert_flag(overwrite, "overwrite")
     .assert_flag(insist, "insist")
     final_axis <- if (is.null(rename)) axis else rename
-    if (!format_has_axis(source, axis)) {
-        stop(sprintf("missing axis: %s in the daf data: %s",
-                     sQuote(axis), S7::prop(source, "name")),
-             call. = FALSE)
-    }
+    .require_axis(source, "for: copy_axis", axis)
     if (format_has_axis(destination, final_axis)) {
         if (!overwrite) {
             if (insist) {
-                stop(sprintf("axis %s already exists in destination",
-                             sQuote(final_axis)), call. = FALSE)
+                .require_no_axis(destination, final_axis)
             }
             return(invisible(destination))
         }
@@ -177,16 +169,10 @@ copy_vector <- function(destination, source, axis, name,
     final_axis <- if (is.null(reaxis)) axis else reaxis
     final_name <- if (is.null(rename)) name else rename
 
-    if (!format_has_axis(destination, final_axis)) {
-        stop(sprintf("missing axis: %s in the destination daf data: %s",
-                     sQuote(final_axis), S7::prop(destination, "name")),
-             call. = FALSE)
-    }
+    .require_axis(destination, sprintf("for the vector: %s", final_name), final_axis)
     if (format_has_vector(destination, final_axis, final_name) && !overwrite) {
         if (insist) {
-            stop(sprintf("vector %s already exists on axis %s in destination",
-                         sQuote(final_name), sQuote(final_axis)),
-                 call. = FALSE)
+            .require_no_vector(destination, final_axis, final_name)
         }
         return(invisible(destination))
     }
@@ -195,10 +181,7 @@ copy_vector <- function(destination, source, axis, name,
     if (format_has_vector(source, axis, name)) {
         value <- format_get_vector(source, axis, name)$value
     } else if (.is_undef(default)) {
-        stop(sprintf(
-            "missing vector: %s for the axis: %s in the daf data: %s",
-            sQuote(name), sQuote(axis), S7::prop(source, "name")
-        ), call. = FALSE)
+        .require_vector(source, axis, name)
     } else if (is.null(default)) {
         return(invisible(destination))
     } else {
@@ -220,8 +203,9 @@ copy_vector <- function(destination, source, axis, name,
     } else if (identical(relation, "source_is_subset")) {
         if (is.null(empty)) {
             stop(sprintf(
-                "missing entries in the axis: %s of the source daf %s which are needed for copying the vector: %s; supply `empty` to fill them",
-                sQuote(axis), S7::prop(source, "name"), sQuote(name)
+                "missing entries in the axis: %s\nof the source daf data: %s\nwhich are needed for copying the vector: %s\nof the axis: %s\nof the target daf data: %s",
+                axis, S7::prop(source, "name"), name,
+                final_axis, S7::prop(destination, "name")
             ), call. = FALSE)
         }
         src_entries <- format_axis_array(source, axis)$value
@@ -252,9 +236,9 @@ copy_vector <- function(destination, source, axis, name,
         return("source_is_subset")
     }
     stop(sprintf(
-        "disjoint entries in the axis: source axis %s in %s and destination axis %s in %s",
-        sQuote(source_axis), S7::prop(source, "name"),
-        sQuote(dest_axis), S7::prop(destination, "name")
+        "disjoint entries in the axis: %s\nof the source daf data: %s\nand the axis: %s\nof the target daf data: %s",
+        source_axis, S7::prop(source, "name"),
+        dest_axis, S7::prop(destination, "name")
     ), call. = FALSE)
 }
 
@@ -310,21 +294,12 @@ copy_matrix <- function(destination, source,
     final_cols <- if (is.null(columns_reaxis)) columns_axis else columns_reaxis
     final_name <- if (is.null(rename)) name else rename
 
-    if (!format_has_axis(destination, final_rows)) {
-        stop(sprintf("missing axis: %s in destination", sQuote(final_rows)),
-             call. = FALSE)
-    }
-    if (!format_has_axis(destination, final_cols)) {
-        stop(sprintf("missing axis: %s in destination", sQuote(final_cols)),
-             call. = FALSE)
-    }
+    .require_axis(destination, sprintf("for the rows of the matrix: %s", final_name), final_rows)
+    .require_axis(destination, sprintf("for the columns of the matrix: %s", final_name), final_cols)
     if (format_has_matrix(destination, final_rows, final_cols, final_name) &&
         !overwrite) {
         if (insist) {
-            stop(sprintf(
-                "matrix %s already exists on axes %s,%s in destination",
-                sQuote(final_name), sQuote(final_rows), sQuote(final_cols)
-            ), call. = FALSE)
+            .require_no_matrix(destination, final_rows, final_cols, final_name, relayout = FALSE)
         }
         return(invisible(destination))
     }
@@ -333,11 +308,7 @@ copy_matrix <- function(destination, source,
     if (format_has_matrix(source, rows_axis, columns_axis, name)) {
         value <- format_get_matrix(source, rows_axis, columns_axis, name)$value
     } else if (.is_undef(default)) {
-        stop(sprintf(
-            "missing matrix: %s for rows axis: %s and columns axis: %s in the daf data: %s",
-            sQuote(name), sQuote(rows_axis), sQuote(columns_axis),
-            S7::prop(source, "name")
-        ), call. = FALSE)
+        .require_matrix(source, rows_axis, columns_axis, name, relayout = FALSE)
     } else if (is.null(default)) {
         return(invisible(destination))
     } else {
@@ -490,10 +461,7 @@ copy_tensor <- function(destination, source,
     .assert_flag(relayout, "relayout")
     .assert_flag(overwrite, "overwrite")
     .assert_flag(insist, "insist")
-    if (!format_has_axis(destination, main_axis)) {
-        stop(sprintf("missing axis: %s in destination", sQuote(main_axis)),
-             call. = FALSE)
-    }
+    .require_axis(destination, "for: copy_tensor main axis", main_axis)
     base_rename <- if (is.null(rename)) name else rename
     for (entry in format_axis_array(destination, main_axis)$value) {
         src_mat_name <- paste0(entry, "_", name)

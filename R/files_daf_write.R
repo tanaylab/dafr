@@ -7,11 +7,8 @@ S7::method(
 ) <- function(daf, name, value, overwrite) {
     .assert_scalar_value(name, value)
     p <- .path_scalar(.files_root(daf), name)
-    if (file.exists(p) && !overwrite) {
-        stop(sprintf(
-            "scalar %s already exists; use overwrite = TRUE",
-            sQuote(name)
-        ), call. = FALSE)
+    if (!overwrite) {
+        .require_no_scalar(daf, name)
     }
     .write_scalar_json(p, value)
     MEMORY_DATA
@@ -24,7 +21,7 @@ S7::method(
     p <- .path_scalar(.files_root(daf), name)
     if (!file.exists(p)) {
         if (must_exist) {
-            stop(sprintf("scalar %s does not exist", sQuote(name)), call. = FALSE)
+            .require_scalar(daf, name)
         }
         return(invisible())
     }
@@ -55,10 +52,9 @@ S7::method(
         stop(sprintf("axis %s entries contain newline characters", sQuote(axis)), call. = FALSE)
     }
     if (anyDuplicated(entries)) {
-        dup <- entries[duplicated(entries)][1L]
         stop(sprintf(
-            "axis %s has duplicate entry %s",
-            sQuote(axis), sQuote(dup)
+            "non-unique entries for new axis: %s\nin the daf data: %s",
+            axis, S7::prop(daf, "name")
         ), call. = FALSE)
     }
     if (length(entries) > .Machine$integer.max) {
@@ -66,11 +62,9 @@ S7::method(
             call. = FALSE
         )
     }
+    .require_no_axis(daf, axis)
     root <- .files_root(daf)
     p <- .path_axis(root, axis)
-    if (file.exists(p)) {
-        stop(sprintf("axis %s already exists", sQuote(axis)), call. = FALSE)
-    }
     .write_axis_file(p, entries)
     # Match Julia FilesDaf layout: eagerly create vectors/<axis> and the
     # matrices/<axis>/<other> + matrices/<other>/<axis> bucket dirs so that
@@ -104,7 +98,7 @@ S7::method(
     p <- .path_axis(root, axis)
     if (!file.exists(p)) {
         if (must_exist) {
-            stop(sprintf("axis %s does not exist", sQuote(axis)), call. = FALSE)
+            .require_axis(daf, "for: delete_axis", axis)
         }
         return(invisible())
     }
@@ -203,16 +197,12 @@ S7::method(
         return(.files_set_vector_sparse_input(daf, axis, name, vec, overwrite))
     }
     vec <- .validate_vector_value(daf, axis, name, vec)
+    if (!overwrite) {
+        .require_no_vector(daf, axis, name)
+    }
     root <- .files_root(daf)
     vdir <- .path_vector_dir(root, axis)
     dir.create(vdir, recursive = TRUE, showWarnings = FALSE)
-    desc_path <- file.path(vdir, paste0(name, ".json"))
-    if (file.exists(desc_path) && !overwrite) {
-        stop(sprintf(
-            "vector %s already exists on axis %s; use overwrite = TRUE",
-            sQuote(name), sQuote(axis)
-        ), call. = FALSE)
-    }
     .files_vector_unlink_payload(vdir, name)
     eltype <- .dtype_for_r_vector(vec)
     n <- length(vec)
@@ -243,16 +233,12 @@ S7::method(
             sQuote(name), sv@length, n, sQuote(axis)
         ), call. = FALSE)
     }
+    if (!overwrite) {
+        .require_no_vector(daf, axis, name)
+    }
     root <- .files_root(daf)
     vdir <- .path_vector_dir(root, axis)
     dir.create(vdir, recursive = TRUE, showWarnings = FALSE)
-    desc_path <- file.path(vdir, paste0(name, ".json"))
-    if (file.exists(desc_path) && !overwrite) {
-        stop(sprintf(
-            "vector %s already exists on axis %s; use overwrite = TRUE",
-            sQuote(name), sQuote(axis)
-        ), call. = FALSE)
-    }
     .files_vector_unlink_payload(vdir, name)
     eltype <- .dtype_for_r_vector(sv@x)
     indtype <- .indtype_for_size(n)
@@ -272,10 +258,7 @@ S7::method(
     desc_path <- file.path(vdir, paste0(name, ".json"))
     if (!file.exists(desc_path)) {
         if (must_exist) {
-            stop(sprintf(
-                "vector %s does not exist on axis %s",
-                sQuote(name), sQuote(axis)
-            ), call. = FALSE)
+            .require_vector(daf, axis, name)
         }
         return(invisible())
     }
@@ -333,19 +316,13 @@ S7::method(
     )
 ) <- function(daf, rows_axis, columns_axis, name, mat, overwrite) {
     mat <- .validate_matrix_value(daf, rows_axis, columns_axis, name, mat)
+    if (!overwrite) {
+        .require_no_matrix(daf, rows_axis, columns_axis, name, relayout = FALSE)
+    }
     root <- .files_root(daf)
     mdir <- .path_matrix_dir(root, rows_axis, columns_axis)
     dir.create(mdir, recursive = TRUE, showWarnings = FALSE)
     desc_path <- file.path(mdir, paste0(name, ".json"))
-    if (file.exists(desc_path) && !overwrite) {
-        stop(
-            sprintf(
-                "matrix %s already exists on axes (%s, %s); use overwrite = TRUE",
-                sQuote(name), sQuote(rows_axis), sQuote(columns_axis)
-            ),
-            call. = FALSE
-        )
-    }
     .files_matrix_unlink_payload(mdir, name)
     if (methods::is(mat, "dgCMatrix") || methods::is(mat, "lgCMatrix")) {
         .files_write_matrix_sparse(mdir, name, mat)
@@ -382,13 +359,7 @@ S7::method(
     desc_path <- file.path(mdir, paste0(name, ".json"))
     if (!file.exists(desc_path)) {
         if (must_exist) {
-            stop(
-                sprintf(
-                    "matrix %s does not exist on axes (%s, %s)",
-                    sQuote(name), sQuote(rows_axis), sQuote(columns_axis)
-                ),
-                call. = FALSE
-            )
+            .require_matrix(daf, rows_axis, columns_axis, name, relayout = FALSE)
         }
         return(invisible())
     }

@@ -11,7 +11,7 @@
     set_scalar(d_mem, "label", "demo")
     set_vector(d_mem, "cell", "x", c(1.0, 2.0, 3.0))
     set_vector(d_mem, "gene", "y", c(10L, 20L))
-    set_vector(d_mem, "cell", "name", c("alpha", "beta", "gamma"))
+    set_vector(d_mem, "cell", "label", c("alpha", "beta", "gamma"))
     set_matrix(
         d_mem, "cell", "gene", "M",
         matrix(c(1.0, 2.0, 3.0, 4.0, 5.0, 6.0), nrow = 3)
@@ -43,7 +43,7 @@ test_that("files_to_zarr converts a complete files_daf to zarr_daf", {
     expect_equal(unname(get_vector(d, "cell", "x")), c(1.0, 2.0, 3.0))
     expect_identical(unname(get_vector(d, "gene", "y")), c(10L, 20L))
     expect_identical(
-        unname(get_vector(d, "cell", "name")),
+        unname(get_vector(d, "cell", "label")),
         c("alpha", "beta", "gamma")
     )
     m <- get_matrix(d, "cell", "gene", "M")

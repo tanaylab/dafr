@@ -36,8 +36,11 @@ reference:
       - MemoryDaf
       - FilesDaf
       - FilesDafReadOnly
+      - ZarrDaf
+      - ZarrDafReadOnly
       - memory_daf
       - files_daf
+      - zarr_daf
       - is_daf
       - daf_name
       - description
@@ -75,6 +78,8 @@ reference:
       - set_matrix
       - delete_matrix
       - relayout_matrix
+      - reorder_axes
+      - reset_reorder_axes
       - empty_data
 
   - title: Query DSL (string form)
@@ -250,6 +255,7 @@ reference:
       - axis_version_counter
       - vector_version_counter
       - matrix_version_counter
+      - cache_group_constants
 
   - title: Group helpers
     contents:
@@ -272,6 +278,8 @@ reference:
       - copy_scalar
       - copy_tensor
       - concatenate
+      - files_to_zarr
+      - zarr_to_files
       - ALL_AXES
       - ALL_MATRICES
       - ALL_SCALARS
@@ -279,6 +287,14 @@ reference:
       - MERGE_COLLECT_AXIS
       - MERGE_LAST_VALUE
       - MERGE_SKIP
+
+  - title: Zarr store backend
+    contents:
+      - ZarrStore
+      - new_dict_store
+      - new_dir_store
+      - new_mmap_zip_store
+      - zarr_store_generics
 
   - title: Reconstruction & completion
     contents:

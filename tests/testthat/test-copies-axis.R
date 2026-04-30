@@ -25,7 +25,7 @@ test_that("copy_axis raises on missing source axis", {
 test_that("copy_axis insist=TRUE raises when dest has the axis", {
     src <- memory_daf(name = "src"); add_axis(src, "cell", c("c1"))
     dest <- memory_daf(name = "dest"); add_axis(dest, "cell", c("x"))
-    expect_error(copy_axis(dest, src, "cell"), "already exists")
+    expect_error(copy_axis(dest, src, "cell"), "existing axis:")
 })
 
 test_that("copy_axis insist=FALSE silently skips when dest has the axis", {

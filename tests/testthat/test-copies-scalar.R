@@ -48,7 +48,7 @@ test_that("copy_scalar with explicit default uses it when source missing", {
 test_that("copy_scalar errors if destination has it and insist=TRUE overwrite=FALSE", {
     src <- memory_daf(name = "src"); set_scalar(src, "x", 1L)
     dest <- memory_daf(name = "dest"); set_scalar(dest, "x", 2L)
-    expect_error(copy_scalar(dest, src, "x"), "already exists")
+    expect_error(copy_scalar(dest, src, "x"), "existing scalar:")
 })
 
 test_that("copy_scalar with insist=FALSE silently skips when destination has it", {

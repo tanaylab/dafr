@@ -213,16 +213,10 @@ S7::method(
         v1 <- v[[1L]]
         v2 <- v[[2L]]
     }
-    if (v1 != 1L) {
+    if (v1 != 1L || v2 > 0L) {
         stop(sprintf(
-            "files_daf: %s daf.json major version %d unsupported (expected 1)",
-            sQuote(path), v1
-        ), call. = FALSE)
-    }
-    if (v2 > 0L) {
-        stop(sprintf(
-            "files_daf: %s daf.json minor version %d exceeds supported (0)",
-            sQuote(path), v2
+            "incompatible format version: %d.%d\nfor the daf directory: %s\nthe code supports version: 1.0",
+            v1, v2, path
         ), call. = FALSE)
     }
     invisible()

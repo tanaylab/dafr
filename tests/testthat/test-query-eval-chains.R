@@ -113,6 +113,6 @@ test_that("hop 2 raises when the pivot property names a non-axis", {
 
     expect_error(
         get_query(d, "@ cell : donor =@ : not_an_axis =@ : anything"),
-        "AsAxis target axis"
+        "missing axis:"
     )
 })
