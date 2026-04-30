@@ -79,7 +79,29 @@ zarr_daf <- function(uri = NULL, mode = c("r", "r+", "w", "w+"),
         store <- new_dict_store()
         store_path <- ":memory:"
     } else if (grepl("\\.daf\\.zarr\\.zip(#.*)?$", uri)) {
-        new_mmap_zip_store(uri) # errors out
+        # Strip any URL-style fragment (`#...`) before passing to the
+        # filesystem-level store; only the path component identifies the
+        # zip archive.
+        zip_path <- sub("#.*$", "", uri)
+        if (mode == "r" && !file.exists(zip_path)) {
+            stop(sprintf("zarr_daf: store does not exist at %s", sQuote(zip_path)),
+                call. = FALSE
+            )
+        }
+        # Map zarr_daf semantics onto MmapZipStore's modes:
+        #   - "r"  : read existing archive.
+        #   - "r+" : read+write existing archive (no creation).
+        #   - "w"  : truncate+create (always wipe any existing file).
+        #   - "w+" : create-if-missing, but if it already exists, match
+        #            the directory branch (which DOES `unlink` first) so
+        #            that user-visible behaviour is consistent across
+        #            DirStore vs MmapZipStore.
+        store_mode <- mode
+        if (mode == "w+" && file.exists(zip_path)) {
+            store_mode <- "w"  # truncate+create, mirrors `unlink` of the dir branch.
+        }
+        store <- new_mmap_zip_store(zip_path, mode = store_mode)
+        store_path <- zip_path
     } else {
         if (mode == "r" && !dir.exists(uri)) {
             stop(sprintf("zarr_daf: store does not exist at %s", sQuote(uri)),
