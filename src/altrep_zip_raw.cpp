@@ -87,7 +87,15 @@ static void* zip_raw_dataptr(SEXP x, Rboolean writeable) {
     }
     R_xlen_t n = static_cast<R_xlen_t>(st->slot->length);
     if (writeable) {
-        // Materialize: copy mmap bytes into a fresh RAWSXP, swap.
+        if (st->slot->writable_inplace) {
+            // Phase 7: writable in-place (reserve path). The mmap region is
+            // PROT_READ | PROT_WRITE on writable opens, and the caller is
+            // expected to fill the bytes here directly. const_cast satisfies
+            // the void* signature; the underlying mapping is genuinely
+            // writable.
+            return const_cast<uint8_t*>(st->data);
+        }
+        // Default: materialize a private copy.
         SEXP m = PROTECT(Rf_allocVector(RAWSXP, n));
         if (n > 0) std::memcpy(RAW(m), st->data, static_cast<size_t>(n));
         R_set_altrep_data1(x, R_NilValue);
@@ -204,6 +212,19 @@ SEXP make_zip_raw_altrep_with_xptr(MmapZipStore* store, uint64_t offset,
     const uint8_t* base = store->file_mmap_base();
     if (!base) Rf_error("make_zip_raw_altrep_with_xptr: store has no mapped region");
     auto slot = store->register_altrep_slot(offset, length);
+    const uint8_t* data = base + offset;
+    SEXP state_xptr = PROTECT(wrap_state(std::move(slot), data, store_xptr));
+    SEXP out = R_new_altrep(ZipRawClass, state_xptr, R_NilValue);
+    UNPROTECT(1);
+    return out;
+}
+
+SEXP make_zip_raw_altrep_writable(MmapZipStore* store, uint64_t offset,
+                                  uint64_t length, SEXP store_xptr) {
+    if (!store) Rf_error("make_zip_raw_altrep_writable: null store");
+    const uint8_t* base = store->file_mmap_base();
+    if (!base) Rf_error("make_zip_raw_altrep_writable: store has no mapped region");
+    auto slot = store->register_altrep_slot_writable(offset, length);
     const uint8_t* data = base + offset;
     SEXP state_xptr = PROTECT(wrap_state(std::move(slot), data, store_xptr));
     SEXP out = R_new_altrep(ZipRawClass, state_xptr, R_NilValue);

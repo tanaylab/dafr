@@ -1076,31 +1076,29 @@ std::vector<std::string> MmapZipStore::all_keys() const {
     return out;
 }
 
-void MmapZipStore::append(const std::string& key, const uint8_t* data, uint64_t length) {
-    if (!impl_) {
-        throw std::runtime_error("MmapZipStore: store is closed");
-    }
-    if (!impl_->is_writable) {
-        throw std::runtime_error("MmapZipStore is read-only; cannot set bytes");
-    }
-    if (impl_->name_to_index.find(key) != impl_->name_to_index.end()) {
-        throw std::runtime_error(
-            "MmapZipStore is append-only; cannot overwrite entry: " + key);
-    }
+// commit_new_entry — port of upstream `commit_new_entry!`. Runs the full
+// 5-tick append protocol with a *caller-supplied* CRC32. When the caller
+// provides the real CRC (the `append` path) the on-disk archive is fully
+// valid after this returns. When the caller provides a placeholder CRC of
+// 0 (the `reserve` path), the entry is committed but its CRC field is
+// wrong — the caller MUST run `patch_crc` to write the real CRC into both
+// the LFH and CD. If the process crashes between the two, the next
+// write-mode open detects the placeholder-CRC mismatch and rolls the
+// reservation back via the same recovery path used for tick-#3/#4 crashes.
+//
+// Returns the impl-side index of the just-committed entry. The data
+// region (`mapped + entry.data_offset .. + length`) holds whatever bytes
+// `data` pointed to; for reserve, `data == nullptr` and the data region
+// is left as ftruncate-zeros for the caller to fill in place.
+static std::size_t commit_new_entry_impl(MmapZipStoreImpl& impl,
+                                         const std::string& key,
+                                         const uint8_t* data,
+                                         uint64_t length,
+                                         uint32_t crc32_value) {
     if (key.size() > 0xFFFFu) {
         throw std::runtime_error(
             "MmapZipStore: zip entry name too long: " + std::to_string(key.size()) + " bytes");
     }
-
-    // CRC32 of the (uncompressed) data using zlib.
-    uLong crc = ::crc32(0L, Z_NULL, 0);
-    if (length > 0) {
-        crc = ::crc32(crc, reinterpret_cast<const Bytef*>(data),
-                      static_cast<uInt>(length));
-    }
-    uint32_t crc32_value = static_cast<uint32_t>(crc);
-
-    MmapZipStoreImpl& impl = *impl_;
 
     // ---- commit_new_entry! port ----
     uint64_t lfh_offset = impl.central_directory_offset;
@@ -1209,32 +1207,114 @@ void MmapZipStore::append(const std::string& key, const uint8_t* data, uint64_t 
     // ROLLBACK via the CRC mismatch path.
     tick_crash_counter_cpp(impl);
 
-    // Then copy the data payload.
-    if (length > 0) {
+    // Then copy the data payload (skipped when `data == nullptr` — the
+    // reserve path leaves the data region as ftruncate zeros for the
+    // caller to fill in place via the returned writable pointer).
+    if (length > 0 && data != nullptr) {
         std::memcpy(mapped + data_offset, data, static_cast<std::size_t>(length));
     }
 
     // Update impl bookkeeping. Done before tick #5 because the on-disk
-    // state is fully valid at this point — recovery would be a no-op even
-    // if we crashed here.
+    // state is fully valid at this point (or, for reserve, the only
+    // remaining anomaly is a placeholder CRC, which the caller patches
+    // immediately) — recovery would be a no-op even if we crashed here.
     impl.central_directory_offset = new_cd_offset;
     impl.central_directory_size = new_cd_size;
     populate_central_directory_offsets(impl.entries, new_cd_offset);
-    impl.name_to_index[key] = impl.entries.size() - 1;
+    std::size_t new_index = impl.entries.size() - 1;
+    impl.name_to_index[key] = new_index;
 
     // ---- TICK #5 — after data copy (entry fully committed) -------------
     // No rollback needed. Included for symmetry: every commit-able decision
-    // ends with a tick. A future patch_crc protocol (Phase 7) places a
-    // similar "after CRC patch, archive valid" tick here.
+    // ends with a tick.
     tick_crash_counter_cpp(impl);
+    return new_index;
 }
 
-uint8_t* MmapZipStore::reserve(const std::string&, uint64_t) {
-    throw std::runtime_error("MmapZipStore::reserve: slice-17 phase 7 stub");
+void MmapZipStore::append(const std::string& key, const uint8_t* data, uint64_t length) {
+    if (!impl_) {
+        throw std::runtime_error("MmapZipStore: store is closed");
+    }
+    if (!impl_->is_writable) {
+        throw std::runtime_error("MmapZipStore is read-only; cannot set bytes");
+    }
+    if (impl_->name_to_index.find(key) != impl_->name_to_index.end()) {
+        throw std::runtime_error(
+            "MmapZipStore is append-only; cannot overwrite entry: " + key);
+    }
+
+    // CRC32 of the (uncompressed) data using zlib.
+    uLong crc = ::crc32(0L, Z_NULL, 0);
+    if (length > 0) {
+        crc = ::crc32(crc, reinterpret_cast<const Bytef*>(data),
+                      static_cast<uInt>(length));
+    }
+    uint32_t crc32_value = static_cast<uint32_t>(crc);
+
+    commit_new_entry_impl(*impl_, key, data, length, crc32_value);
 }
 
-void MmapZipStore::patch_crc(const std::string&) {
-    throw std::runtime_error("MmapZipStore::patch_crc: slice-17 phase 7 stub");
+uint8_t* MmapZipStore::reserve(const std::string& key, uint64_t length) {
+    if (!impl_) {
+        throw std::runtime_error("MmapZipStore: store is closed");
+    }
+    if (!impl_->is_writable) {
+        throw std::runtime_error("MmapZipStore is read-only; cannot reserve entry");
+    }
+    if (impl_->name_to_index.find(key) != impl_->name_to_index.end()) {
+        throw std::runtime_error(
+            "MmapZipStore is append-only; cannot overwrite entry: " + key);
+    }
+
+    // commit_new_entry_impl with placeholder CRC32 = 0. Pass data=nullptr
+    // so the protocol skips the on-disk data copy; the caller will fill
+    // the reserved region in place via the returned pointer.
+    std::size_t idx = commit_new_entry_impl(*impl_, key,
+                                            /*data=*/nullptr,
+                                            length,
+                                            /*crc32_value=*/0u);
+    if (length == 0) {
+        // No data region — return a non-null but zero-length pointer.
+        // Use the mmap base + 0; callers should not deref a zero-length
+        // view anyway.
+        return static_cast<uint8_t*>(impl_->mmap_base);
+    }
+    uint64_t data_offset = impl_->entries[idx].data_offset;
+    return static_cast<uint8_t*>(impl_->mmap_base) + data_offset;
+}
+
+void MmapZipStore::patch_crc(const std::string& key) {
+    if (!impl_) {
+        throw std::runtime_error("MmapZipStore: store is closed");
+    }
+    if (!impl_->is_writable) {
+        throw std::runtime_error("MmapZipStore is read-only; cannot patch CRC");
+    }
+    auto it = impl_->name_to_index.find(key);
+    if (it == impl_->name_to_index.end()) {
+        throw std::runtime_error("MmapZipStore: entry '" + key + "' not found for patch_crc");
+    }
+    ZipEntry& entry = impl_->entries[it->second];
+    uint8_t* mapped = static_cast<uint8_t*>(impl_->mmap_base);
+
+    // Compute CRC32 over the now-filled data region.
+    uLong crc = ::crc32(0L, Z_NULL, 0);
+    if (entry.compressed_size > 0) {
+        crc = ::crc32(crc,
+                      reinterpret_cast<const Bytef*>(mapped + entry.data_offset),
+                      static_cast<uInt>(entry.compressed_size));
+    }
+    uint32_t computed = static_cast<uint32_t>(crc);
+    entry.crc32 = computed;
+
+    // Patch LFH CRC field at lfh_offset + 14, and CD CRC field at
+    // cd_offset + 16. Two single-uint32 stores into the shared mmap.
+    // No tick is inserted between them: per the brief, the patch is a
+    // single logical operation; if interrupted, recovery uses the CD's
+    // CRC, which won't match the data, triggering the same rollback as
+    // the placeholder-CRC path.
+    w_le32(mapped + entry.local_file_header_offset + 14u, computed);
+    w_le32(mapped + entry.central_directory_offset + 16u, computed);
 }
 
 void MmapZipStore::close_store() {
@@ -1275,7 +1355,16 @@ const uint8_t* MmapZipStore::file_mmap_base() const { return impl_ ? impl_->file
 uint64_t MmapZipStore::overlay_length() const { return impl_ ? impl_->overlay_length : 0; }
 
 std::shared_ptr<AltrepRawSlot> MmapZipStore::register_altrep_slot(uint64_t offset, uint64_t length) {
-    auto slot = std::make_shared<AltrepRawSlot>(AltrepRawSlot{offset, length, false});
+    auto slot = std::make_shared<AltrepRawSlot>(
+        AltrepRawSlot{offset, length, /*deactivated=*/false, /*writable_inplace=*/false});
+    impl_->altrep_slots.push_back(slot);
+    return slot;
+}
+
+std::shared_ptr<AltrepRawSlot> MmapZipStore::register_altrep_slot_writable(
+    uint64_t offset, uint64_t length) {
+    auto slot = std::make_shared<AltrepRawSlot>(
+        AltrepRawSlot{offset, length, /*deactivated=*/false, /*writable_inplace=*/true});
     impl_->altrep_slots.push_back(slot);
     return slot;
 }
@@ -1499,17 +1588,38 @@ SEXP dafr_mmap_zip_list(SEXP xptr, std::string prefix) {
 
 [[cpp11::register]]
 SEXP dafr_mmap_zip_reserve(SEXP xptr, std::string key, double size_double) {
-    (void)xptr_to_store(xptr);
-    (void)key;
-    (void)size_double;
-    cpp11::stop("dafr_mmap_zip_reserve: slice-17 phase 7 stub");
+    auto* store = xptr_to_store(xptr);
+    try {
+        if (size_double < 0) {
+            cpp11::stop("dafr_mmap_zip_reserve: negative size");
+        }
+        uint64_t length = static_cast<uint64_t>(size_double);
+        // Run the commit protocol with placeholder CRC; reserve() returns
+        // a writable pointer into the mmap region for `length` bytes.
+        uint8_t* data_ptr = store->reserve(key, length);
+        const uint8_t* base = store->file_mmap_base();
+        if (!base) cpp11::stop("dafr_mmap_zip_reserve: store has no mapped region");
+        uint64_t offset = static_cast<uint64_t>(data_ptr - base);
+        // Writable-in-place ALTREP RAW view. Anchored to the store xptr.
+        return dafr::make_zip_raw_altrep_writable(store, offset, length, xptr);
+    } catch (const cpp11::unwind_exception&) {
+        // Allow R-level errors (e.g. SimulatedCrash from tick injection
+        // during the commit protocol) to propagate unchanged.
+        throw;
+    } catch (const std::exception& e) {
+        cpp11::stop("%s", e.what());
+    }
 }
 
 [[cpp11::register]]
 SEXP dafr_mmap_zip_patch_crc(SEXP xptr, std::string key) {
-    (void)xptr_to_store(xptr);
-    (void)key;
-    cpp11::stop("dafr_mmap_zip_patch_crc: slice-17 phase 7 stub");
+    auto* store = xptr_to_store(xptr);
+    try {
+        store->patch_crc(key);
+        return R_NilValue;
+    } catch (const std::exception& e) {
+        cpp11::stop("%s", e.what());
+    }
 }
 
 [[cpp11::register]]

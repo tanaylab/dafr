@@ -56,6 +56,12 @@ struct AltrepRawSlot {
     uint64_t offset;
     uint64_t length;
     bool deactivated;
+    // Phase 7 (reserve): when true, Dataptr(writeable=TRUE) returns the
+    // mmap pointer directly (cast away const) instead of materializing
+    // a private copy. Callers using this contract MUST patch the entry's
+    // CRC before reopening the store, otherwise recovery will roll the
+    // entry back. Used only for vectors returned from `reserve`.
+    bool writable_inplace;
 };
 
 class MmapZipStoreImpl;
@@ -90,6 +96,11 @@ public:
     uint64_t overlay_length() const;
 
     std::shared_ptr<AltrepRawSlot> register_altrep_slot(uint64_t offset, uint64_t length);
+    // Phase 7: register a slot whose ALTREP Dataptr(writeable=TRUE) returns
+    // the mmap pointer in place (no materialization). Used for the buffer
+    // returned by `reserve` so the caller can fill the data region in place.
+    std::shared_ptr<AltrepRawSlot> register_altrep_slot_writable(uint64_t offset,
+                                                                 uint64_t length);
 
     void set_crash_counter(SEXP counter, SEXP namespace_env);
 
@@ -104,6 +115,11 @@ SEXP make_zip_raw_altrep(MmapZipStore* store, uint64_t offset, uint64_t length);
 // so R's GC won't free the impl while the ALTREP is alive.
 SEXP make_zip_raw_altrep_with_xptr(MmapZipStore* store, uint64_t offset,
                                    uint64_t length, SEXP store_xptr);
+// Phase 7: writable-in-place variant. Dataptr(writeable=TRUE) returns the
+// mmap pointer directly (cast away const). Caller must run patch_crc on
+// the entry before reopening the store.
+SEXP make_zip_raw_altrep_writable(MmapZipStore* store, uint64_t offset,
+                                  uint64_t length, SEXP store_xptr);
 
 }  // namespace dafr
 
