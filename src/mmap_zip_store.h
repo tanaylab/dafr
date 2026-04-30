@@ -100,6 +100,10 @@ private:
 
 void init_altrep_zip_raw(DllInfo* dll);
 SEXP make_zip_raw_altrep(MmapZipStore* store, uint64_t offset, uint64_t length);
+// Variant that anchors the ALTREP's lifetime to the store's R-level xptr,
+// so R's GC won't free the impl while the ALTREP is alive.
+SEXP make_zip_raw_altrep_with_xptr(MmapZipStore* store, uint64_t offset,
+                                   uint64_t length, SEXP store_xptr);
 
 }  // namespace dafr
 

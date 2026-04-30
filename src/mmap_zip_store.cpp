@@ -77,11 +77,23 @@ public:
     SEXP namespace_env = R_NilValue;
 
     ~MmapZipStoreImpl() {
+        // Deactivate any outstanding ALTREP slots before tearing the mmap
+        // down. This is also done in MmapZipStore::close_store(); the
+        // duplication makes the destructor safe even if close_store() was
+        // never called (e.g., open() throws after impl construction).
+        for (auto& slot : altrep_slots) {
+            if (slot) slot->deactivated = true;
+        }
+        altrep_slots.clear();
         if (mmap_base != nullptr && mmap_base != MAP_FAILED && mmap_length > 0) {
             ::munmap(mmap_base, static_cast<size_t>(mmap_length));
+            mmap_base = nullptr;
+            mmap_length = 0;
+            file_mmap = nullptr;
         }
         if (fd >= 0) {
             ::close(fd);
+            fd = -1;
         }
     }
 };
@@ -494,8 +506,30 @@ void MmapZipStore::patch_crc(const std::string&) {
 }
 
 void MmapZipStore::close_store() {
-    // The impl destructor handles munmap+close. Nothing else to do at
-    // this phase — write-side flush + ALTREP deactivation arrive later.
+    if (!impl_) return;
+    // 1. Flip all outstanding ALTREP slots to deactivated BEFORE tearing
+    //    down the mmap. The shared_ptrs keep the slots alive until the
+    //    last ALTREP is GC'd, so any subsequent ALTREP method sees
+    //    deactivated=true and short-circuits to inert behavior.
+    for (auto& slot : impl_->altrep_slots) {
+        if (slot) slot->deactivated = true;
+    }
+    // Drop the impl's references; the slots themselves live on inside
+    // any surviving ALTREP state structs.
+    impl_->altrep_slots.clear();
+    // 2. munmap + close. Subsequent calls are no-ops (idempotent) since
+    //    we null out the pointers and reset fd to -1.
+    if (impl_->mmap_base != nullptr && impl_->mmap_base != MAP_FAILED &&
+        impl_->mmap_length > 0) {
+        ::munmap(impl_->mmap_base, static_cast<size_t>(impl_->mmap_length));
+        impl_->mmap_base = nullptr;
+        impl_->mmap_length = 0;
+        impl_->file_mmap = nullptr;
+    }
+    if (impl_->fd >= 0) {
+        ::close(impl_->fd);
+        impl_->fd = -1;
+    }
 }
 
 bool MmapZipStore::is_writable() const { return impl_ ? impl_->is_writable : false; }
@@ -604,14 +638,17 @@ SEXP dafr_mmap_zip_get_bytes(SEXP xptr, std::string key) {
         uint32_t crc = 0;
         bool stored = store->stored_view(key, &ptr, &length, &method, &crc);
         if (stored) {
-            SEXP out = PROTECT(Rf_allocVector(RAWSXP, static_cast<R_xlen_t>(length)));
-            if (length > 0) {
-                std::memcpy(RAW(out), ptr, static_cast<size_t>(length));
-            }
-            UNPROTECT(1);
-            return out;
+            // Zero-copy ALTREP view onto file_mmap. Compute offset relative
+            // to the mmap base so the make-time-cached pointer can be
+            // recomputed if needed, and so the slot records a stable
+            // (offset, length) pair instead of a raw pointer.
+            const uint8_t* base = store->file_mmap_base();
+            uint64_t offset = static_cast<uint64_t>(ptr - base);
+            return dafr::make_zip_raw_altrep_with_xptr(store, offset, length, xptr);
         }
-        // Compressed: decompress + verify CRC.
+        // Compressed: decompress + verify CRC. Decompressed bytes are a
+        // throwaway buffer — there's no zero-copy benefit, so a plain
+        // RAWSXP is fine (and avoids holding the mmap longer than needed).
         std::vector<uint8_t> bytes = store->read_decompressed(key);
         SEXP out = PROTECT(Rf_allocVector(RAWSXP, static_cast<R_xlen_t>(bytes.size())));
         if (!bytes.empty()) {
