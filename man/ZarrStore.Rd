@@ -22,6 +22,13 @@ MmapZipStore(path = character(0), mode = character(0), xptr = NULL)
 backing store; typically created by \code{\link[=new_dict_store]{new_dict_store()}}.}
 
 \item{path}{(\code{MmapZipStore}) Filesystem path to a zip archive.}
+
+\item{mode}{(\code{MmapZipStore}) One of \code{"r"}, \code{"r+"}, \code{"w+"}, \code{"w"};
+set by \code{\link[=new_mmap_zip_store]{new_mmap_zip_store()}}.}
+
+\item{xptr}{(\code{MmapZipStore}) Internal external pointer to the C++
+store; set by \code{\link[=new_mmap_zip_store]{new_mmap_zip_store()}} and not intended for direct
+use.}
 }
 \description{
 Uniform read/write API for byte content keyed by path strings.

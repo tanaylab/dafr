@@ -17,6 +17,11 @@
 #' @param env (`DictStore`) Internal environment used as the key-value
 #'   backing store; typically created by [new_dict_store()].
 #' @param path (`MmapZipStore`) Filesystem path to a zip archive.
+#' @param mode (`MmapZipStore`) One of `"r"`, `"r+"`, `"w+"`, `"w"`;
+#'   set by [new_mmap_zip_store()].
+#' @param xptr (`MmapZipStore`) Internal external pointer to the C++
+#'   store; set by [new_mmap_zip_store()] and not intended for direct
+#'   use.
 #' @name ZarrStore
 #' @export
 ZarrStore <- S7::new_class("ZarrStore", abstract = TRUE)

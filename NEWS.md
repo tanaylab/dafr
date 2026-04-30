@@ -1,5 +1,46 @@
 # dafr 0.2.0 (development)
 
+## MmapZipStore + Zarr zip backend (slice 17)
+
+- New `MmapZipStore` (C++ in `src/mmap_zip_store.cpp`) backs `ZarrDaf`
+  with a single ZIP archive on the local filesystem. `open_daf()` and
+  `zarr_daf()` now accept `.daf.zarr.zip` paths and return a working
+  `ZarrDaf` / `ZarrDafReadOnly`.
+- Reads use a shared mmap of the archive: stored (method-0) entries
+  are returned as zero-copy `ALTREP RAW` views via a new
+  `ZipRawAltrep` class. Deflate-compressed (method-8) entries are
+  decompressed on demand via system zlib; deflate64 / other methods
+  raise a clear error pointing to a stored / deflate re-save.
+- Writes append entries via upstream's two-step commit protocol
+  (commit central directory + EOCD first, then write the local file
+  header and data into the now-sparse hole). Crash-safe: a writable
+  open's recovery pass detects partial commits via tail validation
+  (LFH signature + data CRC32) and rolls back the trailing run of
+  invalid entries before returning. Internal tick-counter hooks at
+  every commit-able decision point let recovery be tested
+  deterministically (5 tick points; tests gated on `NOT_CRAN=true`).
+- Always emits ZIP64 (per upstream `DataAxesFormats.jl`); every local
+  file header is padded with a `0xDAF1` extra field so the data
+  region starts at an 8-byte-aligned file offset (zero-copy
+  unaligned-load safety on every host architecture).
+- ALTREP safety net: when the store closes (or is GC'd), every
+  outstanding ALTREP vector it produced is deactivated — `length()`
+  returns 0 and `Dataptr()` returns a stable inert byte. R callers
+  who keep references past close get clean empty raws instead of
+  segfaults.
+- Internal-only `dafr:::dafr_mmap_zip_reserve()` /
+  `dafr:::dafr_mmap_zip_patch_crc()` expose two-phase fill for large
+  sparse arrays (writable in-place ALTREP view + post-fill CRC
+  patch). Crash between reserve and patch rolls back via the same
+  CRC-mismatch path as ordinary partial commits.
+- `SystemRequirements`: zlib (linked via `-lz`).
+- Cross-language smoke: dafr-written `.daf.zarr.zip` archives open
+  cleanly in Python via `zipfile` and `zarr.open(zarr.storage.ZipStore(...))`.
+  Foreign zips written by `python -m zipfile` (stored or deflate)
+  open cleanly in dafr.
+- Mirrors `DataAxesFormats.jl` `mmap_zip_store.jl` (~1070 LOC of
+  Julia ported to ~1300 LOC of C++ + cpp11 + ALTREP).
+
 ## ZarrDaf backend (slice 16)
 
 - New `zarr_daf(uri, mode, name)` backend reading and writing Zarr v2.
