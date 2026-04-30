@@ -339,13 +339,13 @@ contractor <- function(computation, contract, daf,
     if (is.null(tracker)) {
         if (isTRUE(S7::prop(cd, "is_relaxed"))) return(invisible())
         stop(sprintf(
-            "accessing non-contract scalar: %s for the computation: %s on the daf data: %s",
+            "accessing non-contract scalar: %s\nfor the computation: %s\non the daf data: %s",
             name, S7::prop(cd, "computation"), S7::prop(S7::prop(cd, "base"), "name")
         ), call. = FALSE)
     }
     if (.is_immutable(tracker$expectation, is_for_modify)) {
         stop(sprintf(
-            "modifying %s scalar: %s for the computation: %s on the daf data: %s",
+            "modifying %s scalar: %s\nfor the computation: %s\non the daf data: %s",
             tracker$expectation, name, S7::prop(cd, "computation"),
             S7::prop(S7::prop(cd, "base"), "name")
         ), call. = FALSE)
@@ -359,13 +359,13 @@ contractor <- function(computation, contract, daf,
     if (is.null(tracker)) {
         if (isTRUE(S7::prop(cd, "is_relaxed"))) return(invisible())
         stop(sprintf(
-            "accessing non-contract axis: %s for the computation: %s on the daf data: %s",
+            "accessing non-contract axis: %s\nfor the computation: %s\non the daf data: %s",
             axis, S7::prop(cd, "computation"), S7::prop(S7::prop(cd, "base"), "name")
         ), call. = FALSE)
     }
     if (.is_immutable(tracker$expectation, is_for_modify)) {
         stop(sprintf(
-            "modifying %s axis: %s for the computation: %s on the daf data: %s",
+            "modifying %s axis: %s\nfor the computation: %s\non the daf data: %s",
             tracker$expectation, axis, S7::prop(cd, "computation"),
             S7::prop(S7::prop(cd, "base"), "name")
         ), call. = FALSE)
@@ -384,14 +384,14 @@ contractor <- function(computation, contract, daf,
             return(invisible())
         }
         stop(sprintf(
-            "accessing non-contract vector: %s of the axis: %s for the computation: %s on the daf data: %s",
+            "accessing non-contract vector: %s\nof the axis: %s\nfor the computation: %s\non the daf data: %s",
             name, axis, S7::prop(cd, "computation"),
             S7::prop(S7::prop(cd, "base"), "name")
         ), call. = FALSE)
     }
     if (.is_immutable(tracker$expectation, is_for_modify)) {
         stop(sprintf(
-            "modifying %s vector: %s of the axis: %s for the computation: %s on the daf data: %s",
+            "modifying %s vector: %s\nof the axis: %s\nfor the computation: %s\non the daf data: %s",
             tracker$expectation, name, axis, S7::prop(cd, "computation"),
             S7::prop(S7::prop(cd, "base"), "name")
         ), call. = FALSE)
@@ -425,14 +425,14 @@ contractor <- function(computation, contract, daf,
     if (is.null(tracker)) {
         if (isTRUE(S7::prop(cd, "is_relaxed"))) return(invisible())
         stop(sprintf(
-            "accessing non-contract matrix: %s of the rows axis: %s and the columns axis: %s for the computation: %s on the daf data: %s",
+            "accessing non-contract matrix: %s\nof the rows axis: %s\nand the columns axis: %s\nfor the computation: %s\non the daf data: %s",
             name, ra, ca, S7::prop(cd, "computation"),
             S7::prop(S7::prop(cd, "base"), "name")
         ), call. = FALSE)
     }
     if (.is_immutable(tracker$expectation, is_for_modify)) {
         stop(sprintf(
-            "modifying %s matrix: %s of the rows_axis: %s and the columns_axis: %s for the computation: %s on the daf data: %s",
+            "modifying %s matrix: %s\nof the rows_axis: %s\nand the columns_axis: %s\nfor the computation: %s\non the daf data: %s",
             tracker$expectation, name, ra, ca, S7::prop(cd, "computation"),
             S7::prop(S7::prop(cd, "base"), "name")
         ), call. = FALSE)
@@ -672,7 +672,7 @@ S7::method(
     if (!exists_) {
         if (.is_mandatory(tracker$expectation, is_for_output)) {
             stop(sprintf(
-                "missing %s scalar: %s with type: %s for the computation: %s on the daf data: %s",
+                "missing %s scalar: %s\nwith type: %s\nfor the computation: %s\non the daf data: %s",
                 .direction_name(is_for_output), name, tracker$type, comp, dname
             ), call. = FALSE)
         }
@@ -680,14 +680,14 @@ S7::method(
     }
     if (.is_forbidden(tracker$expectation, is_for_output, S7::prop(cd, "overwrite"))) {
         stop(sprintf(
-            "pre-existing %s scalar: %s for the computation: %s on the daf data: %s",
+            "pre-existing %s scalar: %s\nfor the computation: %s\non the daf data: %s",
             tracker$expectation, name, comp, dname
         ), call. = FALSE)
     }
     value <- format_get_scalar(base, name)$value
     if (!.type_ok(value, tracker$type)) {
         stop(sprintf(
-            "unexpected type: %s instead of type: %s for the %s scalar: %s for the computation: %s on the daf data: %s",
+            "unexpected type: %s\ninstead of type: %s\nfor the %s scalar: %s\nfor the computation: %s\non the daf data: %s",
             class(value)[[1L]], tracker$type,
             .direction_name(is_for_output), name, comp, dname
         ), call. = FALSE)
@@ -705,7 +705,7 @@ S7::method(
     if (!exists_) {
         if (.is_mandatory(tracker$expectation, is_for_output)) {
             stop(sprintf(
-                "missing %s vector: %s of the axis: %s with element type: %s for the computation: %s on the daf data: %s",
+                "missing %s vector: %s\nof the axis: %s\nwith element type: %s\nfor the computation: %s\non the daf data: %s",
                 .direction_name(is_for_output), name, axis, tracker$type, comp, dname
             ), call. = FALSE)
         }
@@ -713,14 +713,14 @@ S7::method(
     }
     if (.is_forbidden(tracker$expectation, is_for_output, S7::prop(cd, "overwrite"))) {
         stop(sprintf(
-            "pre-existing %s vector: %s of the axis: %s for the computation: %s on the daf data: %s",
+            "pre-existing %s vector: %s\nof the axis: %s\nfor the computation: %s\non the daf data: %s",
             tracker$expectation, name, axis, comp, dname
         ), call. = FALSE)
     }
     v <- format_get_vector(base, axis, name)$value
     if (!.vector_type_ok(v, tracker$type)) {
         stop(sprintf(
-            "unexpected type: %s instead of type: %s for the %s vector: %s of the axis: %s for the computation: %s on the daf data: %s",
+            "unexpected type: %s\ninstead of type: %s\nfor the %s vector: %s\nof the axis: %s\nfor the computation: %s\non the daf data: %s",
             class(v)[[1L]], tracker$type,
             .direction_name(is_for_output), name, axis, comp, dname
         ), call. = FALSE)
@@ -739,7 +739,7 @@ S7::method(
     if (!exists_) {
         if (.is_mandatory(tracker$expectation, is_for_output)) {
             stop(sprintf(
-                "missing %s matrix: %s of the rows axis: %s and the columns axis: %s with element type: %s for the computation: %s on the daf data: %s",
+                "missing %s matrix: %s\nof the rows axis: %s\nand the columns axis: %s\nwith element type: %s\nfor the computation: %s\non the daf data: %s",
                 .direction_name(is_for_output), name, ra, ca, tracker$type, comp, dname
             ), call. = FALSE)
         }
@@ -747,14 +747,14 @@ S7::method(
     }
     if (.is_forbidden(tracker$expectation, is_for_output, S7::prop(cd, "overwrite"))) {
         stop(sprintf(
-            "pre-existing %s matrix: %s of the rows axis: %s and the columns axis: %s for the computation: %s on the daf data: %s",
+            "pre-existing %s matrix: %s\nof the rows axis: %s\nand the columns axis: %s\nfor the computation: %s\non the daf data: %s",
             tracker$expectation, name, ra, ca, comp, dname
         ), call. = FALSE)
     }
     m <- format_get_matrix(base, ra, ca, name)$value
     if (!.matrix_type_ok(m, tracker$type)) {
         stop(sprintf(
-            "unexpected type: %s instead of type: %s for the %s matrix: %s of the rows axis: %s and the columns axis: %s for the computation: %s on the daf data: %s",
+            "unexpected type: %s\ninstead of type: %s\nfor the %s matrix: %s\nof the rows axis: %s\nand the columns axis: %s\nfor the computation: %s\non the daf data: %s",
             class(m)[[1L]], tracker$type,
             .direction_name(is_for_output), name, ra, ca, comp, dname
         ), call. = FALSE)
@@ -808,7 +808,7 @@ S7::method(
     if (!exists_) {
         if (.is_mandatory(tracker$expectation, is_for_output)) {
             stop(sprintf(
-                "missing %s axis: %s for the computation: %s on the daf data: %s",
+                "missing %s axis: %s\nfor the computation: %s\non the daf data: %s",
                 .direction_name(is_for_output), axis, comp, dname
             ), call. = FALSE)
         }
@@ -816,7 +816,7 @@ S7::method(
     }
     if (.is_forbidden(tracker$expectation, is_for_output, S7::prop(cd, "overwrite"))) {
         stop(sprintf(
-            "pre-existing %s axis: %s for the computation: %s on the daf data: %s",
+            "pre-existing %s axis: %s\nfor the computation: %s\non the daf data: %s",
             tracker$expectation, axis, comp, dname
         ), call. = FALSE)
     }
@@ -832,7 +832,7 @@ S7::method(
         if (format_has_axis(base, ax) && !tracker$accessed &&
             identical(tracker$expectation, RequiredInput)) {
             stop(sprintf(
-                "unused RequiredInput axis: %s of the computation: %s on the daf data: %s",
+                "unused RequiredInput axis: %s\nof the computation: %s\non the daf data: %s",
                 ax, comp, dname
             ), call. = FALSE)
         }
@@ -845,7 +845,7 @@ S7::method(
         if (kind == "scalar") {
             if (format_has_scalar(base, parts[[2L]])) {
                 stop(sprintf(
-                    "unused RequiredInput scalar: %s of the computation: %s on the daf data: %s",
+                    "unused RequiredInput scalar: %s\nof the computation: %s\non the daf data: %s",
                     parts[[2L]], comp, dname
                 ), call. = FALSE)
             }
@@ -853,7 +853,7 @@ S7::method(
             if (format_has_axis(base, parts[[2L]]) &&
                 format_has_vector(base, parts[[2L]], parts[[3L]])) {
                 stop(sprintf(
-                    "unused RequiredInput vector: %s of the axis: %s of the computation: %s on the daf data: %s",
+                    "unused RequiredInput vector: %s\nof the axis: %s\nof the computation: %s\non the daf data: %s",
                     parts[[3L]], parts[[2L]], comp, dname
                 ), call. = FALSE)
             }
@@ -862,7 +862,7 @@ S7::method(
                 format_has_axis(base, parts[[3L]]) &&
                 format_has_matrix(base, parts[[2L]], parts[[3L]], parts[[4L]])) {
                 stop(sprintf(
-                    "unused RequiredInput matrix: %s of the rows axis: %s and the columns axis: %s of the computation: %s on the daf data: %s",
+                    "unused RequiredInput matrix: %s\nof the rows axis: %s\nand the columns axis: %s\nof the computation: %s\non the daf data: %s",
                     parts[[4L]], parts[[2L]], parts[[3L]], comp, dname
                 ), call. = FALSE)
             }
@@ -982,7 +982,7 @@ verify_output <- function(daf) {
         return(OptionalOutput)
     }
     stop(sprintf(
-        "incompatible expectation: %s and expectation: %s for the contracts %s: %s",
+        "incompatible expectation: %s\nand expectation: %s\nfor the contracts %s: %s",
         left, right, what, key
     ), call. = FALSE)
 }
@@ -995,7 +995,7 @@ verify_output <- function(daf) {
     ri <- match(right, .TYPE_WIDTH_ORDER, nomatch = NA_integer_)
     if (is.na(li) || is.na(ri)) {
         stop(sprintf(
-            "incompatible type: %s and type: %s for the contracts data: %s",
+            "incompatible type: %s\nand type: %s\nfor the contracts data: %s",
             left, right, key
         ), call. = FALSE)
     }

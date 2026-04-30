@@ -43,7 +43,7 @@ test_that("matrix-by-axis slice errors on a non-existent matrix property", {
     d <- .fx_mat()
     expect_error(
         get_query(d, "@ cell :: nope @ gene = Y"),
-        "no matrix"
+        "missing matrix:"
     )
 })
 

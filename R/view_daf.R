@@ -545,10 +545,7 @@ S7::method(
 ) <- function(daf, axis, name) {
     q_str <- .view_query_for_vector(daf, axis, name)
     if (is.null(q_str)) {
-        stop(sprintf(
-            "no vector %s on view axis %s",
-            sQuote(name), sQuote(axis)
-        ), call. = FALSE)
+        .require_vector(daf, axis, name)
     }
     raw <- get_query(daf@base, q_str)
     idx <- daf@view_axis_indices[[axis]]
@@ -578,10 +575,7 @@ S7::method(
 ) <- function(daf, rows_axis, columns_axis, name) {
     q_str <- .view_query_for_matrix(daf, rows_axis, columns_axis, name)
     if (is.null(q_str)) {
-        stop(sprintf(
-            "no matrix %s on view axes (%s, %s)",
-            sQuote(name), sQuote(rows_axis), sQuote(columns_axis)
-        ), call. = FALSE)
+        .require_matrix(daf, rows_axis, columns_axis, name, relayout = FALSE)
     }
     raw <- get_query(daf@base, q_str)
     r_idx <- daf@view_axis_indices[[rows_axis]]

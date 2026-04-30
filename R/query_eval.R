@@ -148,11 +148,7 @@ NULL
                 axis = node$axis_name
             ))
         }
-        stop(sprintf(
-            "no axis %s in daf %s",
-            sQuote(node$axis_name),
-            sQuote(S7::prop(daf, "name"))
-        ), call. = FALSE)
+        .require_axis(daf, "for: query", node$axis_name)
     }
     # Entry-pick transitions for the Julia SCALAR_QUERY phrase
     # `: vec @ axis = entry` / `:: m @ rows-axis = R @ cols-axis = C`.
@@ -283,11 +279,7 @@ NULL
             )
             return(list(kind = "scalar", value = default))
         }
-        stop(sprintf(
-            "no scalar %s in daf %s",
-            sQuote(node$name),
-            sQuote(S7::prop(daf, "name"))
-        ), call. = FALSE)
+        .require_scalar(daf, node$name)
     }
     state$value <- format_get_scalar(daf, node$name)$value
     state$kind <- "scalar"
@@ -412,10 +404,7 @@ NULL
                 property = node$name
             ))
         }
-        stop(sprintf(
-            "no vector %s on axis %s",
-            sQuote(node$name), sQuote(axis)
-        ), call. = FALSE)
+        .require_vector(daf, axis, node$name)
     }
     value <- format_get_vector(daf, axis, node$name)$value
     if (!is.null(indices)) {
@@ -530,13 +519,7 @@ NULL
                     rows_axis = rows, cols_axis = cols
                 ))
             }
-            stop(
-                sprintf(
-                    "no matrix %s [%s, %s]",
-                    sQuote(node$name), sQuote(rows), sQuote(cols)
-                ),
-                call. = FALSE
-            )
+            .require_matrix(daf, rows, cols, node$name, relayout = FALSE)
         }
     }
     m <- if (transposed) {
@@ -631,10 +614,7 @@ NULL
         }
     }
     if (!format_has_axis(daf, target_axis)) {
-        stop(sprintf(
-            "AsAxis target axis %s does not exist",
-            sQuote(target_axis)
-        ), call. = FALSE)
+        .require_axis(daf, "for: AsAxis", target_axis)
     }
 
     final_mask <- state$pending_final_mask
@@ -726,15 +706,10 @@ NULL
             call. = FALSE)
     }
     if (!format_has_axis(daf, target_axis)) {
-        stop(sprintf(
-            "chain target axis %s does not exist", sQuote(target_axis)
-        ), call. = FALSE)
+        .require_axis(daf, "for: chain", target_axis)
     }
     if (!format_has_vector(daf, target_axis, node$name)) {
-        stop(sprintf(
-            "no vector %s on axis %s",
-            sQuote(node$name), sQuote(target_axis)
-        ), call. = FALSE)
+        .require_vector(daf, target_axis, node$name)
     }
     pivot <- state$pending_groups
     target_entries <- format_axis_array(daf, target_axis)$value
@@ -784,15 +759,10 @@ NULL
         stop("internal: mask state missing pending_property", call. = FALSE)
     }
     if (!format_has_axis(daf, target_axis)) {
-        stop(sprintf(
-            "chain target axis %s does not exist", sQuote(target_axis)
-        ), call. = FALSE)
+        .require_axis(daf, "for: chain", target_axis)
     }
     if (!format_has_vector(daf, target_axis, node$name)) {
-        stop(sprintf(
-            "no vector %s on axis %s",
-            sQuote(node$name), sQuote(target_axis)
-        ), call. = FALSE)
+        .require_vector(daf, target_axis, node$name)
     }
     pivot <- state$pending_vec
     target_entries <- format_axis_array(daf, target_axis)$value
@@ -840,10 +810,7 @@ NULL
         }
     }
     if (!format_has_vector(daf, target_axis, node$name)) {
-        stop(sprintf(
-            "no vector %s on axis %s",
-            sQuote(node$name), sQuote(target_axis)
-        ), call. = FALSE)
+        .require_vector(daf, target_axis, node$name)
     }
     target_entries <- format_axis_array(daf, target_axis)$value
     lookup_vec <- format_get_vector(daf, target_axis, node$name)$value
@@ -899,10 +866,7 @@ NULL
     cols_arr <- format_axis_array(daf, cols)$value
     col_idx <- match(as.character(node$value), cols_arr)
     if (is.na(col_idx)) {
-        stop(sprintf(
-            "no entry %s on axis %s",
-            sQuote(node$value), sQuote(cols)
-        ), call. = FALSE)
+        .require_axis_entry(daf, cols, as.character(node$value))
     }
     vec <- if (format_has_matrix(daf, rows, cols, prop)) {
         m <- format_get_matrix(daf, rows, cols, prop)$value
@@ -911,10 +875,7 @@ NULL
         m <- format_get_matrix(daf, cols, rows, prop)$value
         m[col_idx, , drop = TRUE]
     } else {
-        stop(sprintf(
-            "no matrix %s on axes %s, %s",
-            sQuote(prop), sQuote(rows), sQuote(cols)
-        ), call. = FALSE)
+        .require_matrix(daf, rows, cols, prop, relayout = FALSE)
     }
     if (methods::is(vec, "sparseVector") || methods::is(vec, "Matrix")) {
         vec <- as.numeric(vec)
@@ -950,20 +911,14 @@ NULL
     cols_arr <- format_axis_array(daf, cols)$value
     col_idx <- match(as.character(node$value), cols_arr)
     if (is.na(col_idx)) {
-        stop(sprintf(
-            "no entry %s on axis %s",
-            sQuote(node$value), sQuote(cols)
-        ), call. = FALSE)
+        .require_axis_entry(daf, cols, as.character(node$value))
     }
     vec <- if (format_has_matrix(daf, rows, cols, prop)) {
         format_get_matrix(daf, rows, cols, prop)$value[, col_idx, drop = TRUE]
     } else if (format_has_matrix(daf, cols, rows, prop)) {
         format_get_matrix(daf, cols, rows, prop)$value[col_idx, , drop = TRUE]
     } else {
-        stop(sprintf(
-            "no matrix %s on axes %s, %s",
-            sQuote(prop), sQuote(rows), sQuote(cols)
-        ), call. = FALSE)
+        .require_matrix(daf, rows, cols, prop, relayout = FALSE)
     }
     if (methods::is(vec, "sparseVector") || methods::is(vec, "Matrix")) {
         vec <- as.numeric(vec)
@@ -976,18 +931,12 @@ NULL
     rows <- state$axis
     prop <- state$matrix_property
     if (!format_has_matrix(daf, rows, rows, prop)) {
-        stop(sprintf(
-            "no square matrix %s on axis %s",
-            sQuote(prop), sQuote(rows)
-        ), call. = FALSE)
+        .require_matrix(daf, rows, rows, prop, relayout = FALSE)
     }
     rows_arr <- format_axis_array(daf, rows)$value
     idx <- match(as.character(node$value), rows_arr)
     if (is.na(idx)) {
-        stop(sprintf(
-            "no entry %s on axis %s",
-            sQuote(node$value), sQuote(rows)
-        ), call. = FALSE)
+        .require_axis_entry(daf, rows, as.character(node$value))
     }
     m <- format_get_matrix(daf, rows, rows, prop)$value
     vec <- if (identical(node$op, "SquareRowIs")) {
@@ -1035,18 +984,12 @@ NULL
     rows <- state$axis
     prop <- state$matrix_property
     if (!format_has_matrix(daf, rows, rows, prop)) {
-        stop(sprintf(
-            "no square matrix %s on axis %s",
-            sQuote(prop), sQuote(rows)
-        ), call. = FALSE)
+        .require_matrix(daf, rows, rows, prop, relayout = FALSE)
     }
     rows_arr <- format_axis_array(daf, rows)$value
     idx <- match(as.character(node$value), rows_arr)
     if (is.na(idx)) {
-        stop(sprintf(
-            "no entry %s on axis %s",
-            sQuote(node$value), sQuote(rows)
-        ), call. = FALSE)
+        .require_axis_entry(daf, rows, as.character(node$value))
     }
     m <- format_get_matrix(daf, rows, rows, prop)$value
     vec <- if (identical(node$op, "SquareRowIs")) {
@@ -1340,10 +1283,7 @@ NULL
     axis_entries <- format_axis_array(daf, state$pick_axis)$value
     idx <- match(entry, axis_entries)
     if (is.na(idx)) {
-        stop(sprintf(
-            "no entry %s on axis %s",
-            sQuote(entry), sQuote(state$pick_axis)
-        ), call. = FALSE)
+        .require_axis_entry(daf, state$pick_axis, entry)
     }
     val <- state$value[[idx]]
     # Strip any name attribute so the scalar is a bare length-1 value.
@@ -1366,10 +1306,7 @@ NULL
     axis_entries <- format_axis_array(daf, state$pick_axis)$value
     idx <- match(entry, axis_entries)
     if (is.na(idx)) {
-        stop(sprintf(
-            "no entry %s on axis %s",
-            sQuote(entry), sQuote(state$pick_axis)
-        ), call. = FALSE)
+        .require_axis_entry(daf, state$pick_axis, entry)
     }
     m <- state$value
     if (identical(state$pick_dim, "row")) {
@@ -1403,18 +1340,14 @@ NULL
             )
             return(list(kind = "scalar", value = default))
         }
-        stop(sprintf(
-            "no vector %s on axis %s", sQuote(prop), sQuote(axis)
-        ), call. = FALSE)
+        .require_vector(daf, axis, prop)
     }
     vec <- format_get_vector(daf, axis, prop)$value
     entry <- as.character(node$value)
     axis_entries <- format_axis_array(daf, axis)$value
     idx <- match(entry, axis_entries)
     if (is.na(idx)) {
-        stop(sprintf(
-            "no entry %s on axis %s", sQuote(entry), sQuote(axis)
-        ), call. = FALSE)
+        .require_axis_entry(daf, axis, entry)
     }
     val <- vec[[idx]]
     names(val) <- NULL
@@ -1443,10 +1376,7 @@ NULL
                 )
                 return(list(kind = "scalar", value = default))
             }
-            stop(sprintf(
-                "no matrix %s [%s, %s]",
-                sQuote(prop), sQuote(rows), sQuote(cols)
-            ), call. = FALSE)
+            .require_matrix(daf, rows, cols, prop, relayout = FALSE)
         }
     }
     rows_array <- format_axis_array(daf, rows)$value
@@ -1454,16 +1384,10 @@ NULL
     row_idx <- match(state$row_value, rows_array)
     col_idx <- match(as.character(node$value), cols_array)
     if (is.na(row_idx)) {
-        stop(sprintf(
-            "no entry %s on axis %s",
-            sQuote(state$row_value), sQuote(rows)
-        ), call. = FALSE)
+        .require_axis_entry(daf, rows, as.character(state$row_value))
     }
     if (is.na(col_idx)) {
-        stop(sprintf(
-            "no entry %s on axis %s",
-            sQuote(node$value), sQuote(cols)
-        ), call. = FALSE)
+        .require_axis_entry(daf, cols, as.character(node$value))
     }
     m <- if (transposed) {
         m_stored <- format_get_matrix(daf, cols, rows, prop)$value
@@ -1510,19 +1434,13 @@ NULL
                 value = setNames(rep(default, n_rows_out), row_names)
             ))
         }
-        stop(sprintf(
-            "no matrix %s [%s, %s]",
-            sQuote(prop), sQuote(rows), sQuote(cols)
-        ), call. = FALSE)
+        .require_matrix(daf, rows, cols, prop, relayout = FALSE)
     }
 
     cols_array <- format_axis_array(daf, cols)$value
     col_idx <- match(as.character(node$value), cols_array)
     if (is.na(col_idx)) {
-        stop(sprintf(
-            "no entry %s on axis %s",
-            sQuote(node$value), sQuote(cols)
-        ), call. = FALSE)
+        .require_axis_entry(daf, cols, as.character(node$value))
     }
 
     m <- format_get_matrix(daf, rows, cols, prop)$value
@@ -1562,18 +1480,12 @@ NULL
                 value = setNames(rep(default, n_rows_out), row_names)
             ))
         }
-        stop(sprintf(
-            "no matrix %s [%s, %s]",
-            sQuote(prop), sQuote(rows), sQuote(rows)
-        ), call. = FALSE)
+        .require_matrix(daf, rows, rows, prop, relayout = FALSE)
     }
 
     idx <- match(as.character(node$value), rows_array)
     if (is.na(idx)) {
-        stop(sprintf(
-            "no entry %s on axis %s",
-            sQuote(node$value), sQuote(rows)
-        ), call. = FALSE)
+        .require_axis_entry(daf, rows, as.character(node$value))
     }
 
     m <- format_get_matrix(daf, rows, rows, prop)$value
@@ -2663,20 +2575,14 @@ NULL
     cols_arr <- format_axis_array(daf, cols)$value
     col_idx <- match(as.character(node$value), cols_arr)
     if (is.na(col_idx)) {
-        stop(sprintf(
-            "no entry %s on axis %s",
-            sQuote(node$value), sQuote(cols)
-        ), call. = FALSE)
+        .require_axis_entry(daf, cols, as.character(node$value))
     }
     grp <- if (format_has_matrix(daf, rows, cols, prop)) {
         format_get_matrix(daf, rows, cols, prop)$value[, col_idx, drop = TRUE]
     } else if (format_has_matrix(daf, cols, rows, prop)) {
         format_get_matrix(daf, cols, rows, prop)$value[col_idx, , drop = TRUE]
     } else {
-        stop(sprintf(
-            "no matrix %s on axes %s, %s",
-            sQuote(prop), sQuote(rows), sQuote(cols)
-        ), call. = FALSE)
+        .require_matrix(daf, rows, cols, prop, relayout = FALSE)
     }
     if (methods::is(grp, "sparseVector") || methods::is(grp, "Matrix")) {
         grp <- as.numeric(grp)
@@ -2697,18 +2603,12 @@ NULL
     rows <- state$axis
     prop <- state$matrix_property
     if (!format_has_matrix(daf, rows, rows, prop)) {
-        stop(sprintf(
-            "no square matrix %s on axis %s",
-            sQuote(prop), sQuote(rows)
-        ), call. = FALSE)
+        .require_matrix(daf, rows, rows, prop, relayout = FALSE)
     }
     rows_arr <- format_axis_array(daf, rows)$value
     idx <- match(as.character(node$value), rows_arr)
     if (is.na(idx)) {
-        stop(sprintf(
-            "no entry %s on axis %s",
-            sQuote(node$value), sQuote(rows)
-        ), call. = FALSE)
+        .require_axis_entry(daf, rows, as.character(node$value))
     }
     m <- format_get_matrix(daf, rows, rows, prop)$value
     grp <- if (identical(node$op, "SquareRowIs")) {
@@ -2741,20 +2641,14 @@ NULL
     cols_arr <- format_axis_array(daf, cols)$value
     col_idx <- match(as.character(node$value), cols_arr)
     if (is.na(col_idx)) {
-        stop(sprintf(
-            "no entry %s on axis %s",
-            sQuote(node$value), sQuote(cols)
-        ), call. = FALSE)
+        .require_axis_entry(daf, cols, as.character(node$value))
     }
     grp <- if (format_has_matrix(daf, rows, cols, prop)) {
         format_get_matrix(daf, rows, cols, prop)$value[, col_idx, drop = TRUE]
     } else if (format_has_matrix(daf, cols, rows, prop)) {
         format_get_matrix(daf, cols, rows, prop)$value[col_idx, , drop = TRUE]
     } else {
-        stop(sprintf(
-            "no matrix %s on axes %s, %s",
-            sQuote(prop), sQuote(rows), sQuote(cols)
-        ), call. = FALSE)
+        .require_matrix(daf, rows, cols, prop, relayout = FALSE)
     }
     if (methods::is(grp, "sparseVector") || methods::is(grp, "Matrix")) {
         grp <- as.numeric(grp)
@@ -2766,18 +2660,12 @@ NULL
     rows <- group_axis_name
     prop <- state$matrix_property
     if (!format_has_matrix(daf, rows, rows, prop)) {
-        stop(sprintf(
-            "no square matrix %s on axis %s",
-            sQuote(prop), sQuote(rows)
-        ), call. = FALSE)
+        .require_matrix(daf, rows, rows, prop, relayout = FALSE)
     }
     rows_arr <- format_axis_array(daf, rows)$value
     idx <- match(as.character(node$value), rows_arr)
     if (is.na(idx)) {
-        stop(sprintf(
-            "no entry %s on axis %s",
-            sQuote(node$value), sQuote(rows)
-        ), call. = FALSE)
+        .require_axis_entry(daf, rows, as.character(node$value))
     }
     m <- format_get_matrix(daf, rows, rows, prop)$value
     grp <- if (identical(node$op, "SquareRowIs")) {
@@ -2857,10 +2745,7 @@ NULL
     cols2_arr <- format_axis_array(daf, cols2_axis)$value
     col_idx <- match(as.character(node$value), cols2_arr)
     if (is.na(col_idx)) {
-        stop(sprintf(
-            "no entry %s on axis %s",
-            sQuote(node$value), sQuote(cols2_axis)
-        ), call. = FALSE)
+        .require_axis_entry(daf, cols2_axis, as.character(node$value))
     }
     target_axis <- state$chain_target_axis
     prop2 <- state$matrix2_property
@@ -2870,10 +2755,7 @@ NULL
     } else if (format_has_matrix(daf, cols2_axis, target_axis, prop2)) {
         format_get_matrix(daf, cols2_axis, target_axis, prop2)$value[col_idx, , drop = TRUE]
     } else {
-        stop(sprintf(
-            "no matrix %s on axes %s, %s",
-            sQuote(prop2), sQuote(target_axis), sQuote(cols2_axis)
-        ), call. = FALSE)
+        .require_matrix(daf, target_axis, cols2_axis, prop2, relayout = FALSE)
     }
     .matrix_chain_apply_slice(state, slice, daf)
 }
@@ -2891,10 +2773,7 @@ NULL
     target_entries <- format_axis_array(daf, target_axis)$value
     idx <- match(as.character(node$value), target_entries)
     if (is.na(idx)) {
-        stop(sprintf(
-            "no entry %s on axis %s",
-            sQuote(node$value), sQuote(target_axis)
-        ), call. = FALSE)
+        .require_axis_entry(daf, target_axis, as.character(node$value))
     }
     m2 <- format_get_matrix(daf, target_axis, target_axis, prop2)$value
     slice <- if (identical(node$op, "SquareRowIs")) {
@@ -3021,20 +2900,14 @@ NULL
     cols_arr <- format_axis_array(daf, cols)$value
     col_idx <- match(as.character(node$value), cols_arr)
     if (is.na(col_idx)) {
-        stop(sprintf(
-            "no entry %s on axis %s",
-            sQuote(node$value), sQuote(cols)
-        ), call. = FALSE)
+        .require_axis_entry(daf, cols, as.character(node$value))
     }
     b <- if (format_has_matrix(daf, rows, cols, prop)) {
         format_get_matrix(daf, rows, cols, prop)$value[, col_idx, drop = TRUE]
     } else if (format_has_matrix(daf, cols, rows, prop)) {
         format_get_matrix(daf, cols, rows, prop)$value[col_idx, , drop = TRUE]
     } else {
-        stop(sprintf(
-            "no matrix %s on axes %s, %s",
-            sQuote(prop), sQuote(rows), sQuote(cols)
-        ), call. = FALSE)
+        .require_matrix(daf, rows, cols, prop, relayout = FALSE)
     }
     if (methods::is(b, "sparseVector") || methods::is(b, "Matrix")) {
         b <- as.numeric(b)
@@ -3054,18 +2927,12 @@ NULL
     rows <- state$axis
     prop <- state$matrix_property
     if (!format_has_matrix(daf, rows, rows, prop)) {
-        stop(sprintf(
-            "no square matrix %s on axis %s",
-            sQuote(prop), sQuote(rows)
-        ), call. = FALSE)
+        .require_matrix(daf, rows, rows, prop, relayout = FALSE)
     }
     rows_arr <- format_axis_array(daf, rows)$value
     idx <- match(as.character(node$value), rows_arr)
     if (is.na(idx)) {
-        stop(sprintf(
-            "no entry %s on axis %s",
-            sQuote(node$value), sQuote(rows)
-        ), call. = FALSE)
+        .require_axis_entry(daf, rows, as.character(node$value))
     }
     m <- format_get_matrix(daf, rows, rows, prop)$value
     b <- if (identical(node$op, "SquareRowIs")) {
@@ -3128,15 +2995,10 @@ NULL
         stop("internal: pending_count missing b_pivot_axis", call. = FALSE)
     }
     if (!format_has_axis(daf, target_axis)) {
-        stop(sprintf(
-            "chain target axis %s does not exist", sQuote(target_axis)
-        ), call. = FALSE)
+        .require_axis(daf, "for: chain", target_axis)
     }
     if (!format_has_vector(daf, target_axis, node$name)) {
-        stop(sprintf(
-            "no vector %s on axis %s",
-            sQuote(node$name), sQuote(target_axis)
-        ), call. = FALSE)
+        .require_vector(daf, target_axis, node$name)
     }
     pivot <- state$b_per_cell
     target_entries <- format_axis_array(daf, target_axis)$value

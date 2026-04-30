@@ -26,7 +26,7 @@ test_that("get_query with '? @' returns axis names", {
 
 test_that("get_query errors on missing scalar unless IfMissing", {
     d <- memory_daf(name = "t")
-    expect_error(get_query(d, ". missing"), "no scalar")
+    expect_error(get_query(d, ". missing"), "missing scalar:")
     expect_equal(get_query(d, ". missing || 0"), "0")
 })
 
@@ -61,5 +61,5 @@ test_that("get_query returns a matrix", {
 test_that("get_query errors on missing vector/matrix with no IfMissing", {
     d <- memory_daf(name = "t")
     add_axis(d, "cell", "c1")
-    expect_error(get_query(d, "@ cell : nope"), "no vector")
+    expect_error(get_query(d, "@ cell : nope"), "missing vector:")
 })
