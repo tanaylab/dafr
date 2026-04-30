@@ -13,7 +13,7 @@ DirStore(root = character(0))
 
 DictStore(env = NULL)
 
-MmapZipStore(path = character(0))
+MmapZipStore(path = character(0), mode = character(0), xptr = NULL)
 }
 \arguments{
 \item{root}{(\code{DirStore}) Filesystem root path; created if missing.}
@@ -21,8 +21,14 @@ MmapZipStore(path = character(0))
 \item{env}{(\code{DictStore}) Internal environment used as the key-value
 backing store; typically created by \code{\link[=new_dict_store]{new_dict_store()}}.}
 
-\item{path}{(\code{MmapZipStore}) Filesystem path to a zip archive
-(stub; not yet functional — lands in slice 17).}
+\item{path}{(\code{MmapZipStore}) Filesystem path to a zip archive.}
+
+\item{mode}{(\code{MmapZipStore}) One of \code{"r"}, \code{"r+"}, \code{"w+"}, \code{"w"};
+set by \code{\link[=new_mmap_zip_store]{new_mmap_zip_store()}}.}
+
+\item{xptr}{(\code{MmapZipStore}) Internal external pointer to the C++
+store; set by \code{\link[=new_mmap_zip_store]{new_mmap_zip_store()}} and not intended for direct
+use.}
 }
 \description{
 Uniform read/write API for byte content keyed by path strings.

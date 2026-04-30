@@ -55,7 +55,7 @@ Suggests:
     tidyr,
     tidyselect,
     withr
-SystemRequirements: C++17
+SystemRequirements: C++17, zlib
 VignetteBuilder: knitr
 Config/testthat/edition: 3
 Encoding: UTF-8

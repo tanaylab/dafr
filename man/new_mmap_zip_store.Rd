@@ -2,24 +2,37 @@
 % Please edit documentation in R/zarr_store.R
 \name{new_mmap_zip_store}
 \alias{new_mmap_zip_store}
-\title{Stub for the mmap-backed zip store (slice 17).}
+\title{Create a zip-archive-backed Zarr v2 store (mmap, append-only).}
 \usage{
-new_mmap_zip_store(path)
+new_mmap_zip_store(path, mode = "r", max_file_size = 2^40)
 }
 \arguments{
-\item{path}{Filesystem path to a zip archive.}
+\item{path}{Filesystem path to a \code{.daf.zarr.zip} archive.}
+
+\item{mode}{One of \code{"r"}, \code{"r+"}, \code{"w+"}, \code{"w"}.}
+
+\item{max_file_size}{Cap on the writable virtual reservation, in
+bytes. Ignored for read-only opens. Defaults to 1 TiB.}
 }
 \value{
-Throws.
+A \code{MmapZipStore}.
 }
 \description{
-Errors with a message pointing to slice 17. The constructor exists
-so future routing in \code{open_daf} can dispatch on \verb{*.daf.zarr.zip}
-URIs without callers having to special-case the absence of the
-implementation.
+Opens (or creates) a single ZIP archive at \code{path} as a Zarr v2 store.
+Reads use a shared mmap of the archive (zero-copy for stored entries
+via ALTREP RAW); writes append entries with a crash-safe two-step
+commit protocol. Mirrors upstream
+\code{DataAxesFormats.MmapZipStores.MmapZipStore}.
+}
+\details{
+Modes: \code{"r"} (read existing), \code{"r+"} (read/write existing),
+\code{"w+"} (read/write, create if missing), \code{"w"} (truncate + create).
+On a writable open, the store reserves \code{max_file_size} bytes of
+virtual address space (no RAM cost) and grows the file via
+\code{ftruncate} as entries append. Default \code{max_file_size} is 1 TiB.
 }
 \examples{
 \dontrun{
-new_mmap_zip_store("/path/to/foo.daf.zarr.zip")
+s <- new_mmap_zip_store("/path/to/foo.daf.zarr.zip", mode = "w")
 }
 }

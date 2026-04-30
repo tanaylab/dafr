@@ -205,7 +205,17 @@ zarr_v2_consolidated_metadata <- function(store) {
 # write/delete helper in zarr_format.R so the consolidated copy is
 # always in sync with the per-file copies. No-op-friendly: if the
 # store is empty the metadata dict is just `{}`.
+#
+# Append-only stores (MmapZipStore) cannot accept repeated rewrites of
+# the same key, so we mirror upstream Julia's `refresh_consolidated_metadata!`
+# behaviour and treat the rewrite as a no-op on those backends. Per-file
+# `.zarray` / chunk entries still ground-truth the layout; readers that
+# need a consolidated index can rebuild it via `zarr_v2_consolidated_metadata`
+# at open time.
 zarr_v2_write_zmetadata <- function(store) {
+    if (S7::S7_inherits(store, MmapZipStore)) {
+        return(invisible())
+    }
     consolidated <- zarr_v2_consolidated_metadata(store)
     # `metadata` must serialize as `{}` (object), not `[]` (empty array),
     # when there are no entries. jsonlite handles named lists correctly;

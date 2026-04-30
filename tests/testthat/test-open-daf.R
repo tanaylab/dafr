@@ -42,11 +42,6 @@ test_that("open_daf with name argument respects it for ZarrDaf", {
     expect_identical(S7::prop(d, "name"), "demo-zarr")
 })
 
-test_that("open_daf rejects .daf.zarr.zip with slice-17 placeholder", {
-    expect_error(open_daf("/path/to/foo.daf.zarr.zip"),
-                 "lands in slice 17")
-})
-
 test_that("open_daf still rejects http URIs (slice-18 placeholder)", {
     expect_error(open_daf("http://example.com/foo"),
                  "lands in slice 18")
