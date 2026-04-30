@@ -214,6 +214,9 @@ delete_matrix <- function(daf, rows_axis, columns_axis, name,
 #' transpose-on-the-fly path.
 #'
 #' @inheritParams has_matrix
+#' @param overwrite If `TRUE`, replace any existing matrix at the
+#'   transposed `(columns_axis, rows_axis, name)` location. If `FALSE`
+#'   (default), raise when such a matrix already exists.
 #' @return Invisibly the input `daf`.
 #' @examples
 #' d <- memory_daf()

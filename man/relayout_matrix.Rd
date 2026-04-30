@@ -4,7 +4,7 @@
 \alias{relayout_matrix}
 \title{Physically store the transposed layout of a matrix.}
 \usage{
-relayout_matrix(daf, rows_axis, columns_axis, name)
+relayout_matrix(daf, rows_axis, columns_axis, name, overwrite = FALSE)
 }
 \arguments{
 \item{daf}{A \code{DafReader}.}
@@ -14,6 +14,10 @@ relayout_matrix(daf, rows_axis, columns_axis, name)
 \item{columns_axis}{Column-axis name.}
 
 \item{name}{Matrix name.}
+
+\item{overwrite}{If \code{TRUE}, replace any existing matrix at the
+transposed \verb{(columns_axis, rows_axis, name)} location. If \code{FALSE}
+(default), raise when such a matrix already exists.}
 }
 \value{
 Invisibly the input \code{daf}.
