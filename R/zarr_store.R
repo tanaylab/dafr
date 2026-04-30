@@ -246,3 +246,31 @@ S7::method(store_list, list(DictStore, S7::class_character)) <-
         if (!nzchar(prefix)) return(keys)
         keys[startsWith(keys, paste0(prefix, "/"))]
     }
+
+# MmapZipStore impls (read-only at slice 17 phase 2; writer lands phase 4).
+S7::method(store_get_bytes, list(MmapZipStore, S7::class_character)) <-
+    function(store, path) {
+        dafr_mmap_zip_get_bytes(S7::prop(store, "xptr"), path)
+    }
+
+S7::method(store_exists, list(MmapZipStore, S7::class_character)) <-
+    function(store, path) {
+        dafr_mmap_zip_exists(S7::prop(store, "xptr"), path)
+    }
+
+S7::method(store_list, list(MmapZipStore, S7::class_character)) <-
+    function(store, prefix) {
+        dafr_mmap_zip_list(S7::prop(store, "xptr"), prefix)
+    }
+
+# Phase 4 will replace these with real writers; until then surface a clear
+# message rather than the cryptic "no method for this combination" error.
+S7::method(store_set_bytes, list(MmapZipStore, S7::class_character, S7::class_any)) <-
+    function(store, path, bytes) {
+        stop("MmapZipStore::set_bytes lands in slice 17 phase 4")
+    }
+
+S7::method(store_delete, list(MmapZipStore, S7::class_character)) <-
+    function(store, path) {
+        stop("MmapZipStore::delete lands in slice 17 phase 4")
+    }
