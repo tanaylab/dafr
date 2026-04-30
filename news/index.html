@@ -45,6 +45,36 @@
     </div>
 
     <div class="section level2">
+<h2 class="pkg-version" data-toc-text="0.2.0" id="dafr-020-development">dafr 0.2.0 (development)<a class="anchor" aria-label="anchor" href="#dafr-020-development"></a></h2>
+<div class="section level3">
+<h3 id="zarrdaf-backend-slice-0-2-0">ZarrDaf backend (slice 16)<a class="anchor" aria-label="anchor" href="#zarrdaf-backend-slice-0-2-0"></a></h3>
+<ul><li>New <code>zarr_daf(uri, mode, name)</code> backend reading and writing Zarr v2. Two store impls: <code>DirStore</code> (filesystem directory tree) and <code>DictStore</code> (in-memory). Zip-backed Zarr (<code>MmapZipStore</code>) lands in slice 17.</li>
+<li>New <code>files_to_zarr(src, dst)</code> and <code>zarr_to_files(src, dst)</code> conversion helpers (same-filesystem only; correctness-first implementation re-encodes through the public API; hard-link optimization deferred as a perf follow-up).</li>
+<li>
+<code>open_daf("foo.daf.zarr")</code> now returns a <code>ZarrDaf</code>. The <code>.daf.zarr.zip</code> placeholder error now points to slice 17.</li>
+<li>Compression policy: dafr writes Zarr chunks uncompressed; reads uncompressed and gzip; rejects blosc/zstd/lz4 with a clear error pointing to re-save with <code>compressor=None</code>.</li>
+<li>Sparse layouts mirror upstream <code>DataAxesFormats.jl</code>: 1-based on-disk indices for <code>nzind</code> / <code>colptr</code> / <code>rowval</code>; sparse-Bool all-<code>TRUE</code> skips <code>nzval</code> (storage compaction). Cross-language parity is verified via gated Python <code>zarr.open()</code> smoke tests.</li>
+<li>Mirrors <code>DataAxesFormats.jl</code> v0.2.0 commits <code>ea4b5f9</code> (Zarr v2 directory tree), <code>8cc3ff6</code> (in-memory store), <code>47e7693</code> (CRC fix — N/A for our in-memory layer), <code>79034fd</code> (<code>.zmetadata</code> consolidation), <code>46d4ab2</code> (Files↔︎Zarr conversion).</li>
+</ul></div>
+<div class="section level3">
+<h3 id="reorder_axes--open_daf-factory-slice-0-2-0">reorder_axes() + open_daf() factory (slice 15)<a class="anchor" aria-label="anchor" href="#reorder_axes--open_daf-factory-slice-0-2-0"></a></h3>
+<ul><li>New <code>reorder_axes(daf, axis = perm, ...)</code> permutes axis entries in place, rewriting every vector and matrix that depends on the axis. On <code>files_daf</code> the operation is crash-recoverable via a <code>.reorder.backup/</code> directory of hardlinks; on the next <code>files_daf(path, mode = "r+" | "w+")</code> open, any in-progress reorder is automatically rolled back to the pre-reorder state.</li>
+<li>New <code>reset_reorder_axes(daf)</code> to manually trigger recovery (mostly redundant given the auto-recovery on open).</li>
+<li>New <code>open_daf(uri, mode, name)</code> factory function — dispatches on path / URL pattern. <code>memory://</code> (or no path) → <code>memory_daf</code>, filesystem path → <code>files_daf</code>. Future backends (<code>*.daf.zarr</code> and <code>http(s)://</code>) are stubbed with explicit error messages pointing to the slices that will land them (16 and 18 respectively). The factory replaces the previous filesystem-only <code>open_daf</code> from <code>R/complete.R</code>.</li>
+<li>Mirrors <code>DataAxesFormats.jl</code> v0.2.0 commits <code>90301ff</code>, <code>070bd34</code> (axis reordering) and <code>b40377f</code> (<code>open_daf</code> factory).</li>
+</ul></div>
+<div class="section level3">
+<h3 id="internal-per-item-cache_group-refactor-slice-0-2-0">Internal: per-item cache_group refactor (slice 14)<a class="anchor" aria-label="anchor" href="#internal-per-item-cache_group-refactor-slice-0-2-0"></a></h3>
+<p>The internal format API now returns per-item cache classifications, matching <code>DataAxesFormats.jl</code> v0.2.0 (upstream commit <code>49fbba1</code>). <strong>No user-visible behavior change.</strong></p>
+<ul><li>Every backend <code>format_get_*</code> method (scalar/axis_array/vector/matrix) returns <code>list(value, cache_group)</code> instead of a bare value.</li>
+<li>Every backend <code>format_set_*</code> method returns the cache_group constant for the just-written value (or <code>NULL</code>) instead of <code><a href="https://rdrr.io/r/base/invisible.html" class="external-link">invisible()</a></code>.</li>
+<li>New exported character constants <code>MEMORY_DATA</code>, <code>MAPPED_DATA</code>, <code>QUERY_DATA</code> — accepted by <code>empty_cache(daf, clear = ...)</code> / <code>keep = ...</code> alongside the existing lowercase forms.</li>
+<li>The reader-level cache (<code>R/readers.R</code>) now consults the backend-returned cache_group when storing fresh reads, instead of hardcoding the <code>"memory"</code> tier. mmap-eligible reads on <code>files_daf</code> now correctly land in the <code>"mapped"</code> tier.</li>
+<li>Per-item classification: <code>files_daf</code> returns <code>MEMORY_DATA</code> for string/factor reads (R’s CHARSXP cache makes mmap moot for strings) and <code>MAPPED_DATA</code> for everything else. Matches upstream’s structural classification — no size thresholds.</li>
+</ul><p>This refactor is preparatory for the Slice 16+ <code>ZarrDaf</code> and <code>HttpDaf</code> backends, which require per-item classification to drive their internal caching.</p>
+</div>
+</div>
+    <div class="section level2">
 <h2 class="pkg-version" data-toc-text="0.1.0" id="dafr-010-development">dafr 0.1.0 (development)<a class="anchor" aria-label="anchor" href="#dafr-010-development"></a></h2>
 <div class="section level3">
 <h3 id="query-dsl-julia-parity-parser-additions-0-1-0">Query DSL: Julia-parity parser additions<a class="anchor" aria-label="anchor" href="#query-dsl-julia-parity-parser-additions-0-1-0"></a></h3>

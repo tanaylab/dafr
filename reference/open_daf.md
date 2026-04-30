@@ -1,44 +1,45 @@
-# Open a daf storage path in a given mode.
+# Open a Daf store by URI or path.
 
-Dispatches on path extension. Directory paths open a `FilesDaf`; paths
-ending in `.h5df` or containing `.h5dfs#<group>` are reserved for an
-H5df backend (not implemented).
+Path/URL-aware factory that dispatches to the right backend. Today
+supports `memory://` (or no path / NULL) for in-memory stores, regular
+filesystem paths for `files_daf`, and `*.daf.zarr` directories for
+`zarr_daf`. `*.daf.zarr.zip` errors with "lands in slice 17";
+`http(s)://` errors with "lands in slice 18".
 
 ## Usage
 
 ``` r
-open_daf(path, mode = "r", name = NULL)
+open_daf(uri = NULL, mode = "r", name = NULL, ...)
 ```
 
 ## Arguments
 
-- path:
+- uri:
 
-  Filesystem path.
+  Path or URL. `memory://` (or `NULL` / empty string) for an in-memory
+  store; a filesystem directory path for `files_daf`; a URL with a
+  recognized scheme for future backends.
 
 - mode:
 
-  One of `"r"` (read-only) or `"r+"` (read-write).
+  One of `"r"`, `"r+"`, `"w"`, `"w+"`. Required for `files_daf`; ignored
+  for `memory_daf`.
 
 - name:
 
-  Optional daf name. Default derived from the path basename.
+  Optional name for the daf object. Default derived from the URI.
+
+- ...:
+
+  Reserved for backend-specific options.
 
 ## Value
 
-A `DafReader` or `DafWriter`.
+A `DafReader` or `DafWriter` (subclass depends on backend and mode).
 
 ## Examples
 
 ``` r
-tmp <- tempfile(); dir.create(tmp)
-files_daf(tmp, name = "tmp", mode = "w+")
-#> <dafr::FilesDaf>
-#>  @ name                  : chr "tmp"
-#>  @ internal              :<environment: 0x55b7bb5dc7c0> 
-#>  @ cache                 :<environment: 0x55b7bb5d94b8> 
-#>  @ axis_version_counter  :<environment: 0x55b7bb5dafd8> 
-#>  @ vector_version_counter:<environment: 0x55b7bb5d7480> 
-#>  @ matrix_version_counter:<environment: 0x55b7bb5d7758> 
-d <- open_daf(tmp, "r")
+d <- open_daf("memory://", name = "demo")
+add_axis(d, "cell", c("c1", "c2"))
 ```

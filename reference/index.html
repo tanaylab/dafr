@@ -97,6 +97,20 @@
 
         <dt>
 
+          <code><a href="ZarrDaf.html">ZarrDaf()</a></code>
+
+        </dt>
+        <dd>Zarr-backed Daf class.</dd>
+
+        <dt>
+
+          <code><a href="ZarrDafReadOnly.html">ZarrDafReadOnly()</a></code>
+
+        </dt>
+        <dd>Read-only Zarr-backed Daf class.</dd>
+
+        <dt>
+
           <code><a href="memory_daf.html">memory_daf()</a></code>
 
         </dt>
@@ -108,6 +122,13 @@
 
         </dt>
         <dd>File-backed Daf store.</dd>
+
+        <dt>
+
+          <code><a href="zarr_daf.html">zarr_daf()</a></code>
+
+        </dt>
+        <dd>Open a Zarr-backed Daf store.</dd>
 
         <dt>
 
@@ -343,6 +364,20 @@
 
         </dt>
         <dd>Physically store the transposed layout of a matrix.</dd>
+
+        <dt>
+
+          <code><a href="reorder_axes.html">reorder_axes()</a></code>
+
+        </dt>
+        <dd>Reorder one or more axis entries in place.</dd>
+
+        <dt>
+
+          <code><a href="reset_reorder_axes.html">reset_reorder_axes()</a></code>
+
+        </dt>
+        <dd>Reset any in-progress axis reorder.</dd>
 
         <dt>
 
@@ -1272,6 +1307,13 @@
 
         </dt>
         <dd>Per-matrix version counter.</dd>
+
+        <dt>
+
+          <code><a href="cache_group_constants.html">MEMORY_DATA</a></code> <code><a href="cache_group_constants.html">MAPPED_DATA</a></code> <code><a href="cache_group_constants.html">QUERY_DATA</a></code>
+
+        </dt>
+        <dd>Cache-group constants.</dd>
       </dl></div><div class="section level2">
       <h2 id="group-helpers">Group helpers<a class="anchor" aria-label="anchor" href="#group-helpers"></a></h2>
 
@@ -1393,6 +1435,20 @@
 
         <dt>
 
+          <code><a href="files_to_zarr.html">files_to_zarr()</a></code>
+
+        </dt>
+        <dd>Convert a <code>files_daf</code> directory to a <code>zarr_daf</code> directory.</dd>
+
+        <dt>
+
+          <code><a href="zarr_to_files.html">zarr_to_files()</a></code>
+
+        </dt>
+        <dd>Convert a <code>zarr_daf</code> directory to a <code>files_daf</code> directory.</dd>
+
+        <dt>
+
           <code><a href="ALL_AXES.html">ALL_AXES</a></code>
 
         </dt>
@@ -1426,6 +1482,50 @@
         </dt>
         <dd>Merge action constants for <code><a href="../reference/concatenate.html">concatenate()</a></code>.</dd>
       </dl></div><div class="section level2">
+      <h2 id="zarr-store-backend">Zarr store backend<a class="anchor" aria-label="anchor" href="#zarr-store-backend"></a></h2>
+
+
+
+      <dl></dl></div><div class="section level2">
+
+
+
+
+      <dl><dt>
+
+          <code><a href="ZarrStore.html">ZarrStore()</a></code> <code><a href="ZarrStore.html">DirStore()</a></code> <code><a href="ZarrStore.html">DictStore()</a></code> <code><a href="ZarrStore.html">MmapZipStore()</a></code>
+
+        </dt>
+        <dd>Zarr v2 Store abstract base class.</dd>
+
+        <dt>
+
+          <code><a href="new_dict_store.html">new_dict_store()</a></code>
+
+        </dt>
+        <dd>Create an in-memory Zarr v2 store.</dd>
+
+        <dt>
+
+          <code><a href="new_dir_store.html">new_dir_store()</a></code>
+
+        </dt>
+        <dd>Create a directory-backed Zarr v2 store.</dd>
+
+        <dt>
+
+          <code><a href="new_mmap_zip_store.html">new_mmap_zip_store()</a></code>
+
+        </dt>
+        <dd>Stub for the mmap-backed zip store (slice 17).</dd>
+
+        <dt>
+
+          <code><a href="zarr_store_generics.html">store_get_bytes()</a></code> <code><a href="zarr_store_generics.html">store_set_bytes()</a></code> <code><a href="zarr_store_generics.html">store_delete()</a></code> <code><a href="zarr_store_generics.html">store_exists()</a></code> <code><a href="zarr_store_generics.html">store_list()</a></code>
+
+        </dt>
+        <dd>Zarr v2 store generics.</dd>
+      </dl></div><div class="section level2">
       <h2 id="reconstruction-completion">Reconstruction &amp; completion<a class="anchor" aria-label="anchor" href="#reconstruction-completion"></a></h2>
 
 
@@ -1440,7 +1540,7 @@
           <code><a href="open_daf.html">open_daf()</a></code>
 
         </dt>
-        <dd>Open a daf storage path in a given mode.</dd>
+        <dd>Open a Daf store by URI or path.</dd>
 
         <dt>
 

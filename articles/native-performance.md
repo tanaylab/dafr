@@ -18,6 +18,7 @@ arrays of a sparse matrix (`colptr`, `rowval`, `nzval`) are `mmap`’d —
 the OS maps the on-disk files directly into process memory with no copy.
 
 ``` r
+
 fd <- files_daf("/path/to/daf", mode = "r")
 x  <- get_vector(fd, "cell", "donor")     # mmap'd — no allocation
 m  <- get_matrix(fd, "cell", "gene", "UMIs")  # mmap'd dgCMatrix
@@ -33,6 +34,7 @@ controlled via `options(dafr.kernel_threshold = N)` where `N` is the
 minimum element count for parallel execution.
 
 ``` r
+
 options(dafr.kernel_threshold = 1e5)   # default 1e6
 ```
 

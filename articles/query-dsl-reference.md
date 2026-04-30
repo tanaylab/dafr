@@ -37,43 +37,43 @@ the **phrase** column indicates which phrase the operator appears in.
 
 ## Operator table
 
-| Operator | Builder                                                                               | Phrase / meaning                                                                             |
-|:---------|:--------------------------------------------------------------------------------------|:---------------------------------------------------------------------------------------------|
-| `@`      | [`Axis()`](https://tanaylab.github.io/dafr/reference/Axis.md)                         | Introduce an axis onto the stack.                                                            |
-| `=@`     | [`AsAxis()`](https://tanaylab.github.io/dafr/reference/AsAxis.md)                     | Treat subsequent values as entries of that axis (for secondary lookup / pivoting).           |
-| `@|`     | [`SquareColumnIs()`](https://tanaylab.github.io/dafr/reference/SquareColumnIs.md)     | Slice a square matrix by column.                                                             |
-| `@-`     | [`SquareRowIs()`](https://tanaylab.github.io/dafr/reference/SquareRowIs.md)           | Slice a square matrix by row.                                                                |
-| `/`      | [`GroupBy()`](https://tanaylab.github.io/dafr/reference/GroupBy.md)                   | Group a vector by values of another vector of the same length.                               |
-| `|/`     | [`GroupColumnsBy()`](https://tanaylab.github.io/dafr/reference/GroupColumnsBy.md)     | Group matrix columns by a vector with one value per column.                                  |
-| `-/`     | [`GroupRowsBy()`](https://tanaylab.github.io/dafr/reference/GroupRowsBy.md)           | Group matrix rows by a vector with one value per row.                                        |
-| `%`      | eltwise op (`Abs`, …)                                                                 | Apply an element-wise operation to vector or matrix data.                                    |
-| `>>`     | reduction op (`Sum`, …)                                                               | Reduce a vector or matrix to a scalar (per-group vector on a grouped input).                 |
-| `>|`     | [`ReduceToColumn()`](https://tanaylab.github.io/dafr/reference/ReduceToColumn.md)     | Reduce a matrix along rows to a single column vector.                                        |
-| `>-`     | [`ReduceToRow()`](https://tanaylab.github.io/dafr/reference/ReduceToRow.md)           | Reduce a matrix along columns to a single row vector.                                        |
-| `\|\|`   | [`IfMissing()`](https://tanaylab.github.io/dafr/reference/IfMissing.md)               | Default value when a lookup target does not exist, or when reducing empty data.              |
-| `??`     | [`IfNot()`](https://tanaylab.github.io/dafr/reference/IfNot.md)                       | Fallback value when a chained lookup produces an empty result.                               |
-| `*`      | [`CountBy()`](https://tanaylab.github.io/dafr/reference/CountBy.md)                   | Count, in a matrix, the number of times each combination of values from two vectors appears. |
-| `?`      | [`Names()`](https://tanaylab.github.io/dafr/reference/Names.md)                       | Return the set of axis / property names reachable from the current stack state.              |
-| `.`      | [`LookupScalar()`](https://tanaylab.github.io/dafr/reference/LookupScalar.md)         | Look up a scalar property.                                                                   |
-| `:`      | [`LookupVector()`](https://tanaylab.github.io/dafr/reference/LookupVector.md)         | Look up a vector property on the current axis.                                               |
-| `::`     | [`LookupMatrix()`](https://tanaylab.github.io/dafr/reference/LookupMatrix.md)         | Look up a matrix property on a pair of axes.                                                 |
-| `<`      | [`IsLess()`](https://tanaylab.github.io/dafr/reference/IsLess.md)                     | Mask comparison: strictly less.                                                              |
-| `<=`     | [`IsLessEqual()`](https://tanaylab.github.io/dafr/reference/IsLessEqual.md)           | Mask comparison: less or equal.                                                              |
-| `=`      | [`IsEqual()`](https://tanaylab.github.io/dafr/reference/IsEqual.md)                   | Mask comparison: equal.                                                                      |
-| `!=`     | [`IsNotEqual()`](https://tanaylab.github.io/dafr/reference/IsNotEqual.md)             | Mask comparison: not equal.                                                                  |
-| `>=`     | [`IsGreaterEqual()`](https://tanaylab.github.io/dafr/reference/IsGreaterEqual.md)     | Mask comparison: greater or equal.                                                           |
-| `>`      | [`IsGreater()`](https://tanaylab.github.io/dafr/reference/IsGreater.md)               | Mask comparison: strictly greater.                                                           |
-| `~`      | [`IsMatch()`](https://tanaylab.github.io/dafr/reference/IsMatch.md)                   | Mask comparison: regex match.                                                                |
-| `!~`     | [`IsNotMatch()`](https://tanaylab.github.io/dafr/reference/IsNotMatch.md)             | Mask comparison: regex non-match.                                                            |
-| `[`      | [`BeginMask()`](https://tanaylab.github.io/dafr/reference/BeginMask.md)               | Start a mask sub-expression on the current axis.                                             |
-| `[ !`    | [`BeginNegatedMask()`](https://tanaylab.github.io/dafr/reference/BeginNegatedMask.md) | Start a negated mask on the current axis.                                                    |
-| `]`      | [`EndMask()`](https://tanaylab.github.io/dafr/reference/EndMask.md)                   | Finish the mask; the axis becomes filtered.                                                  |
-| `&`      | [`AndMask()`](https://tanaylab.github.io/dafr/reference/AndMask.md)                   | Combine masks with AND.                                                                      |
-| `& !`    | [`AndNegatedMask()`](https://tanaylab.github.io/dafr/reference/AndNegatedMask.md)     | Combine masks with AND NOT.                                                                  |
-| `\|`     | [`OrMask()`](https://tanaylab.github.io/dafr/reference/OrMask.md)                     | Combine masks with OR.                                                                       |
-| `\| !`   | [`OrNegatedMask()`](https://tanaylab.github.io/dafr/reference/OrNegatedMask.md)       | Combine masks with OR NOT.                                                                   |
-| `^`      | [`XorMask()`](https://tanaylab.github.io/dafr/reference/XorMask.md)                   | Combine masks with XOR.                                                                      |
-| `^ !`    | [`XorNegatedMask()`](https://tanaylab.github.io/dafr/reference/XorNegatedMask.md)     | Combine masks with XOR NOT.                                                                  |
+| Operator | Builder | Phrase / meaning |
+|:---|:---|:---|
+| `@` | [`Axis()`](https://tanaylab.github.io/dafr/reference/Axis.md) | Introduce an axis onto the stack. |
+| `=@` | [`AsAxis()`](https://tanaylab.github.io/dafr/reference/AsAxis.md) | Treat subsequent values as entries of that axis (for secondary lookup / pivoting). |
+| `@|` | [`SquareColumnIs()`](https://tanaylab.github.io/dafr/reference/SquareColumnIs.md) | Slice a square matrix by column. |
+| `@-` | [`SquareRowIs()`](https://tanaylab.github.io/dafr/reference/SquareRowIs.md) | Slice a square matrix by row. |
+| `/` | [`GroupBy()`](https://tanaylab.github.io/dafr/reference/GroupBy.md) | Group a vector by values of another vector of the same length. |
+| `|/` | [`GroupColumnsBy()`](https://tanaylab.github.io/dafr/reference/GroupColumnsBy.md) | Group matrix columns by a vector with one value per column. |
+| `-/` | [`GroupRowsBy()`](https://tanaylab.github.io/dafr/reference/GroupRowsBy.md) | Group matrix rows by a vector with one value per row. |
+| `%` | eltwise op (`Abs`, …) | Apply an element-wise operation to vector or matrix data. |
+| `>>` | reduction op (`Sum`, …) | Reduce a vector or matrix to a scalar (per-group vector on a grouped input). |
+| `>|` | [`ReduceToColumn()`](https://tanaylab.github.io/dafr/reference/ReduceToColumn.md) | Reduce a matrix along rows to a single column vector. |
+| `>-` | [`ReduceToRow()`](https://tanaylab.github.io/dafr/reference/ReduceToRow.md) | Reduce a matrix along columns to a single row vector. |
+| `\|\|` | [`IfMissing()`](https://tanaylab.github.io/dafr/reference/IfMissing.md) | Default value when a lookup target does not exist, or when reducing empty data. |
+| `??` | [`IfNot()`](https://tanaylab.github.io/dafr/reference/IfNot.md) | Fallback value when a chained lookup produces an empty result. |
+| `*` | [`CountBy()`](https://tanaylab.github.io/dafr/reference/CountBy.md) | Count, in a matrix, the number of times each combination of values from two vectors appears. |
+| `?` | [`Names()`](https://tanaylab.github.io/dafr/reference/Names.md) | Return the set of axis / property names reachable from the current stack state. |
+| `.` | [`LookupScalar()`](https://tanaylab.github.io/dafr/reference/LookupScalar.md) | Look up a scalar property. |
+| `:` | [`LookupVector()`](https://tanaylab.github.io/dafr/reference/LookupVector.md) | Look up a vector property on the current axis. |
+| `::` | [`LookupMatrix()`](https://tanaylab.github.io/dafr/reference/LookupMatrix.md) | Look up a matrix property on a pair of axes. |
+| `<` | [`IsLess()`](https://tanaylab.github.io/dafr/reference/IsLess.md) | Mask comparison: strictly less. |
+| `<=` | [`IsLessEqual()`](https://tanaylab.github.io/dafr/reference/IsLessEqual.md) | Mask comparison: less or equal. |
+| `=` | [`IsEqual()`](https://tanaylab.github.io/dafr/reference/IsEqual.md) | Mask comparison: equal. |
+| `!=` | [`IsNotEqual()`](https://tanaylab.github.io/dafr/reference/IsNotEqual.md) | Mask comparison: not equal. |
+| `>=` | [`IsGreaterEqual()`](https://tanaylab.github.io/dafr/reference/IsGreaterEqual.md) | Mask comparison: greater or equal. |
+| `>` | [`IsGreater()`](https://tanaylab.github.io/dafr/reference/IsGreater.md) | Mask comparison: strictly greater. |
+| `~` | [`IsMatch()`](https://tanaylab.github.io/dafr/reference/IsMatch.md) | Mask comparison: regex match. |
+| `!~` | [`IsNotMatch()`](https://tanaylab.github.io/dafr/reference/IsNotMatch.md) | Mask comparison: regex non-match. |
+| `[` | [`BeginMask()`](https://tanaylab.github.io/dafr/reference/BeginMask.md) | Start a mask sub-expression on the current axis. |
+| `[ !` | [`BeginNegatedMask()`](https://tanaylab.github.io/dafr/reference/BeginNegatedMask.md) | Start a negated mask on the current axis. |
+| `]` | [`EndMask()`](https://tanaylab.github.io/dafr/reference/EndMask.md) | Finish the mask; the axis becomes filtered. |
+| `&` | [`AndMask()`](https://tanaylab.github.io/dafr/reference/AndMask.md) | Combine masks with AND. |
+| `& !` | [`AndNegatedMask()`](https://tanaylab.github.io/dafr/reference/AndNegatedMask.md) | Combine masks with AND NOT. |
+| `\|` | [`OrMask()`](https://tanaylab.github.io/dafr/reference/OrMask.md) | Combine masks with OR. |
+| `\| !` | [`OrNegatedMask()`](https://tanaylab.github.io/dafr/reference/OrNegatedMask.md) | Combine masks with OR NOT. |
+| `^` | [`XorMask()`](https://tanaylab.github.io/dafr/reference/XorMask.md) | Combine masks with XOR. |
+| `^ !` | [`XorNegatedMask()`](https://tanaylab.github.io/dafr/reference/XorNegatedMask.md) | Combine masks with XOR NOT. |
 
 Element-wise operation builders include `Abs`, `Clamp`, `Convert`,
 `Fraction`, `Log`, `Round`, `Significant`. Reduction operation builders
@@ -89,14 +89,15 @@ uses.
 
 Returns the set of names at some point in the data hierarchy.
 
-| Goal                                | String                 | Builder                                             |
-|-------------------------------------|------------------------|-----------------------------------------------------|
-| Names of all scalars                | `". ?"`                | `LookupScalar("?")`                                 |
-| Names of all axes                   | `"@ ?"`                | `Axis("?")`                                         |
-| Vector properties on `gene`         | `"@ gene : ?"`         | `Axis("gene") |> LookupVector("?")`                 |
+| Goal | String | Builder |
+|----|----|----|
+| Names of all scalars | `". ?"` | `LookupScalar("?")` |
+| Names of all axes | `"@ ?"` | `Axis("?")` |
+| Vector properties on `gene` | `"@ gene : ?"` | `Axis("gene") |> LookupVector("?")` |
 | Matrix properties on `(cell, gene)` | `"@ cell @ gene :: ?"` | `Axis("cell") |> Axis("gene") |> LookupMatrix("?")` |
 
 ``` r
+
 cells[". ?"]
 #> [1] "organism"  "reference"
 cells["@ gene : ?"]
@@ -118,6 +119,7 @@ Returns a single scalar value. Produced by:
 - Reducing any matrix to a scalar (`... >> Reduction`).
 
 ``` r
+
 cells[". organism"]
 #> [1] "human"
 cells[". nope || fallback"]
@@ -152,6 +154,7 @@ Returns a vector. Phrase kinds:
   (row result) or `>| Op` (column result).
 
 ``` r
+
 head(cells["@ experiment"])
 #> [1] "demux_01_02_21_1" "demux_01_02_21_2" "demux_01_03_21_1" "demux_04_01_21_1"
 #> [5] "demux_04_01_21_2" "demux_07_03_21_1"
@@ -184,6 +187,7 @@ Returns a matrix. Phrase kinds:
   grouping + reduction.
 
 ``` r
+
 dim(cells["@ cell @ gene :: UMIs"])
 #> [1] 856 683
 
@@ -206,6 +210,7 @@ The mask body starts with a property lookup (`BeginMask`) and is
 followed by zero or more **comparisons** and **mask combinators**.
 
 ``` r
+
 # Donors older than 30.
 length(cells[Axis("donor") |>
              BeginMask("age") |> IsGreater(30) |> EndMask()])
@@ -241,6 +246,7 @@ Two operators supply fallback values:
   the intermediate key is empty.
 
 ``` r
+
 cells[". nope || fallback"]
 #> [1] "fallback"
 
@@ -261,6 +267,7 @@ Element-wise ops are applied with `%`; reductions on a matrix with `>-`
 sub-arguments separated by spaces:
 
 ``` r
+
 daf["... % Log base 2 eps 1e-5"]
 daf["... >- Mean"]
 daf["... >| Sum type Int64"]
@@ -275,6 +282,7 @@ Built-in reductions: `Sum`, `Mean`, `Median`, `Mode`, `Quantile p P`,
 User code can extend either set:
 
 ``` r
+
 register_eltwise("MySquare", function(x) x * x)
 register_reduction("MyMax", function(x) max(x, na.rm = TRUE))
 ```
@@ -294,6 +302,7 @@ The matrix-group forms must be paired with a compatible reduction (`-/`
 pairs with `>-`, `|/` with `>|`).
 
 ``` r
+
 # Mean per (donor, gene) — collapse cells into donor rows.
 dim(cells["@ cell @ gene :: UMIs -/ donor >- Mean"])
 #> [1]  95 683
@@ -309,6 +318,7 @@ by that axis’s entries (rather than by unique group value). Appending
 named axis. That lets the query walk one axis into another:
 
 ``` r
+
 # Cell -> metacell -> type: pipe values through the metacell axis.
 head(metacells["@ cell : metacell =@ ?? none : type"])
 #> demux_07_12_20_1_AACAAGATCCATTTCA-1 demux_07_12_20_1_AACGAAAGTCCAATCA-1 
@@ -333,6 +343,7 @@ a value of the matrix’s square axis.
 normalised string; both forms of the same query produce the same AST.
 
 ``` r
+
 s     <- "@ gene : is_lateral"
 q_bld <- Axis("gene") |> LookupVector("is_lateral")
 identical(canonical_query(s), as.character(q_bld))
@@ -358,6 +369,7 @@ to produce a safe literal and
 to reverse it.
 
 ``` r
+
 escape_value("a | b")
 #> [1] "\"a | b\""
 ```

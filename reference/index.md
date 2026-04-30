@@ -22,11 +22,20 @@
 - [`FilesDafReadOnly()`](https://tanaylab.github.io/dafr/reference/FilesDafReadOnly.md)
   : File-backed read-only Daf class.
 
+- [`ZarrDaf()`](https://tanaylab.github.io/dafr/reference/ZarrDaf.md) :
+  Zarr-backed Daf class.
+
+- [`ZarrDafReadOnly()`](https://tanaylab.github.io/dafr/reference/ZarrDafReadOnly.md)
+  : Read-only Zarr-backed Daf class.
+
 - [`memory_daf()`](https://tanaylab.github.io/dafr/reference/memory_daf.md)
   : In-memory Daf store.
 
 - [`files_daf()`](https://tanaylab.github.io/dafr/reference/files_daf.md)
   : File-backed Daf store.
+
+- [`zarr_daf()`](https://tanaylab.github.io/dafr/reference/zarr_daf.md)
+  : Open a Zarr-backed Daf store.
 
 - [`is_daf()`](https://tanaylab.github.io/dafr/reference/is_daf.md) :
 
@@ -112,6 +121,12 @@
 
 - [`relayout_matrix()`](https://tanaylab.github.io/dafr/reference/relayout_matrix.md)
   : Physically store the transposed layout of a matrix.
+
+- [`reorder_axes()`](https://tanaylab.github.io/dafr/reference/reorder_axes.md)
+  : Reorder one or more axis entries in place.
+
+- [`reset_reorder_axes()`](https://tanaylab.github.io/dafr/reference/reset_reorder_axes.md)
+  : Reset any in-progress axis reorder.
 
 - [`empty_data()`](https://tanaylab.github.io/dafr/reference/empty_data.md)
   :
@@ -467,6 +482,10 @@ auto-capped to two cores on package load.
   : Per-vector version counter.
 - [`matrix_version_counter()`](https://tanaylab.github.io/dafr/reference/matrix_version_counter.md)
   : Per-matrix version counter.
+- [`MEMORY_DATA`](https://tanaylab.github.io/dafr/reference/cache_group_constants.md)
+  [`MAPPED_DATA`](https://tanaylab.github.io/dafr/reference/cache_group_constants.md)
+  [`QUERY_DATA`](https://tanaylab.github.io/dafr/reference/cache_group_constants.md)
+  : Cache-group constants.
 
 ## Group helpers
 
@@ -509,6 +528,16 @@ auto-capped to two cores on package load.
 - [`concatenate()`](https://tanaylab.github.io/dafr/reference/concatenate.md)
   : Concatenate multiple dafs along one or more axes.
 
+- [`files_to_zarr()`](https://tanaylab.github.io/dafr/reference/files_to_zarr.md)
+  :
+
+  Convert a `files_daf` directory to a `zarr_daf` directory.
+
+- [`zarr_to_files()`](https://tanaylab.github.io/dafr/reference/zarr_to_files.md)
+  :
+
+  Convert a `zarr_daf` directory to a `files_daf` directory.
+
 - [`ALL_AXES`](https://tanaylab.github.io/dafr/reference/ALL_AXES.md) :
   Wildcard for all axes.
 
@@ -529,10 +558,30 @@ auto-capped to two cores on package load.
   Merge action constants for
   [`concatenate()`](https://tanaylab.github.io/dafr/reference/concatenate.md).
 
+## Zarr store backend
+
+- [`ZarrStore()`](https://tanaylab.github.io/dafr/reference/ZarrStore.md)
+  [`DirStore()`](https://tanaylab.github.io/dafr/reference/ZarrStore.md)
+  [`DictStore()`](https://tanaylab.github.io/dafr/reference/ZarrStore.md)
+  [`MmapZipStore()`](https://tanaylab.github.io/dafr/reference/ZarrStore.md)
+  : Zarr v2 Store abstract base class.
+- [`new_dict_store()`](https://tanaylab.github.io/dafr/reference/new_dict_store.md)
+  : Create an in-memory Zarr v2 store.
+- [`new_dir_store()`](https://tanaylab.github.io/dafr/reference/new_dir_store.md)
+  : Create a directory-backed Zarr v2 store.
+- [`new_mmap_zip_store()`](https://tanaylab.github.io/dafr/reference/new_mmap_zip_store.md)
+  : Stub for the mmap-backed zip store (slice 17).
+- [`store_get_bytes()`](https://tanaylab.github.io/dafr/reference/zarr_store_generics.md)
+  [`store_set_bytes()`](https://tanaylab.github.io/dafr/reference/zarr_store_generics.md)
+  [`store_delete()`](https://tanaylab.github.io/dafr/reference/zarr_store_generics.md)
+  [`store_exists()`](https://tanaylab.github.io/dafr/reference/zarr_store_generics.md)
+  [`store_list()`](https://tanaylab.github.io/dafr/reference/zarr_store_generics.md)
+  : Zarr v2 store generics.
+
 ## Reconstruction & completion
 
 - [`open_daf()`](https://tanaylab.github.io/dafr/reference/open_daf.md)
-  : Open a daf storage path in a given mode.
+  : Open a Daf store by URI or path.
 
 - [`complete_daf()`](https://tanaylab.github.io/dafr/reference/complete_daf.md)
   : Reopen a persistent chain from disk.

@@ -6,6 +6,7 @@ If you’ve been using `anndata` / `scanpy` / `Seurat`, the facade exposes
 a Daf with familiar property names:
 
 ``` r
+
 d <- example_cells_daf()
 ann <- as_anndata(d)
 ann$n_obs
@@ -26,6 +27,7 @@ the underlying Daf: `set_matrix(d, ...)`.
 ## Loading h5ad
 
 ``` r
+
 d <- h5ad_as_daf("path/to/file.h5ad")
 ```
 
@@ -34,12 +36,14 @@ Requires `hdf5r` (a Suggests dep): `install.packages("hdf5r")`.
 ## Writing h5ad
 
 ``` r
+
 daf_as_h5ad(d, "out.h5ad", overwrite = TRUE)
 ```
 
 ## Fixture round-trip
 
 ``` r
+
 fixture <- system.file("extdata", "small_test.h5ad", package = "dafr")
 if (file.exists(fixture) && requireNamespace("hdf5r", quietly = TRUE)) {
     d <- h5ad_as_daf(fixture)

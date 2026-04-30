@@ -9,6 +9,7 @@ query DSL
 for those.
 
 ``` r
+
 library(dplyr)
 #> 
 #> Attaching package: 'dplyr'
@@ -40,6 +41,7 @@ tbl(d, "cell")
 materializes the tbl as a tibble.
 
 ``` r
+
 tbl(d, "cell") |>
     filter(!is.na(donor)) |>
     group_by(donor) |>
@@ -65,6 +67,7 @@ as vectors on the axis requires an explicit `compute(vectors = ...)` —
 dafr never silently writes to the daf.
 
 ``` r
+
 tbl(d, "cell") |>
     mutate(log_umis = log10(n_umis)) |>
     compute(vectors = "log_umis")
@@ -93,6 +96,7 @@ and later
 derived columns back as vectors on that axis.
 
 ``` r
+
 # "donor" is an axis; the summarise result is itself tbl(d, "donor")-like.
 tbl(d, "cell") |>
     group_by(donor) |>
@@ -143,6 +147,7 @@ respected.
   [`dplyr::collect()`](https://dplyr.tidyverse.org/reference/compute.html):
 
   ``` r
+
   tbl(d, "cell") |> left_join(other)
   #> Error: `left_join()` is not supported on a daf_axis_tbl.
   #> Use `dplyr::collect()` to materialize a tibble first, then apply this verb.

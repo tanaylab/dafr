@@ -14,6 +14,7 @@ implementation — **no Julia install is required**.
 ## Installation
 
 ``` r
+
 # Install from GitHub:
 remotes::install_github("tanaylab/dafr")
 
@@ -38,6 +39,7 @@ This package has no Julia dependency. It is pure R + C++.
 ## Usage
 
 ``` r
+
 library(dafr)
 #> 
 #> Attaching package: 'dafr'
@@ -84,6 +86,7 @@ and pipe-composable builders. The `[` operator on any `DafReader`
 accepts either form.
 
 ``` r
+
 # Create a sample dataset
 daf <- memory_daf("query_examples")
 add_axis(daf, "cell", c("A", "B", "C"))
@@ -158,6 +161,7 @@ familiar `X` / `obs` / `var` / `layers` / `uns` / `obs_names` /
 `var_names` / `shape` properties:
 
 ``` r
+
 d <- example_cells_daf()
 ann <- as_anndata(d)
 
@@ -189,6 +193,7 @@ Sparse `X`, categorical `obs` / `var` columns, nested `uns`, and `obsm`
 / `varm` all round-trip:
 
 ``` r
+
 d  <- h5ad_as_daf("path/to/file.h5ad")
 daf_as_h5ad(d, "out.h5ad", overwrite = TRUE)
 ```
@@ -200,6 +205,7 @@ entries and columns are per-axis vectors. Most dplyr verbs work
 natively:
 
 ``` r
+
 library(dplyr)
 
 d <- example_cells_daf()
@@ -244,6 +250,7 @@ pipeline can continue. Axis entries then appear in the `name` column
 (the convention for the axis-identity column). Example:
 
 ``` r
+
 # `donor` is an axis of example_cells_daf(); count() re-anchors onto it.
 tbl(d, "cell") |>
     count(donor, sort = TRUE) |>
@@ -255,6 +262,7 @@ Mutations are accumulated lazily and can be written back with
 `dplyr::compute(tbl, vectors = c(...))`:
 
 ``` r
+
 # Lazy pipeline...
 updated <- tbl(d, "cell") |>
     mutate(donor_upper = toupper(donor))

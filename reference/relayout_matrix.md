@@ -6,7 +6,7 @@ transpose-on-the-fly path.
 ## Usage
 
 ``` r
-relayout_matrix(daf, rows_axis, columns_axis, name)
+relayout_matrix(daf, rows_axis, columns_axis, name, overwrite = FALSE)
 ```
 
 ## Arguments
@@ -26,6 +26,12 @@ relayout_matrix(daf, rows_axis, columns_axis, name)
 - name:
 
   Matrix name.
+
+- overwrite:
+
+  If `TRUE`, replace any existing matrix at the transposed
+  `(columns_axis, rows_axis, name)` location. If `FALSE` (default),
+  raise when such a matrix already exists.
 
 ## Value
 

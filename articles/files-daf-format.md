@@ -56,9 +56,9 @@ files cause no error (`files_format.jl:959–972`).
 
 `daf.json` is a UTF-8 JSON object with a single required field:
 
-| Field     | Type                 | Required | Description                             |
-|-----------|----------------------|----------|-----------------------------------------|
-| `version` | `[integer, integer]` | Yes      | `[major, minor]` format version numbers |
+| Field | Type | Required | Description |
+|----|----|----|----|
+| `version` | `[integer, integer]` | Yes | `[major, minor]` format version numbers |
 
 The only defined version is `[1, 0]` (`files_format.jl:25`,
 `MAJOR_VERSION = 1`, `MINOR_VERSION = 0`, `files_format.jl:155–165`).

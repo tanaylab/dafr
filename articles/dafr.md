@@ -10,6 +10,7 @@ mmap-backed reads.
 ## Create a Daf
 
 ``` r
+
 d <- memory_daf(name = "demo")
 add_axis(d, "cell", c("c1", "c2", "c3"))
 add_axis(d, "gene", c("g1", "g2"))
@@ -20,16 +21,17 @@ set_matrix(d, "cell", "gene", "UMIs",
 print(d)
 #> <dafr::MemoryDaf>
 #>  @ name                  : chr "demo"
-#>  @ internal              :<environment: 0x55a46ce0fb20> 
-#>  @ cache                 :<environment: 0x55a46cdf0e28> 
-#>  @ axis_version_counter  :<environment: 0x55a46cdece28> 
-#>  @ vector_version_counter:<environment: 0x55a46cded100> 
-#>  @ matrix_version_counter:<environment: 0x55a46cded3d8>
+#>  @ internal              :<environment: 0x558eff33c580> 
+#>  @ cache                 :<environment: 0x558eff357630> 
+#>  @ axis_version_counter  :<environment: 0x558eff35bac8> 
+#>  @ vector_version_counter:<environment: 0x558eff35b7f0> 
+#>  @ matrix_version_counter:<environment: 0x558eff35b518>
 ```
 
 ## Reading data
 
 ``` r
+
 get_scalar(d, "organism")
 #> [1] "human"
 get_vector(d, "cell", "donor")
@@ -48,6 +50,7 @@ Queries let you compose reads. Two equivalent forms — a string DSL and
 pipe-chain builders:
 
 ``` r
+
 get_query(d, "@ cell : donor")
 #>  c1  c2  c3 
 #> "A" "B" "A"
@@ -56,6 +59,7 @@ get_query(d, ". organism")
 ```
 
 ``` r
+
 d[Axis("cell") |> LookupVector("donor")]
 #>  c1  c2  c3 
 #> "A" "B" "A"
@@ -64,6 +68,7 @@ d[Axis("cell") |> LookupVector("donor")]
 ## Data frames
 
 ``` r
+
 get_dataframe(d, "cell")
 #>    donor
 #> c1     A
@@ -74,6 +79,7 @@ get_dataframe(d, "cell")
 ## Persistence
 
 ``` r
+
 # Write to a directory:
 fd <- files_daf(tempfile("dafr-"), mode = "w+", name = "persisted")
 copy_all(d, fd)
@@ -82,6 +88,7 @@ copy_all(d, fd)
 ## Example data
 
 ``` r
+
 d2 <- example_cells_daf()
 axes_set(d2)
 #> [1] "cell"       "donor"      "experiment" "gene"

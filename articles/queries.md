@@ -6,6 +6,7 @@ Queries can be written as strings or as pipe-chain builder objects. The
 following two expressions are equivalent:
 
 ``` r
+
 head(d["@ cell : donor"])
 #> demux_07_12_20_1_AACAAGATCCATTTCA-1 demux_07_12_20_1_AACGAAAGTCCAATCA-1 
 #>                               "N89"                               "N84" 
@@ -25,6 +26,7 @@ head(d[Axis("cell") |> LookupVector("donor")])
 ## String form
 
 ``` r
+
 # Scalar
 d[". organism"]
 #> [1] "human"
@@ -49,6 +51,7 @@ dim(d["@ cell @ gene :: UMIs"])
 ## Builder form
 
 ``` r
+
 # Filtered axis entries — cells whose donor is "N89"
 q <- Axis("cell") |> BeginMask("donor") |> IsEqual("N89") |> EndMask()
 length(d[q])
@@ -58,6 +61,7 @@ length(d[q])
 ## Reductions
 
 ``` r
+
 # Per-gene mean UMI — reduce across the cell axis
 per_gene_mean <- d[Axis("gene") |> Axis("cell") |> LookupMatrix("UMIs") |> ReduceToRow(Mean())]
 head(per_gene_mean)
@@ -73,6 +77,7 @@ The equivalent string form uses `>-` (reduce-to-row) or `>|`
 (reduce-to-column):
 
 ``` r
+
 head(d["@ gene @ cell :: UMIs >- Mean"])
 #> demux_07_12_20_1_AACAAGATCCATTTCA-1 demux_07_12_20_1_AACGAAAGTCCAATCA-1 
 #>                            3.351391                            4.535871 
@@ -85,6 +90,7 @@ head(d["@ gene @ cell :: UMIs >- Mean"])
 ## Comparison + mask composition
 
 ``` r
+
 # Donors older than 30 (the `age` vector lives on the `donor` axis)
 q <- Axis("donor") |> BeginMask("age") |> IsGreater(30) |> EndMask()
 length(d[q])
