@@ -30,6 +30,32 @@ skip_if_no_python_zipfile <- function() {
     }
 }
 
+# Returns TRUE iff python3 has the `zarr` module importable. Used by
+# Phase 12 cross-language tests that exercise zarr.storage.ZipStore.
+have_python3_zarr <- local({
+    cached <- NULL
+    function() {
+        if (!is.null(cached)) return(cached)
+        ok <- nzchar(Sys.which("python3")) &&
+            tryCatch(
+                system2(
+                    "python3",
+                    c("-c", shQuote("import zarr,sys; sys.exit(0)")),
+                    stdout = FALSE, stderr = FALSE
+                ) == 0L,
+                error = function(e) FALSE
+            )
+        cached <<- ok
+        ok
+    }
+})
+
+skip_if_no_python_zarr <- function() {
+    if (!have_python3_zarr()) {
+        testthat::skip("python3 + zarr not available")
+    }
+}
+
 # Build a zip file at `path` whose entries are the named-list `entries`
 # (names are entry paths inside the archive, values are character or raw).
 # `compression` is one of "stored", "deflate", "bzip2", "lzma" (mapped to
