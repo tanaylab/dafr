@@ -224,3 +224,275 @@ S7::method(
 ) <- function(daf, axis) {
     length(format_axis_array(daf, axis)$value)
 }
+
+# ---- Vectors / matrices: helpers -------------------------------------------
+
+# In-memory equivalent of files_io.R::.read_bin_dense. Reads `n` elements
+# of `dtype` from a raw byte vector.
+.http_bytes_to_dense <- function(bytes, dtype, n) {
+    dtype <- .dtype_canonical(dtype)
+    if (length(bytes) < n * .dtype_size(dtype)) {
+        stop(sprintf("HttpDaf: payload truncated (%d < %d bytes for dtype %s, n=%d)",
+                     length(bytes), n * .dtype_size(dtype), dtype, n),
+             call. = FALSE)
+    }
+    con <- rawConnection(bytes, open = "rb")
+    on.exit(close(con), add = TRUE)
+    switch(dtype,
+        Bool    = as.logical(readBin(con, what = "integer", n = n, size = 1L,
+                                     signed = FALSE, endian = "little")),
+        Int8    = readBin(con, what = "integer", n = n, size = 1L, signed = TRUE,  endian = "little"),
+        Int16   = readBin(con, what = "integer", n = n, size = 2L, signed = TRUE,  endian = "little"),
+        Int32   = readBin(con, what = "integer", n = n, size = 4L, signed = TRUE,  endian = "little"),
+        Int64   = bit64::as.integer64(readBin(con, what = "integer", n = n, size = 8L, endian = "little")),
+        UInt8   = readBin(con, what = "integer", n = n, size = 1L, signed = FALSE, endian = "little"),
+        UInt16  = readBin(con, what = "integer", n = n, size = 2L, signed = FALSE, endian = "little"),
+        UInt32  = readBin(con, what = "integer", n = n, size = 4L, signed = TRUE,  endian = "little"),
+        UInt64  = bit64::as.integer64(readBin(con, what = "integer", n = n, size = 8L, endian = "little")),
+        Float32 = readBin(con, what = "double",  n = n, size = 4L, endian = "little"),
+        Float64 = readBin(con, what = "double",  n = n, size = 8L, endian = "little"),
+        stop(sprintf("HttpDaf: unsupported dtype %s for dense read", dtype),
+             call. = FALSE)
+    )
+}
+
+# Empty typed vector of length n for sparse reconstruction.
+.http_zero_vector <- function(eltype, n) {
+    eltype <- .dtype_canonical(eltype)
+    if (eltype == "Bool") return(logical(n))
+    if (eltype %in% c("Int8", "Int16", "Int32", "UInt8", "UInt16", "UInt32")) {
+        return(integer(n))
+    }
+    if (eltype %in% c("Int64", "UInt64")) {
+        return(bit64::as.integer64(integer(n)))
+    }
+    if (eltype %in% c("Float32", "Float64")) return(numeric(n))
+    stop(sprintf("HttpDaf: unsupported eltype %s", eltype), call. = FALSE)
+}
+
+# Decode a vector descriptor JSON (parsed) into canonical fields. Mirrors
+# files_io.R::.read_descriptor's output shape.
+.http_descriptor <- function(j) {
+    fmt <- j$format
+    if (is.null(fmt) || !(fmt %in% c("dense", "sparse"))) {
+        stop("HttpDaf: descriptor missing $format", call. = FALSE)
+    }
+    list(
+        format  = fmt,
+        eltype  = .dtype_canonical(j$eltype),
+        indtype = if (is.null(j$indtype)) NULL else .dtype_canonical(j$indtype)
+    )
+}
+
+# ---- Vectors ---------------------------------------------------------------
+
+S7::method(
+    format_has_vector,
+    list(HttpDaf, S7::class_character, S7::class_character)
+) <- function(daf, axis, name) {
+    paste0("vectors/", axis, "/", name, ".json") %in% .http_zip_names(daf)
+}
+
+S7::method(
+    format_vectors_set,
+    list(HttpDaf, S7::class_character)
+) <- function(daf, axis) {
+    names <- .http_zip_names(daf)
+    pattern <- paste0("^vectors/", axis, "/([^/]+)\\.json$")
+    matches <- regmatches(names, regexec(pattern, names))
+    out <- vapply(matches,
+                  function(m) if (length(m) == 2L) m[[2L]] else NA_character_,
+                  character(1L))
+    sort(out[!is.na(out)])
+}
+
+S7::method(
+    format_get_vector,
+    list(HttpDaf, S7::class_character, S7::class_character)
+) <- function(daf, axis, name) {
+    desc <- .http_descriptor(.http_zip_json(
+        daf, paste0("vectors/", axis, "/", name, ".json")
+    ))
+    n <- format_axis_length(daf, axis)
+    base <- paste0(.http_url(daf), "/vectors/", axis, "/", name)
+
+    if (desc$format == "dense") {
+        if (desc$eltype == "String") {
+            bytes <- .dafr_http_get(paste0(base, ".txt"))
+            lines <- .http_split_text_lines(bytes)
+            if (length(lines) != n) {
+                stop(sprintf("HttpDaf: string vector %s has %d entries (expected %d)",
+                             sQuote(name), length(lines), n), call. = FALSE)
+            }
+            return(.cache_group_value(lines, MEMORY_DATA))
+        }
+        bytes <- .dafr_http_get(paste0(base, ".data"))
+        v <- .http_bytes_to_dense(bytes, desc$eltype, n)
+        return(.cache_group_value(v, MEMORY_DATA))
+    }
+
+    # sparse
+    indtype <- desc$indtype %||% "UInt32"
+    nzind_bytes <- .dafr_http_get(paste0(base, ".nzind"))
+    nnz <- length(nzind_bytes) %/% .dtype_size(indtype)
+    idx <- .http_bytes_to_dense(nzind_bytes, indtype, nnz)
+
+    if (desc$eltype == "String") {
+        nztxt_bytes <- .dafr_http_get(paste0(base, ".nztxt"))
+        vals <- .http_split_text_lines(nztxt_bytes)
+        if (length(vals) != nnz) {
+            stop(sprintf("HttpDaf: sparse string vector %s .nztxt has %d lines (expected %d)",
+                         sQuote(name), length(vals), nnz), call. = FALSE)
+        }
+        out <- rep("", n)
+        out[as.integer(idx)] <- vals
+        return(.cache_group_value(out, MEMORY_DATA))
+    }
+    if (desc$eltype == "Bool") {
+        nzval_bytes <- .dafr_http_get(paste0(base, ".nzval"), allow_404 = TRUE)
+        out <- logical(n)
+        if (is.null(nzval_bytes)) {
+            # All-true Bool optimization: .nzval absent → every nzind is TRUE.
+            out[as.integer(idx)] <- TRUE
+        } else {
+            vals <- as.logical(.http_bytes_to_dense(nzval_bytes, "Bool", nnz))
+            out[as.integer(idx)] <- vals
+        }
+        return(.cache_group_value(out, MEMORY_DATA))
+    }
+    nzval_bytes <- .dafr_http_get(paste0(base, ".nzval"))
+    vals <- .http_bytes_to_dense(nzval_bytes, desc$eltype, nnz)
+    out <- .http_zero_vector(desc$eltype, n)
+    out[as.integer(idx)] <- vals
+    .cache_group_value(out, MEMORY_DATA)
+}
+
+# ---- Matrices --------------------------------------------------------------
+
+S7::method(
+    format_has_matrix,
+    list(HttpDaf, S7::class_character, S7::class_character, S7::class_character)
+) <- function(daf, rows_axis, columns_axis, name) {
+    paste0("matrices/", rows_axis, "/", columns_axis, "/", name, ".json") %in%
+        .http_zip_names(daf)
+}
+
+S7::method(
+    format_matrices_set,
+    list(HttpDaf, S7::class_character, S7::class_character)
+) <- function(daf, rows_axis, columns_axis) {
+    names <- .http_zip_names(daf)
+    pattern <- paste0("^matrices/", rows_axis, "/", columns_axis, "/([^/]+)\\.json$")
+    matches <- regmatches(names, regexec(pattern, names))
+    out <- vapply(matches,
+                  function(m) if (length(m) == 2L) m[[2L]] else NA_character_,
+                  character(1L))
+    sort(out[!is.na(out)])
+}
+
+S7::method(
+    format_get_matrix,
+    list(HttpDaf, S7::class_character, S7::class_character, S7::class_character)
+) <- function(daf, rows_axis, columns_axis, name) {
+    desc <- .http_descriptor(.http_zip_json(
+        daf, paste0("matrices/", rows_axis, "/", columns_axis, "/", name, ".json")
+    ))
+    nr <- format_axis_length(daf, rows_axis)
+    nc <- format_axis_length(daf, columns_axis)
+    base <- paste0(.http_url(daf), "/matrices/", rows_axis, "/", columns_axis,
+                   "/", name)
+
+    if (desc$format == "dense") {
+        if (desc$eltype == "String") {
+            bytes <- .dafr_http_get(paste0(base, ".txt"))
+            vals <- .http_split_text_lines(bytes)
+            expected <- nr * nc
+            if (length(vals) != expected) {
+                stop(sprintf("HttpDaf: string matrix has %d lines (expected %d)",
+                             length(vals), expected), call. = FALSE)
+            }
+            return(.cache_group_value(matrix(vals, nrow = nr, ncol = nc),
+                                      MEMORY_DATA))
+        }
+        bytes <- .dafr_http_get(paste0(base, ".data"))
+        total <- as.integer(nr) * as.integer(nc)
+        v <- .http_bytes_to_dense(bytes, desc$eltype, total)
+        dim(v) <- c(as.integer(nr), as.integer(nc))
+        return(.cache_group_value(v, MEMORY_DATA))
+    }
+
+    # sparse — CSC layout
+    indtype <- desc$indtype %||% "UInt32"
+    colptr_bytes <- .dafr_http_get(paste0(base, ".colptr"))
+    colptr <- .http_bytes_to_dense(colptr_bytes, indtype,
+                                   as.integer(nc) + 1L)
+    nnz <- as.integer(colptr[length(colptr)]) - 1L
+    rowval <- if (nnz > 0L) {
+        rowval_bytes <- .dafr_http_get(paste0(base, ".rowval"))
+        .http_bytes_to_dense(rowval_bytes, indtype, nnz)
+    } else {
+        integer(0L)
+    }
+
+    if (desc$eltype == "Bool") {
+        nzval_bytes <- .dafr_http_get(paste0(base, ".nzval"), allow_404 = TRUE)
+        vals <- if (is.null(nzval_bytes)) {
+            rep(TRUE, nnz)
+        } else {
+            as.logical(.http_bytes_to_dense(nzval_bytes, "Bool", nnz))
+        }
+        m <- methods::new("lgCMatrix",
+            x = vals,
+            i = as.integer(rowval) - 1L,
+            p = as.integer(colptr) - 1L,
+            Dim = c(as.integer(nr), as.integer(nc)),
+            Dimnames = list(NULL, NULL)
+        )
+        return(.cache_group_value(m, MEMORY_DATA))
+    }
+
+    if (desc$eltype == "String") {
+        # Sparse string matrices: scatter into a dense character matrix.
+        # Mirrors upstream http_format.jl.
+        nztxt_bytes <- .dafr_http_get(paste0(base, ".nztxt"))
+        vals <- .http_split_text_lines(nztxt_bytes)
+        m <- matrix("", nrow = nr, ncol = nc)
+        position <- 1L
+        colptr_i <- as.integer(colptr)
+        rowval_i <- as.integer(rowval)
+        for (col in seq_len(nc)) {
+            first <- colptr_i[col]
+            last  <- colptr_i[col + 1L] - 1L
+            if (last >= first) {
+                for (k in seq.int(first, last)) {
+                    m[rowval_i[k], col] <- vals[position]
+                    position <- position + 1L
+                }
+            }
+        }
+        return(.cache_group_value(m, MEMORY_DATA))
+    }
+
+    nzval_bytes <- .dafr_http_get(paste0(base, ".nzval"))
+    vals <- if (nnz > 0L) {
+        .http_bytes_to_dense(nzval_bytes, desc$eltype, nnz)
+    } else {
+        double(0L)
+    }
+    m <- methods::new("dgCMatrix",
+        x = as.double(vals),
+        i = as.integer(rowval) - 1L,
+        p = as.integer(colptr) - 1L,
+        Dim = c(as.integer(nr), as.integer(nc)),
+        Dimnames = list(NULL, NULL)
+    )
+    .cache_group_value(m, MEMORY_DATA)
+}
+
+S7::method(
+    format_relayout_matrix,
+    list(HttpDaf, S7::class_character, S7::class_character, S7::class_character)
+) <- function(daf, rows_axis, columns_axis, name) {
+    stop("HttpDaf is read-only; cannot relayout. Fetch the transposed matrix directly.",
+         call. = FALSE)
+}
