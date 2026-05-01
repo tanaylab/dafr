@@ -32,7 +32,9 @@
         stop(sprintf("HTTP GET returned status %d for: %s", status, url),
              call. = FALSE)
     }
-    httr2::resp_body_raw(resp)
+    # resp_body_raw() errors on empty body; treat as zero-length raw.
+    tryCatch(httr2::resp_body_raw(resp),
+             error = function(e) raw(0L))
 }
 
 .dafr_http_head <- function(url) {

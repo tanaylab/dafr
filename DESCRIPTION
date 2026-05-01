@@ -46,6 +46,7 @@ Suggests:
     hdf5r,
     knitr,
     pkgload,
+    processx,
     rmarkdown,
     rprojroot,
     scran,
