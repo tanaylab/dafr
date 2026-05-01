@@ -504,3 +504,15 @@ S7::method(
     stop("HttpDaf is read-only; cannot relayout. Fetch the transposed matrix directly.",
          call. = FALSE)
 }
+
+# ---- Description header --------------------------------------------------
+# Upstream Julia Formats.format_description_header(::HttpDaf, ...) at
+# http_format.jl:393 emits `type: HttpDaf` and `url: <url>`.
+S7::method(format_description_header, HttpDaf) <- function(daf, indent = "",
+                                                            deep = FALSE) {
+    c(paste0(indent, "type: HttpDaf"),
+      paste0(indent, "url: ", S7::prop(daf, "internal")$url))
+}
+
+# Upstream Julia Readers.is_leaf(::HttpDaf) at http_format.jl:185.
+S7::method(is_leaf, HttpDaf) <- function(daf) TRUE

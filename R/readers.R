@@ -453,7 +453,7 @@ get_matrix <- function(daf, rows_axis, columns_axis, name, default) {
 description <- function(daf) {
     lines <- c(
         sprintf("name: %s", S7::prop(daf, "name")),
-        sprintf("type: %s", .daf_type_name(daf))
+        format_description_header(daf)
     )
     sc <- format_scalars_set(daf)
     if (length(sc)) {
@@ -569,6 +569,19 @@ description <- function(daf) {
     cls <- class(daf)[[1L]]
     sub("^dafr::", "", cls)
 }
+
+# Default: emit just `<indent>type: <ClassName>`. Per-format methods
+# (in http_format.R / files_daf.R / zarr_format.R) extend with
+# storage-specific lines. Mirrors upstream Formats.format_description_header.
+S7::method(format_description_header, DafReader) <- function(daf, indent = "",
+                                                              deep = FALSE) {
+    paste0(indent, "type: ", .daf_type_name(daf))
+}
+
+# Default: wrappers are non-leaf. Per-class methods (in memory_daf.R,
+# files_daf.R, zarr_format.R, http_format.R) override to TRUE for storage
+# formats that own their state directly. Mirrors upstream Readers.is_leaf.
+S7::method(is_leaf, DafReader) <- function(daf) FALSE
 
 .format_scalar_literal <- function(v) {
     if (is.character(v)) {

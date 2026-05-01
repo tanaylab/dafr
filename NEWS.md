@@ -1,6 +1,25 @@
 # dafr 0.2.0
 
-## HttpDaf + HttpStore + metadata.zip parity (slice 18)
+## Reader-API parity polish
+
+- `description(daf)` now emits per-format header lines (`url:` for
+  `HttpDaf`, `path:` + `mode:` for `FilesDaf` / `ZarrDaf`) after the
+  `name:` / `type:` lines. New internal `format_description_header`
+  generic mirrors upstream `Formats.format_description_header`; the
+  default emits just `type: <ClassName>`, per-format methods extend it.
+- New exported `is_leaf(daf)` predicate. Returns `TRUE` for storage
+  formats that own their state directly (`MemoryDaf`, `FilesDaf` /
+  `FilesDafReadOnly`, `ZarrDaf` / `ZarrDafReadOnly`, `HttpDaf`) and
+  `FALSE` for wrappers (`ReadOnlyChainDaf`, `WriteChainDaf`,
+  `ContractDaf`, `ViewDaf`). Mirrors upstream `Readers.is_leaf`.
+- `reorder_axes()` now rejects non-leaf inputs up front with a clear
+  `"non-leaf type: <Class> for the daf data: <name> given to reorder_axes"`
+  error (previously surfaced as a cryptic missing-method dispatch).
+- `complete_path()` now works for `ZarrDaf` (returns the directory
+  path, `:memory:`, zip path, or HTTP URL — whichever store path the
+  constructor recorded). Was previously `FilesDaf`-only.
+
+## HttpDaf + HttpStore + metadata.zip parity
 
 - New `HttpDaf` backend for read-only access to a `FilesDaf` directory
   served over HTTP(S). The client downloads `metadata.zip` once at
@@ -29,7 +48,7 @@
   without GET-ing every `axes/*.txt`.
 - New `Imports`: `httr2` (and transitively `curl`).
 
-## MmapZipStore + Zarr zip backend (slice 17)
+## MmapZipStore + Zarr zip backend
 
 - New `MmapZipStore` (C++ in `src/mmap_zip_store.cpp`) backs `ZarrDaf`
   with a single ZIP archive on the local filesystem. `open_daf()` and
@@ -70,18 +89,17 @@
 - Mirrors `DataAxesFormats.jl` `mmap_zip_store.jl` (~1070 LOC of
   Julia ported to ~1300 LOC of C++ + cpp11 + ALTREP).
 
-## ZarrDaf backend (slice 16)
+## ZarrDaf backend
 
 - New `zarr_daf(uri, mode, name)` backend reading and writing Zarr v2.
   Two store impls: `DirStore` (filesystem directory tree) and
-  `DictStore` (in-memory). Zip-backed Zarr (`MmapZipStore`) lands in
-  slice 17.
+  `DictStore` (in-memory). Zip-backed Zarr is also supported via the
+  `MmapZipStore` backend (see above).
 - New `files_to_zarr(src, dst)` and `zarr_to_files(src, dst)`
   conversion helpers (same-filesystem only; correctness-first
   implementation re-encodes through the public API; hard-link
   optimization deferred as a perf follow-up).
-- `open_daf("foo.daf.zarr")` now returns a `ZarrDaf`. The
-  `.daf.zarr.zip` placeholder error now points to slice 17.
+- `open_daf("foo.daf.zarr")` now returns a `ZarrDaf`.
 - Compression policy: dafr writes Zarr chunks uncompressed; reads
   uncompressed and gzip; rejects blosc/zstd/lz4 with a clear error
   pointing to re-save with `compressor=None`.
@@ -94,7 +112,7 @@
   fix — N/A for our in-memory layer), `79034fd` (`.zmetadata`
   consolidation), `46d4ab2` (Files↔Zarr conversion).
 
-## reorder_axes() + open_daf() factory (slice 15)
+## reorder_axes() + open_daf() factory
 
 - New `reorder_axes(daf, axis = perm, ...)` permutes axis entries
   in place, rewriting every vector and matrix that depends on the
@@ -106,15 +124,13 @@
   redundant given the auto-recovery on open).
 - New `open_daf(uri, mode, name)` factory function — dispatches on
   path / URL pattern. `memory://` (or no path) → `memory_daf`,
-  filesystem path → `files_daf`. Future backends (`*.daf.zarr` and
-  `http(s)://`) are stubbed with explicit error messages pointing
-  to the slices that will land them (16 and 18 respectively). The
-  factory replaces the previous filesystem-only `open_daf` from
-  `R/complete.R`.
+  filesystem path → `files_daf`, `*.daf.zarr` / `*.daf.zarr.zip`
+  → `zarr_daf`, `http(s)://` → `http_daf`. The factory replaces the
+  previous filesystem-only `open_daf` from `R/complete.R`.
 - Mirrors `DataAxesFormats.jl` v0.2.0 commits `90301ff`, `070bd34`
   (axis reordering) and `b40377f` (`open_daf` factory).
 
-## Internal: per-item cache_group refactor (slice 14)
+## Internal: per-item cache_group refactor
 
 The internal format API now returns per-item cache classifications,
 matching `DataAxesFormats.jl` v0.2.0 (upstream commit `49fbba1`).
@@ -136,9 +152,9 @@ matching `DataAxesFormats.jl` v0.2.0 (upstream commit `49fbba1`).
   and `MAPPED_DATA` for everything else. Matches upstream's
   structural classification — no size thresholds.
 
-This refactor is preparatory for the Slice 16+ `ZarrDaf` and
-`HttpDaf` backends, which require per-item classification to drive
-their internal caching.
+This refactor is preparatory for the `ZarrDaf` and `HttpDaf`
+backends, which require per-item classification to drive their
+internal caching.
 
 # dafr 0.1.0 (development)
 

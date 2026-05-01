@@ -479,3 +479,6 @@ S7::method(format_reset_reorder, MemoryDaf) <-
         # No-op for memory_daf -- no incomplete reorder state ever exists.
         invisible()
     }
+
+# Upstream Julia Readers.is_leaf(::MemoryDaf) at memory_format.jl:64.
+S7::method(is_leaf, MemoryDaf) <- function(daf) TRUE

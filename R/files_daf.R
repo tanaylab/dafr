@@ -169,6 +169,31 @@ S7::method(
     .read_only_guard("relayout_matrix")
 }
 
+# ---- Description header --------------------------------------------------
+# Upstream Julia Formats.format_description_header(::FilesDaf, ...) at
+# files_format.jl:1632 emits type/path/mode. Both writer and read-only
+# variants render `type: FilesDaf` (the storage kind), then path and the
+# open mode held on internal.
+.files_daf_description_header <- function(daf, indent) {
+    internal <- S7::prop(daf, "internal")
+    c(paste0(indent, "type: FilesDaf"),
+      paste0(indent, "path: ", internal$path),
+      paste0(indent, "mode: ", internal$mode))
+}
+S7::method(format_description_header, FilesDaf) <- function(daf, indent = "",
+                                                             deep = FALSE) {
+    .files_daf_description_header(daf, indent)
+}
+S7::method(format_description_header, FilesDafReadOnly) <- function(daf,
+                                                                     indent = "",
+                                                                     deep = FALSE) {
+    .files_daf_description_header(daf, indent)
+}
+
+# Upstream Julia Readers.is_leaf(::FilesDaf) at files_format.jl:273.
+S7::method(is_leaf, FilesDaf) <- function(daf) TRUE
+S7::method(is_leaf, FilesDafReadOnly) <- function(daf) TRUE
+
 .files_daf_init <- function(path, truncate) {
     if (!dir.exists(path)) {
         dir.create(path, recursive = TRUE)

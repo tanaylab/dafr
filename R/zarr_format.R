@@ -140,10 +140,13 @@ zarr_daf <- function(uri = NULL, mode = c("r", "r+", "w", "w+"),
 
     final_name <- if (!is.null(name)) name else basename(store_path)
     cls <- if (mode == "r") ZarrDafReadOnly else ZarrDaf
+    internal <- new_internal_env()
+    internal$path <- store_path  # so complete_path(daf) and description() see it
+    internal$mode <- mode
     cls(
         name                   = final_name,
         store                  = store,
-        internal               = new_internal_env(),
+        internal               = internal,
         cache                  = new_cache_env(),
         axis_version_counter   = new_counter_env(),
         vector_version_counter = new_counter_env(),
@@ -1038,3 +1041,29 @@ S7::method(format_relayout_matrix,
     function(daf, rows_axis, columns_axis, name) {
         .zarr_read_only_guard("relayout_matrix")
     }
+
+# ---- Description header --------------------------------------------------
+# Upstream Julia Formats.format_description_header(::ZarrDaf, ...) at
+# zarr_format.jl:511 emits type/path/mode. Both writer and read-only
+# variants render `type: ZarrDaf`, then path (filesystem dir, ":memory:",
+# zip path, or HTTP URL — whichever store_path the constructor recorded)
+# and the open mode.
+.zarr_daf_description_header <- function(daf, indent) {
+    internal <- S7::prop(daf, "internal")
+    c(paste0(indent, "type: ZarrDaf"),
+      paste0(indent, "path: ", internal$path),
+      paste0(indent, "mode: ", internal$mode))
+}
+S7::method(format_description_header, ZarrDaf) <- function(daf, indent = "",
+                                                            deep = FALSE) {
+    .zarr_daf_description_header(daf, indent)
+}
+S7::method(format_description_header, ZarrDafReadOnly) <- function(daf,
+                                                                    indent = "",
+                                                                    deep = FALSE) {
+    .zarr_daf_description_header(daf, indent)
+}
+
+# Upstream Julia Readers.is_leaf(::ZarrDaf) at zarr_format.jl:499.
+S7::method(is_leaf, ZarrDaf) <- function(daf) TRUE
+S7::method(is_leaf, ZarrDafReadOnly) <- function(daf) TRUE

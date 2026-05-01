@@ -35,6 +35,12 @@ reorder_axes <- function(daf, ..., crash_counter = NULL) {
         any(!nzchar(names(permutations)))) {
         stop("reorder_axes: all `...` arguments must be named", call. = FALSE)
     }
+    if (!is_leaf(daf)) {
+        stop(sprintf(
+            "non-leaf type: %s\nfor the daf data: %s\ngiven to reorder_axes",
+            .daf_type_name(daf), S7::prop(daf, "name")
+        ), call. = FALSE)
+    }
     plan <- .build_reorder_plan(daf, permutations)
     format_replace_reorder(daf, plan, crash_counter = crash_counter)
     format_cleanup_reorder(daf, plan, crash_counter = crash_counter)
