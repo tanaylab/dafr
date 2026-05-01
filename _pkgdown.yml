@@ -38,9 +38,12 @@ reference:
       - FilesDafReadOnly
       - ZarrDaf
       - ZarrDafReadOnly
+      - HttpDaf
       - memory_daf
       - files_daf
       - zarr_daf
+      - http_daf
+      - pack_files_daf_metadata
       - is_daf
       - daf_name
       - description
@@ -294,6 +297,11 @@ reference:
       - new_dict_store
       - new_dir_store
       - new_mmap_zip_store
+      - new_http_store
+      - HttpStore
+      - DirStore
+      - DictStore
+      - MmapZipStore
       - zarr_store_generics
 
   - title: Reconstruction & completion

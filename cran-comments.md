@@ -1,3 +1,19 @@
+## 0.2.0 notes
+
+This is a feature release. New backends:
+
+- `ZarrDaf` (slices 16/17): Zarr v2 directory + zip-archive storage,
+  byte-compatible with Python `zarr.open()`/`anndata.read_zarr()`.
+- `HttpDaf` (slice 18): read-only HTTP-served `FilesDaf`.
+- `MmapZipStore` (slice 17): mmap-backed Zarr v2 zip-store with
+  crash-safe append (C++ in `src/mmap_zip_store.cpp`).
+- `reorder_axes()` (slice 15): crash-safe axis-entry permutation.
+
+New `Imports`: `httr2` (and transitively `curl`), required by the
+`HttpDaf` and `HttpStore` backends. Both already widely deployed.
+
+New `SystemRequirements: zlib` (slice 17).
+
 ## Test environments
 
 - Local: Linux (x86_64, R 4.4, gcc 13) — 0 errors, 0 warnings, 2 notes.

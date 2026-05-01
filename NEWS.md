@@ -1,4 +1,33 @@
-# dafr 0.2.0 (development)
+# dafr 0.2.0
+
+## HttpDaf + HttpStore + metadata.zip parity (slice 18)
+
+- New `HttpDaf` backend for read-only access to a `FilesDaf` directory
+  served over HTTP(S). The client downloads `metadata.zip` once at
+  open and serves all JSON metadata from it; non-JSON payloads
+  (`.txt` / `.data` / `.nzind` / `.nzval` / `.colptr` / `.rowval` /
+  `.nztxt`) are fetched lazily via one HTTP GET each.
+- New `HttpStore` (`R/http_store.R`) implements the `R/zarr_store.R`
+  store interface over HTTP. `zarr_daf("https://host/foo.daf.zarr/")`
+  routes through it; reads `.zmetadata` once and serves
+  `.zarray`/`.zattrs`/`.zgroup` from there.
+- `open_daf("https://...")` dispatches to `http_daf` or `zarr_daf`
+  based on the URL suffix. HTTP backends are read-only; writable modes
+  hard-error. `*.daf.zarr.zip` URLs are explicitly out of scope and
+  redirect users to opening the underlying `.daf.zarr` directory.
+- New `pack_files_daf_metadata(path)` exported helper to bundle a
+  `FilesDaf` tree's JSON metadata into `metadata.zip` (for trees
+  written by older dafr or modified outside dafr).
+- **`FilesDaf` now maintains `metadata.zip` automatically** on every
+  `set_*` / `delete_*` / `add_axis` / `delete_axis` / `reorder_axes`
+  operation, plus a one-shot rebuild on writable open if the bundle is
+  missing. Mirrors upstream `DataAxesFormats.jl::FilesFormat`. Pre-0.2.0
+  stores are picked up automatically the first time they're opened
+  with mode `"r+"` or `"w+"`.
+- `axes/metadata.json` sidecar now maintained by FilesDaf (sorted JSON
+  array of axis names). Required by HTTP clients to enumerate axes
+  without GET-ing every `axes/*.txt`.
+- New `Imports`: `httr2` (and transitively `curl`).
 
 ## MmapZipStore + Zarr zip backend (slice 17)
 
