@@ -102,6 +102,7 @@ Collate:
     'files_io.R'
     'files_daf_read.R'
     'files_daf_write.R'
+    'files_metadata_zip.R'
     'groups.R'
     'mmap.R'
     'open_daf.R'

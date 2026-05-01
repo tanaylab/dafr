@@ -87,6 +87,7 @@ S7::method(
     assign(axis, list(entries = entries, dict = dict),
         envir = S7::prop(daf, "internal")$axes
     )
+    .write_axes_metadata(root)
     invisible()
 }
 
@@ -119,6 +120,7 @@ S7::method(
         rm(list = axis, envir = cache)
     }
     bump_axis_counter(daf, axis)
+    .write_axes_metadata(root)
     invisible()
 }
 

@@ -183,6 +183,7 @@ S7::method(
     for (sub in c("scalars", "axes", "vectors", "matrices")) {
         dir.create(file.path(path, sub), recursive = TRUE, showWarnings = FALSE)
     }
+    .write_axes_metadata(path)  # axes/metadata.json: empty array on fresh init
     if (!file.exists(file.path(path, "daf.json"))) {
         writeLines('{"version":[1,0]}', con = file.path(path, "daf.json"), sep = "\n")
     }
