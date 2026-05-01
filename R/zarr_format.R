@@ -75,7 +75,16 @@ zarr_daf <- function(uri = NULL, mode = c("r", "r+", "w", "w+"),
     mode <- match.arg(mode)
     is_memory <- is.null(uri) || identical(uri, ":memory:") ||
         identical(uri, "memory://") || !nzchar(uri)
-    if (is_memory) {
+    is_http <- !is_memory && is.character(uri) && length(uri) == 1L &&
+        grepl("^https?://", uri)
+    if (is_http) {
+        if (mode != "r") {
+            stop(sprintf("zarr_daf: HTTP URLs are read-only; mode=%s rejected: %s",
+                         mode, uri), call. = FALSE)
+        }
+        store <- new_http_store(uri)
+        store_path <- sub("/+$", "", uri)
+    } else if (is_memory) {
         store <- new_dict_store()
         store_path <- ":memory:"
     } else if (grepl("\\.daf\\.zarr\\.zip(#.*)?$", uri)) {
