@@ -42,11 +42,26 @@ test_that("open_daf with name argument respects it for ZarrDaf", {
     expect_identical(S7::prop(d, "name"), "demo-zarr")
 })
 
-test_that("open_daf still rejects http URIs (slice-18 placeholder)", {
-    expect_error(open_daf("http://example.com/foo"),
-                 "lands in slice 18")
-    expect_error(open_daf("https://example.com/foo"),
-                 "lands in slice 18")
+test_that("open_daf rejects writable HTTP modes", {
+    expect_error(open_daf("http://example.com/foo", mode = "w"),
+                 "HTTP backend is read-only")
+    expect_error(open_daf("http://example.com/foo", mode = "r+"),
+                 "HTTP backend is read-only")
+})
+
+test_that("open_daf rejects HTTP zip-archive URLs with redirect message", {
+    expect_error(open_daf("http://example.com/foo.daf.zarr.zip"),
+                 "HTTP zip-archive URLs are not supported")
+})
+
+test_that("open_daf routes http(s):// to http_daf or zarr_daf based on suffix", {
+    skip_on_cran()
+    # localhost:1 is unreachable; we just verify that dispatch reached the
+    # right backend's HTTP fetch (different paths for HttpDaf vs HttpStore).
+    expect_error(open_daf("http://localhost:1/served"),
+                 "HTTP GET failed for: http://localhost:1/served/metadata.zip")
+    expect_error(open_daf("http://localhost:1/foo.daf.zarr/", mode = "r"),
+                 "HTTP GET failed for: http://localhost:1/foo.daf.zarr/.zmetadata")
 })
 
 test_that("open_daf validates uri shape", {

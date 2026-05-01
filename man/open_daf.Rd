@@ -24,11 +24,20 @@ A \code{DafReader} or \code{DafWriter} (subclass depends on backend
 and mode).
 }
 \description{
-Path/URL-aware factory that dispatches to the right backend. Today
-supports \verb{memory://} (or no path / NULL) for in-memory stores,
-regular filesystem paths for \code{files_daf}, and \verb{*.daf.zarr} /
-\verb{*.daf.zarr.zip} paths for \code{zarr_daf} (directory or zip backend).
-\verb{http(s)://} errors with "lands in slice 18".
+Path/URL-aware factory that dispatches to the right backend.
+Supported URIs:
+\itemize{
+\item \verb{memory://} (or no path / \code{NULL}) — in-memory \code{\link[=memory_daf]{memory_daf()}}.
+\item filesystem directory path — \code{\link[=files_daf]{files_daf()}}.
+\item \verb{*.daf.zarr} or \verb{*.daf.zarr.zip} (filesystem or HTTP) — \code{\link[=zarr_daf]{zarr_daf()}}.
+\item any other \verb{http(s)://} URL — \code{\link[=http_daf]{http_daf()}} (read-only HTTP-served
+FilesDaf).
+}
+}
+\details{
+HTTP backends are read-only; modes other than \code{"r"} are rejected.
+HTTP zip-archive URLs are not supported (open the underlying
+\code{.daf.zarr} directory instead).
 }
 \examples{
 d <- open_daf("memory://", name = "demo")
