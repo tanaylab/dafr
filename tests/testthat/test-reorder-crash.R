@@ -122,6 +122,16 @@ test_that("explicit reset_reorder_axes after crash also recovers", {
     reset_reorder_axes(fd_w)
     expect_false(dir.exists(file.path(tmp, ".reorder.backup")))
     expect_identical(axis_vector(fd_w, "cell"), .ORIGINAL_ENTRIES)
+
+    path <- tmp
+    # After rollback, metadata.zip should match what a rebuild would produce
+    # on the restored tree.
+    bytes_after <- readBin(file.path(path, "metadata.zip"), what = "raw",
+                           n = file.size(file.path(path, "metadata.zip")))
+    pack_files_daf_metadata(path)
+    bytes_rebuild <- readBin(file.path(path, "metadata.zip"), what = "raw",
+                             n = file.size(file.path(path, "metadata.zip")))
+    expect_identical(bytes_after, bytes_rebuild)
 })
 
 test_that("recovery hook fires automatically on r+ open", {

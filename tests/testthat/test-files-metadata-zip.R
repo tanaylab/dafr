@@ -311,9 +311,11 @@ test_that("reorder_axes rebuilds metadata.zip", {
     expect_identical(bytes_after_reorder, bytes_after_rebuild)
 })
 
-test_that("reset_reorder_axes rebuilds metadata.zip after rollback", {
-    # When a reorder is rolled back via reset, metadata.zip should match
-    # the pre-reorder state.
+test_that("reset_reorder_axes is idempotent (no-op) when no backup exists", {
+    # After a successful reorder there is no .reorder.backup/, so calling
+    # reset_reorder_axes is a no-op and metadata.zip must remain a
+    # consistent rebuild of the current (post-reorder) tree. The real
+    # rollback rebuild path is exercised in test-reorder-crash.R.
     path <- withr::local_tempdir("daf-reset-reorder-")
     d <- files_daf(path, "w+")
     add_axis(d, "cell", c("c1", "c2", "c3"))
@@ -323,19 +325,6 @@ test_that("reset_reorder_axes rebuilds metadata.zip after rollback", {
     bytes_before <- readBin(file.path(path, "metadata.zip"),
                             what = "raw",
                             n = file.size(file.path(path, "metadata.zip")))
-
-    # Reorder, then immediately reset (no crash needed for the test).
-    # reset_reorder_axes only does work when there's a .reorder.backup/.
-    # That requires a partially-completed reorder. To get into that state
-    # without a real crash, we use a crash counter set high enough to NOT
-    # interrupt — then call reset_reorder_axes on the resulting daf, which
-    # should be a no-op (no backup exists post-successful reorder).
-    #
-    # Alternative: simulate a partial state by manually creating a backup
-    # dir and calling format_reset_reorder. For Phase 5, we test the
-    # success-commit rebuild path (test #1) — this test asserts only that
-    # reset_reorder_axes after a clean reorder is idempotent and the
-    # metadata.zip remains consistent with the (post-reorder) tree.
 
     reorder_axes(d, cell = c(3L, 1L, 2L))
     reset_reorder_axes(d)  # no-op: no backup exists

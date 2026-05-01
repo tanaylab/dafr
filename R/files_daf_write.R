@@ -660,6 +660,10 @@ S7::method(format_cleanup_reorder, list(FilesDaf, S7::class_list)) <-
         for (pm in plan$planned_matrices) {
             bump_matrix_counter(daf, pm$rows_axis, pm$columns_axis, pm$name)
         }
+        # Rebuild metadata.zip for upstream parity. Reorder doesn't
+        # currently change descriptor JSON content, but a future change
+        # (e.g., indtype switch on permuted indices) would silently break
+        # without this rebuild.
         .metadata_zip_rebuild(.files_root(daf))
         invisible()
     }
@@ -699,6 +703,9 @@ S7::method(format_reset_reorder, FilesDaf) <-
         for (k in ls(envir = axes_cache, all.names = TRUE)) {
             rm(list = k, envir = axes_cache)
         }
+        # Rebuild metadata.zip after rollback so it reflects the restored
+        # tree (not whatever pre-crash state the previous metadata.zip
+        # encoded). Upstream parity + defensive correctness.
         .metadata_zip_rebuild(.files_root(daf))
         invisible(TRUE)
     }
