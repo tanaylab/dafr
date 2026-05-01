@@ -32,6 +32,7 @@ Imports:
     Matrix,
     cli,
     bit64,
+    httr2,
     jsonlite,
     matrixStats,
     methods,
@@ -104,6 +105,8 @@ Collate:
     'files_daf_write.R'
     'files_metadata_zip.R'
     'groups.R'
+    'http_client.R'
+    'http_format.R'
     'mmap.R'
     'open_daf.R'
     'options.R'
