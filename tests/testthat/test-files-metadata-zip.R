@@ -358,3 +358,61 @@ test_that("reorder_axes does not produce stale metadata.zip entries", {
     after_rebuild <- sort(unzip(file.path(path, "metadata.zip"), list = TRUE)$Name)
     expect_identical(after_reorder, after_rebuild)
 })
+
+test_that("ensure_metadata_zip rebuilds when missing", {
+    path <- withr::local_tempdir("daf-ensure-")
+    d <- files_daf(path, "w+")
+    add_axis(d, "cell", c("c1", "c2"))
+    rm(d); gc()
+    unlink(file.path(path, "metadata.zip"))
+    expect_false(file.exists(file.path(path, "metadata.zip")))
+
+    files_daf(path, mode = "r+")
+    expect_true(file.exists(file.path(path, "metadata.zip")))
+    # Verify content matches a fresh rebuild
+    bytes_after_open <- readBin(file.path(path, "metadata.zip"), what = "raw",
+                                n = file.size(file.path(path, "metadata.zip")))
+    pack_files_daf_metadata(path)
+    bytes_after_pack <- readBin(file.path(path, "metadata.zip"), what = "raw",
+                                n = file.size(file.path(path, "metadata.zip")))
+    expect_identical(bytes_after_open, bytes_after_pack)
+})
+
+test_that("ensure_metadata_zip is a no-op when metadata.zip is fresh", {
+    path <- withr::local_tempdir("daf-ensure-fresh-")
+    d <- files_daf(path, "w+")
+    add_axis(d, "cell", c("c1", "c2"))
+    rm(d); gc()
+
+    bytes_before <- readBin(file.path(path, "metadata.zip"), what = "raw",
+                            n = file.size(file.path(path, "metadata.zip")))
+    files_daf(path, mode = "r+")
+    bytes_after <- readBin(file.path(path, "metadata.zip"), what = "raw",
+                           n = file.size(file.path(path, "metadata.zip")))
+    # Bytes should be identical — ensure is a no-op when zip exists
+    expect_identical(bytes_before, bytes_after)
+})
+
+test_that("read-only open does not write metadata.zip", {
+    path <- withr::local_tempdir("daf-ensure-ro-")
+    d <- files_daf(path, "w+")
+    add_axis(d, "cell", c("c1", "c2"))
+    rm(d); gc()
+    unlink(file.path(path, "metadata.zip"))
+
+    # Read-only: no rebuild attempt; the existing FilesDaf opens because
+    # we don't require metadata.zip on r-mode opens (only writable opens
+    # use it).
+    expect_silent(files_daf(path, mode = "r"))
+    expect_false(file.exists(file.path(path, "metadata.zip")))
+})
+
+test_that("fresh files_daf(w+) creates metadata.zip via init", {
+    # Phase 6 Change 2: .files_daf_init now produces metadata.zip on
+    # fresh init.
+    path <- withr::local_tempdir("daf-init-")
+    files_daf(path, "w+")
+    expect_true(file.exists(file.path(path, "metadata.zip")))
+    names <- unzip(file.path(path, "metadata.zip"), list = TRUE)$Name
+    expect_setequal(names, c("daf.json", "axes/metadata.json"))
+})

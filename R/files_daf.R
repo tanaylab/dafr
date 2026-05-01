@@ -65,6 +65,7 @@ files_daf <- function(path, mode = c("r", "r+", "w", "w+"), name = NULL) {
     # opens leave the backup alone (no permission to mutate).
     if (mode %in% c("r+", "w+")) {
         .files_daf_recover_reorder(daf)
+        .ensure_metadata_zip(path)
     }
     daf
 }
@@ -187,6 +188,7 @@ S7::method(
     if (!file.exists(file.path(path, "daf.json"))) {
         writeLines('{"version":[1,0]}', con = file.path(path, "daf.json"), sep = "\n")
     }
+    .metadata_zip_rebuild(path)
     invisible()
 }
 

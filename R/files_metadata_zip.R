@@ -137,6 +137,17 @@ NULL
     invisible()
 }
 
+# Ensure metadata.zip exists; rebuild if missing. Used by writable-mode
+# files_daf opens to bring pre-0.2.0 stores up to current invariants.
+# Read-only opens never call this (no permission to write). Mirrors
+# upstream files_format.jl::ensure_metadata_zip!.
+.ensure_metadata_zip <- function(path) {
+    if (!file.exists(file.path(path, "metadata.zip"))) {
+        .metadata_zip_rebuild(path)
+    }
+    invisible()
+}
+
 #' Pack a FilesDaf directory's JSON metadata into `metadata.zip`.
 #'
 #' Walks `path` and bundles `daf.json`, `axes/metadata.json`, every
