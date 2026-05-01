@@ -18,6 +18,10 @@ NULL
 # Rebuild metadata.zip from scratch by walking the tree. Atomic via
 # metadata.zip.new + rename. Mirrors files_format.jl::metadata_zip_rebuild!.
 .metadata_zip_rebuild <- function(path) {
+    # NOTE: O(N) in tree size — re-reads and re-zips every JSON descriptor.
+    # A delete-in-loop or overwrite-in-loop sequence over the same tree is
+    # therefore O(K*N). Acceptable for the slice-18 release; a future phase
+    # may defer rebuild to close-time via a "dirty" flag.
     .write_axes_metadata(path)
     zip_path <- file.path(path, "metadata.zip")
     staging <- paste0(zip_path, ".new")
@@ -113,12 +117,9 @@ NULL
     store <- new_mmap_zip_store(zip_path, mode = "r+")
     closed <- FALSE
     on.exit(if (!closed) try(dafr_mmap_zip_close(S7::prop(store, "xptr")), silent = TRUE), add = TRUE)
-    # NOTE: slice-17 MmapZipStore is append-only, so an overwriting set_*
-    # (where the descriptor JSON already exists in metadata.zip) requires a
-    # full rebuild instead of a cheap append. This makes overwrite-in-loop
-    # operations quadratic in tree size: rewriting K of N existing entries
-    # costs O(K*N) zip rebuilds. Acceptable for the slice-18 release; a
-    # future phase may defer rebuild to close-time via a "dirty" flag.
+    # On collision (overwriting an existing entry), MmapZipStore can't
+    # update in place — fall back to a full rebuild. See the NOTE in
+    # .metadata_zip_rebuild for the perf characteristic.
     if (store_exists(store, relative_path)) {
         # Overwrite case: close the live store, then rebuild from the
         # tree. The on-disk JSON has already been rewritten with the new

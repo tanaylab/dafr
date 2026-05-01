@@ -209,6 +209,13 @@ test_that("delete_scalar rebuilds metadata.zip", {
     names <- unzip(file.path(path, "metadata.zip"), list = TRUE)$Name
     expect_false("scalars/k1.json" %in% names)
     expect_true("scalars/k2.json" %in% names)
+
+    con <- unz(file.path(path, "metadata.zip"), "scalars/k2.json", "rb")
+    on.exit(close(con))
+    in_zip <- readBin(con, "raw", n = 1024L)
+    on_disk <- readBin(file.path(path, "scalars/k2.json"), "raw",
+                       n = file.size(file.path(path, "scalars/k2.json")))
+    expect_identical(in_zip[seq_along(on_disk)], on_disk)
 })
 
 test_that("delete_vector rebuilds metadata.zip", {
@@ -223,6 +230,13 @@ test_that("delete_vector rebuilds metadata.zip", {
     names <- unzip(file.path(path, "metadata.zip"), list = TRUE)$Name
     expect_false("vectors/cell/x.json" %in% names)
     expect_true("vectors/cell/y.json" %in% names)
+
+    con <- unz(file.path(path, "metadata.zip"), "vectors/cell/y.json", "rb")
+    on.exit(close(con))
+    in_zip <- readBin(con, "raw", n = 1024L)
+    on_disk <- readBin(file.path(path, "vectors/cell/y.json"), "raw",
+                       n = file.size(file.path(path, "vectors/cell/y.json")))
+    expect_identical(in_zip[seq_along(on_disk)], on_disk)
 })
 
 test_that("delete_matrix rebuilds metadata.zip", {
@@ -238,6 +252,13 @@ test_that("delete_matrix rebuilds metadata.zip", {
     names <- unzip(file.path(path, "metadata.zip"), list = TRUE)$Name
     expect_false("matrices/row/col/M1.json" %in% names)
     expect_true("matrices/row/col/M2.json" %in% names)
+
+    con <- unz(file.path(path, "metadata.zip"), "matrices/row/col/M2.json", "rb")
+    on.exit(close(con))
+    in_zip <- readBin(con, "raw", n = 1024L)
+    on_disk <- readBin(file.path(path, "matrices/row/col/M2.json"), "raw",
+                       n = file.size(file.path(path, "matrices/row/col/M2.json")))
+    expect_identical(in_zip[seq_along(on_disk)], on_disk)
 })
 
 test_that("delete_axis rebuilds metadata.zip and updates axes/metadata.json", {
