@@ -1,4 +1,5 @@
 #' @include classes.R format_api.R cache_group.R
+#' @importFrom utils unzip
 NULL
 
 #' Read-only HTTP-served FilesDaf.
@@ -23,6 +24,7 @@ NULL
 #' @param url HTTP(S) URL pointing at a FilesDaf root.
 #' @param name Optional override; defaults to the daf's `name` scalar (if
 #'   any) or the URL.
+#' @inheritParams DafReader
 #' @return A `HttpDaf` instance (`DafReadOnly` subclass).
 #' @examples
 #' \dontrun{

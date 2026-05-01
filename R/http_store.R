@@ -12,6 +12,9 @@ NULL
 #'
 #' Writes hard-error: HTTP-served Zarr is read-only.
 #'
+#' @param url Root URL of the served Zarr v2 directory.
+#' @param zmetadata Parsed consolidated `.zmetadata` content.
+#' @param chunk_cache Environment caching fetched chunk bytes by path.
 #' @export
 HttpStore <- S7::new_class(
     name    = "HttpStore",

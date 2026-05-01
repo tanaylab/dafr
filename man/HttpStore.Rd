@@ -10,6 +10,13 @@ HttpStore(
   chunk_cache = new.env(parent = emptyenv())
 )
 }
+\arguments{
+\item{url}{Root URL of the served Zarr v2 directory.}
+
+\item{zmetadata}{Parsed consolidated \code{.zmetadata} content.}
+
+\item{chunk_cache}{Environment caching fetched chunk bytes by path.}
+}
 \description{
 Implements the \link{ZarrStore} interface over HTTP(S). Used by
 \code{\link[=zarr_daf]{zarr_daf()}} when given an \verb{http(s)://} URL pointing at a \code{.daf.zarr}

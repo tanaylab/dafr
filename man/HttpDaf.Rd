@@ -20,6 +20,21 @@ http_daf(url, name = NULL)
 \item{name}{Optional override; defaults to the daf's \code{name} scalar (if
 any) or the URL.}
 
+\item{internal}{Internal per-store environment used by format
+backends to stash backend-specific state; reserved for package use.}
+
+\item{cache}{Three-tier cache environment (mapped / memory / query).
+See \code{new_cache_env()}.}
+
+\item{axis_version_counter}{Environment tracking per-axis mutation
+counters; invalidates cached reads when an axis is modified.}
+
+\item{vector_version_counter}{Environment tracking per-vector
+mutation counters.}
+
+\item{matrix_version_counter}{Environment tracking per-matrix
+mutation counters.}
+
 \item{url}{HTTP(S) URL pointing at a FilesDaf root.}
 }
 \value{
