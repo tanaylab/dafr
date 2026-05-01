@@ -91,6 +91,46 @@ NULL
     invisible(zip_path)
 }
 
+# Append one already-on-disk JSON file as a new entry into metadata.zip.
+# The entry name is its relative path under `path`. The slice-17
+# MmapZipStore is append-only (zip archives don't support in-place
+# rewrite), so on a collision (a `set_*(..., overwrite = TRUE)` rewriting
+# an existing JSON descriptor in place — dafr does NOT route overwrites
+# through delete + create) we fall back to a full rebuild. Rebuild is
+# also used when metadata.zip is missing entirely. Mirrors
+# files_format.jl::metadata_zip_append! plus its ensure_metadata_zip
+# precondition.
+.metadata_zip_append <- function(path, relative_path) {
+    full <- file.path(path, relative_path)
+    bytes <- readBin(full, what = "raw", n = file.size(full))
+    zip_path <- file.path(path, "metadata.zip")
+    if (!file.exists(zip_path)) {
+        # Defensive: if metadata.zip is missing (e.g., user deleted it,
+        # or this is the first set_* on a freshly-initialised store),
+        # rebuild from scratch — append on a missing target would be a
+        # hard error. Matches upstream ensure_metadata_zip semantics.
+        .metadata_zip_rebuild(path)
+        return(invisible())
+    }
+    store <- new_mmap_zip_store(zip_path, mode = "r+")
+    closed <- FALSE
+    on.exit(if (!closed) try(dafr_mmap_zip_close(S7::prop(store, "xptr")), silent = TRUE), add = TRUE)
+    existing <- store_list(store, "")
+    if (relative_path %in% existing) {
+        # Overwrite case: close the live store, then rebuild from the
+        # tree. The on-disk JSON has already been rewritten with the new
+        # bytes by the caller, so the rebuild picks up the new content.
+        dafr_mmap_zip_close(S7::prop(store, "xptr"))
+        closed <- TRUE
+        .metadata_zip_rebuild(path)
+        return(invisible())
+    }
+    store_set_bytes(store, relative_path, bytes)
+    dafr_mmap_zip_close(S7::prop(store, "xptr"))
+    closed <- TRUE
+    invisible()
+}
+
 #' Pack a FilesDaf directory's JSON metadata into `metadata.zip`.
 #'
 #' Walks `path` and bundles `daf.json`, `axes/metadata.json`, every

@@ -89,3 +89,65 @@ test_that("pack_files_daf_metadata bundles matrix descriptor JSON", {
     names <- unzip(file.path(path, "metadata.zip"), list = TRUE)$Name
     expect_true("matrices/row/col/M.json" %in% names)
 })
+
+test_that("set_scalar appends to metadata.zip", {
+    path <- withr::local_tempdir("daf-append-scalar-")
+    d <- files_daf(path, "w+")
+    set_scalar(d, "k", "v")
+    rm(d); gc()
+
+    expect_true(file.exists(file.path(path, "metadata.zip")))
+    names <- unzip(file.path(path, "metadata.zip"), list = TRUE)$Name
+    expect_true("scalars/k.json" %in% names)
+})
+
+test_that("set_vector appends to metadata.zip; entry set matches rebuild", {
+    path <- withr::local_tempdir("daf-append-vec-")
+    d <- files_daf(path, "w+")
+    add_axis(d, "cell", c("c1", "c2"))
+    set_vector(d, "cell", "x", c(1, 2))
+    rm(d); gc()
+
+    after_append <- sort(unzip(file.path(path, "metadata.zip"), list = TRUE)$Name)
+    pack_files_daf_metadata(path)
+    after_rebuild <- sort(unzip(file.path(path, "metadata.zip"), list = TRUE)$Name)
+    expect_identical(after_append, after_rebuild)
+})
+
+test_that("set_matrix (dense) appends to metadata.zip", {
+    path <- withr::local_tempdir("daf-append-mat-dense-")
+    d <- files_daf(path, "w+")
+    add_axis(d, "row", c("r1", "r2"))
+    add_axis(d, "col", c("c1", "c2"))
+    set_matrix(d, "row", "col", "M", matrix(1:4, 2, 2))
+    rm(d); gc()
+
+    names <- unzip(file.path(path, "metadata.zip"), list = TRUE)$Name
+    expect_true("matrices/row/col/M.json" %in% names)
+})
+
+test_that("set_matrix (sparse) appends to metadata.zip", {
+    path <- withr::local_tempdir("daf-append-mat-sparse-")
+    d <- files_daf(path, "w+")
+    add_axis(d, "row", c("r1", "r2", "r3"))
+    add_axis(d, "col", c("c1", "c2"))
+    sm <- Matrix::sparseMatrix(i = c(1, 3), j = c(1, 2), x = c(1, 2),
+                               dims = c(3, 2))
+    set_matrix(d, "row", "col", "S", sm)
+    rm(d); gc()
+
+    names <- unzip(file.path(path, "metadata.zip"), list = TRUE)$Name
+    expect_true("matrices/row/col/S.json" %in% names)
+})
+
+test_that("set_vector with sparseVector input appends to metadata.zip", {
+    path <- withr::local_tempdir("daf-append-svec-")
+    d <- files_daf(path, "w+")
+    add_axis(d, "cell", c("c1", "c2", "c3"))
+    sv <- Matrix::sparseVector(c(1, 2), i = c(1, 3), length = 3L)
+    set_vector(d, "cell", "x", sv)
+    rm(d); gc()
+
+    names <- unzip(file.path(path, "metadata.zip"), list = TRUE)$Name
+    expect_true("vectors/cell/x.json" %in% names)
+})

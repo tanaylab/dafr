@@ -11,6 +11,7 @@ S7::method(
         .require_no_scalar(daf, name)
     }
     .write_scalar_json(p, value)
+    .metadata_zip_append(.files_root(daf), paste0("scalars/", name, ".json"))
     MEMORY_DATA
 }
 
@@ -223,6 +224,7 @@ S7::method(
         nz <- if (is.logical(vec)) which(vec) else which(vec != 0)
         .files_write_vector_sparse_numeric(vdir, name, nz, vec[nz], eltype, indtype)
     }
+    .metadata_zip_append(root, paste0("vectors/", axis, "/", name, ".json"))
     bump_vector_counter(daf, axis, name)
     MEMORY_DATA
 }
@@ -248,6 +250,7 @@ S7::method(
         vdir, name,
         as.integer(sv@i), sv@x, eltype, indtype
     )
+    .metadata_zip_append(root, paste0("vectors/", axis, "/", name, ".json"))
     bump_vector_counter(daf, axis, name)
     MEMORY_DATA
 }
@@ -328,6 +331,7 @@ S7::method(
     .files_matrix_unlink_payload(mdir, name)
     if (methods::is(mat, "dgCMatrix") || methods::is(mat, "lgCMatrix")) {
         .files_write_matrix_sparse(mdir, name, mat)
+        .metadata_zip_append(root, paste0("matrices/", rows_axis, "/", columns_axis, "/", name, ".json"))
         bump_matrix_counter(daf, rows_axis, columns_axis, name)
         return(MEMORY_DATA)
     }
@@ -346,6 +350,7 @@ S7::method(
         )
     }
     .write_descriptor_dense(desc_path, dtype)
+    .metadata_zip_append(root, paste0("matrices/", rows_axis, "/", columns_axis, "/", name, ".json"))
     bump_matrix_counter(daf, rows_axis, columns_axis, name)
     MEMORY_DATA
 }
