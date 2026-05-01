@@ -71,13 +71,19 @@ http_daf <- function(url, name = NULL) {
                                     simplifyVector = TRUE)
             name <- as.character(j$value)
         } else {
-            name <- url
+            # URL-derived default: basename strips the scheme + path so the
+            # result passes .assert_name's forbidden-character check
+            # (which rejects '/', ':'). Mirrors upstream's unique_name(url)
+            # at the level of "human-readable defaults".
+            name <- basename(url)
+            if (!nzchar(name)) name <- "http"
         }
     }
     .assert_name(name, "name")
 
     internal <- new_internal_env()
     internal$url <- url
+    internal$path <- url      # so complete_path(daf) returns the URL
     internal$zip_path <- zip_path
     internal$zip_names <- zip_names_full
     internal$is_frozen <- TRUE

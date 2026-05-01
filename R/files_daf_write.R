@@ -89,7 +89,11 @@ S7::method(
     assign(axis, list(entries = entries, dict = dict),
         envir = S7::prop(daf, "internal")$axes
     )
-    .write_axes_metadata(root)
+    # Rebuild metadata.zip so the bundled axes/metadata.json reflects the
+    # new axis. Replaces the Phase-1 .write_axes_metadata call (rebuild
+    # calls it internally and also captures any descriptor JSONs created
+    # eagerly above).
+    .metadata_zip_rebuild(root)
     invisible()
 }
 
