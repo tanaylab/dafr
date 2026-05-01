@@ -197,3 +197,74 @@ test_that("set_scalar with overwrite=TRUE rewrites metadata.zip entry", {
     expect_match(text, "v2", fixed = TRUE)
     expect_false(grepl("v1", text, fixed = TRUE))
 })
+
+test_that("delete_scalar rebuilds metadata.zip", {
+    path <- withr::local_tempdir("daf-del-scalar-")
+    d <- files_daf(path, "w+")
+    set_scalar(d, "k1", "v1")
+    set_scalar(d, "k2", "v2")
+    delete_scalar(d, "k1")
+    rm(d); gc()
+
+    names <- unzip(file.path(path, "metadata.zip"), list = TRUE)$Name
+    expect_false("scalars/k1.json" %in% names)
+    expect_true("scalars/k2.json" %in% names)
+})
+
+test_that("delete_vector rebuilds metadata.zip", {
+    path <- withr::local_tempdir("daf-del-vec-")
+    d <- files_daf(path, "w+")
+    add_axis(d, "cell", c("c1", "c2"))
+    set_vector(d, "cell", "x", c(1, 2))
+    set_vector(d, "cell", "y", c(3, 4))
+    delete_vector(d, "cell", "x")
+    rm(d); gc()
+
+    names <- unzip(file.path(path, "metadata.zip"), list = TRUE)$Name
+    expect_false("vectors/cell/x.json" %in% names)
+    expect_true("vectors/cell/y.json" %in% names)
+})
+
+test_that("delete_matrix rebuilds metadata.zip", {
+    path <- withr::local_tempdir("daf-del-mat-")
+    d <- files_daf(path, "w+")
+    add_axis(d, "row", c("r1", "r2"))
+    add_axis(d, "col", c("c1", "c2"))
+    set_matrix(d, "row", "col", "M1", matrix(1:4, 2, 2))
+    set_matrix(d, "row", "col", "M2", matrix(5:8, 2, 2))
+    delete_matrix(d, "row", "col", "M1")
+    rm(d); gc()
+
+    names <- unzip(file.path(path, "metadata.zip"), list = TRUE)$Name
+    expect_false("matrices/row/col/M1.json" %in% names)
+    expect_true("matrices/row/col/M2.json" %in% names)
+})
+
+test_that("delete_axis rebuilds metadata.zip and updates axes/metadata.json", {
+    path <- withr::local_tempdir("daf-del-axis-")
+    d <- files_daf(path, "w+")
+    add_axis(d, "cell", c("c1", "c2"))
+    add_axis(d, "gene", c("g1", "g2"))
+    set_vector(d, "cell", "x", c(1, 2))
+    delete_axis(d, "cell")
+    rm(d); gc()
+
+    names <- unzip(file.path(path, "metadata.zip"), list = TRUE)$Name
+    # All cell-related entries gone
+    expect_false(any(startsWith(names, "vectors/cell/")))
+    # axes/metadata.json reflects the post-delete state
+    expect_true("axes/metadata.json" %in% names)
+
+    # Verify axes/metadata.json content via on-disk + zip-entry parity
+    j_disk <- jsonlite::fromJSON(file.path(path, "axes", "metadata.json"),
+                                 simplifyVector = TRUE)
+    expect_identical(j_disk, "gene")
+
+    con <- unz(file.path(path, "metadata.zip"), "axes/metadata.json", "rb")
+    on.exit(close(con))
+    in_zip_bytes <- readBin(con, what = "raw", n = 1024L)
+    on_disk_bytes <- readBin(file.path(path, "axes", "metadata.json"),
+                             what = "raw",
+                             n = file.size(file.path(path, "axes", "metadata.json")))
+    expect_identical(in_zip_bytes[seq_along(on_disk_bytes)], on_disk_bytes)
+})

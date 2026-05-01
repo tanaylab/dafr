@@ -27,6 +27,7 @@ S7::method(
         return(invisible())
     }
     unlink(p, force = TRUE)
+    .metadata_zip_rebuild(.files_root(daf))
     invisible()
 }
 
@@ -121,7 +122,7 @@ S7::method(
         rm(list = axis, envir = cache)
     }
     bump_axis_counter(daf, axis)
-    .write_axes_metadata(root)
+    .metadata_zip_rebuild(root)
     invisible()
 }
 
@@ -269,6 +270,7 @@ S7::method(
     }
     unlink(desc_path, force = TRUE)
     .files_vector_unlink_payload(vdir, name)
+    .metadata_zip_rebuild(.files_root(daf))
     invisible()
 }
 
@@ -372,6 +374,7 @@ S7::method(
     }
     unlink(desc_path, force = TRUE)
     .files_matrix_unlink_payload(mdir, name)
+    .metadata_zip_rebuild(.files_root(daf))
     invisible()
 }
 
