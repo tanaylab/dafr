@@ -151,3 +151,49 @@ test_that("set_vector with sparseVector input appends to metadata.zip", {
     names <- unzip(file.path(path, "metadata.zip"), list = TRUE)$Name
     expect_true("vectors/cell/x.json" %in% names)
 })
+
+test_that("metadata_zip_append exercises append path on second set_*", {
+    # First set creates metadata.zip via missing-zip fallback. Second set
+    # exercises the actual append branch (line 115+ of files_metadata_zip.R).
+    path <- withr::local_tempdir("daf-append-second-")
+    d <- files_daf(path, "w+")
+    set_scalar(d, "k1", "v1")
+    expect_true(file.exists(file.path(path, "metadata.zip")))
+    set_scalar(d, "k2", "v2")  # this hits the append branch
+    rm(d); gc()
+
+    names <- sort(unzip(file.path(path, "metadata.zip"), list = TRUE)$Name)
+    expect_true("scalars/k1.json" %in% names)
+    expect_true("scalars/k2.json" %in% names)
+
+    # Byte-equal content check: append path must serialize the JSON correctly.
+    con <- unz(file.path(path, "metadata.zip"), "scalars/k2.json", "rb")
+    on.exit(close(con))
+    in_zip <- readBin(con, what = "raw", n = 1024L)
+    on_disk <- readBin(file.path(path, "scalars", "k2.json"),
+                       what = "raw",
+                       n = file.size(file.path(path, "scalars", "k2.json")))
+    expect_identical(in_zip[seq_along(on_disk)], on_disk)
+})
+
+test_that("set_scalar with overwrite=TRUE rewrites metadata.zip entry", {
+    # Pins the dafr-only collision-fallback-to-rebuild divergence: dafr's
+    # MmapZipStore is append-only, so an overwriting set_* triggers a full
+    # rebuild. Verify exactly one entry remains and content is the new value.
+    path <- withr::local_tempdir("daf-overwrite-")
+    d <- files_daf(path, "w+")
+    set_scalar(d, "k", "v1")
+    set_scalar(d, "k", "v2", overwrite = TRUE)
+    rm(d); gc()
+
+    names <- unzip(file.path(path, "metadata.zip"), list = TRUE)$Name
+    # Exactly one entry for scalars/k.json (no duplicate from append-overwrite).
+    expect_equal(sum(names == "scalars/k.json"), 1L)
+
+    con <- unz(file.path(path, "metadata.zip"), "scalars/k.json", "rb")
+    on.exit(close(con))
+    bytes <- readBin(con, "raw", n = 1024L)
+    text <- rawToChar(bytes)
+    expect_match(text, "v2", fixed = TRUE)
+    expect_false(grepl("v1", text, fixed = TRUE))
+})

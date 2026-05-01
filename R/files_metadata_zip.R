@@ -101,8 +101,6 @@ NULL
 # files_format.jl::metadata_zip_append! plus its ensure_metadata_zip
 # precondition.
 .metadata_zip_append <- function(path, relative_path) {
-    full <- file.path(path, relative_path)
-    bytes <- readBin(full, what = "raw", n = file.size(full))
     zip_path <- file.path(path, "metadata.zip")
     if (!file.exists(zip_path)) {
         # Defensive: if metadata.zip is missing (e.g., user deleted it,
@@ -115,8 +113,13 @@ NULL
     store <- new_mmap_zip_store(zip_path, mode = "r+")
     closed <- FALSE
     on.exit(if (!closed) try(dafr_mmap_zip_close(S7::prop(store, "xptr")), silent = TRUE), add = TRUE)
-    existing <- store_list(store, "")
-    if (relative_path %in% existing) {
+    # NOTE: slice-17 MmapZipStore is append-only, so an overwriting set_*
+    # (where the descriptor JSON already exists in metadata.zip) requires a
+    # full rebuild instead of a cheap append. This makes overwrite-in-loop
+    # operations quadratic in tree size: rewriting K of N existing entries
+    # costs O(K*N) zip rebuilds. Acceptable for the slice-18 release; a
+    # future phase may defer rebuild to close-time via a "dirty" flag.
+    if (store_exists(store, relative_path)) {
         # Overwrite case: close the live store, then rebuild from the
         # tree. The on-disk JSON has already been rewritten with the new
         # bytes by the caller, so the rebuild picks up the new content.
@@ -125,6 +128,8 @@ NULL
         .metadata_zip_rebuild(path)
         return(invisible())
     }
+    full <- file.path(path, relative_path)
+    bytes <- readBin(full, what = "raw", n = file.size(full))
     store_set_bytes(store, relative_path, bytes)
     dafr_mmap_zip_close(S7::prop(store, "xptr"))
     closed <- TRUE
