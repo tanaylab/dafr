@@ -83,12 +83,11 @@ NULL
     }
     dafr_mmap_zip_close(S7::prop(store, "xptr"))
     closed <- TRUE
-    # Disarm the staging-cleanup branch of on.exit (close already done).
-
     if (!file.rename(staging, zip_path)) {
         stop(sprintf(".metadata_zip_rebuild: failed to rename %s to %s",
                      sQuote(staging), sQuote(zip_path)), call. = FALSE)
     }
+    on.exit()  # disarm: rename consumed staging; nothing left to clean up
     invisible(zip_path)
 }
 

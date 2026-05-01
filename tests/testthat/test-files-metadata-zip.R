@@ -34,6 +34,8 @@ test_that("pack_files_daf_metadata is atomic via .new + rename", {
     expect_false(file.exists(file.path(path, "metadata.zip.new")))
 })
 
+# Determinism relies on MmapZipStore writing fixed 1980-01-01 timestamps
+# (src/mmap_zip_store.cpp). If that ever changes, this test will fail.
 test_that("pack_files_daf_metadata is deterministic on a stable tree", {
     path <- withr::local_tempdir("daf-pack-determ-")
     d <- files_daf(path, "w+")
@@ -48,6 +50,25 @@ test_that("pack_files_daf_metadata is deterministic on a stable tree", {
     bytes2 <- readBin(file.path(path, "metadata.zip"), what = "raw",
                       n = file.size(file.path(path, "metadata.zip")))
     expect_identical(bytes1, bytes2)
+})
+
+test_that("pack_files_daf_metadata writes entries in deterministic sorted order", {
+    path <- withr::local_tempdir("daf-pack-order-")
+    d <- files_daf(path, "w+")
+    add_axis(d, "cell", c("c1", "c2"))
+    set_scalar(d, "z", "v")
+    set_scalar(d, "a", "v")
+    set_vector(d, "cell", "y", c(1, 2))
+    set_vector(d, "cell", "x", c(1, 2))
+    rm(d); gc()
+
+    pack_files_daf_metadata(path)
+    names <- unzip(file.path(path, "metadata.zip"), list = TRUE)$Name
+    expect_identical(names, c(
+        "daf.json", "axes/metadata.json",
+        "scalars/a.json", "scalars/z.json",
+        "vectors/cell/x.json", "vectors/cell/y.json"
+    ))
 })
 
 test_that("pack_files_daf_metadata errors on non-FilesDaf directory", {
