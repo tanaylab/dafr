@@ -660,6 +660,7 @@ S7::method(format_cleanup_reorder, list(FilesDaf, S7::class_list)) <-
         for (pm in plan$planned_matrices) {
             bump_matrix_counter(daf, pm$rows_axis, pm$columns_axis, pm$name)
         }
+        .metadata_zip_rebuild(.files_root(daf))
         invisible()
     }
 
@@ -698,6 +699,7 @@ S7::method(format_reset_reorder, FilesDaf) <-
         for (k in ls(envir = axes_cache, all.names = TRUE)) {
             rm(list = k, envir = axes_cache)
         }
+        .metadata_zip_rebuild(.files_root(daf))
         invisible(TRUE)
     }
 
@@ -717,6 +719,19 @@ S7::method(format_reset_reorder, FilesDaf) <-
                 sQuote(backup_root), conditionMessage(e)
             ), call. = FALSE)
             unlink(backup_root, recursive = TRUE, force = TRUE)
+            # Best-effort metadata.zip rebuild against whatever-state the
+            # tree ended up in. Wrap in tryCatch — a corrupt tree may make
+            # the rebuild fail too, but failing here would mask the
+            # underlying restoration failure.
+            tryCatch(
+                .metadata_zip_rebuild(.files_root(daf)),
+                error = function(e2) {
+                    warning(sprintf(
+                        "files_daf: post-rollback metadata.zip rebuild failed (%s); metadata.zip may be stale",
+                        conditionMessage(e2)
+                    ), call. = FALSE)
+                }
+            )
             FALSE
         }
     )
