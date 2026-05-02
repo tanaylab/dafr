@@ -249,3 +249,27 @@ test_that("open_daf routes a live FilesDaf URL to http_daf", {
     daf <- open_daf(paste0(h$url, "/served.daf"), mode = "r")
     expect_identical(daf_name(daf), "served!")
 })
+
+# ---- F2: empty_cache after a get does not invalidate prior reads -----------
+
+test_that("empty_cache(http_daf) is safe with prior reads still held", {
+    skip_if_no_http_harness()
+    root <- withr::local_tempdir("daf-http-cache-")
+    .populate_served_daf(root)
+    h <- start_http_server(root)
+    on.exit(stop_http_server(h), add = TRUE)
+    daf <- http_daf(paste0(h$url, "/served.daf"))
+    v_before <- get_vector(daf, "cell", "score")
+    m_before <- get_matrix(daf, "cell", "gene", "dense")
+    empty_cache(daf)
+    # Pin the contract: dafr's HttpDaf returns concrete numeric/character
+    # vectors rather than ALTREP views over the cache buffer, so prior
+    # references survive an empty_cache() call. Future ALTREP-aliased
+    # buffers must preserve this invariant or migrate to the upstream
+    # close-time-deactivation pattern.
+    expect_equal(unname(v_before), c(1.0, 2.0, 3.0))
+    expect_equal(unname(as.matrix(m_before)), matrix(seq_len(6), 3, 2))
+    # Re-reading after empty_cache works (re-fetches over HTTP).
+    v_after <- get_vector(daf, "cell", "score")
+    expect_equal(v_after, v_before)
+})

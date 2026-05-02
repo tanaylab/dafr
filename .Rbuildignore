@@ -3,6 +3,8 @@
 ^dev/.*
 ^\.a5c$
 ^\.a5c/.*
+^tests/\.a5c$
+^tests/\.a5c/.*
 ^.*\.Rproj$
 ^\.Rproj\.user$
 ^README\.Rmd$

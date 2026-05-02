@@ -522,6 +522,18 @@ S7::method(
     .cache_group_value(inner$value[idx], MEMORY_DATA)
 }
 
+# Build a fresh dict over the post-permutation entries; can't reuse the
+# base axis's dict because a view may rename / drop / reorder entries.
+S7::method(
+    format_axis_dict,
+    list(ViewDaf, S7::class_character)
+) <- function(daf, axis) {
+    entries <- format_axis_array(daf, axis)$value
+    dict <- new.env(parent = emptyenv(), size = length(entries))
+    for (i in seq_along(entries)) assign(entries[[i]], i, envir = dict)
+    dict
+}
+
 S7::method(
     format_has_vector,
     list(ViewDaf, S7::class_character, S7::class_character)

@@ -21,9 +21,21 @@ NULL
 #' Read-only — mutations are not supported. Server data is assumed stable
 #' while a [HttpDaf] is open; reopen to pick up changes.
 #'
+#' @section HTTP timeout:
+#' Each GET uses a 30-second timeout. Override via
+#' `options(dafr.http_timeout = N)` (seconds) or environment variable
+#' `DAFR_HTTP_TIMEOUT` for slow links or large lazy payloads. Requests
+#' are issued without retry; flaky-network handling is on the caller.
+#'
+#' @section URL-derived name:
+#' When neither `name` nor a `name` scalar in the daf is set, the
+#' default name is `basename(url)`. Two HttpDafs opened from
+#' different hosts but the same basename will collide on name; pass an
+#' explicit `name` to disambiguate.
+#'
 #' @param url HTTP(S) URL pointing at a FilesDaf root.
 #' @param name Optional override; defaults to the daf's `name` scalar (if
-#'   any) or the URL.
+#'   any) or the URL basename.
 #' @inheritParams DafReader
 #' @return A `HttpDaf` instance (`DafReadOnly` subclass).
 #' @examples

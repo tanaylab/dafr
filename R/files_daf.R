@@ -4,6 +4,14 @@
 #' bidirectionally compatible with Julia's `DataAxesFormats.FilesDaf`.
 #' Writes are non-atomic; only one writer may touch a store at a time.
 #'
+#' @section Concurrent access:
+#' `files_daf` does not lock the store. Two writers opening the same
+#' path in mode `"r+"` or `"w+"` will race on `metadata.zip` rebuilds
+#' and per-entry JSON writes, with no guarantee of last-writer-wins
+#' consistency. The supported pattern is single-writer plus arbitrary
+#' read-only readers; cross-process concurrency must be coordinated
+#' externally (e.g., a job scheduler).
+#'
 #' @param path Directory path.
 #' @param mode One of `"r"` (read-only, store must exist), `"r+"`
 #'   (read-write, store must exist), `"w"` (create; fails if store already

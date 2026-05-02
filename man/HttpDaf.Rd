@@ -18,7 +18,7 @@ http_daf(url, name = NULL)
 }
 \arguments{
 \item{name}{Optional override; defaults to the daf's \code{name} scalar (if
-any) or the URL.}
+any) or the URL basename.}
 
 \item{internal}{Internal per-store environment used by format
 backends to stash backend-specific state; reserved for package use.}
@@ -59,6 +59,22 @@ one HTTP GET each, cached by the standard cache layer.
 Read-only — mutations are not supported. Server data is assumed stable
 while a \link{HttpDaf} is open; reopen to pick up changes.
 }
+\section{HTTP timeout}{
+
+Each GET uses a 30-second timeout. Override via
+\code{options(dafr.http_timeout = N)} (seconds) or environment variable
+\code{DAFR_HTTP_TIMEOUT} for slow links or large lazy payloads. Requests
+are issued without retry; flaky-network handling is on the caller.
+}
+
+\section{URL-derived name}{
+
+When neither \code{name} nor a \code{name} scalar in the daf is set, the
+default name is \code{basename(url)}. Two HttpDafs opened from
+different hosts but the same basename will collide on name; pass an
+explicit \code{name} to disambiguate.
+}
+
 \examples{
 \dontrun{
 d <- http_daf("https://example.com/path/to/data.daf/")

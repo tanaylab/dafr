@@ -100,6 +100,7 @@ format_description_header <- S7::new_generic(
 #' upstream Julia `Readers.is_leaf`.
 #'
 #' @param daf A [DafReader].
+#' @param ... Reserved for method-specific extensions.
 #' @return Logical scalar.
 #' @examples
 #' is_leaf(memory_daf())

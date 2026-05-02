@@ -106,12 +106,13 @@ NULL
 # precondition.
 .metadata_zip_append <- function(path, relative_path) {
     zip_path <- file.path(path, "metadata.zip")
+    # Defensive: if metadata.zip is missing (user deleted it, or this is
+    # the first set_* on a freshly-initialised store), rebuild from
+    # scratch. The on-disk JSON written by the caller is already part of
+    # the tree, so a rebuild folds it in and there's nothing left to
+    # append. Matches upstream ensure_metadata_zip semantics.
     if (!file.exists(zip_path)) {
-        # Defensive: if metadata.zip is missing (e.g., user deleted it,
-        # or this is the first set_* on a freshly-initialised store),
-        # rebuild from scratch — append on a missing target would be a
-        # hard error. Matches upstream ensure_metadata_zip semantics.
-        .metadata_zip_rebuild(path)
+        .ensure_metadata_zip(path)
         return(invisible())
     }
     store <- new_mmap_zip_store(zip_path, mode = "r+")

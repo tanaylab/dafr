@@ -8,6 +8,8 @@ is_leaf(daf, ...)
 }
 \arguments{
 \item{daf}{A \link{DafReader}.}
+
+\item{...}{Reserved for method-specific extensions.}
 }
 \value{
 Logical scalar.

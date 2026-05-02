@@ -87,3 +87,15 @@ test_that("viewer reuses base daf cache env (no per-view query bucket)", {
     v <- viewer(d)
     expect_true(identical(S7::prop(v, "cache"), S7::prop(d, "cache")))
 })
+
+test_that("axis_dict on ViewDaf returns permuted dict (parity gap fix)", {
+    d <- memory_daf(name = "base")
+    add_axis(d, "cell", c("c1", "c2", "c3"))
+    set_vector(d, "cell", "keep", c(TRUE, FALSE, TRUE))
+    v <- viewer(d, axes = list(list("cell", "@ cell [ keep ]")))
+    dict <- axis_dict(v, "cell")
+    expect_true(is.environment(dict))
+    expect_setequal(ls(dict), c("c1", "c3"))
+    expect_equal(get("c1", envir = dict), 1L)
+    expect_equal(get("c3", envir = dict), 2L)
+})

@@ -27,6 +27,16 @@ A \code{Daf} store backed by a directory of small self-describing files,
 bidirectionally compatible with Julia's \code{DataAxesFormats.FilesDaf}.
 Writes are non-atomic; only one writer may touch a store at a time.
 }
+\section{Concurrent access}{
+
+\code{files_daf} does not lock the store. Two writers opening the same
+path in mode \code{"r+"} or \code{"w+"} will race on \code{metadata.zip} rebuilds
+and per-entry JSON writes, with no guarantee of last-writer-wins
+consistency. The supported pattern is single-writer plus arbitrary
+read-only readers; cross-process concurrency must be coordinated
+externally (e.g., a job scheduler).
+}
+
 \examples{
 path <- tempfile("dafr-example-")
 d <- files_daf(path, mode = "w")

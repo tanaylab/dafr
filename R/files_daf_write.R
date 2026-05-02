@@ -125,8 +125,11 @@ S7::method(
     if (exists(axis, envir = cache, inherits = FALSE)) {
         rm(list = axis, envir = cache)
     }
-    bump_axis_counter(daf, axis)
+    # Zip-then-bump: a zip rebuild failure leaves the counter unchanged
+    # so the caller can retry without observing torn cache state. Matches
+    # the ordering used by every set_* path.
     .metadata_zip_rebuild(root)
+    bump_axis_counter(daf, axis)
     invisible()
 }
 
