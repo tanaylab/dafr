@@ -1,14 +1,14 @@
 # Parity tests against the canonical jldoctest examples in
 # DataAxesFormats.jl readers.jl + example_data.jl. Each test_that asserts the
 # value, shape, or names that the Julia docstring documents (captured into
-# tests/testthat/fixtures/julia-readers-writers/<name>.json by
+# tests/testthat/fixtures/julia-rw/<name>.json by
 # tools/julia-fixtures/capture_readers_writers.jl).
 #
 # Where R semantics diverge from Julia (version-counter bump policy, no `relayout`
 # flag on certain getters), the test pins R behaviour and the comment notes the
 # divergence so future readers can find it.
 
-.fx_dir <- function() "fixtures/julia-readers-writers"
+.fx_dir <- function() "fixtures/julia-rw"
 .fx <- function(name) {
     jsonlite::fromJSON(file.path(.fx_dir(), paste0(name, ".json")),
                        simplifyVector = TRUE)

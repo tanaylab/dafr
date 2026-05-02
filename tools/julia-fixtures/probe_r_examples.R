@@ -5,7 +5,7 @@
 suppressMessages(pkgload::load_all(quiet = TRUE))
 suppressMessages(library(jsonlite))
 
-FX_DIR <- file.path("tests", "testthat", "fixtures", "julia-readers-writers")
+FX_DIR <- file.path("tests", "testthat", "fixtures", "julia-rw")
 
 read_fx <- function(name) fromJSON(file.path(FX_DIR, paste0(name, ".json")), simplifyVector = TRUE)
 

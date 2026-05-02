@@ -1,10 +1,10 @@
 # Parity tests against the canonical jldoctest examples in
 # DataAxesFormats.jl writers.jl. Each test_that asserts the value sequence
 # documented in the Julia docstring (captured into
-# tests/testthat/fixtures/julia-readers-writers/ by
+# tests/testthat/fixtures/julia-rw/ by
 # tools/julia-fixtures/capture_readers_writers.jl).
 
-.fx_dir <- function() "fixtures/julia-readers-writers"
+.fx_dir <- function() "fixtures/julia-rw"
 .fx <- function(name) {
     jsonlite::fromJSON(file.path(.fx_dir(), paste0(name, ".json")),
                        simplifyVector = TRUE)

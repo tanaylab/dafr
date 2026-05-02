@@ -14,7 +14,7 @@ using JSON3
 using OrderedCollections
 
 const OUT_DIR = length(ARGS) >= 1 ? ARGS[1] :
-    joinpath(@__DIR__, "..", "..", "tests", "testthat", "fixtures", "julia-readers-writers")
+    joinpath(@__DIR__, "..", "..", "tests", "testthat", "fixtures", "julia-rw")
 
 mkpath(OUT_DIR)
 
