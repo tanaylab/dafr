@@ -57,7 +57,7 @@ reads of stored (uncompressed) entries are zero-copy ALTREP views over
 the mapped region, and writes append-commit through a crash-safe
 two-phase protocol.
 
-```{r}
+```{r, eval = .Platform$OS.type != "windows"}
 zip_path <- tempfile(fileext = ".daf.zarr.zip")
 d <- zarr_daf(zip_path, mode = "w")
 add_axis(d, "gene", c("g1", "g2"))
@@ -68,6 +68,10 @@ rm(d); gc()
 d <- zarr_daf(zip_path, mode = "r")
 get_vector(d, "gene", "is_marker")
 ```
+
+> **Note:** the single-file `.daf.zarr.zip` backend depends on POSIX
+> `mmap` and is not available on Windows in this build. Use the
+> directory layout above on Windows.
 
 Foreign consumers open the same archive via Python's
 `zarr.storage.ZipStore`:
