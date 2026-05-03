@@ -485,6 +485,15 @@ NULL
     !is.na(vec) & vec != 0
 }
 
+# Coerce a mask-source vector to a comparator-ready form. Julia stores
+# strings as a plain `Vector{String}`; R may carry a factor (e.g. h5ad
+# categoricals via `.read_h5ad_categorical`). `<`/`>`/`<=`/`>=` on a
+# factor returns NA on unordered factors and compares level codes on
+# ordered ones — both wrong relative to Julia. Strip to character.
+.normalize_pending_vec <- function(vec) {
+    if (is.factor(vec)) as.character(vec) else vec
+}
+
 .apply_begin_mask <- function(node, state, daf) {
     if (!identical(state$kind, "axis")) {
         stop("'[' mask requires an axis in scope", call. = FALSE)
@@ -494,7 +503,10 @@ NULL
     if (identical(node$op, "BeginNegatedMask")) mask <- !mask
     state$pending_mask <- mask
     state$pending_property <- node$property
-    state$pending_vec <- vec
+    # Carry a comparator-ready copy. R's `<`/`>` on a factor either
+    # returns NA (unordered) or compares level codes (ordered) — both
+    # diverge from Julia, which compares the stored string lexically.
+    state$pending_vec <- .normalize_pending_vec(vec)
     state$kind <- "mask"
     state
 }
@@ -534,7 +546,9 @@ NULL
     state$pending_combinator_op <- op
     state$pending_combinator_neg <- negated
     state$pending_mask <- combined
-    state$pending_vec <- vec # allow a trailing comparator on this property
+    # See .apply_begin_mask: normalize factors so a trailing comparator
+    # uses Julia-compatible lexicographic ordering.
+    state$pending_vec <- .normalize_pending_vec(vec)
     state
 }
 
