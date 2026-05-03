@@ -257,6 +257,37 @@ parse_query <- function(query_string) {
     }
 }
 
+.parse_op_params <- function(tokens, start, op_name, op_kind) {
+    # Collect named parameters following an operation name token. Detects
+    # repeated keys at parse time (Julia parity: queries.jl > invalid >
+    # parameters). Returns list(params, next_index).
+    params <- list()
+    seen_keys <- character(0L)
+    j <- start
+    while (j + 1L <= length(tokens) && tokens[[j]]$type == "value") {
+        k <- tokens[[j]]$value
+        # Optional ':' between key and value.
+        val_idx <- if (j + 1L <= length(tokens) &&
+            tokens[[j + 1L]]$type == "operator" &&
+            tokens[[j + 1L]]$value == ":") {
+            j + 2L
+        } else {
+            j + 1L
+        }
+        if (val_idx > length(tokens) || tokens[[val_idx]]$type != "value") break
+        if (k %in% seen_keys) {
+            stop(sprintf(
+                "repeated parameter %s for the %s operation: %s",
+                sQuote(k), op_kind, sQuote(op_name)
+            ), call. = FALSE)
+        }
+        seen_keys <- c(seen_keys, k)
+        params[[k]] <- tokens[[val_idx]]$value
+        j <- val_idx + 1L
+    }
+    list(params = params, next_index = j)
+}
+
 .parse_reduction <- function(tokens, i, src, ctor) {
     if (i + 1L > length(tokens) || tokens[[i + 1L]]$type != "value") {
         stop(sprintf(
@@ -266,23 +297,23 @@ parse_query <- function(query_string) {
         ), call. = FALSE)
     }
     nxt <- tokens[[i + 1L]]
-    params <- list()
-    j <- i + 2L
-    while (j + 1L <= length(tokens) && tokens[[j]]$type == "value") {
-        k <- tokens[[j]]$value
-        # Optional ':' between key and value; accept both "key: value" and "key value"
-        val_idx <- if (j + 1L <= length(tokens) &&
-            tokens[[j + 1L]]$type == "operator" &&
-            tokens[[j + 1L]]$value == ":") {
-            j + 2L
-        } else {
-            j + 1L
-        }
-        if (val_idx > length(tokens) || tokens[[val_idx]]$type != "value") break
-        params[[k]] <- tokens[[val_idx]]$value
-        j <- val_idx + 1L
+    op_name <- nxt$value
+    fn <- .ops_env$reductions[[op_name]]
+    if (is.null(fn)) {
+        stop(sprintf("unknown reduction operation: %s", sQuote(op_name)),
+            call. = FALSE
+        )
     }
-    list(node = ctor(nxt$value, params = params), next_index = j)
+    pp <- .parse_op_params(tokens, i + 2L, op_name, "reduction")
+    valid <- .op_valid_params(fn)
+    bad <- setdiff(names(pp$params), valid)
+    if (length(bad) > 0L) {
+        stop(sprintf(
+            "the parameter %s does not exist for the reduction operation: %s",
+            sQuote(bad[[1L]]), sQuote(op_name)
+        ), call. = FALSE)
+    }
+    list(node = ctor(op_name, params = pp$params), next_index = pp$next_index)
 }
 
 .parse_eltwise <- function(tokens, i, src) {
@@ -293,23 +324,32 @@ parse_query <- function(query_string) {
         ), call. = FALSE)
     }
     nxt <- tokens[[i + 1L]]
-    params <- list()
-    j <- i + 2L
-    while (j + 1L <= length(tokens) && tokens[[j]]$type == "value") {
-        k <- tokens[[j]]$value
-        # Optional ':' between key and value; accept both "key: value" and "key value"
-        val_idx <- if (j + 1L <= length(tokens) &&
-            tokens[[j + 1L]]$type == "operator" &&
-            tokens[[j + 1L]]$value == ":") {
-            j + 2L
-        } else {
-            j + 1L
-        }
-        if (val_idx > length(tokens) || tokens[[val_idx]]$type != "value") break
-        params[[k]] <- tokens[[val_idx]]$value
-        j <- val_idx + 1L
+    op_name <- nxt$value
+    # The `%` operator in dafr query strings accepts either an eltwise
+    # builtin OR a reduction builtin: builder fragments like `Sum()`
+    # produce `% Sum` even though Sum is a reduction (it gets rewrapped
+    # by ReduceToColumn/Row/Scalar later). Validate the name against
+    # both registries; param validation uses whichever entry exists.
+    fn <- .ops_env$eltwise[[op_name]]
+    if (is.null(fn)) fn <- .ops_env$reductions[[op_name]]
+    if (is.null(fn)) {
+        stop(sprintf("unknown eltwise operation: %s", sQuote(op_name)),
+            call. = FALSE
+        )
     }
-    list(node = .qop_eltwise(nxt$value, params = params), next_index = j)
+    pp <- .parse_op_params(tokens, i + 2L, op_name, "eltwise")
+    valid <- .op_valid_params(fn)
+    bad <- setdiff(names(pp$params), valid)
+    if (length(bad) > 0L) {
+        stop(sprintf(
+            "the parameter %s does not exist for the eltwise operation: %s",
+            sQuote(bad[[1L]]), sQuote(op_name)
+        ), call. = FALSE)
+    }
+    list(
+        node = .qop_eltwise(op_name, params = pp$params),
+        next_index = pp$next_index
+    )
 }
 
 .parse_if_missing <- function(tokens, i, src) {

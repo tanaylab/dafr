@@ -286,10 +286,52 @@ NULL
     state
 }
 
+# Recognise Julia-style named constants in IfMissing defaults. Returns
+# NULL if `value` is not a recognised constant, otherwise the resolved R
+# value (with implicit type — Float64 for pi/e, Bool for true/false).
+.resolve_if_missing_constant <- function(value) {
+    if (!is.character(value) || length(value) != 1L) return(NULL)
+    switch(value,
+        pi    = pi,
+        e     = exp(1),
+        true  = TRUE,
+        false = FALSE,
+        NULL
+    )
+}
+
+# Strict integer coercion: reject strings that aren't a valid integer
+# literal (Julia parity — `|| 1.0 Int32` errors on parse-vs-coerce
+# mismatch even though `parse_query` accepts the string).
+.strict_int_coerce <- function(value, type) {
+    s <- as.character(value)
+    if (!grepl("^-?[0-9]+$", s)) {
+        stop(sprintf(
+            "invalid value: %s value must be: a valid %s for the parameter: value for the operation: ||",
+            sQuote(s), type
+        ), call. = FALSE)
+    }
+    if (type %in% c("Int64", "UInt64")) bit64::as.integer64(s) else as.integer(s)
+}
+
 # Coerce an IfMissing default to the requested Julia-style dtype, or leave
-# it as the parser-emitted character if no type was given.
+# it as the parser-emitted character if no type was given. Recognises
+# named constants (pi, e, true, false) and numeric literals (e.g. "0",
+# "1.5") when no explicit type is given (Julia parity — values are
+# typed at parse time based on their literal form).
 .coerce_if_missing_default <- function(value, type) {
-    if (is.null(type)) return(value)
+    if (is.null(type)) {
+        const <- .resolve_if_missing_constant(value)
+        if (!is.null(const)) return(const)
+        if (is.character(value) && length(value) == 1L) {
+            if (grepl("^-?[0-9]+$", value)) return(as.integer(value))
+            if (grepl("^-?[0-9]+\\.[0-9]*([eE][+-]?[0-9]+)?$", value) ||
+                grepl("^-?[0-9]+[eE][+-]?[0-9]+$", value)) {
+                return(as.double(value))
+            }
+        }
+        return(value)
+    }
     switch(type,
         String  = as.character(value),
         Bool    = {
@@ -299,8 +341,8 @@ NULL
             else as.logical(value)
         },
         Int8 = , Int16 = , Int32 = ,
-        UInt8 = , UInt16 = , UInt32 = as.integer(value),
-        Int64 = , UInt64 = bit64::as.integer64(value),
+        UInt8 = , UInt16 = , UInt32 = ,
+        Int64 = , UInt64 = .strict_int_coerce(value, type),
         Float32 = , Float64 = as.double(value),
         stop(sprintf(
             "IfMissing: unknown type %s (expected one of Bool, Int8/16/32/64, UInt8/16/32/64, Float32/64, String)",
@@ -434,7 +476,9 @@ NULL
             stop("'::' on a matrix requires a matrix property name",
                 call. = FALSE)
         }
-        target_axis <- state$matrix_property
+        # Honour an explicit `=@ axis_name` from a prior AsAxis node, falling
+        # back to the matrix property name iff it matches an axis.
+        target_axis <- state$matrix_chain_target_axis %||% state$matrix_property
         if (is.null(target_axis) || !format_has_axis(daf, target_axis)) {
             stop("matrix-of-axis-entries chain requires the prior matrix property name to match an axis",
                 call. = FALSE)
@@ -581,6 +625,20 @@ NULL
         state$count_as_axis <- node$axis_name %||% TRUE
         return(state)
     }
+    if (identical(state$kind, "matrix")) {
+        # `:: tig =@ tag : color` — name the axis whose entries the matrix
+        # values live on, so a subsequent `:` or `::` can chain through it.
+        target_axis <- node$axis_name
+        if (is.null(target_axis)) {
+            target_axis <- state$matrix_property
+        }
+        if (is.null(target_axis) || !format_has_axis(daf, target_axis)) {
+            stop("'=@' on a matrix requires the matrix property to name an axis or an explicit axis name",
+                call. = FALSE)
+        }
+        state$matrix_chain_target_axis <- target_axis
+        return(state)
+    }
     if (!identical(state$kind, "vector")) {
         stop("'=@' requires a vector in scope", call. = FALSE)
     }
@@ -620,6 +678,51 @@ NULL
     final_mask <- state$pending_final_mask
     if (is.null(final_mask)) {
         final_mask <- rep(FALSE, length(pivot_values))
+    }
+
+    # Honour an IfMissing default if the chain's terminal vector is missing
+    # (Julia parity — `: type ?? 0 : phase || 1` returns 1 for entries
+    # whose type lookup hits a missing `phase` vector).
+    if (!format_has_vector(daf, target_axis, node$name)) {
+        if (!is.null(state$if_missing)) {
+            default <- .coerce_if_missing_default(
+                state$if_missing, state$if_missing_type
+            )
+            target_entries <- format_axis_array(daf, target_axis)$value
+            indices <- match(pivot_values, target_entries)
+            empty_mask <- is.na(indices) |
+                (is.character(pivot_values) & !nzchar(pivot_values))
+            out <- rep(default, length(pivot_values))
+            base_entries <- if (!is.null(names(pivot_values))) {
+                names(pivot_values)
+            } else {
+                format_axis_array(daf, base_axis)$value
+            }
+            if (isTRUE(state$if_not_present)) {
+                sentinel <- state$if_not_value
+                new_empty <- empty_mask & !final_mask
+                if (is.null(sentinel)) {
+                    keep <- !new_empty
+                    out <- out[keep]
+                    base_entries <- base_entries[keep]
+                    final_mask <- final_mask[keep]
+                } else {
+                    sentinel_typed <- tryCatch(
+                        methods::as(sentinel, class(default)[[1L]]),
+                        error = function(e) sentinel
+                    )
+                    out[new_empty] <- sentinel_typed
+                    final_mask[new_empty] <- TRUE
+                }
+            }
+            names(out) <- base_entries
+            return(list(
+                kind = "vector", value = out, axis = base_axis,
+                property = node$name,
+                pending_final_mask = final_mask
+            ))
+        }
+        .require_vector(daf, target_axis, node$name)
     }
 
     lookup_vec <- format_get_vector(daf, target_axis, node$name)$value
@@ -1064,6 +1167,14 @@ NULL
     if (!identical(state$kind, "mask")) {
         stop("logical mask combinator outside of mask", call. = FALSE)
     }
+    # Finalise any deferred outer negation BEFORE combining: `!` only
+    # propagates over a trailing comparator, not over a logical combinator
+    # (Julia parity — `[ ! is_low & is_even ]` = `(!is_low) & is_even`,
+    # not `!(is_low & is_even)`).
+    if (isTRUE(state$pending_mask_negated)) {
+        state$pending_mask <- !state$pending_mask
+        state$pending_mask_negated <- FALSE
+    }
     negated <- grepl("NegatedMask$", node$op)
     op <- if (startsWith(node$op, "And")) "And"
           else if (startsWith(node$op, "Or")) "Or"
@@ -1153,6 +1264,7 @@ NULL
         # `: vec > x` etc. - element-wise comparator over a vector returns a
         # bool vector along the same axis. (Julia compare_vector phrase.)
         vec <- state$value
+        .validate_comparator(node, vec, "vector")
         test <- switch(node$op,
             IsLess         = vec <  .coerce_cmp(node$value, vec),
             IsLessEqual    = vec <= .coerce_cmp(node$value, vec),
@@ -1190,6 +1302,7 @@ NULL
         # `:: m > x` etc. - element-wise comparator over a matrix returns a
         # bool matrix along the same two axes. (Julia compare_matrix phrase.)
         m <- state$value
+        .validate_comparator(node, m, "matrix")
         rhs <- .coerce_cmp(node$value, m)
         test <- switch(node$op,
             IsLess         = m <  rhs,
@@ -1233,6 +1346,7 @@ NULL
         stop("comparator outside of mask", call. = FALSE)
     }
     vec <- state$pending_vec
+    .validate_comparator(node, vec, "vector")
     test <- switch(node$op,
         IsLess         = vec < .coerce_cmp(node$value, vec),
         IsLessEqual    = vec <= .coerce_cmp(node$value, vec),
@@ -1268,6 +1382,62 @@ NULL
     } else {
         as.character(value_string)
     }
+}
+
+# Validate a comparator's RHS against the in-scope value's element type
+# (Julia parity — queries.jl > {vector,matrix} > compare > {!string,!regex,
+# !number}). `kind` ("vector"/"matrix") is used in the error message.
+# Called from every comparator-applying path before invoking grepl/`<`/etc.
+.validate_comparator <- function(node, value, kind) {
+    op <- node$op
+    if (op %in% c("IsMatch", "IsNotMatch")) {
+        if (!is.character(value) && !is.factor(value)) {
+            stop(sprintf(
+                "unsupported %s element type: %s for the comparison operation: %s",
+                kind, .julia_type_name(value), op
+            ), call. = FALSE)
+        }
+        # PCRE compile failures surface as warnings from grepl(); promote them.
+        compiled <- tryCatch(
+            withCallingHandlers(
+                {
+                    grepl(node$pattern, "x", perl = TRUE)
+                    TRUE
+                },
+                warning = function(w) stop(conditionMessage(w))
+            ),
+            error = function(e) FALSE
+        )
+        if (!isTRUE(compiled)) {
+            stop(sprintf(
+                "invalid regular expression: %s for the comparison operation: %s",
+                node$pattern, op
+            ), call. = FALSE)
+        }
+    } else if (op %in% c("IsLess", "IsLessEqual", "IsEqual", "IsNotEqual",
+                          "IsGreater", "IsGreaterEqual")) {
+        if (is.numeric(value) || is.logical(value)) {
+            n <- suppressWarnings(as.numeric(node$value))
+            if (is.na(n) && !is.na(node$value) && nzchar(node$value)) {
+                stop(sprintf(
+                    "error parsing number comparison value: %s for comparison with a %s of type: %s",
+                    node$value, kind, .julia_type_name(value)
+                ), call. = FALSE)
+            }
+        }
+    }
+    invisible(NULL)
+}
+
+# Best-effort Julia-style typename for error messages.
+.julia_type_name <- function(x) {
+    if (is.factor(x)) return("String")
+    if (is.character(x)) return("String")
+    if (is.logical(x)) return("Bool")
+    if (is.integer(x)) return("Int32")
+    if (inherits(x, "integer64")) return("Int64")
+    if (is.double(x)) return("Float64")
+    typeof(x)
 }
 
 # Entry-pick from a vector: `@ axis = entry` after `: vector-property`.
@@ -1652,6 +1822,11 @@ NULL
             call. = FALSE
         )
     }
+    # Empty matrix axis along the reduction direction: cannot compute per-row
+    # (>|) or per-col (>-) values. Either fill with the IfMissing default or
+    # raise (Julia parity — queries.jl > matrix > reduction > empty/!empty).
+    empty_result <- .matrix_reduction_empty(node, state, daf)
+    if (!is.null(empty_result)) return(empty_result)
     fn <- get_reduction(node$reduction)
     params <- .coerce_params(node$params)
 
@@ -1670,10 +1845,61 @@ NULL
 # For a matrix we materialise the data as a dense flat vector so that
 # reductions whose result is non-associative (Var, Mode, Median, Quantile, ...)
 # produce the same answer as in Julia.
+# For >| / >-: detect empty input and either honour an IfMissing default
+# (returning a vector filled with the default along the OTHER axis) or
+# raise the Julia parity error. Returns NULL if not applicable so the
+# caller can proceed with the regular reduction path.
+#
+# >| (ReduceToColumn): collapses cols -> per-row vector indexed by rows.
+# >- (ReduceToRow):    collapses rows -> per-col vector indexed by cols.
+.matrix_reduction_empty <- function(node, state, daf) {
+    m <- state$value
+    if (identical(node$op, "ReduceToColumn")) {
+        target_axis <- state$rows_axis
+        out_names <- rownames(m)
+        out_n <- nrow(m)
+        reduce_n <- ncol(m)
+    } else if (identical(node$op, "ReduceToRow")) {
+        target_axis <- state$cols_axis
+        out_names <- colnames(m)
+        out_n <- ncol(m)
+        reduce_n <- nrow(m)
+    } else {
+        return(NULL)
+    }
+    # Only the empty-input cases are special; non-empty falls through.
+    if (out_n > 0L && reduce_n > 0L) return(NULL)
+    if (is.null(out_names)) {
+        out_names <- format_axis_array(daf, target_axis)$value
+    }
+    # Output axis itself is empty: empty result, no default needed.
+    if (out_n == 0L) {
+        return(list(
+            kind = "vector", axis = target_axis,
+            value = stats::setNames(numeric(0L), character(0L))
+        ))
+    }
+    # Reduction-axis empty: need a default (Julia parity).
+    if (!is.null(state$if_missing)) {
+        default <- .coerce_if_missing_default(
+            state$if_missing, state$if_missing_type
+        )
+        return(list(
+            kind = "vector", axis = target_axis,
+            value = stats::setNames(rep(default, out_n), out_names)
+        ))
+    }
+    stop(
+        "no IfMissing value specified for reducing an empty matrix",
+        call. = FALSE
+    )
+}
+
 .apply_reduction_to_scalar <- function(node, state, daf) {
     fn <- get_reduction(node$reduction)
     params <- .coerce_params(node$params)
-    v <- switch(state$kind,
+    src_kind <- state$kind
+    v <- switch(src_kind,
         vector = state$value,
         matrix = {
             m <- state$value
@@ -1685,9 +1911,23 @@ NULL
         },
         stop(sprintf(
             "'>>' requires a vector or matrix in scope (got %s)",
-            state$kind
+            src_kind
         ), call. = FALSE)
     )
+    if (length(v) == 0L) {
+        if (!is.null(state$if_missing)) {
+            return(list(
+                kind = "scalar",
+                value = .coerce_if_missing_default(
+                    state$if_missing, state$if_missing_type
+                )
+            ))
+        }
+        stop(sprintf(
+            "no IfMissing value specified for reducing an empty %s",
+            src_kind
+        ), call. = FALSE)
+    }
     out <- do.call(fn, c(list(v), params))
     if (length(out) == 1L) names(out) <- NULL
     list(kind = "scalar", value = out)
@@ -2101,9 +2341,19 @@ NULL
 
     # Helper: take a length-ngroups result vector, expand to the full target
     # axis (when grouped_as_axis was set), and substitute the IfMissing
-    # default for any entries that are missing/NA/NaN.
+    # default for any entries that are missing/NA/NaN. If `=@` was used
+    # but some axis entries have no group members AND no default was given,
+    # raise (Julia parity — queries.jl > vector > group > vector > missing).
     finalize_vals <- function(vals, names_seen) {
         if (!is.null(axis_levels)) {
+            unused <- setdiff(axis_levels, names_seen)
+            if (length(unused) > 0L && is.null(state$if_missing)) {
+                stop(sprintf(
+                    "no IfMissing value specified for the unused entry: %s of the axis: %s",
+                    unused[[1L]],
+                    state$grouped_as_axis %||% state$pending_groups_axis
+                ), call. = FALSE)
+            }
             full <- rep(NA, length(axis_levels))
             mode(full) <- mode(vals)
             idx_in_full <- match(names_seen, axis_levels)
@@ -2460,6 +2710,56 @@ NULL
                 m, gi, ngroups, node, fn, params, by, state, daf)
         }
 
+        # If `=@` named (or implied) a real axis, expand the grouped axis to
+        # cover every entry of that axis — filling unseen group slots with
+        # the IfMissing default, or raising if no default. (Julia parity —
+        # queries.jl > matrix > group > {column,row} > as_axis / missing.)
+        as_axis_hint <- if (is_g2) state$grouped_rows_as_axis
+                        else state$grouped_cols_as_axis
+        target_axis <- NULL
+        if (!is.null(as_axis_hint)) {
+            target_axis <- if (is.character(as_axis_hint)) as_axis_hint
+                           else if (is_g2) state$pending_row_groups_property
+                           else state$pending_col_groups_property
+        }
+        if (!is.null(target_axis) && format_has_axis(daf, target_axis)) {
+            axis_lvls <- format_axis_array(daf, target_axis)$value
+            unused <- setdiff(axis_lvls, lvls)
+            if (length(unused) > 0L && is.null(state$if_missing)) {
+                stop(sprintf(
+                    "no IfMissing value specified for the unused entry: %s of the axis: %s",
+                    unused[[1L]], target_axis
+                ), call. = FALSE)
+            }
+            default <- if (!is.null(state$if_missing)) {
+                .coerce_if_missing_default(state$if_missing,
+                    state$if_missing_type)
+            } else {
+                NA
+            }
+            full_n <- length(axis_lvls)
+            seen_idx <- match(lvls, axis_lvls)
+            if (is_g2) {
+                # G2: out is ngroups x ncol; expand to full_n x ncol
+                full <- matrix(default, nrow = full_n, ncol = ncol(out))
+                if (is.numeric(out) && !is.numeric(full)) {
+                    storage.mode(full) <- "double"
+                }
+                full[seen_idx, ] <- out
+                out <- full
+                lvls <- axis_lvls
+            } else {
+                # G3: out is nrow x ngroups; expand to nrow x full_n
+                full <- matrix(default, nrow = nrow(out), ncol = full_n)
+                if (is.numeric(out) && !is.numeric(full)) {
+                    storage.mode(full) <- "double"
+                }
+                full[, seen_idx] <- out
+                out <- full
+                lvls <- axis_lvls
+            }
+        }
+
         # Assign dimnames: group axis gets level labels, other axis inherits
         # from m if named, else from the daf axis array.
         if (is_g2) {
@@ -2468,7 +2768,7 @@ NULL
                   else format_axis_array(daf, state$cols_axis)$value
             dimnames(out) <- list(rn, cn)
             return(list(kind = "matrix", value = out,
-                rows_axis = NULL, cols_axis = state$cols_axis))
+                rows_axis = target_axis, cols_axis = state$cols_axis))
         }
         # G3
         rn <- if (!is.null(rownames(m))) rownames(m)
@@ -2476,7 +2776,7 @@ NULL
         cn <- lvls
         dimnames(out) <- list(rn, cn)
         return(list(kind = "matrix", value = out,
-            rows_axis = state$rows_axis, cols_axis = NULL))
+            rows_axis = state$rows_axis, cols_axis = target_axis))
     }
 
     if (is_g4a || is_g4b) {
@@ -2860,6 +3160,7 @@ NULL
     }
     grp <- format_get_vector(daf, state$rows_axis, node$property)$value
     state$pending_row_groups <- grp
+    state$pending_row_groups_property <- node$property
     state$kind <- "grouped_matrix_rows"
     state
 }
@@ -2877,6 +3178,7 @@ NULL
     }
     grp <- format_get_vector(daf, state$cols_axis, node$property)$value
     state$pending_col_groups <- grp
+    state$pending_col_groups_property <- node$property
     state$kind <- "grouped_matrix_cols"
     state
 }
@@ -3020,8 +3322,32 @@ NULL
 .finalize_pending_count <- function(state, daf) {
     a <- state$a_per_cell
     b <- state$b_per_cell
-    t <- table(a, b)
+    # If `=@` was applied to the count's b-side AND b_pivot_axis names a real
+    # axis, expand the cross-tab to include every axis entry — even those
+    # with zero co-occurrences. (Julia parity — queries.jl > matrix > count
+    # > vector returns the full axis-by-axis-with-zeros matrix.)
+    b_lvls <- NULL
+    if (isTRUE(state$count_as_axis) || is.character(state$count_as_axis)) {
+        ax <- state$b_pivot_axis
+        if (!is.null(ax) && format_has_axis(daf, ax)) {
+            b_lvls <- format_axis_array(daf, ax)$value
+        }
+    }
+    if (!is.null(b_lvls)) {
+        b_factor <- factor(b, levels = b_lvls)
+        a_factor <- factor(a, levels = sort(unique(a)))
+        t <- table(a_factor, b_factor)
+    } else {
+        t <- table(a, b)
+    }
     m <- as.matrix(t)
+    dimnames(m) <- unname(dimnames(m))
+    rownames(m) <- if (!is.null(t)) levels(if (!is.null(b_lvls)) factor(a, levels = sort(unique(a))) else factor(a)) else NULL
+    if (!is.null(b_lvls)) {
+        colnames(m) <- b_lvls
+    } else {
+        colnames(m) <- levels(factor(b))
+    }
     list(
         kind = "matrix",
         value = m,

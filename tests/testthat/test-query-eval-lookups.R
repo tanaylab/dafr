@@ -27,7 +27,11 @@ test_that("get_query with '? @' returns axis names", {
 test_that("get_query errors on missing scalar unless IfMissing", {
     d <- memory_daf(name = "t")
     expect_error(get_query(d, ". missing"), "missing scalar:")
-    expect_equal(get_query(d, ". missing || 0"), "0")
+    # `|| 0` (no type) is interpreted as integer 0 (Julia parity — value
+    # is typed at parse time based on its literal form). Use `|| 0 String`
+    # for the string default.
+    expect_equal(get_query(d, ". missing || 0"), 0L)
+    expect_equal(get_query(d, ". missing || 0 String"), "0")
 })
 
 test_that("get_query returns a vector", {

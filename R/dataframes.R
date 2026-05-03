@@ -73,14 +73,8 @@ get_dataframe <- function(daf, axis, columns = NULL, cache = TRUE) {
     stopifnot("`daf` must be a DafReader" = is_daf(daf))
     df <- .get_dataframe_from_query(daf, sprintf("@ %s", axis), cache = cache)
     if (!is.null(columns)) {
-        missing_cols <- setdiff(columns, colnames(df))
-        if (length(missing_cols)) {
-            stop(sprintf("columns not on axis %s: %s",
-                sQuote(axis),
-                paste(sQuote(missing_cols), collapse = ", ")
-            ), call. = FALSE)
-        }
-        df <- df[, columns, drop = FALSE]
+        df <- .apply_dataframe_columns(daf, df, axis_query = sprintf("@ %s", axis),
+            columns = columns, error_label = sprintf("axis %s", sQuote(axis)))
     }
     df
 }
@@ -107,15 +101,97 @@ get_dataframe_query <- function(daf, query, columns = NULL, cache = TRUE) {
     stopifnot("`daf` must be a DafReader" = is_daf(daf))
     df <- .get_dataframe_from_query(daf, query, cache = cache)
     if (!is.null(columns)) {
-        missing_cols <- setdiff(columns, colnames(df))
-        if (length(missing_cols)) {
-            stop(sprintf("columns not on query result: %s",
-                paste(sQuote(missing_cols), collapse = ", ")),
-                 call. = FALSE)
-        }
-        df <- df[, columns, drop = FALSE]
+        df <- .apply_dataframe_columns(daf, df, axis_query = query,
+            columns = columns, error_label = "query result")
     }
     df
+}
+
+# Apply a column selector to a per-axis data.frame. The selector is
+# either a plain character vector of vector names (existing axis vectors)
+# or a named character vector where names are output column names and
+# values are query strings to evaluate against `daf` (Julia parity —
+# `get_frame(daf, axis, ["mean_age" => "@ cell : age / metacell >> Mean"])`).
+# The query must resolve to a vector on the same axis as the row labels.
+.apply_dataframe_columns <- function(daf, df, axis_query, columns,
+                                     error_label) {
+    if (is.list(columns) && !is.null(names(columns))) {
+        columns <- vapply(columns, as.character, character(1))
+    }
+    has_names <- !is.null(names(columns)) && any(nzchar(names(columns)))
+    if (!has_names) {
+        # Plain vector-name selection: behave like df[, columns].
+        missing_cols <- setdiff(columns, colnames(df))
+        if (length(missing_cols)) {
+            stop(sprintf("columns not on %s: %s",
+                error_label,
+                paste(sQuote(missing_cols), collapse = ", ")
+            ), call. = FALSE)
+        }
+        return(df[, columns, drop = FALSE])
+    }
+    # Mixed/named: each entry is `out_col -> query string`.
+    # The row order must match df's existing rows (which are the axis
+    # entries surviving any mask in the axis_query).
+    row_names <- rownames(df)
+    # Resolve the axis name from axis_query (e.g. "@ cell [ ... ]" -> "cell")
+    # so that bare-`:`/`::` column queries can be auto-prefixed.
+    axis_ast <- parse_query(axis_query)
+    axis_name <- NULL
+    for (n in axis_ast) {
+        if (identical(n$op, "Axis")) {
+            axis_name <- n$axis_name
+            break
+        }
+    }
+    out_cols <- vector("list", length(columns))
+    names(out_cols) <- ifelse(nzchar(names(columns)), names(columns),
+        unname(columns))
+    for (i in seq_along(columns)) {
+        q <- unname(columns[[i]])
+        # Auto-prefix the axis when the column query is a bare lookup
+        # (`: vec`, `:: m`, `. scalar`); Julia parity — column queries
+        # without an explicit `@ axis` inherit the frame's axis context.
+        eff_q <- q
+        first_char <- substr(trimws(q), 1L, 1L)
+        if (!is.null(axis_name) &&
+            !grepl("^@", trimws(q)) &&
+            first_char %in% c(":", ".")) {
+            eff_q <- sprintf("@ %s %s", axis_name, q)
+        }
+        result <- tryCatch(get_query(daf, eff_q),
+            error = function(e) {
+                stop(sprintf("invalid column query: %s for the %s",
+                    q, error_label), call. = FALSE)
+            })
+        if (!is.atomic(result) || !is.null(dim(result))) {
+            stop(sprintf("invalid column query: %s for the %s",
+                q, error_label), call. = FALSE)
+        }
+        nm <- names(result)
+        if (is.null(nm)) {
+            if (length(result) != length(row_names)) {
+                stop(sprintf("invalid column query: %s for the %s",
+                    q, error_label), call. = FALSE)
+            }
+            out_cols[[i]] <- result
+        } else {
+            extra <- setdiff(nm, row_names)
+            if (length(extra) > 0L) {
+                stop(sprintf("invalid column query: %s for the %s",
+                    q, error_label), call. = FALSE)
+            }
+            idx <- match(row_names, nm)
+            if (anyNA(idx)) {
+                stop(sprintf("invalid column query: %s for the %s",
+                    q, error_label), call. = FALSE)
+            }
+            out_cols[[i]] <- result[idx]
+        }
+    }
+    out_df <- as.data.frame(out_cols, row.names = row_names,
+        stringsAsFactors = FALSE, optional = TRUE)
+    out_df
 }
 
 #' Pivot axis vectors into a tidy long-format tibble.

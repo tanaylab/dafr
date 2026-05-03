@@ -89,6 +89,7 @@ NULL
 get_query <- function(daf, query_string) {
     parts <- .get_query_dispatch(query_string)
     ast <- parts$ast
+    .validate_query_ast(ast, parts$canonical)
     canon <- parts$canonical
     key <- cache_key_query(canon)
     touched <- .collect_query_versions(daf, ast)
@@ -103,6 +104,30 @@ get_query <- function(daf, query_string) {
         size_bytes = as.numeric(object.size(value))
     )
     value
+}
+
+# Structural sanity checks on a parsed AST. Catches malformed queries that
+# the per-token parser accepts but cannot evaluate, matching Julia's
+# behaviour for queries.jl > "queries > invalid > partial" and
+# "queries > names > unexpected".
+.validate_query_ast <- function(ast, canonical) {
+    if (length(ast) == 0L) return(invisible(NULL))
+    ops <- vapply(ast, `[[`, "", "op")
+
+    # `? ?` (two consecutive Names ops) is invalid: Names is terminal.
+    if (sum(ops == "Names") > 1L) {
+        stop(sprintf("invalid query: %s", canonical), call. = FALSE)
+    }
+
+    # An AST that consists solely of 2+ Axis pushes is "partial" — there is
+    # no terminal that could turn the pushed axes into a result. Examples:
+    # `@ cell @ gene`, `@ cell @ gene @ batch`. Axes inside masks, grouping,
+    # or reductions are legitimate scope markers and are not flagged here.
+    if (length(ast) >= 2L && all(ops == "Axis")) {
+        stop(sprintf("invalid query: %s", canonical), call. = FALSE)
+    }
+
+    invisible(NULL)
 }
 
 # Resolve either a character scalar or DafrQuery into (ast, canonical).

@@ -134,6 +134,18 @@ registered_reductions <- function() sort(names(.ops_env$reductions))
 #' @export
 registered_eltwise <- function() sort(names(.ops_env$eltwise))
 
+# Internal: valid named parameters accepted by an operation's query-DSL form.
+# Derived from the function's formal arguments minus the input slot `x` and
+# the variadic `...`. The `type` pseudo-parameter is universally accepted —
+# it controls output-type conversion at the query layer (see Julia
+# DataAxesFormats.jl operations.jl: every reduction/eltwise treats `type`
+# the same way).
+.op_valid_params <- function(fn) {
+    formal_names <- names(formals(fn))
+    params <- setdiff(formal_names, c("x", "..."))
+    union(params, "type")
+}
+
 .op_sum <- function(x, ..., na_rm = FALSE) sum(x, na.rm = na_rm)
 .op_mean <- function(x, ..., na_rm = FALSE) mean(x, na.rm = na_rm)
 .op_max <- function(x, ..., na_rm = FALSE) max(x, na.rm = na_rm)
