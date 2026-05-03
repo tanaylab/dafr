@@ -71,6 +71,22 @@ test_that("G1 Mode on character vector returns character output", {
     expect_equal(names(out), c("a", "b"))
 })
 
+test_that("G1 Mode on factor vector returns character output (Julia parity)", {
+    # An h5ad-loaded categorical surfaces as a factor; Julia treats it
+    # as Vector{String} at the storage boundary, so Mode should pick the
+    # most-common label, not the most-common code.
+    d <- memory_daf(name = "t")
+    add_axis(d, "ax", paste0("e", 1:6))
+    set_vector(d, "ax", "color",
+               factor(c("red", "red", "blue", "blue", "red", "blue"),
+                      levels = c("blue", "red")))
+    set_vector(d, "ax", "g", c("a", "a", "b", "b", "a", "b"))
+    out <- get_query(d, "@ ax : color / g >| Mode")
+    expect_type(out, "character")
+    expect_equal(unname(out), c("red", "blue"))
+    expect_equal(names(out), c("a", "b"))
+})
+
 test_that("G1 fallback preserves integer output from custom reduction", {
     register_reduction("Slice10Len",
         function(v, ...) length(v), overwrite = TRUE)

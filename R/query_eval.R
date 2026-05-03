@@ -2409,8 +2409,13 @@ NULL
     }
 
     # Mode-on-character dedicated R helper (no C kernel; char Mode is rare).
-    if (!is.na(label) && label == "Mode" && is.character(x)) {
-        vals <- .grouped_mode_character(x, gi, ngroups)
+    # A factor flows through the same path: Julia DAF.jl normalizes
+    # CategoricalVector -> Vector{String} at the storage boundary
+    # (anndata_format.jl:403), so the parity behaviour is "treat factor
+    # as character".
+    if (!is.na(label) && label == "Mode" && (is.character(x) || is.factor(x))) {
+        vals <- .grouped_mode_character(
+            if (is.factor(x)) as.character(x) else x, gi, ngroups)
         fin <- finalize_vals(vals, lvls)
         return(list(kind = "vector", axis = NULL,
             value = stats::setNames(fin$value, fin$names)))

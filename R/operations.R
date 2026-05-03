@@ -388,8 +388,13 @@ registered_eltwise <- function() sort(names(.ops_env$eltwise))
 }
 
 .op_mode <- function(x, ...) {
-    if (!is.numeric(x) && !is.logical(x)) {
-        stop("Mode: only numeric and logical input are supported; got ",
+    # Julia's Mode supports strings explicitly (operations.jl:1058-1066,
+    # `supports_strings(::Mode) = true`). Mirror that, normalizing factor
+    # to character at the boundary as Julia does for CategoricalVector
+    # (anndata_format.jl:403).
+    if (is.factor(x)) x <- as.character(x)
+    if (!is.numeric(x) && !is.logical(x) && !is.character(x)) {
+        stop("Mode: only numeric, logical, and character input are supported; got ",
             sQuote(typeof(x)), call. = FALSE
         )
     }
