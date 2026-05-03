@@ -273,3 +273,116 @@ test_that("empty_cache(http_daf) is safe with prior reads still held", {
     v_after <- get_vector(daf, "cell", "score")
     expect_equal(v_after, v_before)
 })
+
+# ---- A3: HttpStore cross-language smoke ------------------------------------
+# Verify that a Python consumer can read a dafr-published .daf.zarr served
+# over HTTP. Uses zarr-python via fsspec/aiohttp when available; falls back
+# to a urllib-only smoke that fetches `.zmetadata` and a vector chunk and
+# parses them with numpy. Both paths skip cleanly when prerequisites are
+# missing (CRAN, no Python, no zarr/fsspec, etc.).
+
+.populate_served_zarr <- function(parent_dir) {
+    zarr_path <- file.path(parent_dir, "served.daf.zarr")
+    d <- zarr_daf(zarr_path, "w+", name = "served-zarr!")
+    add_axis(d, "cell", c("c1", "c2", "c3"))
+    add_axis(d, "gene", c("g1", "g2"))
+    set_scalar(d, "name", "served-zarr!")
+    set_scalar(d, "organism", "human")
+    set_vector(d, "cell", "score", c(1.5, 2.5, 3.5))
+    set_matrix(d, "cell", "gene", "dense",
+               matrix(c(10, 20, 30, 40, 50, 60), nrow = 3))
+    rm(d); gc()
+    zarr_path
+}
+
+test_that("dafr-published .daf.zarr served over HTTP is readable from numpy via urllib", {
+    skip_if_no_http_harness()
+    skip_if_not(nzchar(Sys.which("python3")) || nzchar(Sys.which("python")))
+    py <- if (nzchar(Sys.which("python3"))) "python3" else "python"
+    # numpy is the only Python dep for the urllib path.
+    rc <- suppressWarnings(system2(
+        py, c("-c", shQuote("import numpy, json, urllib.request")),
+        stdout = FALSE, stderr = FALSE
+    ))
+    if (!identical(rc, 0L)) testthat::skip("numpy/urllib unavailable")
+
+    root <- withr::local_tempdir("daf-http-zarr-smoke-")
+    .populate_served_zarr(root)
+    h <- start_http_server(root)
+    on.exit(stop_http_server(h), add = TRUE)
+
+    base_url <- paste0(h$url, "/served.daf.zarr")
+    script <- paste0(
+        "import json, sys, urllib.request, numpy as np\n",
+        "base = ", shQuote(base_url), "\n",
+        "def fetch(rel):\n",
+        "    with urllib.request.urlopen(base + '/' + rel) as r:\n",
+        "        return r.read()\n",
+        # Consolidated metadata is the discoverability anchor — without it
+        # foreign consumers can't enumerate the tree over HTTP.
+        "zmeta = json.loads(fetch('.zmetadata'))\n",
+        "keys = sorted(zmeta['metadata'].keys())\n",
+        "print('SCALARS_NAME_PRESENT=' + str(any(k.startswith('scalars/name') for k in keys)), flush=True)\n",
+        # Pull the score vector's chunk and decode.
+        "score_meta = zmeta['metadata']['vectors/cell/score/.zarray']\n",
+        "print('SCORE_DTYPE=' + score_meta['dtype'], flush=True)\n",
+        "print('SCORE_SHAPE=' + str(score_meta['shape']), flush=True)\n",
+        "buf = fetch('vectors/cell/score/0')\n",
+        "score = np.frombuffer(buf, dtype=score_meta['dtype'])\n",
+        "print('SCORE=' + ','.join(f'{v}' for v in score), flush=True)\n"
+    )
+    out <- system2(py, c("-c", shQuote(script)), stdout = TRUE, stderr = TRUE)
+    rc <- attr(out, "status")
+    text <- paste(out, collapse = "\n")
+    if (!is.null(rc) && rc != 0L) {
+        testthat::fail(paste0("python smoke failed: ", text))
+    }
+    expect_match(text, "SCORE_DTYPE=<f8", fixed = TRUE)
+    expect_match(text, "SCORE_SHAPE=[3]", fixed = TRUE)
+    expect_match(text, "SCORE=1.5,2.5,3.5", fixed = TRUE)
+    # `.zmetadata` should expose every group dafr writes.
+    expect_match(text, "SCALARS_NAME_PRESENT=True", fixed = TRUE)
+})
+
+test_that("dafr-published .daf.zarr served over HTTP opens via zarr.open + fsspec", {
+    skip_if_no_http_harness()
+    py <- if (nzchar(Sys.which("python3"))) "python3" else if (nzchar(Sys.which("python"))) "python" else NA_character_
+    if (is.na(py)) testthat::skip("python not available")
+    # Probe for fsspec + aiohttp + zarr together. Many setups have zarr
+    # without HTTP-capable fsspec, so this skips more often than the urllib
+    # path above.
+    probe <- "import zarr, fsspec, aiohttp; print('OK')"
+    out <- suppressWarnings(system2(
+        py, c("-c", shQuote(probe)),
+        stdout = TRUE, stderr = TRUE
+    ))
+    if (!identical(attr(out, "status"), 0L) || !any(grepl("^OK$", out))) {
+        testthat::skip("python zarr+fsspec+aiohttp not available")
+    }
+
+    root <- withr::local_tempdir("daf-http-zarr-fsspec-")
+    .populate_served_zarr(root)
+    h <- start_http_server(root)
+    on.exit(stop_http_server(h), add = TRUE)
+
+    base_url <- paste0(h$url, "/served.daf.zarr")
+    script <- paste0(
+        "import zarr, sys\n",
+        "g = zarr.open(", shQuote(base_url), ", mode='r')\n",
+        "score = g['vectors/cell/score'][...]\n",
+        "cell = g['axes/cell'][...]\n",
+        "print('CELL=' + ','.join(map(str, cell)), flush=True)\n",
+        "print('SCORE=' + ','.join(f'{v}' for v in score), flush=True)\n"
+    )
+    out <- system2(py, c("-c", shQuote(script)), stdout = TRUE, stderr = TRUE)
+    rc <- attr(out, "status")
+    text <- paste(out, collapse = "\n")
+    if (!is.null(rc) && rc != 0L) {
+        # zarr-python releases vary in their HTTP support; some choke on
+        # the v2 layout dafr writes. Skip rather than fail so this stays a
+        # smoke, not a gate.
+        testthat::skip(paste0("zarr.open over HTTP failed: ", text))
+    }
+    expect_match(text, "CELL=c1,c2,c3", fixed = TRUE)
+    expect_match(text, "SCORE=1.5,2.5,3.5", fixed = TRUE)
+})
