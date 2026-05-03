@@ -44,6 +44,14 @@ NULL
         state <- .apply_node(node, state, daf)
         i <- i + 1L
     }
+    # Julia parity: a partial / unconsumed query (e.g. `@ cell @ gene` with no
+    # lookup, or just `.`) leaves state in a non-terminal kind. Reject rather
+    # than returning NULL, mirroring DAF.jl's `invalid query: ...` error.
+    if (!state$kind %in% c("scalar", "vector", "matrix", "names", "axis")) {
+        stop(sprintf("invalid query: %s", .canonicalise_ast(ast)),
+            call. = FALSE
+        )
+    }
     state$value
 }
 
@@ -274,7 +282,13 @@ NULL
             value = format_matrices_set(daf, state$rows_axis, state$cols_axis)
         ))
     }
-    list(kind = "names", value = format_axes_set(daf))
+    if (identical(state$kind, "init")) {
+        return(list(kind = "names", value = format_axes_set(daf)))
+    }
+    # Julia parity: a `?` after an already-resolved query (e.g. `? ?` after the
+    # first `?` has produced names) is invalid. Reject rather than silently
+    # re-listing axes.
+    stop(sprintf("'?' is not valid after %s", state$kind), call. = FALSE)
 }
 
 .apply_if_missing <- function(node, state, daf) state # consumed via lookahead
@@ -689,8 +703,9 @@ NULL
     )
 }
 .apply_eltwise <- function(node, state, daf) {
-    if (!state$kind %in% c("vector", "matrix")) {
-        stop("'%' eltwise requires vector or matrix in scope", call. = FALSE)
+    if (!state$kind %in% c("scalar", "vector", "matrix")) {
+        stop("'%' eltwise requires scalar, vector, or matrix in scope",
+            call. = FALSE)
     }
     fn <- get_eltwise(node$name)
     params <- .coerce_params(node$params)
@@ -759,6 +774,38 @@ NULL
             call. = FALSE
         )
     }
+    # Julia parity: any empty-dimension matrix reduction requires IfMissing.
+    # When the reducing dim is empty, fill the output with the default per cell;
+    # when the indexed dim is empty, return an empty named vector.
+    m <- state$value
+    if (nrow(m) == 0L || ncol(m) == 0L) {
+        if (is.null(state$if_missing)) {
+            stop("no IfMissing value specified for reducing an empty matrix",
+                call. = FALSE
+            )
+        }
+        is_col_op <- identical(node$op, "ReduceToColumn")
+        target_axis <- if (is_col_op) state$rows_axis else state$cols_axis
+        target_len <- if (is_col_op) nrow(m) else ncol(m)
+        if (target_len == 0L) {
+            target_names <- character(0L)
+        } else {
+            target_names <- if (is_col_op) {
+                if (methods::is(m, "Matrix")) m@Dimnames[[1L]] else rownames(m)
+            } else {
+                if (methods::is(m, "Matrix")) m@Dimnames[[2L]] else colnames(m)
+            }
+            if (is.null(target_names)) {
+                target_names <- format_axis_array(daf, target_axis)
+            }
+        }
+        default <- .coerce_if_missing_default(state$if_missing,
+            state$if_missing_type)
+        return(list(
+            kind = "vector", axis = target_axis,
+            value = setNames(rep(default, target_len), target_names)
+        ))
+    }
     fn <- get_reduction(node$reduction)
     params <- .coerce_params(node$params)
 
@@ -780,6 +827,7 @@ NULL
 .apply_reduction_to_scalar <- function(node, state, daf) {
     fn <- get_reduction(node$reduction)
     params <- .coerce_params(node$params)
+    kind_word <- state$kind
     v <- switch(state$kind,
         vector = state$value,
         matrix = {
@@ -795,6 +843,19 @@ NULL
             state$kind
         ), call. = FALSE)
     )
+    if (length(v) == 0L) {
+        if (is.null(state$if_missing)) {
+            stop(sprintf(
+                "no IfMissing value specified for reducing an empty %s",
+                kind_word
+            ), call. = FALSE)
+        }
+        return(list(
+            kind = "scalar",
+            value = .coerce_if_missing_default(state$if_missing,
+                state$if_missing_type)
+        ))
+    }
     out <- do.call(fn, c(list(v), params))
     if (length(out) == 1L) names(out) <- NULL
     list(kind = "scalar", value = out)
