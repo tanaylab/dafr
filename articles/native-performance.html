@@ -20,7 +20,7 @@
 
     <a class="navbar-brand me-2" href="../index.html">dafr</a>
 
-    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">0.1.0</small>
+    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">0.2.0</small>
 
 
     <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbar" aria-controls="navbar" aria-expanded="false" aria-label="Toggle navigation">
@@ -37,6 +37,7 @@
     <li><a class="dropdown-item" href="../articles/dplyr.html">dplyr backend</a></li>
     <li><a class="dropdown-item" href="../articles/anndata.html">AnnData interop</a></li>
     <li><a class="dropdown-item" href="../articles/native-performance.html">Native performance and mmap readers</a></li>
+    <li><a class="dropdown-item" href="../articles/zarr.html">Zarr and HTTP storage</a></li>
     <li><hr class="dropdown-divider"></li>
     <li><h6 class="dropdown-header" data-toc-skip>Reference specs</h6></li>
     <li><a class="dropdown-item" href="../articles/query-dsl-reference.html">Query DSL reference</a></li>
@@ -541,6 +542,43 @@ and <code>benchmarks/julia/</code> (Julia runner). Both runners consume
 the same query catalog and fixture set and emit CSVs with identical
 schemas so the comparison step is a simple join. See
 <code>benchmarks/README.md</code> for the full workflow.</p>
+</div>
+<div class="section level3">
+<h3 id="reorder_axes-in-place-axis-permutation">reorder_axes() — in-place axis permutation<a class="anchor" aria-label="anchor" href="#reorder_axes-in-place-axis-permutation"></a>
+</h3>
+<p><code>reorder_axes(daf, axis = perm, ...)</code> permutes the entries
+of one or more axes in place, rewriting every vector and matrix that
+depends on the axis. It accepts named integer permutations
+(<code>new_entries[i] = old_entries[perm[i]]</code>):</p>
+<div class="sourceCode" id="cb3"><pre class="downlit sourceCode r">
+<code class="sourceCode R"><span><span class="va">d</span> <span class="op">&lt;-</span> <span class="fu"><a href="../reference/memory_daf.html">memory_daf</a></span><span class="op">(</span><span class="st">"demo"</span><span class="op">)</span></span>
+<span><span class="fu"><a href="../reference/add_axis.html">add_axis</a></span><span class="op">(</span><span class="va">d</span>, <span class="st">"cell"</span>, <span class="fu"><a href="https://rdrr.io/r/base/c.html" class="external-link">c</a></span><span class="op">(</span><span class="st">"c1"</span>, <span class="st">"c2"</span>, <span class="st">"c3"</span><span class="op">)</span><span class="op">)</span></span>
+<span><span class="fu"><a href="../reference/set_vector.html">set_vector</a></span><span class="op">(</span><span class="va">d</span>, <span class="st">"cell"</span>, <span class="st">"score"</span>, <span class="fu"><a href="https://rdrr.io/r/base/c.html" class="external-link">c</a></span><span class="op">(</span><span class="fl">10</span>, <span class="fl">20</span>, <span class="fl">30</span><span class="op">)</span><span class="op">)</span></span>
+<span><span class="fu"><a href="../reference/reorder_axes.html">reorder_axes</a></span><span class="op">(</span><span class="va">d</span>, cell <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/c.html" class="external-link">c</a></span><span class="op">(</span><span class="fl">3L</span>, <span class="fl">1L</span>, <span class="fl">2L</span><span class="op">)</span><span class="op">)</span></span>
+<span><span class="fu"><a href="../reference/axis_vector.html">axis_vector</a></span><span class="op">(</span><span class="va">d</span>, <span class="st">"cell"</span><span class="op">)</span>     <span class="co"># c("c3", "c1", "c2")</span></span>
+<span><span class="co">#&gt; [1] "c3" "c1" "c2"</span></span>
+<span><span class="fu"><a href="../reference/get_vector.html">get_vector</a></span><span class="op">(</span><span class="va">d</span>, <span class="st">"cell"</span>, <span class="st">"score"</span><span class="op">)</span>  <span class="co"># 30, 10, 20</span></span>
+<span><span class="co">#&gt; c3 c1 c2 </span></span>
+<span><span class="co">#&gt; 30 10 20</span></span></code></pre></div>
+<p>The cost is bounded by the data: each dependent vector / matrix is
+rewritten exactly once via vectorised R indexing (memory-bound). For a
+1k-cell, 1k-gene store with ~10 dense vectors and 2 dense matrices, a
+full <code>cell</code>-axis reorder runs in tens of milliseconds on a
+single core.</p>
+<p>On <code>files_daf</code>, the operation is
+<strong>crash-recoverable</strong>. Before any in-place writes, the
+original tree is hardlink-snapshotted into
+<code>.reorder.backup/</code>. If the process is killed mid-reorder, the
+next writable open (<code>mode = "r+"</code> or <code>"w+"</code>)
+automatically rolls back from the backup before returning the daf to the
+caller. Manual recovery is also exposed via
+<code>reset_reorder_axes(daf)</code> but is rarely needed.</p>
+<p><code><a href="../reference/reorder_axes.html">reorder_axes()</a></code> only operates on leaf storage formats
+(<code>memory_daf</code>, <code>files_daf</code>, <code>zarr_daf</code>,
+<code>http_daf</code> — though HTTP is read-only). Wrappers
+(<code>chain_reader</code>, <code>chain_writer</code>,
+<code>view</code>, <code>contractor</code>) are rejected up front;
+reorder them via the underlying writer instead.</p>
 </div>
 </div>
   </main><aside class="col-md-3"><nav id="toc" aria-label="Table of contents"><h2>On this page</h2>

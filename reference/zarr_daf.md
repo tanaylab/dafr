@@ -2,8 +2,8 @@
 
 Path-aware constructor that picks the right backing store. A path ending
 in `.daf.zarr` (or any directory path) creates a `DirStore`. `:memory:`
-or `NULL` creates a `DictStore`. `*.daf.zarr.zip` errors with "lands in
-slice 17" pending the C++ MmapZipStore.
+or `NULL` creates a `DictStore`. A path ending in `.daf.zarr.zip`
+creates an `MmapZipStore` (mmap-backed zip).
 
 ## Usage
 

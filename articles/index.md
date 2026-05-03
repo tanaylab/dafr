@@ -10,6 +10,8 @@
   interop](https://tanaylab.github.io/dafr/articles/anndata.md):
 - [Native performance and mmap
   readers](https://tanaylab.github.io/dafr/articles/native-performance.md):
+- [Zarr and HTTP
+  storage](https://tanaylab.github.io/dafr/articles/zarr.md):
 
 ### Reference specifications
 

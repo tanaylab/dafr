@@ -357,6 +357,10 @@ SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 - [`ZarrDafReadOnly()`](https://tanaylab.github.io/dafr/reference/ZarrDafReadOnly.md)
   : Read-only Zarr-backed Daf class.
 
+- [`HttpDaf()`](https://tanaylab.github.io/dafr/reference/HttpDaf.md)
+  [`http_daf()`](https://tanaylab.github.io/dafr/reference/HttpDaf.md) :
+  Read-only HTTP-served FilesDaf.
+
 - [`memory_daf()`](https://tanaylab.github.io/dafr/reference/memory_daf.md)
   : In-memory Daf store.
 
@@ -366,9 +370,18 @@ SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 - [`zarr_daf()`](https://tanaylab.github.io/dafr/reference/zarr_daf.md)
   : Open a Zarr-backed Daf store.
 
+- [`pack_files_daf_metadata()`](https://tanaylab.github.io/dafr/reference/pack_files_daf_metadata.md)
+  :
+
+  Pack a FilesDaf directory's JSON metadata into `metadata.zip`.
+
 - [`is_daf()`](https://tanaylab.github.io/dafr/reference/is_daf.md) :
 
   Test whether an object is a `DafReader`.
+
+- [`is_leaf()`](https://tanaylab.github.io/dafr/reference/is_leaf.md) :
+
+  Is `daf` a leaf storage format?
 
 - [`daf_name()`](https://tanaylab.github.io/dafr/reference/daf_name.md)
   :
@@ -899,7 +912,11 @@ auto-capped to two cores on package load.
 - [`new_dir_store()`](https://tanaylab.github.io/dafr/reference/new_dir_store.md)
   : Create a directory-backed Zarr v2 store.
 - [`new_mmap_zip_store()`](https://tanaylab.github.io/dafr/reference/new_mmap_zip_store.md)
-  : Stub for the mmap-backed zip store (slice 17).
+  : Create a zip-archive-backed Zarr v2 store (mmap, append-only).
+- [`new_http_store()`](https://tanaylab.github.io/dafr/reference/new_http_store.md)
+  : Construct a read-only ZarrStore over HTTP.
+- [`HttpStore()`](https://tanaylab.github.io/dafr/reference/HttpStore.md)
+  : Read-only HTTP-served Zarr store.
 - [`store_get_bytes()`](https://tanaylab.github.io/dafr/reference/zarr_store_generics.md)
   [`store_set_bytes()`](https://tanaylab.github.io/dafr/reference/zarr_store_generics.md)
   [`store_delete()`](https://tanaylab.github.io/dafr/reference/zarr_store_generics.md)
@@ -935,6 +952,8 @@ auto-capped to two cores on package load.
   interop](https://tanaylab.github.io/dafr/articles/anndata.md):
 - [Native performance and mmap
   readers](https://tanaylab.github.io/dafr/articles/native-performance.md):
+- [Zarr and HTTP
+  storage](https://tanaylab.github.io/dafr/articles/zarr.md):
 
 ### Reference specifications
 

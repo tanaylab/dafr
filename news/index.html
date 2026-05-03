@@ -7,7 +7,7 @@
 
     <a class="navbar-brand me-2" href="../index.html">dafr</a>
 
-    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">0.1.0</small>
+    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">0.2.0</small>
 
 
     <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbar" aria-controls="navbar" aria-expanded="false" aria-label="Toggle navigation">
@@ -22,6 +22,7 @@
     <li><a class="dropdown-item" href="../articles/dplyr.html">dplyr backend</a></li>
     <li><a class="dropdown-item" href="../articles/anndata.html">AnnData interop</a></li>
     <li><a class="dropdown-item" href="../articles/native-performance.html">Native performance and mmap readers</a></li>
+    <li><a class="dropdown-item" href="../articles/zarr.html">Zarr and HTTP storage</a></li>
     <li><hr class="dropdown-divider"></li>
     <li><h6 class="dropdown-header" data-toc-skip>Reference specs</h6></li>
     <li><a class="dropdown-item" href="../articles/query-dsl-reference.html">Query DSL reference</a></li>
@@ -45,33 +46,69 @@
     </div>
 
     <div class="section level2">
-<h2 class="pkg-version" data-toc-text="0.2.0" id="dafr-020-development">dafr 0.2.0 (development)<a class="anchor" aria-label="anchor" href="#dafr-020-development"></a></h2>
+<h2 class="pkg-version" data-toc-text="0.2.0" id="dafr-020">dafr 0.2.0<a class="anchor" aria-label="anchor" href="#dafr-020"></a></h2>
 <div class="section level3">
-<h3 id="zarrdaf-backend-slice-0-2-0">ZarrDaf backend (slice 16)<a class="anchor" aria-label="anchor" href="#zarrdaf-backend-slice-0-2-0"></a></h3>
-<ul><li>New <code>zarr_daf(uri, mode, name)</code> backend reading and writing Zarr v2. Two store impls: <code>DirStore</code> (filesystem directory tree) and <code>DictStore</code> (in-memory). Zip-backed Zarr (<code>MmapZipStore</code>) lands in slice 17.</li>
+<h3 id="reader-api-parity-polish-0-2-0">Reader-API parity polish<a class="anchor" aria-label="anchor" href="#reader-api-parity-polish-0-2-0"></a></h3>
+<ul><li>
+<code>description(daf)</code> now emits per-format header lines (<code>url:</code> for <code>HttpDaf</code>, <code>path:</code> + <code>mode:</code> for <code>FilesDaf</code> / <code>ZarrDaf</code>) after the <code>name:</code> / <code>type:</code> lines. New internal <code>format_description_header</code> generic mirrors upstream <code>Formats.format_description_header</code>; the default emits just <code>type: &lt;ClassName&gt;</code>, per-format methods extend it.</li>
+<li>New exported <code>is_leaf(daf)</code> predicate. Returns <code>TRUE</code> for storage formats that own their state directly (<code>MemoryDaf</code>, <code>FilesDaf</code> / <code>FilesDafReadOnly</code>, <code>ZarrDaf</code> / <code>ZarrDafReadOnly</code>, <code>HttpDaf</code>) and <code>FALSE</code> for wrappers (<code>ReadOnlyChainDaf</code>, <code>WriteChainDaf</code>, <code>ContractDaf</code>, <code>ViewDaf</code>). Mirrors upstream <code>Readers.is_leaf</code>.</li>
+<li>
+<code><a href="../reference/reorder_axes.html">reorder_axes()</a></code> now rejects non-leaf inputs up front with a clear <code>"non-leaf type: &lt;Class&gt; for the daf data: &lt;name&gt; given to reorder_axes"</code> error (previously surfaced as a cryptic missing-method dispatch).</li>
+<li>
+<code><a href="../reference/complete_path.html">complete_path()</a></code> now works for <code>ZarrDaf</code> (returns the directory path, <code>:memory:</code>, zip path, or HTTP URL — whichever store path the constructor recorded). Was previously <code>FilesDaf</code>-only.</li>
+</ul></div>
+<div class="section level3">
+<h3 id="httpdaf--httpstore--metadatazip-parity-0-2-0">HttpDaf + HttpStore + metadata.zip parity<a class="anchor" aria-label="anchor" href="#httpdaf--httpstore--metadatazip-parity-0-2-0"></a></h3>
+<ul><li>New <code>HttpDaf</code> backend for read-only access to a <code>FilesDaf</code> directory served over HTTP(S). The client downloads <code>metadata.zip</code> once at open and serves all JSON metadata from it; non-JSON payloads (<code>.txt</code> / <code>.data</code> / <code>.nzind</code> / <code>.nzval</code> / <code>.colptr</code> / <code>.rowval</code> / <code>.nztxt</code>) are fetched lazily via one HTTP GET each.</li>
+<li>New <code>HttpStore</code> (<code>R/http_store.R</code>) implements the <code>R/zarr_store.R</code> store interface over HTTP. <code>zarr_daf("https://host/foo.daf.zarr/")</code> routes through it; reads <code>.zmetadata</code> once and serves <code>.zarray</code>/<code>.zattrs</code>/<code>.zgroup</code> from there.</li>
+<li>
+<code>open_daf("https://...")</code> dispatches to <code>http_daf</code> or <code>zarr_daf</code> based on the URL suffix. HTTP backends are read-only; writable modes hard-error. <code>*.daf.zarr.zip</code> URLs are explicitly out of scope and redirect users to opening the underlying <code>.daf.zarr</code> directory.</li>
+<li>New <code>pack_files_daf_metadata(path)</code> exported helper to bundle a <code>FilesDaf</code> tree’s JSON metadata into <code>metadata.zip</code> (for trees written by older dafr or modified outside dafr).</li>
+<li>
+<strong><code>FilesDaf</code> now maintains <code>metadata.zip</code> automatically</strong> on every <code>set_*</code> / <code>delete_*</code> / <code>add_axis</code> / <code>delete_axis</code> / <code>reorder_axes</code> operation, plus a one-shot rebuild on writable open if the bundle is missing. Mirrors upstream <code>DataAxesFormats.jl::FilesFormat</code>. Pre-0.2.0 stores are picked up automatically the first time they’re opened with mode <code>"r+"</code> or <code>"w+"</code>.</li>
+<li>
+<code>axes/metadata.json</code> sidecar now maintained by FilesDaf (sorted JSON array of axis names). Required by HTTP clients to enumerate axes without GET-ing every <code>axes/*.txt</code>.</li>
+<li>New <code>Imports</code>: <code>httr2</code> (and transitively <code>curl</code>).</li>
+</ul></div>
+<div class="section level3">
+<h3 id="mmapzipstore--zarr-zip-backend-0-2-0">MmapZipStore + Zarr zip backend<a class="anchor" aria-label="anchor" href="#mmapzipstore--zarr-zip-backend-0-2-0"></a></h3>
+<ul><li>New <code>MmapZipStore</code> (C++ in <code>src/mmap_zip_store.cpp</code>) backs <code>ZarrDaf</code> with a single ZIP archive on the local filesystem. <code><a href="../reference/open_daf.html">open_daf()</a></code> and <code><a href="../reference/zarr_daf.html">zarr_daf()</a></code> now accept <code>.daf.zarr.zip</code> paths and return a working <code>ZarrDaf</code> / <code>ZarrDafReadOnly</code>.</li>
+<li>Reads use a shared mmap of the archive: stored (method-0) entries are returned as zero-copy <code>ALTREP RAW</code> views via a new <code>ZipRawAltrep</code> class. Deflate-compressed (method-8) entries are decompressed on demand via system zlib; deflate64 / other methods raise a clear error pointing to a stored / deflate re-save.</li>
+<li>Writes append entries via upstream’s two-step commit protocol (commit central directory + EOCD first, then write the local file header and data into the now-sparse hole). Crash-safe: a writable open’s recovery pass detects partial commits via tail validation (LFH signature + data CRC32) and rolls back the trailing run of invalid entries before returning. Internal tick-counter hooks at every commit-able decision point let recovery be tested deterministically (5 tick points; tests gated on <code>NOT_CRAN=true</code>).</li>
+<li>Always emits ZIP64 (per upstream <code>DataAxesFormats.jl</code>); every local file header is padded with a <code>0xDAF1</code> extra field so the data region starts at an 8-byte-aligned file offset (zero-copy unaligned-load safety on every host architecture).</li>
+<li>ALTREP safety net: when the store closes (or is GC’d), every outstanding ALTREP vector it produced is deactivated — <code><a href="https://rdrr.io/r/base/length.html" class="external-link">length()</a></code> returns 0 and <code>Dataptr()</code> returns a stable inert byte. R callers who keep references past close get clean empty raws instead of segfaults.</li>
+<li>Internal-only <code>dafr:::dafr_mmap_zip_reserve()</code> / <code>dafr:::dafr_mmap_zip_patch_crc()</code> expose two-phase fill for large sparse arrays (writable in-place ALTREP view + post-fill CRC patch). Crash between reserve and patch rolls back via the same CRC-mismatch path as ordinary partial commits.</li>
+<li>
+<code>SystemRequirements</code>: zlib (linked via <code>-lz</code>).</li>
+<li>Cross-language smoke: dafr-written <code>.daf.zarr.zip</code> archives open cleanly in Python via <code>zipfile</code> and <code>zarr.open(zarr.storage.ZipStore(...))</code>. Foreign zips written by <code>python -m zipfile</code> (stored or deflate) open cleanly in dafr.</li>
+<li>Mirrors <code>DataAxesFormats.jl</code> <code>mmap_zip_store.jl</code> (~1070 LOC of Julia ported to ~1300 LOC of C++ + cpp11 + ALTREP).</li>
+</ul></div>
+<div class="section level3">
+<h3 id="zarrdaf-backend-0-2-0">ZarrDaf backend<a class="anchor" aria-label="anchor" href="#zarrdaf-backend-0-2-0"></a></h3>
+<ul><li>New <code>zarr_daf(uri, mode, name)</code> backend reading and writing Zarr v2. Two store impls: <code>DirStore</code> (filesystem directory tree) and <code>DictStore</code> (in-memory). Zip-backed Zarr is also supported via the <code>MmapZipStore</code> backend (see above).</li>
 <li>New <code>files_to_zarr(src, dst)</code> and <code>zarr_to_files(src, dst)</code> conversion helpers (same-filesystem only; correctness-first implementation re-encodes through the public API; hard-link optimization deferred as a perf follow-up).</li>
 <li>
-<code>open_daf("foo.daf.zarr")</code> now returns a <code>ZarrDaf</code>. The <code>.daf.zarr.zip</code> placeholder error now points to slice 17.</li>
+<code>open_daf("foo.daf.zarr")</code> now returns a <code>ZarrDaf</code>.</li>
 <li>Compression policy: dafr writes Zarr chunks uncompressed; reads uncompressed and gzip; rejects blosc/zstd/lz4 with a clear error pointing to re-save with <code>compressor=None</code>.</li>
 <li>Sparse layouts mirror upstream <code>DataAxesFormats.jl</code>: 1-based on-disk indices for <code>nzind</code> / <code>colptr</code> / <code>rowval</code>; sparse-Bool all-<code>TRUE</code> skips <code>nzval</code> (storage compaction). Cross-language parity is verified via gated Python <code>zarr.open()</code> smoke tests.</li>
 <li>Mirrors <code>DataAxesFormats.jl</code> v0.2.0 commits <code>ea4b5f9</code> (Zarr v2 directory tree), <code>8cc3ff6</code> (in-memory store), <code>47e7693</code> (CRC fix — N/A for our in-memory layer), <code>79034fd</code> (<code>.zmetadata</code> consolidation), <code>46d4ab2</code> (Files↔︎Zarr conversion).</li>
 </ul></div>
 <div class="section level3">
-<h3 id="reorder_axes--open_daf-factory-slice-0-2-0">reorder_axes() + open_daf() factory (slice 15)<a class="anchor" aria-label="anchor" href="#reorder_axes--open_daf-factory-slice-0-2-0"></a></h3>
+<h3 id="reorder_axes--open_daf-factory-0-2-0">reorder_axes() + open_daf() factory<a class="anchor" aria-label="anchor" href="#reorder_axes--open_daf-factory-0-2-0"></a></h3>
 <ul><li>New <code>reorder_axes(daf, axis = perm, ...)</code> permutes axis entries in place, rewriting every vector and matrix that depends on the axis. On <code>files_daf</code> the operation is crash-recoverable via a <code>.reorder.backup/</code> directory of hardlinks; on the next <code>files_daf(path, mode = "r+" | "w+")</code> open, any in-progress reorder is automatically rolled back to the pre-reorder state.</li>
 <li>New <code>reset_reorder_axes(daf)</code> to manually trigger recovery (mostly redundant given the auto-recovery on open).</li>
-<li>New <code>open_daf(uri, mode, name)</code> factory function — dispatches on path / URL pattern. <code>memory://</code> (or no path) → <code>memory_daf</code>, filesystem path → <code>files_daf</code>. Future backends (<code>*.daf.zarr</code> and <code>http(s)://</code>) are stubbed with explicit error messages pointing to the slices that will land them (16 and 18 respectively). The factory replaces the previous filesystem-only <code>open_daf</code> from <code>R/complete.R</code>.</li>
+<li>New <code>open_daf(uri, mode, name)</code> factory function — dispatches on path / URL pattern. <code>memory://</code> (or no path) → <code>memory_daf</code>, filesystem path → <code>files_daf</code>, <code>*.daf.zarr</code> / <code>*.daf.zarr.zip</code> → <code>zarr_daf</code>, <code>http(s)://</code> → <code>http_daf</code>. The factory replaces the previous filesystem-only <code>open_daf</code> from <code>R/complete.R</code>.</li>
 <li>Mirrors <code>DataAxesFormats.jl</code> v0.2.0 commits <code>90301ff</code>, <code>070bd34</code> (axis reordering) and <code>b40377f</code> (<code>open_daf</code> factory).</li>
 </ul></div>
 <div class="section level3">
-<h3 id="internal-per-item-cache_group-refactor-slice-0-2-0">Internal: per-item cache_group refactor (slice 14)<a class="anchor" aria-label="anchor" href="#internal-per-item-cache_group-refactor-slice-0-2-0"></a></h3>
+<h3 id="internal-per-item-cache_group-refactor-0-2-0">Internal: per-item cache_group refactor<a class="anchor" aria-label="anchor" href="#internal-per-item-cache_group-refactor-0-2-0"></a></h3>
 <p>The internal format API now returns per-item cache classifications, matching <code>DataAxesFormats.jl</code> v0.2.0 (upstream commit <code>49fbba1</code>). <strong>No user-visible behavior change.</strong></p>
 <ul><li>Every backend <code>format_get_*</code> method (scalar/axis_array/vector/matrix) returns <code>list(value, cache_group)</code> instead of a bare value.</li>
 <li>Every backend <code>format_set_*</code> method returns the cache_group constant for the just-written value (or <code>NULL</code>) instead of <code><a href="https://rdrr.io/r/base/invisible.html" class="external-link">invisible()</a></code>.</li>
 <li>New exported character constants <code>MEMORY_DATA</code>, <code>MAPPED_DATA</code>, <code>QUERY_DATA</code> — accepted by <code>empty_cache(daf, clear = ...)</code> / <code>keep = ...</code> alongside the existing lowercase forms.</li>
 <li>The reader-level cache (<code>R/readers.R</code>) now consults the backend-returned cache_group when storing fresh reads, instead of hardcoding the <code>"memory"</code> tier. mmap-eligible reads on <code>files_daf</code> now correctly land in the <code>"mapped"</code> tier.</li>
 <li>Per-item classification: <code>files_daf</code> returns <code>MEMORY_DATA</code> for string/factor reads (R’s CHARSXP cache makes mmap moot for strings) and <code>MAPPED_DATA</code> for everything else. Matches upstream’s structural classification — no size thresholds.</li>
-</ul><p>This refactor is preparatory for the Slice 16+ <code>ZarrDaf</code> and <code>HttpDaf</code> backends, which require per-item classification to drive their internal caching.</p>
+</ul><p>This refactor is preparatory for the <code>ZarrDaf</code> and <code>HttpDaf</code> backends, which require per-item classification to drive their internal caching.</p>
 </div>
 </div>
     <div class="section level2">

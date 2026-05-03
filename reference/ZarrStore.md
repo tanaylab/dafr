@@ -12,7 +12,7 @@ DirStore(root = character(0))
 
 DictStore(env = NULL)
 
-MmapZipStore(path = character(0))
+MmapZipStore(path = character(0), mode = character(0), xptr = NULL)
 ```
 
 ## Arguments
@@ -29,5 +29,15 @@ MmapZipStore(path = character(0))
 
 - path:
 
-  (`MmapZipStore`) Filesystem path to a zip archive (stub; not yet
-  functional — lands in slice 17).
+  (`MmapZipStore`) Filesystem path to a zip archive.
+
+- mode:
+
+  (`MmapZipStore`) One of `"r"`, `"r+"`, `"w+"`, `"w"`; set by
+  [`new_mmap_zip_store()`](https://tanaylab.github.io/dafr/reference/new_mmap_zip_store.md).
+
+- xptr:
+
+  (`MmapZipStore`) Internal external pointer to the C++ store; set by
+  [`new_mmap_zip_store()`](https://tanaylab.github.io/dafr/reference/new_mmap_zip_store.md)
+  and not intended for direct use.

@@ -11,7 +11,7 @@ expected property names differ from the names stored in daf."></head><body>
 
     <a class="navbar-brand me-2" href="../index.html">dafr</a>
 
-    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">0.1.0</small>
+    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">0.2.0</small>
 
 
     <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbar" aria-controls="navbar" aria-expanded="false" aria-label="Toggle navigation">
@@ -26,6 +26,7 @@ expected property names differ from the names stored in daf."></head><body>
     <li><a class="dropdown-item" href="../articles/dplyr.html">dplyr backend</a></li>
     <li><a class="dropdown-item" href="../articles/anndata.html">AnnData interop</a></li>
     <li><a class="dropdown-item" href="../articles/native-performance.html">Native performance and mmap readers</a></li>
+    <li><a class="dropdown-item" href="../articles/zarr.html">Zarr and HTTP storage</a></li>
     <li><hr class="dropdown-divider"></li>
     <li><h6 class="dropdown-header" data-toc-skip>Reference specs</h6></li>
     <li><a class="dropdown-item" href="../articles/query-dsl-reference.html">Query DSL reference</a></li>
@@ -160,26 +161,26 @@ selects + renames the outputs.</p></li>
 <span class="r-in"><span><span class="op">)</span></span></span>
 <span class="r-out co"><span class="r-pr">#&gt;</span> &lt;dafr::WriteChainDaf&gt;</span>
 <span class="r-out co"><span class="r-pr">#&gt;</span>  @ name                  : chr "base.adapter.adapted"</span>
-<span class="r-out co"><span class="r-pr">#&gt;</span>  @ internal              :&lt;environment: 0x559554abffc0&gt; </span>
-<span class="r-out co"><span class="r-pr">#&gt;</span>  @ cache                 :&lt;environment: 0x559554abc4d8&gt; </span>
-<span class="r-out co"><span class="r-pr">#&gt;</span>  @ axis_version_counter  :&lt;environment: 0x559554abe068&gt; </span>
-<span class="r-out co"><span class="r-pr">#&gt;</span>  @ vector_version_counter:&lt;environment: 0x559554aba510&gt; </span>
-<span class="r-out co"><span class="r-pr">#&gt;</span>  @ matrix_version_counter:&lt;environment: 0x559554aba7e8&gt; </span>
+<span class="r-out co"><span class="r-pr">#&gt;</span>  @ internal              :&lt;environment: 0x557ebe2a04c8&gt; </span>
+<span class="r-out co"><span class="r-pr">#&gt;</span>  @ cache                 :&lt;environment: 0x557ebe2a0810&gt; </span>
+<span class="r-out co"><span class="r-pr">#&gt;</span>  @ axis_version_counter  :&lt;environment: 0x557ebe2a2330&gt; </span>
+<span class="r-out co"><span class="r-pr">#&gt;</span>  @ vector_version_counter:&lt;environment: 0x557ebe29e088&gt; </span>
+<span class="r-out co"><span class="r-pr">#&gt;</span>  @ matrix_version_counter:&lt;environment: 0x557ebe29e360&gt; </span>
 <span class="r-out co"><span class="r-pr">#&gt;</span>  @ dafs                  :List of 2</span>
 <span class="r-out co"><span class="r-pr">#&gt;</span>  .. $ : &lt;dafr::ViewDaf&gt;</span>
 <span class="r-out co"><span class="r-pr">#&gt;</span>  ..  ..@ name                  : chr "base.adapter.input"</span>
-<span class="r-out co"><span class="r-pr">#&gt;</span>  ..  ..@ internal              :&lt;environment: 0x559554b589c8&gt; </span>
-<span class="r-out co"><span class="r-pr">#&gt;</span>  ..  ..@ cache                 :&lt;environment: 0x559554ca97e0&gt; </span>
-<span class="r-out co"><span class="r-pr">#&gt;</span>  ..  ..@ axis_version_counter  :&lt;environment: 0x559554ca7620&gt; </span>
-<span class="r-out co"><span class="r-pr">#&gt;</span>  ..  ..@ vector_version_counter:&lt;environment: 0x559554ca78f8&gt; </span>
-<span class="r-out co"><span class="r-pr">#&gt;</span>  ..  ..@ matrix_version_counter:&lt;environment: 0x559554ca7c08&gt; </span>
+<span class="r-out co"><span class="r-pr">#&gt;</span>  ..  ..@ internal              :&lt;environment: 0x557ebe336430&gt; </span>
+<span class="r-out co"><span class="r-pr">#&gt;</span>  ..  ..@ cache                 :&lt;environment: 0x557ebe478ce8&gt; </span>
+<span class="r-out co"><span class="r-pr">#&gt;</span>  ..  ..@ axis_version_counter  :&lt;environment: 0x557ebe474ab8&gt; </span>
+<span class="r-out co"><span class="r-pr">#&gt;</span>  ..  ..@ vector_version_counter:&lt;environment: 0x557ebe474d90&gt; </span>
+<span class="r-out co"><span class="r-pr">#&gt;</span>  ..  ..@ matrix_version_counter:&lt;environment: 0x557ebe475068&gt; </span>
 <span class="r-out co"><span class="r-pr">#&gt;</span>  ..  ..@ base                  : &lt;dafr::MemoryDaf&gt;</span>
 <span class="r-out co"><span class="r-pr">#&gt;</span>  .. .. .. @ name                  : chr "base"</span>
-<span class="r-out co"><span class="r-pr">#&gt;</span>  .. .. .. @ internal              :&lt;environment: 0x559554cac228&gt; </span>
-<span class="r-out co"><span class="r-pr">#&gt;</span>  .. .. .. @ cache                 :&lt;environment: 0x559554ca97e0&gt; </span>
-<span class="r-out co"><span class="r-pr">#&gt;</span>  .. .. .. @ axis_version_counter  :&lt;environment: 0x559554ca7620&gt; </span>
-<span class="r-out co"><span class="r-pr">#&gt;</span>  .. .. .. @ vector_version_counter:&lt;environment: 0x559554ca78f8&gt; </span>
-<span class="r-out co"><span class="r-pr">#&gt;</span>  .. .. .. @ matrix_version_counter:&lt;environment: 0x559554ca7c08&gt; </span>
+<span class="r-out co"><span class="r-pr">#&gt;</span>  .. .. .. @ internal              :&lt;environment: 0x557ebe47b810&gt; </span>
+<span class="r-out co"><span class="r-pr">#&gt;</span>  .. .. .. @ cache                 :&lt;environment: 0x557ebe478ce8&gt; </span>
+<span class="r-out co"><span class="r-pr">#&gt;</span>  .. .. .. @ axis_version_counter  :&lt;environment: 0x557ebe474ab8&gt; </span>
+<span class="r-out co"><span class="r-pr">#&gt;</span>  .. .. .. @ vector_version_counter:&lt;environment: 0x557ebe474d90&gt; </span>
+<span class="r-out co"><span class="r-pr">#&gt;</span>  .. .. .. @ matrix_version_counter:&lt;environment: 0x557ebe475068&gt; </span>
 <span class="r-out co"><span class="r-pr">#&gt;</span>  ..  ..@ view_axes             :List of 1</span>
 <span class="r-out co"><span class="r-pr">#&gt;</span>  .. .. .. $ obs: chr "@ cell"</span>
 <span class="r-out co"><span class="r-pr">#&gt;</span>  ..  ..@ view_axis_renames     :List of 1</span>
@@ -196,18 +197,18 @@ selects + renames the outputs.</p></li>
 <span class="r-out co"><span class="r-pr">#&gt;</span>  ..  ..@ view_matrices         : list()</span>
 <span class="r-out co"><span class="r-pr">#&gt;</span>  .. $ : &lt;dafr::MemoryDaf&gt;</span>
 <span class="r-out co"><span class="r-pr">#&gt;</span>  ..  ..@ name                  : chr "base.adapter.capture"</span>
-<span class="r-out co"><span class="r-pr">#&gt;</span>  ..  ..@ internal              :&lt;environment: 0x559554aff2e8&gt; </span>
-<span class="r-out co"><span class="r-pr">#&gt;</span>  ..  ..@ cache                 :&lt;environment: 0x559554afc7c0&gt; </span>
-<span class="r-out co"><span class="r-pr">#&gt;</span>  ..  ..@ axis_version_counter  :&lt;environment: 0x559554afe318&gt; </span>
-<span class="r-out co"><span class="r-pr">#&gt;</span>  ..  ..@ vector_version_counter:&lt;environment: 0x559554afa7c0&gt; </span>
-<span class="r-out co"><span class="r-pr">#&gt;</span>  ..  ..@ matrix_version_counter:&lt;environment: 0x559554afaa98&gt; </span>
+<span class="r-out co"><span class="r-pr">#&gt;</span>  ..  ..@ internal              :&lt;environment: 0x557ebe2e3128&gt; </span>
+<span class="r-out co"><span class="r-pr">#&gt;</span>  ..  ..@ cache                 :&lt;environment: 0x557ebe2e0600&gt; </span>
+<span class="r-out co"><span class="r-pr">#&gt;</span>  ..  ..@ axis_version_counter  :&lt;environment: 0x557ebe2de2f0&gt; </span>
+<span class="r-out co"><span class="r-pr">#&gt;</span>  ..  ..@ vector_version_counter:&lt;environment: 0x557ebe2de5c8&gt; </span>
+<span class="r-out co"><span class="r-pr">#&gt;</span>  ..  ..@ matrix_version_counter:&lt;environment: 0x557ebe2de8a0&gt; </span>
 <span class="r-out co"><span class="r-pr">#&gt;</span>  @ writer                : &lt;dafr::MemoryDaf&gt;</span>
 <span class="r-out co"><span class="r-pr">#&gt;</span>  .. @ name                  : chr "base.adapter.capture"</span>
-<span class="r-out co"><span class="r-pr">#&gt;</span>  .. @ internal              :&lt;environment: 0x559554aff2e8&gt; </span>
-<span class="r-out co"><span class="r-pr">#&gt;</span>  .. @ cache                 :&lt;environment: 0x559554afc7c0&gt; </span>
-<span class="r-out co"><span class="r-pr">#&gt;</span>  .. @ axis_version_counter  :&lt;environment: 0x559554afe318&gt; </span>
-<span class="r-out co"><span class="r-pr">#&gt;</span>  .. @ vector_version_counter:&lt;environment: 0x559554afa7c0&gt; </span>
-<span class="r-out co"><span class="r-pr">#&gt;</span>  .. @ matrix_version_counter:&lt;environment: 0x559554afaa98&gt; </span>
+<span class="r-out co"><span class="r-pr">#&gt;</span>  .. @ internal              :&lt;environment: 0x557ebe2e3128&gt; </span>
+<span class="r-out co"><span class="r-pr">#&gt;</span>  .. @ cache                 :&lt;environment: 0x557ebe2e0600&gt; </span>
+<span class="r-out co"><span class="r-pr">#&gt;</span>  .. @ axis_version_counter  :&lt;environment: 0x557ebe2de2f0&gt; </span>
+<span class="r-out co"><span class="r-pr">#&gt;</span>  .. @ vector_version_counter:&lt;environment: 0x557ebe2de5c8&gt; </span>
+<span class="r-out co"><span class="r-pr">#&gt;</span>  .. @ matrix_version_counter:&lt;environment: 0x557ebe2de8a0&gt; </span>
 <span class="r-in"><span><span class="fu"><a href="get_vector.html">get_vector</a></span><span class="op">(</span><span class="va">d</span>, <span class="st">"cell"</span>, <span class="st">"rank"</span><span class="op">)</span></span></span>
 <span class="r-out co"><span class="r-pr">#&gt;</span> c1 c2 c3 </span>
 <span class="r-out co"><span class="r-pr">#&gt;</span>  1  2  3 </span>

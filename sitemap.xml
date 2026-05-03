@@ -10,6 +10,7 @@
 <url><loc>https://tanaylab.github.io/dafr/articles/native-performance.html</loc></url>
 <url><loc>https://tanaylab.github.io/dafr/articles/queries.html</loc></url>
 <url><loc>https://tanaylab.github.io/dafr/articles/query-dsl-reference.html</loc></url>
+<url><loc>https://tanaylab.github.io/dafr/articles/zarr.html</loc></url>
 <url><loc>https://tanaylab.github.io/dafr/authors.html</loc></url>
 <url><loc>https://tanaylab.github.io/dafr/index.html</loc></url>
 <url><loc>https://tanaylab.github.io/dafr/news/index.html</loc></url>
@@ -43,6 +44,8 @@
 <url><loc>https://tanaylab.github.io/dafr/reference/GroupBy.html</loc></url>
 <url><loc>https://tanaylab.github.io/dafr/reference/GroupColumnsBy.html</loc></url>
 <url><loc>https://tanaylab.github.io/dafr/reference/GroupRowsBy.html</loc></url>
+<url><loc>https://tanaylab.github.io/dafr/reference/HttpDaf.html</loc></url>
+<url><loc>https://tanaylab.github.io/dafr/reference/HttpStore.html</loc></url>
 <url><loc>https://tanaylab.github.io/dafr/reference/IfMissing.html</loc></url>
 <url><loc>https://tanaylab.github.io/dafr/reference/IfNot.html</loc></url>
 <url><loc>https://tanaylab.github.io/dafr/reference/IsEqual.html</loc></url>
@@ -164,6 +167,7 @@
 <url><loc>https://tanaylab.github.io/dafr/reference/inefficient_action_handler.html</loc></url>
 <url><loc>https://tanaylab.github.io/dafr/reference/is_axis_query.html</loc></url>
 <url><loc>https://tanaylab.github.io/dafr/reference/is_daf.html</loc></url>
+<url><loc>https://tanaylab.github.io/dafr/reference/is_leaf.html</loc></url>
 <url><loc>https://tanaylab.github.io/dafr/reference/matrices_set.html</loc></url>
 <url><loc>https://tanaylab.github.io/dafr/reference/matrix_version_counter.html</loc></url>
 <url><loc>https://tanaylab.github.io/dafr/reference/memory_daf.html</loc></url>
@@ -173,8 +177,10 @@
 <url><loc>https://tanaylab.github.io/dafr/reference/mmap_real.html</loc></url>
 <url><loc>https://tanaylab.github.io/dafr/reference/new_dict_store.html</loc></url>
 <url><loc>https://tanaylab.github.io/dafr/reference/new_dir_store.html</loc></url>
+<url><loc>https://tanaylab.github.io/dafr/reference/new_http_store.html</loc></url>
 <url><loc>https://tanaylab.github.io/dafr/reference/new_mmap_zip_store.html</loc></url>
 <url><loc>https://tanaylab.github.io/dafr/reference/open_daf.html</loc></url>
+<url><loc>https://tanaylab.github.io/dafr/reference/pack_files_daf_metadata.html</loc></url>
 <url><loc>https://tanaylab.github.io/dafr/reference/parse_query.html</loc></url>
 <url><loc>https://tanaylab.github.io/dafr/reference/query_axis_name.html</loc></url>
 <url><loc>https://tanaylab.github.io/dafr/reference/query_requires_relayout.html</loc></url>

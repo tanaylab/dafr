@@ -9,7 +9,7 @@ Concrete implementations: DirStore, DictStore, MmapZipStore."></head><body>
 
     <a class="navbar-brand me-2" href="../index.html">dafr</a>
 
-    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">0.1.0</small>
+    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">0.2.0</small>
 
 
     <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbar" aria-controls="navbar" aria-expanded="false" aria-label="Toggle navigation">
@@ -24,6 +24,7 @@ Concrete implementations: DirStore, DictStore, MmapZipStore."></head><body>
     <li><a class="dropdown-item" href="../articles/dplyr.html">dplyr backend</a></li>
     <li><a class="dropdown-item" href="../articles/anndata.html">AnnData interop</a></li>
     <li><a class="dropdown-item" href="../articles/native-performance.html">Native performance and mmap readers</a></li>
+    <li><a class="dropdown-item" href="../articles/zarr.html">Zarr and HTTP storage</a></li>
     <li><hr class="dropdown-divider"></li>
     <li><h6 class="dropdown-header" data-toc-skip>Reference specs</h6></li>
     <li><a class="dropdown-item" href="../articles/query-dsl-reference.html">Query DSL reference</a></li>
@@ -60,7 +61,7 @@ Concrete implementations: DirStore, DictStore, MmapZipStore.</p>
 <span></span>
 <span><span class="fu">DictStore</span><span class="op">(</span>env <span class="op">=</span> <span class="cn">NULL</span><span class="op">)</span></span>
 <span></span>
-<span><span class="fu">MmapZipStore</span><span class="op">(</span>path <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/character.html" class="external-link">character</a></span><span class="op">(</span><span class="fl">0</span><span class="op">)</span><span class="op">)</span></span></code></pre></div>
+<span><span class="fu">MmapZipStore</span><span class="op">(</span>path <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/character.html" class="external-link">character</a></span><span class="op">(</span><span class="fl">0</span><span class="op">)</span>, mode <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/character.html" class="external-link">character</a></span><span class="op">(</span><span class="fl">0</span><span class="op">)</span>, xptr <span class="op">=</span> <span class="cn">NULL</span><span class="op">)</span></span></code></pre></div>
     </div>
 
     <div class="section level2">
@@ -77,8 +78,18 @@ backing store; typically created by <code><a href="new_dict_store.html">new_dict
 
 
 <dt id="arg-path">path<a class="anchor" aria-label="anchor" href="#arg-path"></a></dt>
-<dd><p>(<code>MmapZipStore</code>) Filesystem path to a zip archive
-(stub; not yet functional — lands in slice 17).</p></dd>
+<dd><p>(<code>MmapZipStore</code>) Filesystem path to a zip archive.</p></dd>
+
+
+<dt id="arg-mode">mode<a class="anchor" aria-label="anchor" href="#arg-mode"></a></dt>
+<dd><p>(<code>MmapZipStore</code>) One of <code>"r"</code>, <code>"r+"</code>, <code>"w+"</code>, <code>"w"</code>;
+set by <code><a href="new_mmap_zip_store.html">new_mmap_zip_store()</a></code>.</p></dd>
+
+
+<dt id="arg-xptr">xptr<a class="anchor" aria-label="anchor" href="#arg-xptr"></a></dt>
+<dd><p>(<code>MmapZipStore</code>) Internal external pointer to the C++
+store; set by <code><a href="new_mmap_zip_store.html">new_mmap_zip_store()</a></code> and not intended for direct
+use.</p></dd>
 
 </dl></div>
 

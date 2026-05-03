@@ -33,6 +33,15 @@ files_daf(path, mode = c("r", "r+", "w", "w+"), name = NULL)
 A `FilesDaf` instance (`DafWriter` under `"r+"`/`"w"`/`"w+"`,
 `FilesDafReadOnly`/`DafReadOnly` under `"r"`).
 
+## Concurrent access
+
+`files_daf` does not lock the store. Two writers opening the same path
+in mode `"r+"` or `"w+"` will race on `metadata.zip` rebuilds and
+per-entry JSON writes, with no guarantee of last-writer-wins
+consistency. The supported pattern is single-writer plus arbitrary
+read-only readers; cross-process concurrency must be coordinated
+externally (e.g., a job scheduler).
+
 ## Examples
 
 ``` r

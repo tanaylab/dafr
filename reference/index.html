@@ -7,7 +7,7 @@
 
     <a class="navbar-brand me-2" href="../index.html">dafr</a>
 
-    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">0.1.0</small>
+    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">0.2.0</small>
 
 
     <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbar" aria-controls="navbar" aria-expanded="false" aria-label="Toggle navigation">
@@ -22,6 +22,7 @@
     <li><a class="dropdown-item" href="../articles/dplyr.html">dplyr backend</a></li>
     <li><a class="dropdown-item" href="../articles/anndata.html">AnnData interop</a></li>
     <li><a class="dropdown-item" href="../articles/native-performance.html">Native performance and mmap readers</a></li>
+    <li><a class="dropdown-item" href="../articles/zarr.html">Zarr and HTTP storage</a></li>
     <li><hr class="dropdown-divider"></li>
     <li><h6 class="dropdown-header" data-toc-skip>Reference specs</h6></li>
     <li><a class="dropdown-item" href="../articles/query-dsl-reference.html">Query DSL reference</a></li>
@@ -111,6 +112,13 @@
 
         <dt>
 
+          <code><a href="HttpDaf.html">HttpDaf()</a></code> <code><a href="HttpDaf.html">http_daf()</a></code>
+
+        </dt>
+        <dd>Read-only HTTP-served FilesDaf.</dd>
+
+        <dt>
+
           <code><a href="memory_daf.html">memory_daf()</a></code>
 
         </dt>
@@ -132,10 +140,24 @@
 
         <dt>
 
+          <code><a href="pack_files_daf_metadata.html">pack_files_daf_metadata()</a></code>
+
+        </dt>
+        <dd>Pack a FilesDaf directory's JSON metadata into <code>metadata.zip</code>.</dd>
+
+        <dt>
+
           <code><a href="is_daf.html">is_daf()</a></code>
 
         </dt>
         <dd>Test whether an object is a <code>DafReader</code>.</dd>
+
+        <dt>
+
+          <code><a href="is_leaf.html">is_leaf()</a></code>
+
+        </dt>
+        <dd>Is <code>daf</code> a leaf storage format?</dd>
 
         <dt>
 
@@ -1517,7 +1539,21 @@
           <code><a href="new_mmap_zip_store.html">new_mmap_zip_store()</a></code>
 
         </dt>
-        <dd>Stub for the mmap-backed zip store (slice 17).</dd>
+        <dd>Create a zip-archive-backed Zarr v2 store (mmap, append-only).</dd>
+
+        <dt>
+
+          <code><a href="new_http_store.html">new_http_store()</a></code>
+
+        </dt>
+        <dd>Construct a read-only ZarrStore over HTTP.</dd>
+
+        <dt>
+
+          <code><a href="HttpStore.html">HttpStore()</a></code>
+
+        </dt>
+        <dd>Read-only HTTP-served Zarr store.</dd>
 
         <dt>
 

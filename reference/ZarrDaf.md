@@ -4,8 +4,8 @@ Concrete `DafWriter` subclass instantiated by
 [`zarr_daf()`](https://tanaylab.github.io/dafr/reference/zarr_daf.md)
 when opened with mode `"w"` / `"w+"` / `"r+"`. Operates against any
 [ZarrStore](https://tanaylab.github.io/dafr/reference/ZarrStore.md);
-today: `DirStore` (filesystem) and `DictStore` (in-memory). Zip-backed
-Zarr (`MmapZipStore`) lands in slice 17.
+supported backends today: `DirStore` (filesystem), `DictStore`
+(in-memory), `MmapZipStore` (zip archive).
 
 ## Usage
 

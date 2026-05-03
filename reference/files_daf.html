@@ -11,7 +11,7 @@ Writes are non-atomic; only one writer may touch a store at a time."></head><bod
 
     <a class="navbar-brand me-2" href="../index.html">dafr</a>
 
-    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">0.1.0</small>
+    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">0.2.0</small>
 
 
     <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbar" aria-controls="navbar" aria-expanded="false" aria-label="Toggle navigation">
@@ -26,6 +26,7 @@ Writes are non-atomic; only one writer may touch a store at a time."></head><bod
     <li><a class="dropdown-item" href="../articles/dplyr.html">dplyr backend</a></li>
     <li><a class="dropdown-item" href="../articles/anndata.html">AnnData interop</a></li>
     <li><a class="dropdown-item" href="../articles/native-performance.html">Native performance and mmap readers</a></li>
+    <li><a class="dropdown-item" href="../articles/zarr.html">Zarr and HTTP storage</a></li>
     <li><hr class="dropdown-divider"></li>
     <li><h6 class="dropdown-header" data-toc-skip>Reference specs</h6></li>
     <li><a class="dropdown-item" href="../articles/query-dsl-reference.html">Query DSL reference</a></li>
@@ -85,6 +86,17 @@ the directory are preserved).</p></dd>
     <h2 id="value">Value<a class="anchor" aria-label="anchor" href="#value"></a></h2>
     <p>A <code>FilesDaf</code> instance (<code>DafWriter</code> under <code>"r+"</code>/<code>"w"</code>/<code>"w+"</code>,
 <code>FilesDafReadOnly</code>/<code>DafReadOnly</code> under <code>"r"</code>).</p>
+    </div>
+    <div class="section level2">
+    <h2 id="concurrent-access">Concurrent access<a class="anchor" aria-label="anchor" href="#concurrent-access"></a></h2>
+
+
+<p><code>files_daf</code> does not lock the store. Two writers opening the same
+path in mode <code>"r+"</code> or <code>"w+"</code> will race on <code>metadata.zip</code> rebuilds
+and per-entry JSON writes, with no guarantee of last-writer-wins
+consistency. The supported pattern is single-writer plus arbitrary
+read-only readers; cross-process concurrency must be coordinated
+externally (e.g., a job scheduler).</p>
     </div>
 
     <div class="section level2">

@@ -1,10 +1,20 @@
 # Open a Daf store by URI or path.
 
-Path/URL-aware factory that dispatches to the right backend. Today
-supports `memory://` (or no path / NULL) for in-memory stores, regular
-filesystem paths for `files_daf`, and `*.daf.zarr` directories for
-`zarr_daf`. `*.daf.zarr.zip` errors with "lands in slice 17";
-`http(s)://` errors with "lands in slice 18".
+Path/URL-aware factory that dispatches to the right backend. Supported
+URIs:
+
+- `memory://` (or no path / `NULL`) — in-memory
+  [`memory_daf()`](https://tanaylab.github.io/dafr/reference/memory_daf.md).
+
+- filesystem directory path —
+  [`files_daf()`](https://tanaylab.github.io/dafr/reference/files_daf.md).
+
+- `*.daf.zarr` or `*.daf.zarr.zip` (filesystem or HTTP) —
+  [`zarr_daf()`](https://tanaylab.github.io/dafr/reference/zarr_daf.md).
+
+- any other `http(s)://` URL —
+  [`http_daf()`](https://tanaylab.github.io/dafr/reference/HttpDaf.md)
+  (read-only HTTP-served FilesDaf).
 
 ## Usage
 
@@ -36,6 +46,12 @@ open_daf(uri = NULL, mode = "r", name = NULL, ...)
 ## Value
 
 A `DafReader` or `DafWriter` (subclass depends on backend and mode).
+
+## Details
+
+HTTP backends are read-only; modes other than `"r"` are rejected. HTTP
+zip-archive URLs are not supported (open the underlying `.daf.zarr`
+directory instead).
 
 ## Examples
 
