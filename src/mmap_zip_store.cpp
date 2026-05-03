@@ -8,8 +8,16 @@
 // which runs after the CD parse on every writable open and rolls back any
 // trailing entry whose LFH signature is missing or whose data CRC doesn't
 // match the recorded CRC. Reserve/patch_crc (Phase 7) remain stubs.
+//
+// Windows: uses POSIX mmap/sys/mman; not ported to Win32 yet. On Windows
+// the implementation body is skipped and the cpp11-registered entry
+// points come from src/mmap_zip_store_win_stubs.cpp, which throws a
+// clear runtime error. The package still builds; only the MmapZipStore
+// feature is unavailable.
 
 #include <cpp11.hpp>
+
+#ifndef _WIN32
 
 #include "mmap_zip_store.h"
 
@@ -1628,3 +1636,5 @@ SEXP dafr_mmap_zip_set_crash_counter(SEXP xptr, SEXP counter, SEXP ns_env) {
     store->set_crash_counter(counter, ns_env);
     return R_NilValue;
 }
+
+#endif  // !_WIN32
