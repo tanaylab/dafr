@@ -1,3 +1,34 @@
+# dafr 0.2.1
+
+## R-only quirks vs Julia parity (audit pass)
+
+Two correctness gaps surfaced by an audit of R-specific footguns
+that the ported `queries.jl` test suite does not exercise:
+
+- **Mask comparators on factor properties.** `[ prop < value ]`,
+  `[ prop > value ]`, etc. on a property stored as a factor
+  (e.g. an h5ad categorical loaded via the `categorical` encoding)
+  previously returned `NA` (unordered factor) or compared level
+  codes (ordered factor) — both diverging from
+  `DataAxesFormats.jl`, which compares the stored string lexically
+  (`queries.jl:2261-2400`). Mask helpers now coerce factor →
+  character before stashing the comparator-target vector, mirroring
+  the factor branch already in `.as_booleans` (the `ba9baa7`
+  precedent for the truthy `[ prop ]` mask).
+- **`>> Mode` on character / factor.** `Mode` previously rejected
+  non-numeric/non-logical inputs even though the Julia operation
+  is documented as supporting strings
+  (`operations.jl:1058-1115`, `supports_strings(::Mode) = true`).
+  `>> Mode` and `>| Mode` now accept character properties and
+  factors (factor → character at the boundary, matching Julia's
+  `CategoricalVector` → `Vector{String}` normalization at
+  `anndata_format.jl:403`). The grouped fast-path covers factor
+  inputs via the existing `.grouped_mode_character` helper.
+
+Build hygiene: `.Rbuildignore` excludes `AGENTS.md` and `CLAUDE.md`
+(development-only files) so they no longer surface as a
+`top-level files` NOTE under `R CMD check`.
+
 # dafr 0.2.0
 
 ## Reader-API parity polish
