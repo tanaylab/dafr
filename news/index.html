@@ -7,7 +7,7 @@
 
     <a class="navbar-brand me-2" href="../index.html">dafr</a>
 
-    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">0.2.0</small>
+    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">0.2.1</small>
 
 
     <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbar" aria-controls="navbar" aria-expanded="false" aria-label="Toggle navigation">
@@ -45,6 +45,18 @@
       <small>Source: <a href="https://github.com/tanaylab/dafr/blob/main/NEWS.md" class="external-link"><code>NEWS.md</code></a></small>
     </div>
 
+    <div class="section level2">
+<h2 class="pkg-version" data-toc-text="0.2.1" id="dafr-021">dafr 0.2.1<a class="anchor" aria-label="anchor" href="#dafr-021"></a></h2>
+<div class="section level3">
+<h3 id="r-only-quirks-vs-julia-parity-audit-pass-0-2-1">R-only quirks vs Julia parity (audit pass)<a class="anchor" aria-label="anchor" href="#r-only-quirks-vs-julia-parity-audit-pass-0-2-1"></a></h3>
+<p>Two correctness gaps surfaced by an audit of R-specific footguns that the ported <code>queries.jl</code> test suite does not exercise:</p>
+<ul><li>
+<strong>Mask comparators on factor properties.</strong> <code>[ prop &lt; value ]</code>, <code>[ prop &gt; value ]</code>, etc. on a property stored as a factor (e.g. an h5ad categorical loaded via the <code>categorical</code> encoding) previously returned <code>NA</code> (unordered factor) or compared level codes (ordered factor) — both diverging from <code>DataAxesFormats.jl</code>, which compares the stored string lexically (<code>queries.jl:2261-2400</code>). Mask helpers now coerce factor → character before stashing the comparator-target vector, mirroring the factor branch already in <code>.as_booleans</code> (the <code>ba9baa7</code> precedent for the truthy <code>[ prop ]</code> mask).</li>
+<li>
+<strong><code>&gt;&gt; Mode</code> on character / factor.</strong> <code>Mode</code> previously rejected non-numeric/non-logical inputs even though the Julia operation is documented as supporting strings (<code>operations.jl:1058-1115</code>, <code>supports_strings(::Mode) = true</code>). <code>&gt;&gt; Mode</code> and <code>&gt;| Mode</code> now accept character properties and factors (factor → character at the boundary, matching Julia’s <code>CategoricalVector</code> → <code>Vector{String}</code> normalization at <code>anndata_format.jl:403</code>). The grouped fast-path covers factor inputs via the existing <code>.grouped_mode_character</code> helper.</li>
+</ul><p>Build hygiene: <code>.Rbuildignore</code> excludes <code>AGENTS.md</code> and <code>CLAUDE.md</code> (development-only files) so they no longer surface as a <code>top-level files</code> NOTE under <code>R CMD check</code>.</p>
+</div>
+</div>
     <div class="section level2">
 <h2 class="pkg-version" data-toc-text="0.2.0" id="dafr-020">dafr 0.2.0<a class="anchor" aria-label="anchor" href="#dafr-020"></a></h2>
 <div class="section level3">
