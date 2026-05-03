@@ -131,8 +131,28 @@ test_that("Mode on a single-element vector returns that element", {
     expect_equal(get_reduction("Mode")(7), 7)
 })
 
-test_that("Mode raises on character input (numeric-only)", {
-    expect_error(get_reduction("Mode")(c("a", "b", "a")), "Mode.*numeric")
+test_that("Mode returns the most frequent character value", {
+    fn <- get_reduction("Mode")
+    # Julia parity: Mode supports strings (operations.jl:1058-1066,
+    # `supports_strings(::Mode) = true`).
+    expect_equal(fn(c("a", "b", "a")), "a")
+    expect_equal(fn(c("x", "x", "y", "y", "x")), "x")  # tie -> first max
+})
+
+test_that("Mode treats a factor as its character labels", {
+    fn <- get_reduction("Mode")
+    expect_equal(fn(factor(c("red", "blue", "red"))), "red")
+    # Reversed levels: code-order would prefer the rarer label; lexical
+    # tabulate must still pick the most-frequent label.
+    expect_equal(
+        fn(factor(c("a", "a", "b"), levels = c("b", "a"))),
+        "a"
+    )
+})
+
+test_that("Mode rejects unsupported types with a helpful message", {
+    expect_error(get_reduction("Mode")(complex(real = c(1, 2))),
+                 "Mode.*only numeric, logical, and character")
 })
 
 test_that("Mode attaches .dafr_builtin", {

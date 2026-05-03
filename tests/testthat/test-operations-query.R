@@ -82,3 +82,21 @@ test_that(">| Median / Quantile / GeoMean / Mode reach through query", {
         c(1, 2, 3, 4)
     )
 })
+
+test_that(">> Mode supports character and factor properties (Julia parity)", {
+    d <- memory_daf(name = "m")
+    add_axis(d, "cell", paste0("c", 1:5))
+    set_vector(d, "cell", "type",
+               c("Tcell", "Bcell", "Tcell", "Bcell", "Tcell"))
+    expect_equal(
+        unname(get_query(d, "@ cell : type >> Mode")),
+        "Tcell"
+    )
+    set_vector(d, "cell", "ordered_type",
+               factor(c("Tcell", "Bcell", "Tcell", "Bcell", "Tcell"),
+                      levels = c("Bcell", "Tcell")))
+    expect_equal(
+        unname(get_query(d, "@ cell : ordered_type >> Mode")),
+        "Tcell"
+    )
+})
