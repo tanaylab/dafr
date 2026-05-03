@@ -22,15 +22,15 @@ set_matrix(d, "cell", "cell", "kin",
            matrix(c(1, 0, 0, 0, 1, 0, 0, 0, 1), 3, 3))
 rm(d); gc()
 #>           used  (Mb) gc trigger  (Mb) max used  (Mb)
-#> Ncells 2508232 134.0    5035774 269.0  3273901 174.9
-#> Vcells 4308035  32.9   10146329  77.5  7111709  54.3
+#> Ncells 2508244 134.0    5035407 269.0  3274584 174.9
+#> Vcells 4308115  32.9   10146329  77.5  7111265  54.3
 
 # Reopen read-only and inspect.
 d <- zarr_daf(path, mode = "r")
 cat(description(d))
-#> name: file27a77bec45e5.daf.zarr
+#> name: file27bc31b13ce.daf.zarr
 #> type: ZarrDaf
-#> path: /tmp/RtmpTe0Dos/file27a77bec45e5.daf.zarr
+#> path: /tmp/RtmpsucyXo/file27bc31b13ce.daf.zarr
 #> mode: r
 #> scalars:
 #>   organism: "human"
@@ -71,8 +71,8 @@ add_axis(d, "gene", c("g1", "g2"))
 set_vector(d, "gene", "is_marker", c(TRUE, FALSE))
 rm(d); gc()
 #>           used  (Mb) gc trigger  (Mb) max used  (Mb)
-#> Ncells 2732827 146.0    5035774 269.0  3273901 174.9
-#> Vcells 4682280  35.8   10146329  77.5  7111709  54.3
+#> Ncells 2732841 146.0    5035407 269.0  3274584 174.9
+#> Vcells 4682362  35.8   10146329  77.5  7111265  54.3
 
 # Reopen.
 d <- zarr_daf(zip_path, mode = "r")
@@ -80,6 +80,10 @@ get_vector(d, "gene", "is_marker")
 #>    g1    g2 
 #>  TRUE FALSE
 ```
+
+> **Note:** the single-file `.daf.zarr.zip` backend depends on POSIX
+> `mmap` and is not available on Windows in this build. Use the
+> directory layout above on Windows.
 
 Foreign consumers open the same archive via Python’s
 `zarr.storage.ZipStore`:
