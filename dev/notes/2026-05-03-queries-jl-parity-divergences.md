@@ -9,6 +9,13 @@ bugs (wrong answer) — fixed inline in this slice — and structural parser /
 evaluator gaps that warrant their own follow-up. This document is the punch
 list for that follow-up.
 
+## Status (2026-05-03 end-of-day)
+
+- B1-B6 fixed in the literal-port slice on `dev`.
+- P1-P5, E1, E2 fixed in the parser-strictness follow-up slice. See "FIXED
+  in the parser-strictness slice" section below.
+- E3-E11, B7-B9, API1, N1 still deferred.
+
 ## FIXED in this slice (commits in slice-18 / dev)
 
 ### B1. `>>` reduction on empty vector / matrix returns 0
@@ -63,74 +70,93 @@ list for that follow-up.
 
 ---
 
-## DEFERRED — Parser-strictness divergences
+## FIXED in the parser-strictness slice (commits on `dev`)
 
-R's parser is a pure tokens→AST translator; DAF.jl's parser consults the
-operation registry at parse time. Closing the gap requires plumbing the
-registry into `R/query_parse.R` and extending the IfMissing tokenizer.
+These items are closed by the parser-strictness follow-up slice. The slice
+plumbed the operation registry into the parser and added auto-typing /
+type-annotation parsing for `||` defaults. Skip guards for these were
+removed from `tests/testthat/test-queries-jl-parity.R` and the substantive
+assertions now run.
 
-### P1. Unknown eltwise / reduction op name not rejected at parse
+### P1. Unknown eltwise / reduction op rejected at parse
 
-- **Repro.** `parse_query(". score % Frobulate")` succeeds in R (builds an
-  Eltwise node with name `"Frobulate"`); evaluation later fails with a
-  generic registry-miss message. Julia: errors at parse with `unknown eltwise
-  operation: Frobulate` and a caret-aligned context line.
-- **Fix sketch.** In `.parse_eltwise` and `.parse_reduction`, look up the op
-  in the eltwise/reduction registry and raise a structured parse error if
-  absent. The registry is already exposed via `get_eltwise` / `get_reduction`.
-- **Test guard.** `test-queries-jl-parity.R / queries / invalid / operation`
-  is skipped pending this fix.
+- **Status.** Closed.
+- **Implementation.** `.parse_eltwise` / `.parse_reduction` consult
+  `.ops_env$eltwise` / `.ops_env$reductions` and raise a structured parse
+  error on miss (`unknown eltwise operation: <name> at position <p> in
+  query '<src>'`). Carat alignment is left for a future cosmetic slice.
+- **Test reactivated.** `queries / invalid / operation`.
 - **Julia ref.** `queries.jl:128-134`.
 
-### P2. Unknown parameter name not rejected at parse
+### P2. Unknown parameter name rejected at parse
 
-- **Repro.** `parse_query(". score % Log phase 2")` succeeds; `phase` is
-  stored in the params list and silently ignored. Julia: errors at parse,
-  `the parameter: phase does not exist for the operation: Log`.
-- **Fix sketch.** Each registered op needs an exposed parameter signature
-  (name + type). The parser then validates each `param value` pair.
-- **Test guard.** `... / queries / invalid / parameter` is skipped.
+- **Status.** Closed.
+- **Implementation.** `register_eltwise` / `register_reduction` now derive
+  a parameter signature from the function's `formals()` (drops the first
+  positional and `...`). The shared `.parse_op_params` helper validates
+  each token-pair against this signature. Pass `params = NA` to
+  re-register an op with permissive (legacy) param validation.
+- **Test reactivated.** `queries / invalid / parameter`.
 - **Julia ref.** `queries.jl:136-143`.
 
-### P3. Repeated parameter not rejected at parse
+### P3. Repeated parameter rejected at parse
 
-- **Repro.** `parse_query(". score % Log base pi base e")` succeeds; the
-  second `base` overwrites the first (last-wins). Julia: errors at parse,
-  `repeated parameter: base for the operation: Log`.
-- **Fix sketch.** Local fix in `.parse_eltwise` / `.parse_reduction`: track
-  param-names already seen for the current op and error on duplicate.
-  Smallest of the parser-strictness items (~10 lines).
-- **Test guard.** `... / queries / invalid / parameters` is skipped.
+- **Status.** Closed.
+- **Implementation.** `.parse_op_params` tracks seen names per op and
+  raises `repeated parameter: <k> for the operation: <op>` on duplicate.
+- **Test reactivated.** `queries / invalid / parameters`.
 - **Julia ref.** `queries.jl:145-152`.
 
-### P4. Type annotation after `||` default not parsed as a type token
+### P4. Type annotation after `||` default parsed
 
-- **Repro.** `". version || 1.0 Float64"` errors in R with `expected
-  operator, got value 'Float64'` — parser treats `Float64` as a stray
-  value. Julia: `Float64` is a type annotation; parser builds an IfMissing
-  with type=Float64 and validates the value `"1.0"` coerces to that type.
-- **Fix sketch.** Extend `.parse_if_missing` to peek at the token after the
-  default value; if it matches a known type name (`Bool`, `Int8/16/32/64`,
-  `UInt8/16/32/64`, `Float32/64`, `String`), consume it as the type. Validate
-  the value coerces.
-- **Test guard.** `... / queries / scalar / lookup / with_default / float`
-  and `... / !int` are skipped.
+- **Status.** Closed.
+- **Implementation.** `.parse_if_missing` checks the token after the
+  default value; if it matches a known Julia type name
+  (`Bool`/`Int8/16/32/64`/`UInt8/16/32/64`/`Float32/64`/`String`) it is
+  consumed as the type. The legacy `type T` two-token form is still
+  accepted (only when `T` is a known Julia type, so a property called
+  "type" parses cleanly).
+- **Tests reactivated.** `queries / scalar / lookup / with_default / float`
+  and `... / !int`.
 - **Julia ref.** `queries.jl:286-323`.
 
-### P5. IfMissing default returns raw character; Julia auto-types
+### P5. IfMissing default auto-typed when no annotation given
 
-- **Repro.** `". version || 1.0"` returns `"1.0"` (character) in R; Julia
-  auto-detects Float64 and returns `1.0`. Same for `|| true` (Bool), `|| 0`
-  (Int64). The R coerce path only fires when an explicit type annotation
-  follows (which P4 doesn't parse anyway).
-- **Fix sketch.** In `.coerce_if_missing_default`, when `type` is NULL,
-  attempt detection: `true`/`false` → Bool, parseable int → Int64, parseable
-  float → Float64, `pi`/`e` → Float64 const, else String. Mirror DAF.jl's
-  `IfMissing` constructor type-detection logic.
-- **Test guard.** Affected tests run their substantive assertion against
-  `as.character()` so they pass; structural type assertions are deferred.
-  Documented in the parity file's intro comment.
-- **Julia ref.** `queries.jl:284-312` (constants pi, e, true, false branches).
+- **Status.** Closed.
+- **Implementation.** `.coerce_if_missing_default` now auto-detects when
+  `type` is NULL: `true`/`false` → Bool, `pi`/`e` → Float64 constant,
+  parseable int → integer, parseable float → numeric, else character.
+  Vector and matrix lookup paths now route their default through the same
+  coercion (so `: age || 1` returns an integer, not a character).
+- **Tests reactivated.** `queries / scalar / lookup / with_default /
+  const / pi`, `... / e`, `... / true`, `... / false`.
+- **Julia ref.** `queries.jl:284-312`.
+
+### E1. Mask after second axis (`@ rows @ cols [ filter ]`)
+
+- **Status.** Closed.
+- **Implementation.** `.apply_begin_mask` recognizes `state$kind ==
+  "two_axes"` and resolves the mask property on the most-recently-entered
+  axis (`cols_axis`). `.apply_end_mask` returns a `two_axes` state with
+  `col_indices`, and `.apply_lookup_matrix` narrows the matrix by both
+  `row_indices` and `col_indices` when set. Disambiguation grammar
+  (choosing rows-axis vs cols-axis explicitly) is deferred — Julia's
+  literal queries-tests only exercise the cols case.
+- **Tests reactivated.** `queries / vector / matrix / reduction / column /
+  empty / cols`, `... / column / !empty / cols`, `... / row / empty /
+  cols`, `... / row / !empty / cols`.
+- **Julia ref.** `queries.jl:649-651, 686-689`.
+
+### E2. `name` virtual property in masks and lookups
+
+- **Status.** Closed.
+- **Implementation.** `.lookup_mask_property` (used by `.apply_begin_mask`
+  and `.apply_logical_mask`) intercepts the property name `"name"` and
+  returns `format_axis_array(daf, axis)`. `.apply_lookup_vector` does the
+  same for `: name` when no real vector named `"name"` exists on the
+  axis. The dataframe-side gap (`get_frame` returning a `name` column)
+  remains under API1.
+- **Julia ref.** `queries.jl:649-665, 685-703`.
 
 ---
 
@@ -157,31 +183,12 @@ registry into `R/query_parse.R` and extending the IfMissing tokenizer.
   dimnames; `get_query` dimensions / shape parity already works in dafr,
   only names are missing.
 
-### E1. Mask after second axis (`@ rows @ cols [ filter ]`) not supported
+(E1 closed — see "FIXED in the parser-strictness slice" above.)
 
-- **Repro.** `get_query(d, "@ cell @ gene [ is_q ]")` errors `'[' mask
-  requires axis in scope`. Julia: filters the most-recently-entered axis
-  (gene), narrowing the matrix view.
-- **Fix sketch.** `R/query_eval.R::.apply_begin_mask` currently handles only
-  `state$kind == "axis"`. Extend to `state$kind == "two_axes"` — interpret
-  the mask as filtering the cols_axis (or rows_axis if disambiguation
-  syntax is used). The downstream LookupMatrix and reduction paths need to
-  accept a mask-narrowed two_axes state.
-- **Test guard.** `... / queries / vector / matrix / reduction / column /
-  empty / cols-empty` and the symmetric row tests are skipped. (The
-  rows-empty variants of these tests work via single-axis masks and are
-  covered.)
-- **Julia ref.** `queries.jl:649-651, 686-689`.
-
-### E2. `name` virtual property not implemented in masks/lookups *or* dataframes
-
-- **Symptom.** Both `[ name = X ]` (mask comparator on `name`) and the
-  dataframe path (Julia's `get_frame` returns a `name` column with the
-  axis-entry strings) miss this virtual. dafr's `get_dataframe` /
-  `get_dataframe_query` puts the entry names in `rownames(df)` only — no
-  `name` column.
-- **Test guard.** Dataframe parity tests assert via `rownames(df)` instead
-  of via a `name` column.
+(E2 closed for masks and lookups — see "FIXED in the parser-strictness
+slice" above. The dataframe-side gap, where `get_frame` would return a
+`name` column with the axis-entry strings, is still open and documented
+under API1.)
 
 ### E3. Matrix-slice-as-mask not supported
 
@@ -235,23 +242,14 @@ follow-up slice should treat these as part of the same body of work.
   => ": is_doublet"])` accepts pairs of (output-column-name => sub-query).
   dafr's `get_dataframe` / `get_dataframe_query` `columns` parameter takes
   only a character vector of pre-existing column names; a named list of
-  query strings errors `columns not on query result: ': age'`.
+  query strings errors `columns not on query result: ': age'`. Same gap
+  also blocks the dataframe-side of E2 (a `name` column with axis-entry
+  strings).
 - **Test guard.** `... / queries / dataframes / simple / columns / queries`
   and `... / shorthands` and the complex variants skipped.
 - **Recommended fix.** Extend `columns` parameter to accept a named list of
   query strings; for each, evaluate the sub-query and bind into the
   data.frame. This is a small enhancement to `R/dataframes.R`.
-
-- **Repro.** `[ name = X ]` and `: name` referencing the axis-entry-name
-  vector are not understood by dafr; format_get_vector errors. Julia treats
-  `name` as a virtual property on every axis equal to the entry names.
-- **Fix sketch.** `R/format_api.R` (or `R/query_eval.R::.apply_begin_mask` /
-  `.apply_lookup_vector`): intercept `name` as a virtual lookup that returns
-  `format_axis_array(daf, axis)`.
-- **Test guard.** Tests using `name = X` (queries.jl:649-665, 685-703) are
-  ported with substitute properties (an explicit boolean mask vector
-  instead) so the structural intent is preserved.
-- **Julia ref.** `queries.jl:649-665, 685-703`.
 
 ---
 
@@ -283,8 +281,17 @@ divergences above use `skip("R parser-strictness divergence: P1")` /
 `skip("R evaluator divergence: E1")` etc., naming the gap by ID so this
 document is the single source of truth for the punch list.
 
-Counts at first commit:
+Counts at first commit (literal port):
 - 6 fixes shipped (B1-B6)
 - 5 parser-strictness gaps (P1-P5) — skip count varies as multiple tests hit each
 - 2 evaluator gaps (E1-E2)
 - 5 error-text-only divergences (T1-T5) — tests pass via substring/condition-only assertion
+
+Counts after the parser-strictness slice (this update):
+- B1-B6, P1-P5, E1, E2 closed (13 items).
+- Remaining deferred IDs: N1, E3-E11, B7-B9, API1.
+- Skip count in `test-queries-jl-parity.R`: 68 (down from ~88 at first
+  commit), all attributed to the deferred IDs above. The bulk are E5-E11
+  pointed at the divergences doc.
+- All B-shipped + P/E-shipped substantive assertions pass; full test suite
+  remains green.

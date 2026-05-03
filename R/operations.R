@@ -4,6 +4,16 @@ NULL
 .ops_env <- new.env(parent = emptyenv())
 .ops_env$reductions <- list()
 .ops_env$eltwise <- list()
+# Parameter signatures (for P2: parser-time rejection of unknown params).
+# `NULL` (or absent) signature means "any param accepted" — used as the
+# permissive fallback for user-registered ops that never declared one.
+.ops_env$reduction_sigs <- list()
+.ops_env$eltwise_sigs <- list()
+
+.op_param_sig <- function(kind, name) {
+    sigs <- if (kind == "eltwise") .ops_env$eltwise_sigs else .ops_env$reduction_sigs
+    sigs[[name]]
+}
 
 #' Register a reduction operation.
 #'
@@ -15,12 +25,17 @@ NULL
 #'   matrix column and `...` collects named parameters.
 #' @param overwrite Logical scalar; set to `TRUE` to replace an already-
 #'   registered operation.
+#' @param params Optional character vector of accepted parameter names.
+#'   Used for parse-time rejection of unknown parameters. Defaults to
+#'   the names extracted from `formals(fn)` (excluding `x`, `...`, and
+#'   `na_rm` which is always accepted). Pass `NA` to disable param-name
+#'   validation entirely (legacy permissive behaviour).
 #' @return Invisibly `NULL`.
 #' @examples
 #' register_reduction("Median_example", function(x, ...) median(x, ...), overwrite = TRUE)
 #' registered_reductions()
 #' @export
-register_reduction <- function(name, fn, overwrite = FALSE) {
+register_reduction <- function(name, fn, overwrite = FALSE, params = NULL) {
     .assert_name(name, "reduction name")
     if (!is.function(fn)) {
         stop(sprintf("`fn` must be a function (for reduction %s)", sQuote(name)),
@@ -34,6 +49,7 @@ register_reduction <- function(name, fn, overwrite = FALSE) {
         ), call. = FALSE)
     }
     .ops_env$reductions[[name]] <- fn
+    .ops_env$reduction_sigs[[name]] <- .resolve_param_sig(fn, params)
     invisible(NULL)
 }
 
@@ -47,13 +63,18 @@ register_reduction <- function(name, fn, overwrite = FALSE) {
 #'   matrix (eltwise ops preserve shape) and `...` collects named parameters.
 #' @param overwrite Logical scalar; set to `TRUE` to replace an already-
 #'   registered operation.
+#' @param params Optional character vector of accepted parameter names.
+#'   Used for parse-time rejection of unknown parameters. Defaults to
+#'   the names extracted from `formals(fn)` (excluding `x` and `...`).
+#'   Pass `NA` to disable param-name validation entirely (legacy
+#'   permissive behaviour).
 #' @return Invisibly `NULL`.
 #' @examples
 #' register_eltwise("Clamp01", function(x, ...) pmin(pmax(x, 0), 1),
 #'                  overwrite = TRUE)
 #' registered_eltwise()
 #' @export
-register_eltwise <- function(name, fn, overwrite = FALSE) {
+register_eltwise <- function(name, fn, overwrite = FALSE, params = NULL) {
     .assert_name(name, "eltwise name")
     if (!is.function(fn)) {
         stop(sprintf("`fn` must be a function (for eltwise %s)", sQuote(name)),
@@ -67,7 +88,27 @@ register_eltwise <- function(name, fn, overwrite = FALSE) {
         ), call. = FALSE)
     }
     .ops_env$eltwise[[name]] <- fn
+    .ops_env$eltwise_sigs[[name]] <- .resolve_param_sig(fn, params)
     invisible(NULL)
+}
+
+.resolve_param_sig <- function(fn, params) {
+    if (length(params) == 1L && is.logical(params) && is.na(params)) {
+        return(NULL)
+    }
+    if (!is.null(params)) {
+        if (!is.character(params)) {
+            stop("`params` must be a character vector or NA", call. = FALSE)
+        }
+        return(params)
+    }
+    # Drop the first positional formal (the `x` value the op operates on,
+    # by convention; tests use `v` etc.) and `...`.
+    nms <- names(formals(fn))
+    if (length(nms) > 0L && nms[[1L]] != "...") {
+        nms <- nms[-1L]
+    }
+    setdiff(nms, "...")
 }
 
 #' Retrieve a registered reduction operation by name.

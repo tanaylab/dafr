@@ -81,21 +81,18 @@ test_that("queries / invalid / unexpected / mask", {
 })
 
 test_that("queries / invalid / operation", {
-    skip("R divergence: P1 (unknown eltwise op not rejected at parse)")
     expect_error(parse_query(". score % Frobulate"),
         regexp = "unknown eltwise operation: Frobulate"
     )
 })
 
 test_that("queries / invalid / parameter", {
-    skip("R divergence: P2 (unknown parameter name not rejected at parse)")
     expect_error(parse_query(". score % Log phase 2"),
         regexp = "the parameter: phase does not exist for the operation: Log"
     )
 })
 
 test_that("queries / invalid / parameters", {
-    skip("R divergence: P3 (repeated parameter not rejected at parse)")
     expect_error(parse_query(". score % Log base pi base e"),
         regexp = "repeated parameter: base"
     )
@@ -261,37 +258,31 @@ test_that("queries / scalar / lookup / with_default / string", {
 })
 
 test_that("queries / scalar / lookup / with_default / float", {
-    skip("R divergence: P4 (type annotation after default not parsed)")
     daf <- fresh_daf()
     expect_equal(get_query(daf, ". version || 1.0 Float32"), 1.0)
 })
 
 test_that("queries / scalar / lookup / with_default / const / pi", {
-    skip("R divergence: P5 (auto-type / pi const not detected)")
     daf <- fresh_daf()
     expect_equal(get_query(daf, ". version || pi"), pi)
 })
 
 test_that("queries / scalar / lookup / with_default / const / e", {
-    skip("R divergence: P5 (auto-type / e const not detected)")
     daf <- fresh_daf()
     expect_equal(get_query(daf, ". version || e"), exp(1))
 })
 
 test_that("queries / scalar / lookup / with_default / const / true", {
-    skip("R divergence: P5 (auto-type Bool not detected)")
     daf <- fresh_daf()
     expect_identical(get_query(daf, ". version || true"), TRUE)
 })
 
 test_that("queries / scalar / lookup / with_default / const / false", {
-    skip("R divergence: P5 (auto-type Bool not detected)")
     daf <- fresh_daf()
     expect_identical(get_query(daf, ". version || false"), FALSE)
 })
 
 test_that("queries / scalar / lookup / with_default / !int", {
-    skip("R divergence: P4 (type annotation after default not parsed)")
     daf <- fresh_daf()
     expect_error(get_query(daf, ". version || 1.0 Int32"),
         regexp = "Int32|invalid value"
@@ -758,7 +749,6 @@ test_that("queries / vector / matrix / reduction / column / empty / rows", {
 })
 
 test_that("queries / vector / matrix / reduction / column / empty / cols", {
-    skip("R divergence: E1 (mask after second axis not supported)")
     daf <- .fx_vec_matrix()
     set_vector(daf, "gene", "is_q", c(FALSE, FALSE, FALSE))
     res <- get_query(daf,
@@ -777,7 +767,6 @@ test_that("queries / vector / matrix / reduction / column / !empty / rows", {
 })
 
 test_that("queries / vector / matrix / reduction / column / !empty / cols", {
-    skip("R divergence: E1 (mask after second axis not supported)")
     daf <- .fx_vec_matrix()
     set_vector(daf, "gene", "is_q", c(FALSE, FALSE, FALSE))
     expect_error(get_query(daf,
@@ -812,7 +801,6 @@ test_that("queries / vector / matrix / reduction / row / empty / rows", {
 })
 
 test_that("queries / vector / matrix / reduction / row / empty / cols", {
-    skip("R divergence: E1 (mask after second axis not supported)")
     daf <- .fx_vec_matrix()
     set_vector(daf, "gene", "is_q", c(FALSE, FALSE, FALSE))
     res <- get_query(daf,
@@ -830,7 +818,6 @@ test_that("queries / vector / matrix / reduction / row / !empty / rows", {
 })
 
 test_that("queries / vector / matrix / reduction / row / !empty / cols", {
-    skip("R divergence: E1 (mask after second axis not supported)")
     daf <- .fx_vec_matrix()
     set_vector(daf, "gene", "is_q", c(FALSE, FALSE, FALSE))
     expect_error(get_query(daf,

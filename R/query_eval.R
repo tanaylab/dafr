@@ -237,10 +237,15 @@ NULL
     state
 }
 
-# Coerce an IfMissing default to the requested Julia-style dtype, or leave
-# it as the parser-emitted character if no type was given.
+# Coerce an IfMissing default to the requested Julia-style dtype.
+# If `type` is NULL (i.e. the parser saw no annotation), auto-detect from
+# the literal — Julia parity with the `IfMissing` constructor in
+# queries.jl:284-323.
 .coerce_if_missing_default <- function(value, type) {
-    if (is.null(type)) return(value)
+    if (is.null(type)) return(.auto_coerce_if_missing(value))
+    if (.is_julia_type_name(type)) {
+        .check_default_value_for_type(value, type)
+    }
     switch(type,
         String  = as.character(value),
         Bool    = {
@@ -258,6 +263,53 @@ NULL
             sQuote(type)
         ), call. = FALSE)
     )
+}
+
+.auto_coerce_if_missing <- function(value) {
+    if (!is.character(value) || length(value) != 1L) return(value)
+    s <- value
+    if (s %in% c("true", "TRUE")) return(TRUE)
+    if (s %in% c("false", "FALSE")) return(FALSE)
+    if (identical(s, "pi")) return(pi)
+    if (identical(s, "e")) return(exp(1))
+    if (grepl("^[+-]?[0-9]+$", s)) {
+        return(as.integer(s))
+    }
+    if (grepl("^[+-]?[0-9]+\\.[0-9]+([eE][+-]?[0-9]+)?$", s) ||
+        grepl("^[+-]?[0-9]+[eE][+-]?[0-9]+$", s)) {
+        return(as.numeric(s))
+    }
+    s
+}
+
+.check_default_value_for_type <- function(value, type) {
+    if (!is.character(value)) return(invisible())
+    s <- value
+    julia_int <- c("Int8", "Int16", "Int32", "Int64",
+                   "UInt8", "UInt16", "UInt32", "UInt64")
+    julia_float <- c("Float32", "Float64")
+    is_intish <- grepl("^[+-]?[0-9]+$", s)
+    is_floatish <- grepl("^[+-]?[0-9]+\\.[0-9]+([eE][+-]?[0-9]+)?$", s) ||
+        grepl("^[+-]?[0-9]+[eE][+-]?[0-9]+$", s) ||
+        identical(s, "pi") || identical(s, "e")
+    if (type %in% julia_int && !is_intish) {
+        stop(sprintf(
+            "IfMissing: invalid value %s for type %s",
+            sQuote(s), type
+        ), call. = FALSE)
+    }
+    if (type %in% julia_float && !(is_intish || is_floatish)) {
+        stop(sprintf(
+            "IfMissing: invalid value %s for type %s",
+            sQuote(s), type
+        ), call. = FALSE)
+    }
+    if (identical(type, "Bool") &&
+        !(s %in% c("0", "1", "true", "false", "TRUE", "FALSE"))) {
+        stop(sprintf(
+            "IfMissing: invalid value %s for type Bool", sQuote(s)
+        ), call. = FALSE)
+    }
 }
 
 .apply_names <- function(node, state, daf) {
@@ -312,6 +364,19 @@ NULL
         return(state)
     }
     indices <- state$indices
+    # E2: `name` virtual property — return the axis-entry vector.
+    if (identical(node$name, "name") && !format_has_vector(daf, axis, node$name)) {
+        value <- format_axis_array(daf, axis)
+        if (!is.null(indices)) {
+            value <- value[indices]
+        }
+        return(list(
+            kind = "vector",
+            value = value,
+            axis = axis,
+            property = node$name
+        ))
+    }
     if (!format_has_vector(daf, axis, node$name)) {
         if (!is.null(state$if_missing)) {
             out_len <- if (is.null(indices)) {
@@ -319,9 +384,12 @@ NULL
             } else {
                 length(indices)
             }
+            default <- .coerce_if_missing_default(
+                state$if_missing, state$if_missing_type
+            )
             return(list(
                 kind = "vector",
-                value = rep(state$if_missing, out_len),
+                value = rep(default, out_len),
                 axis = axis,
                 property = node$name
             ))
@@ -357,6 +425,7 @@ NULL
         return(state)
     }
     row_indices <- state$row_indices
+    col_indices <- state$col_indices
     if (!format_has_matrix(daf, rows, cols, node$name)) {
         if (!is.null(state$if_missing)) {
             nrow_out <- if (is.null(row_indices)) {
@@ -364,13 +433,17 @@ NULL
             } else {
                 length(row_indices)
             }
+            ncol_out <- if (is.null(col_indices)) {
+                format_axis_length(daf, cols)
+            } else {
+                length(col_indices)
+            }
+            default <- .coerce_if_missing_default(
+                state$if_missing, state$if_missing_type
+            )
             return(list(
                 kind = "matrix",
-                value = matrix(
-                    state$if_missing,
-                    nrow_out,
-                    format_axis_length(daf, cols)
-                ),
+                value = matrix(default, nrow_out, ncol_out),
                 rows_axis = rows, cols_axis = cols
             ))
         }
@@ -385,6 +458,9 @@ NULL
     m <- format_get_matrix(daf, rows, cols, node$name)
     if (!is.null(row_indices)) {
         m <- m[row_indices, , drop = FALSE]
+    }
+    if (!is.null(col_indices)) {
+        m <- m[, col_indices, drop = FALSE]
     }
     list(
         kind = "matrix",
@@ -509,14 +585,26 @@ NULL
 }
 
 .apply_begin_mask <- function(node, state, daf) {
-    if (!identical(state$kind, "axis")) {
+    # E1: a mask after `@ rows @ cols` filters the most-recently-entered
+    # axis (cols_axis). Disambiguation grammar (e.g. `@-`/`@|`-style mask
+    # selectors) is left for a future slice; current Julia tests only
+    # exercise the cols_axis case.
+    if (identical(state$kind, "axis")) {
+        mask_axis <- state$axis
+        scope <- "single"
+    } else if (identical(state$kind, "two_axes")) {
+        mask_axis <- state$cols_axis
+        scope <- "two_axes"
+    } else {
         stop("'[' mask requires an axis in scope", call. = FALSE)
     }
-    vec <- format_get_vector(daf, state$axis, node$property)
+    vec <- .lookup_mask_property(daf, mask_axis, node$property)
     mask <- .as_booleans(vec)
     if (identical(node$op, "BeginNegatedMask")) mask <- !mask
     state$pending_mask <- mask
     state$pending_property <- node$property
+    state$pending_mask_axis <- mask_axis
+    state$pending_mask_scope <- scope
     # Carry a comparator-ready copy. R's `<`/`>` on a factor either
     # returns NA (unordered) or compares level codes (ordered) — both
     # diverge from Julia, which compares the stored string lexically.
@@ -525,11 +613,30 @@ NULL
     state
 }
 
+# Resolve a mask's left-hand property. E2: the virtual `name` property
+# on every axis returns its entry-name vector (queries.jl:649-665).
+.lookup_mask_property <- function(daf, axis, property) {
+    if (identical(property, "name")) {
+        return(format_axis_array(daf, axis))
+    }
+    format_get_vector(daf, axis, property)
+}
+
 .apply_end_mask <- function(node, state, daf) {
-    axis <- state$axis
-    entries <- format_axis_array(daf, axis)
     mask <- state$pending_mask
     keep <- !is.na(mask) & mask
+    if (identical(state$pending_mask_scope, "two_axes")) {
+        # E1: narrow the cols axis of a two_axes scope.
+        return(list(
+            kind = "two_axes",
+            rows_axis = state$rows_axis,
+            cols_axis = state$cols_axis,
+            row_indices = state$row_indices,
+            col_indices = if (all(keep)) NULL else which(keep)
+        ))
+    }
+    axis <- state$axis
+    entries <- format_axis_array(daf, axis)
     # Carry the surviving-entry indices forward so that a subsequent
     # LookupVector / LookupMatrix subsets by the mask rather than returning
     # the full axis-length vector. indices=NULL (i.e. all entries pass) is
@@ -544,7 +651,8 @@ NULL
     if (!identical(state$kind, "mask")) {
         stop("logical mask combinator outside of mask", call. = FALSE)
     }
-    vec <- format_get_vector(daf, state$axis, node$property)
+    mask_axis <- state$pending_mask_axis %||% state$axis
+    vec <- .lookup_mask_property(daf, mask_axis, node$property)
     m <- .as_booleans(vec)
     negated <- grepl("NegatedMask$", node$op)
     if (negated) m <- !m
