@@ -10,6 +10,12 @@
 //   - The slot's `deactivated` flag is flipped to true when the store closes
 //     (or is GC'd). After that, methods short-circuit to a stable empty / inert
 //     buffer so derefs don't segfault.
+//
+// Windows: depends on MmapZipStore (POSIX-only). Body skipped on Windows;
+// init_altrep_zip_raw / make_zip_raw_altrep* are stubbed in
+// src/mmap_zip_store_win_stubs.cpp.
+
+#ifndef _WIN32
 
 #include <cpp11.hpp>
 
@@ -233,3 +239,5 @@ SEXP make_zip_raw_altrep_writable(MmapZipStore* store, uint64_t offset,
 }
 
 }  // namespace dafr
+
+#endif  // !_WIN32

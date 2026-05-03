@@ -15,13 +15,38 @@
 
 #include <cpp11.hpp>
 
+#include <cstdint>
 #include <string>
+
+#define R_NO_REMAP
+#include <R.h>
+#include <Rinternals.h>
 
 namespace {
 [[noreturn]] inline void mmap_zip_unsupported() {
     cpp11::stop("MmapZipStore is not supported on Windows in this build of dafr");
 }
 } // namespace
+
+namespace dafr {
+class MmapZipStore;  // forward — instances cannot be constructed on Windows
+void init_altrep_zip_raw(DllInfo* /*dll*/) {
+    // No-op on Windows: the ALTREP RAWSXP class is only registered when
+    // MmapZipStore is available, which it isn't on Windows.
+}
+SEXP make_zip_raw_altrep(MmapZipStore* /*store*/, std::uint64_t /*offset*/,
+                         std::uint64_t /*length*/) {
+    mmap_zip_unsupported();
+}
+SEXP make_zip_raw_altrep_with_xptr(MmapZipStore* /*store*/, std::uint64_t /*offset*/,
+                                   std::uint64_t /*length*/, SEXP /*store_xptr*/) {
+    mmap_zip_unsupported();
+}
+SEXP make_zip_raw_altrep_writable(MmapZipStore* /*store*/, std::uint64_t /*offset*/,
+                                  std::uint64_t /*length*/, SEXP /*store_xptr*/) {
+    mmap_zip_unsupported();
+}
+}  // namespace dafr
 
 SEXP dafr_mmap_zip_open(std::string /*path*/, std::string /*mode*/, double /*max_file_size_double*/) {
     mmap_zip_unsupported();
