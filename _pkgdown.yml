@@ -17,6 +17,7 @@ articles:
       - dplyr
       - anndata
       - native-performance
+      - zarr
 
   - title: Reference specifications
     desc: >
