@@ -467,12 +467,30 @@ NULL
         property = node$name
     )
 }
+# Julia parity (queries.jl:5221-5230): bare `[ prop ]` mask and bare `??`
+# treat values as booleans. For strings, "" is false; for reals, 0 is
+# false; NAs are false. R's default `vec != 0` coerces 0 -> "0" for
+# character vectors, so "" != "0" returns TRUE — silently letting empty
+# strings pass the mask. This helper restores the per-type semantics.
+.as_booleans <- function(vec) {
+    if (is.logical(vec)) {
+        return(!is.na(vec) & vec)
+    }
+    if (is.factor(vec)) {
+        vec <- as.character(vec)
+    }
+    if (is.character(vec)) {
+        return(!is.na(vec) & nzchar(vec))
+    }
+    !is.na(vec) & vec != 0
+}
+
 .apply_begin_mask <- function(node, state, daf) {
     if (!identical(state$kind, "axis")) {
         stop("'[' mask requires an axis in scope", call. = FALSE)
     }
     vec <- format_get_vector(daf, state$axis, node$property)
-    mask <- if (is.logical(vec)) vec else !is.na(vec) & vec != 0
+    mask <- .as_booleans(vec)
     if (identical(node$op, "BeginNegatedMask")) mask <- !mask
     state$pending_mask <- mask
     state$pending_property <- node$property
@@ -501,7 +519,7 @@ NULL
         stop("logical mask combinator outside of mask", call. = FALSE)
     }
     vec <- format_get_vector(daf, state$axis, node$property)
-    m <- if (is.logical(vec)) vec else !is.na(vec) & vec != 0
+    m <- .as_booleans(vec)
     negated <- grepl("NegatedMask$", node$op)
     if (negated) m <- !m
     op <- if (startsWith(node$op, "And")) "And" else if (startsWith(node$op, "Or")) "Or" else "Xor"
