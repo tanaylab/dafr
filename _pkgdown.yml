@@ -45,6 +45,7 @@ reference:
       - http_daf
       - pack_files_daf_metadata
       - is_daf
+      - is_leaf
       - daf_name
       - description
       - complete_path
