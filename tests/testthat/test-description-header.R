@@ -15,9 +15,13 @@ test_that("description(files_daf) shows path and mode (writer)", {
     p <- withr::local_tempdir("dafr-desc-fd-")
     d <- files_daf(p, "w", name = "fd!")
     out <- description(d)
+    # files_daf normalises its path; on macOS that resolves
+    # /var/folders/... -> /private/var/folders/... via the symlink, so
+    # match against the normalised form rather than the raw tempdir.
+    p_norm <- normalizePath(p, winslash = "/", mustWork = FALSE)
     expect_match(out, "name: fd!", fixed = TRUE)
     expect_match(out, "type: FilesDaf", fixed = TRUE)
-    expect_match(out, sprintf("path: %s", p), fixed = TRUE)
+    expect_match(out, sprintf("path: %s", p_norm), fixed = TRUE)
     expect_match(out, "mode: w", fixed = TRUE)
 })
 
@@ -26,8 +30,9 @@ test_that("description(files_daf, mode=r) shows path and mode r", {
     d <- files_daf(p, "w+", name = "fd!"); rm(d); gc()
     ro <- files_daf(p, "r", name = "fd!")
     out <- description(ro)
+    p_norm <- normalizePath(p, winslash = "/", mustWork = FALSE)
     expect_match(out, "type: FilesDaf", fixed = TRUE)
-    expect_match(out, sprintf("path: %s", p), fixed = TRUE)
+    expect_match(out, sprintf("path: %s", p_norm), fixed = TRUE)
     expect_match(out, "mode: r", fixed = TRUE)
 })
 
