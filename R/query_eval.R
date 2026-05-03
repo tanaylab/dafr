@@ -951,6 +951,24 @@ NULL
     state
 }
 
+# Julia parity (queries.jl:5221-5230): bare `[ prop ]` mask and bare `??`
+# treat values as booleans. For strings, "" is false; for reals, 0 is
+# false; NAs are false. R's default `vec != 0` coerces 0 -> "0" for
+# character vectors, so "" != "0" returns TRUE — silently letting empty
+# strings pass the mask. This helper restores the per-type semantics.
+.as_booleans <- function(vec) {
+    if (is.logical(vec)) {
+        return(!is.na(vec) & vec)
+    }
+    if (is.factor(vec)) {
+        vec <- as.character(vec)
+    }
+    if (is.character(vec)) {
+        return(!is.na(vec) & nzchar(vec))
+    }
+    !is.na(vec) & vec != 0
+}
+
 # Resolve `[ matrix-prop @ cols-axis = entry ...`: the column slice is
 # fetched and reduced to a per-rows-axis vector; downstream comparators
 # work on that vector exactly like the vector-mask path.
@@ -983,7 +1001,7 @@ NULL
     if (methods::is(vec, "sparseVector") || methods::is(vec, "Matrix")) {
         vec <- as.numeric(vec)
     }
-    mask <- if (is.logical(vec)) vec else !is.na(vec) & vec != 0
+    mask <- .as_booleans(vec)
     state$kind <- "mask"
     state$pending_mask <- mask
     state$pending_property <- prop
@@ -1059,7 +1077,7 @@ NULL
 # can replace `vec`'s truthy default with a comparison result, and returns
 # to the regular `mask` state.
 .combine_mask_with_vec <- function(state, vec) {
-    m <- if (is.logical(vec)) vec else !is.na(vec) & vec != 0
+    m <- .as_booleans(vec)
     if (isTRUE(state$matrix_negated)) m <- !m
     op <- state$matrix_combinator_op
     prior <- state$matrix_combinator_prior
@@ -1103,7 +1121,7 @@ NULL
     if (methods::is(vec, "sparseVector") || methods::is(vec, "Matrix")) {
         vec <- as.numeric(vec)
     }
-    mask <- if (is.logical(vec)) vec else !is.na(vec) & vec != 0
+    mask <- .as_booleans(vec)
     state$kind <- "mask"
     state$pending_mask <- mask
     state$pending_property <- prop
@@ -1119,7 +1137,7 @@ NULL
     negated <- identical(node$op, "BeginNegatedMask")
     if (format_has_vector(daf, state$axis, node$property)) {
         vec <- format_get_vector(daf, state$axis, node$property)$value
-        mask <- if (is.logical(vec)) vec else !is.na(vec) & vec != 0
+        mask <- .as_booleans(vec)
         state$pending_mask <- mask
         state$pending_property <- node$property
         state$pending_vec <- vec
@@ -1193,7 +1211,7 @@ NULL
         return(state)
     }
     vec <- format_get_vector(daf, state$axis, node$property)$value
-    m <- if (is.logical(vec)) vec else !is.na(vec) & vec != 0
+    m <- .as_booleans(vec)
     if (negated) m <- !m
     combined <- switch(op,
         And = state$pending_mask & m,
