@@ -729,10 +729,13 @@ NULL
             empty_mask <- is.na(indices) |
                 (is.character(pivot_values) & !nzchar(pivot_values))
             out <- rep(default, length(pivot_values))
-            base_entries <- if (!is.null(names(pivot_values))) {
-                names(pivot_values)
-            } else {
-                format_axis_array(daf, base_axis)$value
+            # pivot_values now always carries names: first hop comes from
+            # format_get_vector (named since the S1 names-everywhere change),
+            # subsequent hops from prior .apply_chained_lookup_vector calls.
+            base_entries <- names(pivot_values)
+            if (is.null(base_entries) || length(base_entries) != length(pivot_values)) {
+                stop("internal: pivot vector lost its names — format_get_vector contract violation",
+                     call. = FALSE)
             }
             if (isTRUE(state$if_not_present)) {
                 sentinel <- state$if_not_value
@@ -779,14 +782,13 @@ NULL
         out[final_mask] <- prior_finals
     }
 
-    # Post-first-hop, pivot_values carries surviving axis names set by a prior
-    # .apply_chained_lookup_vector call; use them to preserve any '??' row drop.
-    # First-hop pivot_values comes from format_get_vector (unnamed on all current
-    # backends), so we seed from the full axis instead.
-    base_entries <- if (!is.null(names(pivot_values))) {
-        names(pivot_values)
-    } else {
-        format_axis_array(daf, base_axis)$value
+    # pivot_values now always carries names: first hop comes from
+    # format_get_vector (named since the S1 names-everywhere change),
+    # subsequent hops from prior .apply_chained_lookup_vector calls.
+    base_entries <- names(pivot_values)
+    if (is.null(base_entries) || length(base_entries) != length(pivot_values)) {
+        stop("internal: pivot vector lost its names — format_get_vector contract violation",
+             call. = FALSE)
     }
     if (isTRUE(state$if_not_present)) {
         sentinel <- state$if_not_value

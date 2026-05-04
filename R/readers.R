@@ -296,7 +296,6 @@ get_vector <- function(daf, axis, name, default) {
     tier <- .canonical_tier(res$cache_group)
     hit <- cache_lookup(cache_env, tier, cache_key, stamp_now)
     out <- if (is.null(hit)) raw else hit
-    if (is.null(names(out))) names(out) <- entries
     if (is.null(hit)) {
         cache_store(cache_env, tier, cache_key, out, stamp_now,
             size_bytes = object.size(out)
@@ -420,7 +419,7 @@ get_matrix <- function(daf, rows_axis, columns_axis, name, default) {
         )
     }
 
-    out <- if (flipped) {
+    if (flipped) {
         if (methods::is(stored, "dgCMatrix") || methods::is(stored, "lgCMatrix")) {
             Matrix::t(stored)
         } else {
@@ -429,13 +428,6 @@ get_matrix <- function(daf, rows_axis, columns_axis, name, default) {
     } else {
         stored
     }
-
-    if (methods::is(out, "dgCMatrix") || methods::is(out, "lgCMatrix")) {
-        out@Dimnames <- list(rows, cols)
-    } else {
-        dimnames(out) <- list(rows, cols)
-    }
-    out
 }
 
 #' Human-readable summary of a Daf store.
