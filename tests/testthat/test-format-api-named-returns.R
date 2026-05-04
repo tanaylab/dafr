@@ -135,3 +135,43 @@ test_that("ViewDaf format_get_* preserves names through identity view", {
     expect_equal(rownames(m), c("c1", "c2", "c3"))
     expect_equal(colnames(m), c("gA", "gB"))
 })
+
+test_that("names survive memory -> files -> read_only -> get_query roundtrip", {
+    skip_if_not_installed("withr")
+    src <- .fixture_named_memory_daf()
+    root <- withr::local_tempfile(pattern = "dafr-rt-")
+    dir.create(root)
+    files <- files_daf(root, mode = "w+", name = "rt-files")
+    copy_all(files, src)
+    files_ro <- read_only(files)
+
+    # Public API: get_vector / get_matrix / get_axis
+    v <- get_vector(files_ro, "cell", "donor")
+    expect_equal(names(v), c("c1", "c2", "c3"))
+    m <- get_matrix(files_ro, "cell", "gene", "expr")
+    expect_equal(rownames(m), c("c1", "c2", "c3"))
+    expect_equal(colnames(m), c("gA", "gB"))
+    expect_equal(axis_vector(files_ro, "cell"), c("c1", "c2", "c3"))
+
+    # get_query: matrix lookup
+    qm <- get_query(files_ro, "@ cell @ gene :: expr")
+    expect_equal(rownames(qm), c("c1", "c2", "c3"))
+    expect_equal(colnames(qm), c("gA", "gB"))
+
+    # get_query: vector lookup
+    qv <- get_query(files_ro, "@ cell : donor")
+    expect_equal(names(qv), c("c1", "c2", "c3"))
+})
+
+test_that("names survive memory -> as_anndata roundtrip", {
+    skip_if_not_installed("anndata")
+    src <- .fixture_named_memory_daf()
+    ad <- as_anndata(src, obs_axis = "cell", var_axis = "gene",
+                     x_name = "expr")
+    # obs row names are cell entries; var row names are gene entries.
+    expect_equal(rownames(ad$obs), c("c1", "c2", "c3"))
+    expect_equal(rownames(ad$var), c("gA", "gB"))
+    # X matrix carries dimnames
+    expect_equal(rownames(ad$X), c("c1", "c2", "c3"))
+    expect_equal(colnames(ad$X), c("gA", "gB"))
+})
