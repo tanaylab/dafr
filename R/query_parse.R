@@ -277,8 +277,8 @@ parse_query <- function(query_string) {
         if (val_idx > length(tokens) || tokens[[val_idx]]$type != "value") break
         if (k %in% seen_keys) {
             stop(sprintf(
-                "repeated parameter %s for the %s operation: %s",
-                sQuote(k), op_kind, sQuote(op_name)
+                "repeated parameter: %s for the operation: %s",
+                k, op_name
             ), call. = FALSE)
         }
         seen_keys <- c(seen_keys, k)
@@ -300,7 +300,7 @@ parse_query <- function(query_string) {
     op_name <- nxt$value
     fn <- .ops_env$reductions[[op_name]]
     if (is.null(fn)) {
-        stop(sprintf("unknown reduction operation: %s", sQuote(op_name)),
+        stop(sprintf("unknown reduction operation: %s", op_name),
             call. = FALSE
         )
     }
@@ -309,8 +309,8 @@ parse_query <- function(query_string) {
     bad <- setdiff(names(pp$params), valid)
     if (length(bad) > 0L) {
         stop(sprintf(
-            "the parameter %s does not exist for the reduction operation: %s",
-            sQuote(bad[[1L]]), sQuote(op_name)
+            "the parameter: %s does not exist for the operation: %s",
+            bad[[1L]], op_name
         ), call. = FALSE)
     }
     list(node = ctor(op_name, params = pp$params), next_index = pp$next_index)
@@ -333,7 +333,7 @@ parse_query <- function(query_string) {
     fn <- .ops_env$eltwise[[op_name]]
     if (is.null(fn)) fn <- .ops_env$reductions[[op_name]]
     if (is.null(fn)) {
-        stop(sprintf("unknown eltwise operation: %s", sQuote(op_name)),
+        stop(sprintf("unknown eltwise operation: %s", op_name),
             call. = FALSE
         )
     }
@@ -342,8 +342,8 @@ parse_query <- function(query_string) {
     bad <- setdiff(names(pp$params), valid)
     if (length(bad) > 0L) {
         stop(sprintf(
-            "the parameter %s does not exist for the eltwise operation: %s",
-            sQuote(bad[[1L]]), sQuote(op_name)
+            "the parameter: %s does not exist for the operation: %s",
+            bad[[1L]], op_name
         ), call. = FALSE)
     }
     list(

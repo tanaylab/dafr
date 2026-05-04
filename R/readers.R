@@ -296,6 +296,12 @@ get_vector <- function(daf, axis, name, default) {
     tier <- .canonical_tier(res$cache_group)
     hit <- cache_lookup(cache_env, tier, cache_key, stamp_now)
     out <- if (is.null(hit)) raw else hit
+    # Cache layering: the format-API "mapped" cache (set by
+    # .files_get_vector_cached and friends) holds the BARE value to keep
+    # storage canonical. format_get_vector then attaches axis names on top
+    # before returning. When this public-API cache_lookup re-reads the same
+    # tier, it can hit the bare-stored entry, so re-apply names defensively.
+    if (is.null(names(out))) names(out) <- entries
     if (is.null(hit)) {
         cache_store(cache_env, tier, cache_key, out, stamp_now,
             size_bytes = object.size(out)
@@ -419,7 +425,7 @@ get_matrix <- function(daf, rows_axis, columns_axis, name, default) {
         )
     }
 
-    if (flipped) {
+    out <- if (flipped) {
         if (methods::is(stored, "dgCMatrix") || methods::is(stored, "lgCMatrix")) {
             Matrix::t(stored)
         } else {
@@ -428,6 +434,20 @@ get_matrix <- function(daf, rows_axis, columns_axis, name, default) {
     } else {
         stored
     }
+
+    # Cache layering: the format-API "mapped" cache holds bare matrices.
+    # Re-apply axis-entry dimnames here so a cache hit doesn't return a
+    # dimnames-less value to the caller. (`Matrix::t()` / `t()` handle
+    # the swap automatically when the value already had dimnames; this
+    # branch covers the bare-from-cache case.)
+    if (methods::is(out, "dgCMatrix") || methods::is(out, "lgCMatrix")) {
+        if (is.null(out@Dimnames[[1L]]) || is.null(out@Dimnames[[2L]])) {
+            out@Dimnames <- list(rows, cols)
+        }
+    } else if (is.null(rownames(out)) || is.null(colnames(out))) {
+        dimnames(out) <- list(rows, cols)
+    }
+    out
 }
 
 #' Human-readable summary of a Daf store.

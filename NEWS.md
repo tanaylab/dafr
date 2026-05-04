@@ -1,5 +1,32 @@
 # dafr 0.2.0 (in development)
 
+## queries.jl parity port (P1-P3 + B-port) — caught up on main
+
+Six queries-jl-parity tests previously skipped on main now pass:
+
+- **Parser error format** (`R/query_parse.R`): error messages for unknown
+  eltwise / reduction operations, unknown parameters, and repeated parameters
+  no longer wrap names in curly quotes via `sQuote`; the wording moves to the
+  Julia DAF literal form (`"parameter:" + colon`, no eltwise/reduction qualifier
+  on `"for the operation:"`).
+- **Empty-string round-trip** (`R/query_ast.R`): `escape_value("")` returns
+  `''` (mirroring Julia's `escape_value("") == "''"`); `unescape_value("''")`
+  is the symmetric inverse and returns `""`.
+- **Empty-matrix reduction semantics** (`R/query_eval.R`): both reduce-axis-empty
+  and output-axis-empty matrix reductions now raise `"no IfMissing value specified
+  for reducing an empty matrix"` when no `IfMissing` default is set — the previous
+  output-axis-empty branch silently returned an empty vector.
+
+## fix(readers): cache-layering defensive name re-apply
+
+Restored the `if (is.null(names(out))) names(out) <- entries` defense in
+`R/readers.R::get_vector` and an analogous dimnames-guard in `get_matrix`,
+which the original S1 slice dropped on the assumption that `format_get_*()`
+returns are always named. They are at the format layer, but the format
+backend's own `mapped` cache tier holds bare values for canonical storage,
+and `get_vector`'s cache_lookup against the same tier would hit the bare
+entry. The restored guard preserves the user-facing named contract.
+
 ## S1 — Names everywhere on `format_get_*`
 
 The format-API contract is now: every `format_get_vector(daf, axis, name)` returns a

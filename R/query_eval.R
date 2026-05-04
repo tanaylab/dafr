@@ -1983,30 +1983,32 @@ NULL
     }
     # Only the empty-input cases are special; non-empty falls through.
     if (out_n > 0L && reduce_n > 0L) return(NULL)
+    # Julia parity: any empty-dimension matrix reduction requires IfMissing,
+    # whether the empty dimension is the output axis or the reducing axis.
+    if (is.null(state$if_missing)) {
+        stop(
+            "no IfMissing value specified for reducing an empty matrix",
+            call. = FALSE
+        )
+    }
     if (is.null(out_names)) {
         out_names <- format_axis_array(daf, target_axis)$value
     }
-    # Output axis itself is empty: empty result, no default needed.
+    # Output axis empty: empty result regardless of default.
     if (out_n == 0L) {
         return(list(
             kind = "vector", axis = target_axis,
             value = stats::setNames(numeric(0L), character(0L))
         ))
     }
-    # Reduction-axis empty: need a default (Julia parity).
-    if (!is.null(state$if_missing)) {
-        default <- .coerce_if_missing_default(
-            state$if_missing, state$if_missing_type
-        )
-        return(list(
-            kind = "vector", axis = target_axis,
-            value = stats::setNames(rep(default, out_n), out_names)
-        ))
-    }
-    stop(
-        "no IfMissing value specified for reducing an empty matrix",
-        call. = FALSE
+    # Reduction-axis empty: fill output vector with the IfMissing default.
+    default <- .coerce_if_missing_default(
+        state$if_missing, state$if_missing_type
     )
+    return(list(
+        kind = "vector", axis = target_axis,
+        value = stats::setNames(rep(default, out_n), out_names)
+    ))
 }
 
 .apply_reduction_to_scalar <- function(node, state, daf) {
