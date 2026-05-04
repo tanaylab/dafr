@@ -46,7 +46,8 @@ test_that("format_get_matrix dense Float64 round-trips with correct shape", {
     m <- format_get_matrix(d, "cell", "gene", "m")
     expect_equal(dim(m), c(3L, 2L))
     expect_equal(m[2, 2], 5)
-    expect_equal(m[, 1], c(1, 2, 3))
+    # Named-everywhere: dimnames carry through to single-column slice as names.
+    expect_equal(m[, 1], c(A = 1, B = 2, C = 3))
 })
 
 test_that("format_get_matrix dense Int32", {
@@ -178,7 +179,12 @@ test_that("format_get_matrix densifies sparse CSC written Julia-style", {
     m <- format_get_matrix(d, "cell", "gene", "sm")
     expect_s4_class(m, "dgCMatrix")
     expect_equal(dim(m), c(3L, 2L))
-    expect_equal(as.matrix(m), matrix(c(10, 0, 20, 0, 30, 0), nrow = 3))
+    # Named-everywhere: as.matrix preserves the dgCMatrix Dimnames.
+    expect_equal(
+        as.matrix(m),
+        matrix(c(10, 0, 20, 0, 30, 0), nrow = 3,
+               dimnames = list(c("A", "B", "C"), c("X", "Y")))
+    )
 })
 
 test_that("format_get_matrix sparse Bool without nzval synthesizes TRUE", {
@@ -204,7 +210,11 @@ test_that("format_get_matrix sparse Bool without nzval synthesizes TRUE", {
     m <- format_get_matrix(d, "cell", "gene", "sb")
     expect_s4_class(m, "lgCMatrix")
     expect_equal(dim(m), c(2L, 2L))
-    expect_equal(as.matrix(m), matrix(c(TRUE, FALSE, FALSE, TRUE), nrow = 2))
+    expect_equal(
+        as.matrix(m),
+        matrix(c(TRUE, FALSE, FALSE, TRUE), nrow = 2,
+               dimnames = list(c("A", "B"), c("X", "Y")))
+    )
 })
 
 test_that("set_matrix + get_matrix sparse dgCMatrix round-trip", {
