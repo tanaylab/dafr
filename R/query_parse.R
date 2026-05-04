@@ -257,6 +257,37 @@ parse_query <- function(query_string) {
     }
 }
 
+.parse_op_params <- function(tokens, start, op_name, op_kind) {
+    # Collect named parameters following an operation name token. Detects
+    # repeated keys at parse time (Julia parity: queries.jl > invalid >
+    # parameters). Returns list(params, next_index).
+    params <- list()
+    seen_keys <- character(0L)
+    j <- start
+    while (j + 1L <= length(tokens) && tokens[[j]]$type == "value") {
+        k <- tokens[[j]]$value
+        # Optional ':' between key and value.
+        val_idx <- if (j + 1L <= length(tokens) &&
+            tokens[[j + 1L]]$type == "operator" &&
+            tokens[[j + 1L]]$value == ":") {
+            j + 2L
+        } else {
+            j + 1L
+        }
+        if (val_idx > length(tokens) || tokens[[val_idx]]$type != "value") break
+        if (k %in% seen_keys) {
+            stop(sprintf(
+                "repeated parameter %s for the %s operation: %s",
+                sQuote(k), op_kind, sQuote(op_name)
+            ), call. = FALSE)
+        }
+        seen_keys <- c(seen_keys, k)
+        params[[k]] <- tokens[[val_idx]]$value
+        j <- val_idx + 1L
+    }
+    list(params = params, next_index = j)
+}
+
 .parse_reduction <- function(tokens, i, src, ctor) {
     if (i + 1L > length(tokens) || tokens[[i + 1L]]$type != "value") {
         stop(sprintf(
@@ -267,17 +298,22 @@ parse_query <- function(query_string) {
     }
     nxt <- tokens[[i + 1L]]
     op_name <- nxt$value
-    # P1: reject unknown reduction at parse time so a malformed query fails
-    # before evaluation kicks in.
-    if (is.null(.ops_env$reductions[[op_name]])) {
+    fn <- .ops_env$reductions[[op_name]]
+    if (is.null(fn)) {
+        stop(sprintf("unknown reduction operation: %s", sQuote(op_name)),
+            call. = FALSE
+        )
+    }
+    pp <- .parse_op_params(tokens, i + 2L, op_name, "reduction")
+    valid <- .op_valid_params(fn)
+    bad <- setdiff(names(pp$params), valid)
+    if (length(bad) > 0L) {
         stop(sprintf(
-            "unknown reduction operation: %s at position %d in query %s",
-            op_name, nxt$pos, sQuote(src)
+            "the parameter %s does not exist for the reduction operation: %s",
+            sQuote(bad[[1L]]), sQuote(op_name)
         ), call. = FALSE)
     }
-    sig <- .op_param_sig("reduction", op_name)
-    params <- .parse_op_params(tokens, i + 2L, src, op_name, "reduction", sig)
-    list(node = ctor(op_name, params = params$params), next_index = params$next_index)
+    list(node = ctor(op_name, params = pp$params), next_index = pp$next_index)
 }
 
 .parse_eltwise <- function(tokens, i, src) {
@@ -289,76 +325,41 @@ parse_query <- function(query_string) {
     }
     nxt <- tokens[[i + 1L]]
     op_name <- nxt$value
-    # Accept names from either registry. dafr's reduction builders
-    # canonicalise as `% Sum`, `% Var`, ... (B7 in the divergences doc) so
-    # an Eltwise node with a reduction name is well-formed AST. Treat the
-    # name as unknown only if it isn't registered anywhere.
-    in_eltwise <- !is.null(.ops_env$eltwise[[op_name]])
-    in_reduction <- !is.null(.ops_env$reductions[[op_name]])
-    if (!in_eltwise && !in_reduction) {
+    # The `%` operator in dafr query strings accepts either an eltwise
+    # builtin OR a reduction builtin: builder fragments like `Sum()`
+    # produce `% Sum` even though Sum is a reduction (it gets rewrapped
+    # by ReduceToColumn/Row/Scalar later). Validate the name against
+    # both registries; param validation uses whichever entry exists.
+    fn <- .ops_env$eltwise[[op_name]]
+    if (is.null(fn)) fn <- .ops_env$reductions[[op_name]]
+    if (is.null(fn)) {
+        stop(sprintf("unknown eltwise operation: %s", sQuote(op_name)),
+            call. = FALSE
+        )
+    }
+    pp <- .parse_op_params(tokens, i + 2L, op_name, "eltwise")
+    valid <- .op_valid_params(fn)
+    bad <- setdiff(names(pp$params), valid)
+    if (length(bad) > 0L) {
         stop(sprintf(
-            "unknown eltwise operation: %s at position %d in query %s",
-            op_name, nxt$pos, sQuote(src)
+            "the parameter %s does not exist for the eltwise operation: %s",
+            sQuote(bad[[1L]]), sQuote(op_name)
         ), call. = FALSE)
     }
-    sig_kind <- if (in_eltwise) "eltwise" else "reduction"
-    sig <- .op_param_sig(sig_kind, op_name)
-    params <- .parse_op_params(tokens, i + 2L, src, op_name, sig_kind, sig)
-    list(node = .qop_eltwise(op_name, params = params$params),
-         next_index = params$next_index)
-}
-
-# Shared param-list parser for `% Op k v k v ...` and `>> Op k v k v ...`.
-# Validates each param name against the registered signature (P2) and
-# rejects duplicate names (P3).
-.parse_op_params <- function(tokens, j, src, op_name, op_kind, sig) {
-    params <- list()
-    seen <- character(0)
-    while (j + 1L <= length(tokens) && tokens[[j]]$type == "value") {
-        k <- tokens[[j]]$value
-        k_pos <- tokens[[j]]$pos
-        val_idx <- if (j + 1L <= length(tokens) &&
-            tokens[[j + 1L]]$type == "operator" &&
-            tokens[[j + 1L]]$value == ":") {
-            j + 2L
-        } else {
-            j + 1L
-        }
-        if (val_idx > length(tokens) || tokens[[val_idx]]$type != "value") break
-        # P3: reject repeated parameters.
-        if (k %in% seen) {
-            stop(sprintf(
-                "repeated parameter: %s for the operation: %s at position %d in query %s",
-                k, op_name, k_pos, sQuote(src)
-            ), call. = FALSE)
-        }
-        # P2: reject unknown parameter names when a signature is available.
-        # `type` is a universal output-type coercion param accepted on every
-        # reduction / eltwise (dafr query-language convention; see
-        # query_builders.R::Sum/Mean/... and the canonical_query roundtrip
-        # tests in test-builders-reductions.R).
-        if (!is.null(sig) && !(k %in% sig) && !identical(k, "type")) {
-            stop(sprintf(
-                "the parameter: %s does not exist for the operation: %s at position %d in query %s",
-                k, op_name, k_pos, sQuote(src)
-            ), call. = FALSE)
-        }
-        params[[k]] <- tokens[[val_idx]]$value
-        seen <- c(seen, k)
-        j <- val_idx + 1L
-    }
-    list(params = params, next_index = j)
+    list(
+        node = .qop_eltwise(op_name, params = pp$params),
+        next_index = pp$next_index
+    )
 }
 
 .parse_if_missing <- function(tokens, i, src) {
     if (i + 1L <= length(tokens) && tokens[[i + 1L]]$type == "value") {
         default <- tokens[[i + 1L]]$value
         j <- i + 2L
-        # Optional type annotation. Julia accepts `|| <value> <Type>` directly
-        # (queries.jl:286-323); dafr legacy also accepts the dafr-specific
-        # `|| <value> type <Type>` two-token form. Try the legacy form first
-        # — it accepts any T (eval-time error if T isn't a recognised type),
-        # which matches the pre-existing test-query-ifmissing-type.R suite.
+        # Optional type suffix. Julia accepts both `|| <val> <Type>`
+        # (bare type name, queries.jl:1048-1060) and the dafr-historical
+        # `|| <val> type <Type>` two-token form. Recognise either; bare
+        # form must not consume a token that's actually the next operation.
         type <- NULL
         if (j + 1L <= length(tokens) &&
             tokens[[j]]$type == "value" &&
@@ -367,8 +368,13 @@ parse_query <- function(query_string) {
             type <- tokens[[j + 1L]]$value
             j <- j + 2L
         } else if (j <= length(tokens) &&
-            tokens[[j]]$type == "value" &&
-            .is_julia_type_name(tokens[[j]]$value)) {
+                   tokens[[j]]$type == "value" &&
+                   tokens[[j]]$value %in% c(
+                       "Bool", "String",
+                       "Int8", "Int16", "Int32", "Int64",
+                       "UInt8", "UInt16", "UInt32", "UInt64",
+                       "Float32", "Float64"
+                   )) {
             type <- tokens[[j]]$value
             j <- j + 1L
         }
@@ -376,18 +382,6 @@ parse_query <- function(query_string) {
     } else {
         list(node = .qop_if_missing(NULL), next_index = i + 1L)
     }
-}
-
-.JULIA_TYPE_NAMES <- c(
-    "Bool",
-    "Int8", "Int16", "Int32", "Int64",
-    "UInt8", "UInt16", "UInt32", "UInt64",
-    "Float32", "Float64",
-    "String"
-)
-
-.is_julia_type_name <- function(s) {
-    is.character(s) && length(s) == 1L && !is.na(s) && s %in% .JULIA_TYPE_NAMES
 }
 
 .parse_if_not <- function(tokens, i, src) {

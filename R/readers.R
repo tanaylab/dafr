@@ -3,10 +3,9 @@
 #' @param axis Axis name (character scalar).
 #' @return Logical scalar.
 #' @examples
-#' d <- memory_daf()
-#' add_axis(d, "cell", c("c1", "c2"))
-#' has_axis(d, "cell")
-#' has_axis(d, "gene")
+#' # Mirrors readers.jl jldoctest at lines 210 + 218.
+#' has_axis(example_cells_daf(),     "metacell") # FALSE
+#' has_axis(example_metacells_daf(), "metacell") # TRUE
 #' @export
 has_axis <- function(daf, axis) {
     .assert_name(axis, "axis")
@@ -17,8 +16,8 @@ has_axis <- function(daf, axis) {
 #' @inheritParams has_axis
 #' @return Character vector of axis names.
 #' @examples
-#' d <- example_cells_daf()
-#' axes_set(d)
+#' # Mirrors readers.jl jldoctest at line 273.
+#' axes_set(example_cells_daf()) # "cell" "donor" "experiment" "gene"
 #' @export
 axes_set <- function(daf) format_axes_set(daf)
 
@@ -26,11 +25,12 @@ axes_set <- function(daf) format_axes_set(daf)
 #' @inheritParams has_axis
 #' @return Integer scalar.
 #' @examples
-#' d <- example_cells_daf()
-#' axis_length(d, "cell")
+#' # Mirrors readers.jl jldoctest at line 487.
+#' axis_length(example_metacells_daf(), "type") # 4
 #' @export
 axis_length <- function(daf, axis) {
     .assert_name(axis, "axis")
+    .require_axis(daf, "for: axis_length", axis)
     format_axis_length(daf, axis)
 }
 
@@ -41,34 +41,38 @@ axis_length <- function(daf, axis) {
 #'   absent instead of raising.
 #' @return Character vector of entry names.
 #' @examples
-#' d <- memory_daf()
-#' add_axis(d, "cell", c("c1", "c2", "c3"))
-#' axis_vector(d, "cell")
-#' axis_vector(d, "gene", null_if_missing = TRUE)
+#' # Mirrors readers.jl jldoctest at line 308.
+#' axis_vector(example_metacells_daf(), "type")
+#' # "memory-B" "MEBEMP-E" "MEBEMP-L" "MPP"
+#' axis_vector(example_cells_daf(), "missing", null_if_missing = TRUE)
 #' @export
 axis_vector <- function(daf, axis, null_if_missing = FALSE) {
     .assert_name(axis, "axis")
-    if (!format_has_axis(daf, axis)) {
-        if (isTRUE(null_if_missing)) {
-            return(NULL)
-        }
-        stop(sprintf("axis %s does not exist", sQuote(axis)), call. = FALSE)
+    if (isTRUE(null_if_missing) && !format_has_axis(daf, axis)) {
+        return(NULL)
     }
-    format_axis_array(daf, axis)
+    .require_axis(daf, "for: axis_vector", axis)
+    format_axis_array(daf, axis)$value
 }
 
 #' Entry names of an axis (full or by index).
 #'
 #' @inheritParams has_axis
-#' @param indices Optional integer index vector (1-based).
+#' @param indices Optional integer index vector (1-based). When
+#'   `allow_empty = TRUE`, a zero or negative index is allowed and is
+#'   translated to the empty string `""` in the result.
+#' @param allow_empty If `TRUE`, treat zero/negative `indices` as the
+#'   empty string `""` in the result (mirrors Julia
+#'   `axis_entries(...; allow_empty=true)`).
 #' @return Character vector.
 #' @examples
-#' d <- memory_daf()
-#' add_axis(d, "cell", c("c1", "c2", "c3", "c4"))
-#' axis_entries(d, "cell")
-#' axis_entries(d, "cell", indices = c(1L, 3L))
+#' # Mirrors readers.jl jldoctest at line 448.
+#' axis_entries(example_metacells_daf(), "type",
+#'              indices = c(3L, 0L), allow_empty = TRUE)
+#' # "MEBEMP-L" ""
 #' @export
-axis_entries <- function(daf, axis, indices = NULL) {
+axis_entries <- function(daf, axis, indices = NULL, allow_empty = FALSE) {
+    .assert_flag(allow_empty, "allow_empty")
     entries <- axis_vector(daf, axis)
     if (is.null(indices)) {
         return(entries)
@@ -83,6 +87,16 @@ axis_entries <- function(daf, axis, indices = NULL) {
         stop("`indices` must be integer-valued", call. = FALSE)
     }
     indices <- as.integer(indices)
+    if (allow_empty) {
+        out <- character(length(indices))
+        valid <- indices > 0L
+        if (any(indices[valid] > length(entries))) {
+            stop(sprintf("indices out of range [1, %d]", length(entries)), call. = FALSE)
+        }
+        out[valid]  <- entries[indices[valid]]
+        out[!valid] <- ""
+        return(out)
+    }
     if (any(indices < 1L | indices > length(entries))) {
         stop(sprintf("indices out of range [1, %d]", length(entries)), call. = FALSE)
     }
@@ -93,31 +107,49 @@ axis_entries <- function(daf, axis, indices = NULL) {
 #'
 #' @inheritParams has_axis
 #' @param entries Character vector of entry names to resolve.
-#' @return Integer vector of 1-based positions; same length as `entries`.
+#' @param allow_empty If `TRUE`, the empty string `""` resolves to a zero
+#'   index (mirrors Julia `axis_indices(...; allow_empty=true)`).
+#' @param allow_missing If `TRUE`, any non-empty name that is not present
+#'   in the axis resolves to a zero index (mirrors Julia
+#'   `axis_indices(...; allow_missing=true)`).
+#' @return Integer vector of positions (1-based when present;
+#'   `0L` when `allow_empty`/`allow_missing` substitutes for an empty or
+#'   absent name); same length as `entries`.
 #' @examples
-#' d <- memory_daf()
-#' add_axis(d, "cell", c("c1", "c2", "c3"))
-#' axis_indices(d, "cell", c("c3", "c1"))
+#' # Mirrors readers.jl jldoctest at line 389.
+#' axis_indices(example_metacells_daf(), "type",
+#'              c("MPP", ""), allow_empty = TRUE)
+#' # 4 0
 #' @export
-axis_indices <- function(daf, axis, entries) {
+axis_indices <- function(daf, axis, entries, allow_empty = FALSE,
+                         allow_missing = FALSE) {
     .assert_name(axis, "axis")
+    .assert_flag(allow_empty, "allow_empty")
+    .assert_flag(allow_missing, "allow_missing")
     if (!is.character(entries)) stop("`entries` must be a character vector", call. = FALSE)
     if (anyNA(entries)) stop("`entries` must not contain NA", call. = FALSE)
-    dict <- format_axis_dict(daf, axis)
-    out <- vapply(entries, function(nm) {
+    dict <- axis_dict(daf, axis)
+    out <- integer(length(entries))
+    for (i in seq_along(entries)) {
+        nm <- entries[[i]]
+        if (!nzchar(nm)) {
+            if (allow_empty) {
+                out[i] <- 0L
+            } else {
+                .require_axis_entry(daf, axis, nm)
+            }
+            next
+        }
         v <- dict[[nm]]
-        if (is.null(v)) NA_integer_ else as.integer(v)
-    }, integer(1L), USE.NAMES = FALSE)
-    missing <- is.na(out)
-    if (any(missing)) {
-        stop(
-            sprintf(
-                "entries not found in axis %s: %s",
-                sQuote(axis),
-                paste(sQuote(entries[missing]), collapse = ", ")
-            ),
-            call. = FALSE
-        )
+        if (is.null(v)) {
+            if (allow_missing) {
+                out[i] <- 0L
+            } else {
+                .require_axis_entry(daf, axis, nm)
+            }
+        } else {
+            out[i] <- as.integer(v)
+        }
     }
     out
 }
@@ -126,13 +158,14 @@ axis_indices <- function(daf, axis, entries) {
 #' @inheritParams has_axis
 #' @return An environment mapping entry names to integer positions.
 #' @examples
-#' d <- memory_daf()
-#' add_axis(d, "cell", c("c1", "c2", "c3"))
-#' dict <- axis_dict(d, "cell")
-#' dict[["c2"]]
+#' # Mirrors readers.jl jldoctest at line 353.
+#' dict <- axis_dict(example_metacells_daf(), "type")
+#' dict[["memory-B"]] # 1
+#' dict[["MPP"]]      # 4
 #' @export
 axis_dict <- function(daf, axis) {
     .assert_name(axis, "axis")
+    .require_axis(daf, "for: axis_dict", axis)
     format_axis_dict(daf, axis)
 }
 
@@ -141,10 +174,9 @@ axis_dict <- function(daf, axis) {
 #' @param name Scalar name.
 #' @return Logical scalar.
 #' @examples
-#' d <- memory_daf()
-#' set_scalar(d, "organism", "human")
-#' has_scalar(d, "organism")
-#' has_scalar(d, "reference")
+#' # Mirrors readers.jl jldoctests at lines 92 + 100.
+#' has_scalar(example_cells_daf(),     "organism") # TRUE
+#' has_scalar(example_metacells_daf(), "organism") # FALSE
 #' @export
 has_scalar <- function(daf, name) {
     .assert_name(name, "name")
@@ -155,8 +187,8 @@ has_scalar <- function(daf, name) {
 #' @inheritParams has_scalar
 #' @return Character vector.
 #' @examples
-#' d <- example_cells_daf()
-#' scalars_set(d)
+#' # Mirrors readers.jl jldoctest at line 125.
+#' scalars_set(example_cells_daf()) # "organism" "reference"
 #' @export
 scalars_set <- function(daf) format_scalars_set(daf)
 
@@ -166,20 +198,19 @@ scalars_set <- function(daf) format_scalars_set(daf)
 #'   and the scalar is absent, an error is raised.
 #' @return The scalar value.
 #' @examples
-#' d <- memory_daf()
-#' set_scalar(d, "organism", "human")
-#' get_scalar(d, "organism")
-#' get_scalar(d, "reference", default = "GRCh38")
+#' # Mirrors readers.jl jldoctests at lines 157 + 165.
+#' get_scalar(example_cells_daf(), "organism") # "human"
+#' get_scalar(example_metacells_daf(), "organism", default = NULL) # NULL
 #' @export
 get_scalar <- function(daf, name, default) {
     .assert_name(name, "name")
     if (format_has_scalar(daf, name)) {
-        return(format_get_scalar(daf, name))
+        return(format_get_scalar(daf, name)$value)
     }
     if (!missing(default)) {
         return(default)
     }
-    stop(sprintf("scalar %s does not exist", sQuote(name)), call. = FALSE)
+    .require_scalar(daf, name)
 }
 
 #' Test whether a vector exists on an axis.
@@ -188,15 +219,14 @@ get_scalar <- function(daf, name, default) {
 #' @param name Vector name.
 #' @return Logical scalar.
 #' @examples
-#' d <- memory_daf()
-#' add_axis(d, "cell", c("c1", "c2"))
-#' set_vector(d, "cell", "donor", c("d1", "d2"))
-#' has_vector(d, "cell", "donor")
-#' has_vector(d, "cell", "age")
+#' # Mirrors readers.jl jldoctests at lines 525 + 533.
+#' has_vector(example_cells_daf(),     "cell",     "type") # FALSE
+#' has_vector(example_metacells_daf(), "metacell", "type") # TRUE
 #' @export
 has_vector <- function(daf, axis, name) {
     .assert_name(axis, "axis")
     .assert_name(name, "name")
+    .require_axis(daf, sprintf("for has_vector: %s", name), axis)
     format_has_vector(daf, axis, name)
 }
 
@@ -204,11 +234,12 @@ has_vector <- function(daf, axis, name) {
 #' @inheritParams has_vector
 #' @return Character vector.
 #' @examples
-#' d <- example_cells_daf()
-#' vectors_set(d, "cell")
+#' # Mirrors readers.jl jldoctest at line 595.
+#' vectors_set(example_cells_daf(), "cell") # "donor" "experiment"
 #' @export
 vectors_set <- function(daf, axis) {
     .assert_name(axis, "axis")
+    .require_axis(daf, "for: vectors_set", axis)
     format_vectors_set(daf, axis)
 }
 
@@ -226,25 +257,22 @@ vectors_set <- function(daf, axis) {
 #'   `character`, `default = 0.0` yields `double`).
 #' @return Named atomic vector.
 #' @examples
-#' d <- example_cells_daf()
-#' donor <- get_vector(d, "cell", "donor")
-#' head(donor)
-#' # default value for a missing vector (recycled to axis length):
-#' head(get_vector(d, "cell", "missing_vec", default = NA_character_))
+#' # Mirrors readers.jl jldoctest at line 633.
+#' get_vector(example_metacells_daf(), "type", "color")
+#' # memory-B="steelblue" MEBEMP-E="#eebb6e" MEBEMP-L="plum" MPP="gold"
+#'
+#' # Default for a missing vector (recycled to axis length):
+#' head(get_vector(example_cells_daf(), "cell", "missing_vec",
+#'                 default = NA_character_))
 #' @export
 get_vector <- function(daf, axis, name, default) {
     .assert_name(axis, "axis")
     .assert_name(name, "name")
-    if (!format_has_axis(daf, axis)) {
-        stop(sprintf("axis %s does not exist", sQuote(axis)), call. = FALSE)
-    }
-    entries <- format_axis_array(daf, axis)
+    .require_axis(daf, sprintf("for the vector: %s", name), axis)
+    entries <- format_axis_array(daf, axis)$value
     if (!format_has_vector(daf, axis, name)) {
         if (missing(default)) {
-            stop(sprintf(
-                "vector %s does not exist on axis %s",
-                sQuote(name), sQuote(axis)
-            ), call. = FALSE)
+            .require_vector(daf, axis, name)
         }
         n <- length(entries)
         if (length(default) == 1L) {
@@ -263,14 +291,16 @@ get_vector <- function(daf, axis, name, default) {
     cache_key <- cache_key_vector(axis, name)
     cache_env <- S7::prop(daf, "cache")
     stamp_now <- vector_stamp(daf, axis, name)
-    hit <- cache_lookup(cache_env, "memory", cache_key, stamp_now)
-    if (!is.null(hit)) {
-        return(hit)
+    res <- format_get_vector(daf, axis, name)
+    raw <- res$value
+    tier <- .canonical_tier(res$cache_group)
+    hit <- cache_lookup(cache_env, tier, cache_key, stamp_now)
+    out <- if (is.null(hit)) raw else hit
+    if (is.null(hit)) {
+        cache_store(cache_env, tier, cache_key, out, stamp_now,
+            size_bytes = object.size(out)
+        )
     }
-    out <- format_get_vector(daf, axis, name)
-    cache_store(cache_env, "memory", cache_key, out, stamp_now,
-        size_bytes = object.size(out)
-    )
     out
 }
 
@@ -279,29 +309,48 @@ get_vector <- function(daf, axis, name, default) {
 #' @param rows_axis Row-axis name.
 #' @param columns_axis Column-axis name.
 #' @param name Matrix name.
+#' @param relayout If `TRUE` (default), also report `TRUE` when the
+#'   matrix is stored only at the flipped axis pair
+#'   `(columns_axis, rows_axis)`. Set to `FALSE` to ask the strict
+#'   "this exact layout?" question. Mirrors Julia
+#'   `has_matrix(...; relayout)`.
 #' @return Logical scalar.
 #' @examples
-#' d <- example_cells_daf()
-#' has_matrix(d, "gene", "cell", "UMIs")
-#' has_matrix(d, "cell", "gene", "UMIs")
+#' # Mirrors readers.jl jldoctest at line 748.
+#' has_matrix(example_cells_daf(), "gene", "cell", "UMIs") # TRUE
+#'
+#' # `relayout = FALSE` asks the strict "this exact layout?" question:
+#' has_matrix(example_cells_daf(), "gene", "cell", "UMIs", relayout = FALSE)
 #' @export
-has_matrix <- function(daf, rows_axis, columns_axis, name) {
+has_matrix <- function(daf, rows_axis, columns_axis, name, relayout = TRUE) {
     .assert_name(rows_axis, "rows_axis")
     .assert_name(columns_axis, "columns_axis")
     .assert_name(name, "name")
-    format_has_matrix(daf, rows_axis, columns_axis, name)
+    .assert_flag(relayout, "relayout")
+    .require_axis(daf, sprintf("for the rows of the matrix: %s", name), rows_axis)
+    .require_axis(daf, sprintf("for the columns of the matrix: %s", name), columns_axis)
+    if (format_has_matrix(daf, rows_axis, columns_axis, name)) {
+        return(TRUE)
+    }
+    if (relayout && rows_axis != columns_axis &&
+        format_has_matrix(daf, columns_axis, rows_axis, name)) {
+        return(TRUE)
+    }
+    FALSE
 }
 
 #' Names of matrices for an axis pair, sorted.
 #' @inheritParams has_matrix
 #' @return Character vector.
 #' @examples
-#' d <- example_cells_daf()
-#' matrices_set(d, "gene", "cell")
+#' # Mirrors readers.jl jldoctest at line 801.
+#' matrices_set(example_cells_daf(), "gene", "cell") # "UMIs"
 #' @export
 matrices_set <- function(daf, rows_axis, columns_axis) {
     .assert_name(rows_axis, "rows_axis")
     .assert_name(columns_axis, "columns_axis")
+    .require_axis(daf, "for the rows of: matrices_set", rows_axis)
+    .require_axis(daf, "for the columns of: matrices_set", columns_axis)
     format_matrices_set(daf, rows_axis, columns_axis)
 }
 
@@ -318,30 +367,28 @@ matrices_set <- function(daf, rows_axis, columns_axis) {
 #' @return Dense `matrix` or sparse `dgCMatrix` / `lgCMatrix` with
 #'   dimnames set.
 #' @examples
-#' d <- example_cells_daf()
-#' m <- get_matrix(d, "cell", "gene", "UMIs")
-#' dim(m)
+#' # Mirrors readers.jl jldoctest at line 933.
+#' m <- get_matrix(example_metacells_daf(), "gene", "metacell", "fraction")
+#' dim(m)            # 683  7
+#' colnames(m)       # 7 metacell IDs
+#' m[1:3, 1:2]
 #' @export
 get_matrix <- function(daf, rows_axis, columns_axis, name, default) {
     .assert_name(rows_axis, "rows_axis")
     .assert_name(columns_axis, "columns_axis")
     .assert_name(name, "name")
+    .require_axis(daf, sprintf("for the rows of the matrix: %s", name), rows_axis)
+    .require_axis(daf, sprintf("for the columns of the matrix: %s", name), columns_axis)
 
-    rows <- format_axis_array(daf, rows_axis)
-    cols <- format_axis_array(daf, columns_axis)
+    rows <- format_axis_array(daf, rows_axis)$value
+    cols <- format_axis_array(daf, columns_axis)$value
 
     primary <- format_has_matrix(daf, rows_axis, columns_axis, name)
     flipped <- !primary && format_has_matrix(daf, columns_axis, rows_axis, name)
 
     if (!primary && !flipped) {
         if (missing(default)) {
-            stop(
-                sprintf(
-                    "matrix %s does not exist on axes (%s, %s)",
-                    sQuote(name), sQuote(rows_axis), sQuote(columns_axis)
-                ),
-                call. = FALSE
-            )
+            .require_matrix(daf, rows_axis, columns_axis, name, relayout = TRUE)
         }
         out <- matrix(default,
             nrow = length(rows), ncol = length(cols),
@@ -361,10 +408,13 @@ get_matrix <- function(daf, rows_axis, columns_axis, name, default) {
     cache_key <- cache_key_matrix(ra, ca, name)
     cache_env <- S7::prop(daf, "cache")
     stamp_now <- matrix_stamp(daf, ra, ca, name)
-    stored <- cache_lookup(cache_env, "memory", cache_key, stamp_now)
+    res <- format_get_matrix(daf, ra, ca, name)
+    raw <- res$value
+    tier <- .canonical_tier(res$cache_group)
+    stored <- cache_lookup(cache_env, tier, cache_key, stamp_now)
     if (is.null(stored)) {
-        stored <- format_get_matrix(daf, ra, ca, name)
-        cache_store(cache_env, "memory", cache_key, stored, stamp_now,
+        stored <- raw
+        cache_store(cache_env, tier, cache_key, stored, stamp_now,
             size_bytes = object.size(stored)
         )
     }
@@ -389,22 +439,19 @@ get_matrix <- function(daf, rows_axis, columns_axis, name, default) {
 #' @param daf A `DafReader`.
 #' @return Character scalar.
 #' @examples
-#' d <- memory_daf(name = "demo")
-#' set_scalar(d, "organism", "human")
-#' add_axis(d, "cell", c("c1", "c2"))
-#' set_vector(d, "cell", "donor", c("d1", "d2"))
-#' cat(description(d))
+#' # Mirrors readers.jl jldoctest at line 1170 (description of the chain).
+#' cat(description(example_chain_daf()))
 #' @export
 description <- function(daf) {
     lines <- c(
         sprintf("name: %s", S7::prop(daf, "name")),
-        sprintf("type: %s", .daf_type_name(daf))
+        format_description_header(daf)
     )
     sc <- format_scalars_set(daf)
     if (length(sc)) {
         lines <- c(lines, "scalars:")
         for (nm in sc) {
-            v <- format_get_scalar(daf, nm)
+            v <- format_get_scalar(daf, nm)$value
             lines <- c(lines, sprintf("  %s: %s", nm, .format_scalar_literal(v)))
         }
     }
@@ -445,10 +492,88 @@ description <- function(daf) {
     paste0(paste(lines, collapse = "\n"), "\n")
 }
 
+# Centralized error-raising helpers that emit the EXACT message text used
+# by DataAxesFormats.jl (readers.jl `require_*`, writers.jl `require_no_*`).
+# Mirror Julia's chomp-of-triple-quoted layout: multi-line, no trailing newline,
+# `daf.name` rendered verbatim from the S7 `name` slot.
+
+.require_scalar <- function(daf, name) {
+    if (!format_has_scalar(daf, name)) {
+        stop(sprintf("missing scalar: %s\nin the daf data: %s",
+                     name, S7::prop(daf, "name")),
+             call. = FALSE)
+    }
+    invisible(NULL)
+}
+
+.require_axis <- function(daf, what_for, axis) {
+    if (!format_has_axis(daf, axis)) {
+        stop(sprintf("missing axis: %s\n%s\nof the daf data: %s",
+                     axis, what_for, S7::prop(daf, "name")),
+             call. = FALSE)
+    }
+    invisible(NULL)
+}
+
+.require_vector <- function(daf, axis, name) {
+    if (!format_has_vector(daf, axis, name)) {
+        stop(sprintf("missing vector: %s\nfor the axis: %s\nin the daf data: %s",
+                     name, axis, S7::prop(daf, "name")),
+             call. = FALSE)
+    }
+    invisible(NULL)
+}
+
+.require_matrix <- function(daf, rows_axis, columns_axis, name, relayout = TRUE) {
+    has <- format_has_matrix(daf, rows_axis, columns_axis, name)
+    if (!has && relayout) {
+        has <- format_has_matrix(daf, columns_axis, rows_axis, name)
+    }
+    if (!has) {
+        extra <- if (isTRUE(relayout)) "\n(and the other way around)" else ""
+        stop(sprintf(
+            "missing matrix: %s\nfor the rows axis: %s\nand the columns axis: %s%s\nin the daf data: %s",
+            name, rows_axis, columns_axis, extra, S7::prop(daf, "name")
+        ), call. = FALSE)
+    }
+    invisible(NULL)
+}
+
+.require_axis_entry <- function(daf, axis, entry) {
+    stop(sprintf("missing entry: %s\nfor the axis: %s\nin the daf data: %s",
+                 entry, axis, S7::prop(daf, "name")),
+         call. = FALSE)
+}
+
+.require_axis_length <- function(daf, what_length, vector_name, axis) {
+    n <- format_axis_length(daf, axis)
+    if (what_length != n) {
+        stop(sprintf(
+            "the length: %d\nof the %s\nis different from the length: %d\nof the axis: %s\nin the daf data: %s",
+            as.integer(what_length), vector_name, as.integer(n),
+            axis, S7::prop(daf, "name")
+        ), call. = FALSE)
+    }
+    invisible(NULL)
+}
+
 .daf_type_name <- function(daf) {
     cls <- class(daf)[[1L]]
     sub("^dafr::", "", cls)
 }
+
+# Default: emit just `<indent>type: <ClassName>`. Per-format methods
+# (in http_format.R / files_daf.R / zarr_format.R) extend with
+# storage-specific lines. Mirrors upstream Formats.format_description_header.
+S7::method(format_description_header, DafReader) <- function(daf, indent = "",
+                                                              deep = FALSE) {
+    paste0(indent, "type: ", .daf_type_name(daf))
+}
+
+# Default: wrappers are non-leaf. Per-class methods (in memory_daf.R,
+# files_daf.R, zarr_format.R, http_format.R) override to TRUE for storage
+# formats that own their state directly. Mirrors upstream Readers.is_leaf.
+S7::method(is_leaf, DafReader) <- function(daf) FALSE
 
 .format_scalar_literal <- function(v) {
     if (is.character(v)) {

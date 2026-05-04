@@ -1,31 +1,6 @@
 #' @include classes.R files_daf.R memory_daf.R chain_daf.R view_daf.R readers.R writers.R
 NULL
 
-#' Open a daf storage path in a given mode.
-#'
-#' Dispatches on path extension. Directory paths open a `FilesDaf`; paths
-#' ending in `.h5df` or containing `.h5dfs#<group>` are reserved for an
-#' H5df backend (not implemented).
-#'
-#' @param path Filesystem path.
-#' @param mode One of `"r"` (read-only) or `"r+"` (read-write).
-#' @param name Optional daf name. Default derived from the path basename.
-#' @return A `DafReader` or `DafWriter`.
-#' @export
-#' @examples
-#' tmp <- tempfile(); dir.create(tmp)
-#' files_daf(tmp, name = "tmp", mode = "w+")
-#' d <- open_daf(tmp, "r")
-open_daf <- function(path, mode = "r", name = NULL) {
-    if (endsWith(path, ".h5df") || grepl(".h5dfs#", path, fixed = TRUE)) {
-        stop("H5df backend not supported yet", call. = FALSE)
-    }
-    if (is.null(name)) name <- basename(path)
-    if (!mode %in% c("r", "r+")) {
-        stop("`mode` must be \"r\" or \"r+\"", call. = FALSE)
-    }
-    files_daf(path, name = name, mode = mode)
-}
 
 #' Create a persistent chain by linking `new_daf` to a `base_daf`.
 #'
@@ -160,7 +135,7 @@ complete_daf <- function(leaf, mode = "r", name = NULL) {
         d <- open_daf(path, open_mode)
         stack <- c(stack, list(d))
         next_path <- if (format_has_scalar(d, "base_daf_repository")) {
-            base <- format_get_scalar(d, "base_daf_repository")
+            base <- format_get_scalar(d, "base_daf_repository")$value
             if (!.is_absolute_path(base)) {
                 base <- normalizePath(file.path(dirname(path), base),
                                       mustWork = FALSE)
@@ -183,7 +158,7 @@ complete_daf <- function(leaf, mode = "r", name = NULL) {
     }
     if (format_has_scalar(leaf_daf, "base_daf_view")) {
         spec <- jsonlite::fromJSON(
-            format_get_scalar(leaf_daf, "base_daf_view"),
+            format_get_scalar(leaf_daf, "base_daf_view")$value,
             simplifyVector = FALSE
         )
         chain <- viewer(chain, name = chain_name,

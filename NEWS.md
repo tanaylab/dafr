@@ -2,99 +2,72 @@
 
 ## S1 — Names everywhere on `format_get_*`
 
-The format-API contract is now: every `format_get_vector(daf, axis, name)`
-returns a named atomic vector with `names = format_axis_array(daf, axis)`,
-and every `format_get_matrix(daf, rows_axis, columns_axis, name)` returns a
-dense matrix or `dgCMatrix`/`lgCMatrix` whose dimnames are
-`list(rows-axis entries, cols-axis entries)`.
+The format-API contract is now: every `format_get_vector(daf, axis, name)` returns a
+`.cache_group_value(named_vector, group)` whose `$value` is a named atomic vector with
+`names = format_axis_array(daf, axis)$value`, and every `format_get_matrix(daf, rows_axis,
+columns_axis, name)` returns a `.cache_group_value(<matrix>, group)` whose `$value`'s
+dimnames are `list(rows-axis entries, cols-axis entries)`.
 
-- The contract is enforced for every backend: `MemoryDaf`, `FilesDaf`,
-  `FilesDafReadOnly`, and propagates automatically through wrapper layers
-  (`ReadOnlyChainDaf` / `WriteChainDaf`, `ContractDaf`, `ViewDaf`).
-- ALTREP-mmap vectors (`mmap_real` / `mmap_int` / `mmap_lgl`) preserve
-  ALTREP status across `names<-`, via a new `Duplicate_method` on each
-  ALTREP class. The mmap region is shared rather than copied when R
-  duplicates the wrapper.
-- Internal cleanup: `get_vector` / `get_matrix` no longer reattach names
-  defensively; `query_eval.R::.apply_chained_lookup_vector` now asserts
-  the named contract instead of working around it.
-- Bug fixes surfaced by the slice: `R/concat.R::.concat_axis_vector` and
-  `R/copies.R::.copy_vector` now strip intermediate names before calling
-  `format_set_vector` (whose `.validate_vector_value` correctly rejects
-  names that don't match the destination axis).
-- Storage stays canonical: `format_set_*` continues to strip names so the
-  on-disk / in-memory representation only carries axis entries on the
-  axis itself, not redundantly on every value.
+- The contract is enforced for every backend: `MemoryDaf`, `FilesDaf` /
+  `FilesDafReadOnly`, `ZarrDaf` / `ZarrDafReadOnly`, `HttpDaf`, and propagates
+  automatically through wrapper layers (`ReadOnlyChainDaf` / `WriteChainDaf`,
+  `ContractDaf`, `ViewDaf`).
+- ALTREP-mmap vectors (`mmap_real` / `mmap_int` / `mmap_lgl`) preserve ALTREP
+  status across `names<-`, via a new `Duplicate_method` on each ALTREP class. The
+  mmap region is shared rather than copied when R duplicates the wrapper.
+- Internal cleanup: `get_vector` / `get_matrix` no longer reattach names defensively;
+  `query_eval.R::.apply_chained_lookup_vector` now asserts the named contract instead
+  of working around it.
+- Bug fix surfaced by the slice: `R/concat.R::.concat_axis_vector` now strips
+  intermediate names (via `unname()`) before calling `format_set_vector` (whose
+  `.validate_vector_value` correctly rejects names that don't match the destination
+  axis). Latent risk in `.concat_merge_vector` flagged for follow-up.
+- Storage stays canonical: `format_set_*` continues to strip names so the on-disk /
+  in-memory representation only carries axis entries on the axis itself, not
+  redundantly on every value.
+- Test suite ported from dev's S1 slice: `tests/testthat/test-format-api-named-returns.R`
+  (35 contract tests covering memory + files + chain + contract + view + round-trip
+  + as_anndata) and `tests/testthat/test-queries-jl-parity.R` (134 PASS / 74 SKIP;
+  6 of the SKIPs are pre-existing parser/evaluator divergences on main awaiting a
+  P1-P5 / B1-B3 port from dev).
 
-# dafr 0.3.0
+## Carry-over from the previously-numbered v0.3.0: queries.jl literal-parity slice — B4-B6 + E1, E2
 
-## queries.jl literal-parity slice + parser-strictness
-
-A literal port of `~/src/DataAxesFormats.jl/test/queries.jl` (130
-nested_test leaves) drove this release. Eight evaluator behaviour
-fixes (B1-B6) plus seven structural parser / evaluator gaps (P1-P5,
-E1, E2) are closed. dafr now matches DAF.jl on the substantive
-assertions for every queries.jl test that doesn't hit one of the
-remaining deferred IDs (E3-E11, B7-B9, API1, N1) tracked in
-`dev/notes/2026-05-03-queries-jl-parity-divergences.md`.
+Closes the remaining behaviour and evaluator gaps surfaced by a
+literal port of `~/src/DataAxesFormats.jl/test/queries.jl`. The
+related parser-strictness (P1-P5) was already in place on `main`
+from earlier slices; this bumps R-side parity to match DAF.jl on
+every test that does not hit one of the still-deferred IDs (E3-E11,
+B7-B9, API1, N1) catalogued during the port.
 
 ### Evaluator behaviour
 
-- **B1.** `>> Sum` on an empty vector now errors uniformly with
-  `no IfMissing value specified for reducing an empty vector`
-  (was: silently `0`). With an explicit `|| <default>` it returns
-  the coerced default.
-- **B2/B3.** `>|` / `>-` reductions on an empty matrix raise
-  `no IfMissing value specified for reducing an empty matrix`
-  (was: shape error or zeroed entries). Empty-rows vs
-  empty-cols branches return the right output shape under
-  IfMissing.
-- **B4.** `% <Op>` element-wise on a numeric scalar applies the
-  op (was: `'%' eltwise requires vector or matrix in scope`).
+- **B4.** `% <Op>` element-wise on a numeric scalar applies the op
+  (was: `'%' eltwise requires vector or matrix in scope`). Numeric R
+  ops handle scalar natively; string scalars still error from base R.
 - **B5.** Partial / unconsumed queries (e.g. `@ cell @ gene`)
-  now error with `invalid query: <canonical>` (was: silent
-  `NULL`).
-- **B6.** A second `?` after a fully-resolved Names result
-  errors `'?' is not valid after names` (was: silently re-listed
-  axes).
+  now error with `invalid query: <canonical>` (was: silent `NULL`).
+- **B6.** A second `?` after a fully-resolved Names result errors
+  `'?' is not valid after <kind>` (was: silently re-listed axes).
 
-### Parser strictness
-
-- **P1.** `parse_query` rejects unknown eltwise / reduction op
-  names at parse time
-  (`unknown eltwise operation: <name>`). The check looks the
-  name up in *either* registry, so the existing
-  `% Sum`/`% Var` builder canonical form keeps round-tripping.
-- **P2.** Unknown parameter names rejected at parse
-  (`the parameter: <k> does not exist for the operation: <op>`).
-  `register_eltwise` / `register_reduction` derive a parameter
-  signature from `formals(fn)` (excluding the first positional
-  and `...`). Pass `params = NA` to keep an op permissive.
-- **P3.** Repeated parameters rejected
-  (`repeated parameter: <k> for the operation: <op>`).
-- **P4.** Bare type annotation after an `||` default — e.g.
-  `". version || 1.0 Float32"` — is parsed as a type tag and
-  the default is coerced to that type. The legacy
-  `"|| <value> type <T>"` two-token form continues to work.
-- **P5.** When no type annotation is given, the IfMissing
-  default is auto-typed from the literal: `true`/`false` →
-  Bool, `pi` / `e` → Float64 constant, parseable int →
-  integer, parseable float → numeric, else character. Vector
-  and matrix lookups now route their fill default through the
-  same coercion (so `: age || 1` returns an integer column,
-  not a character one).
+Plus: `canonical_query()` now accepts a `DafrQuery` directly (uses
+the stored canonical string).
 
 ### Evaluator additions
 
-- **E1.** `[ filter ]` after `@ rows @ cols` is now valid; the
-  mask filters the most-recently-entered axis (cols). The
-  matrix lookup honours both `row_indices` and the new
-  `col_indices`. Cols-mask reductions hit the existing
-  empty-matrix IfMissing branch.
-- **E2.** Virtual `name` property on every axis. `[ name = X ]`
-  in masks and `: name` in lookups now return the axis-entry
-  vector (`format_axis_array(daf, axis)`). The dataframe-side
-  `name` column remains tracked under API1.
+- **E1.** `[ filter ]` after `@ rows @ cols` is now valid; the mask
+  filters the most-recently-entered axis (cols). The matrix lookup
+  honours both `row_indices` and the new `col_indices`. Cols-mask
+  reductions hit the existing empty-matrix IfMissing branch.
+- **E2.** Virtual `name` property on every axis. `[ name = X ]`,
+  logical-mask combinators on `name`, and `: name` lookups now
+  return the axis-entry vector (`format_axis_array(daf, axis)`).
+  The dataframe-side `name` column remains tracked under API1.
+
+Plus: IfMissing defaults in vector and matrix lookups now route
+through `.coerce_if_missing_default` so the fill type matches the
+type of a real default (e.g. `: age || 1` returns an integer column,
+not a character one).
 
 # dafr 0.2.1
 
@@ -126,7 +99,6 @@ that the ported `queries.jl` test suite does not exercise:
 Build hygiene: `.Rbuildignore` excludes `AGENTS.md` and `CLAUDE.md`
 (development-only files) so they no longer surface as a
 `top-level files` NOTE under `R CMD check`.
-
 
 # dafr 0.2.0
 
@@ -285,6 +257,30 @@ matching `DataAxesFormats.jl` v0.2.0 (upstream commit `49fbba1`).
 This refactor is preparatory for the `ZarrDaf` and `HttpDaf`
 backends, which require per-item classification to drive their
 internal caching.
+
+# dafr 0.1.0 (development)
+
+## Query DSL: Julia-parity parser additions
+
+Three DataAxesFormats.jl query-DSL features that were previously
+missing have been implemented, closing the last semantic gaps between
+`dafr` and the upstream Julia package:
+
+- `>> Reduction` reduces a vector or matrix to a scalar (e.g.
+  `@ gene : is_lateral >> Sum type Int64`, or
+  `@ cell @ gene :: UMIs >> Sum`). `>>` is no longer silently aliased
+  to `>|`; on a grouped input (`... / g >> Sum`) it continues to
+  produce a per-group vector, as before.
+- `@ axis = entry` picks one entry from a vector
+  (`@ cell : age @ cell = N89`) or one cell from a matrix
+  (`@ cell @ gene :: UMIs @ cell = C @ gene = X`). Two successive
+  picks collapse a matrix to a scalar.
+- `|| value type T` attaches a Julia-style dtype (`Bool`,
+  `Int8`..`Int64`, `UInt8`..`UInt64`, `Float32`, `Float64`, `String`)
+  to a scalar-lookup default, matching the existing behaviour of the
+  same suffix inside reductions and element-wise ops.
+- `IfMissing()` builder gains an optional `type` kwarg
+  (`IfMissing(0, type = "Int64")`).
 
 # dafr 0.1.0
 

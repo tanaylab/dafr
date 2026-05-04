@@ -32,8 +32,9 @@ test_that("format_get_vector returns an ALTREP-backed vector for Float64 dense",
         size = 8L, endian = "little"
     )
     d <- files_daf(dir, mode = "r")
-    v <- format_get_vector(d, "cell", "x")
-    expect_equal(v, c(A = 1.5, B = 2.5, C = -3.25))
+    v <- format_get_vector(d, "cell", "x")$value
+    expect_equal(unname(v), c(1.5, 2.5, -3.25))
+    expect_equal(names(v), c("A", "B", "C"))
     expect_true(is_altrep(v))
 })
 
@@ -54,8 +55,9 @@ test_that("format_get_vector eager-reads Float64 when dafr.mmap = FALSE", {
     v <- withr::with_options(
         list(dafr.mmap = FALSE),
         format_get_vector(d, "cell", "x")
-    )
-    expect_equal(v, c(A = 10.0, B = 20.0))
+    )$value
+    expect_equal(unname(v), c(10.0, 20.0))
+    expect_equal(names(v), c("A", "B"))
     expect_false(is_altrep(v))
 })
 
@@ -73,8 +75,9 @@ test_that("format_get_vector densifies Int32 via mmap", {
         size = 4L, endian = "little"
     )
     d <- files_daf(dir, mode = "r")
-    v <- format_get_vector(d, "cell", "i")
-    expect_equal(v, c(A = 1L, B = -2L, C = 3L))
+    v <- format_get_vector(d, "cell", "i")$value
+    expect_equal(unname(v), c(1L, -2L, 3L))
+    expect_equal(names(v), c("A", "B", "C"))
     expect_true(is_altrep(v) || is.integer(v))
 })
 
@@ -90,8 +93,9 @@ test_that("format_get_vector Bool dense (eager read path, not mmap)", {
     )
     writeBin(as.raw(c(1L, 0L, 1L)), file.path(dir, "vectors", "cell", "b.data"))
     d <- files_daf(dir, mode = "r")
-    v <- format_get_vector(d, "cell", "b")
-    expect_equal(v, c(A = TRUE, B = FALSE, C = TRUE))
+    v <- format_get_vector(d, "cell", "b")$value
+    expect_equal(unname(v), c(TRUE, FALSE, TRUE))
+    expect_equal(names(v), c("A", "B", "C"))
 })
 
 test_that("format_get_vector String dense round-trip", {
@@ -109,8 +113,9 @@ test_that("format_get_vector String dense round-trip", {
         file.path(dir, "vectors", "cell", "s.txt")
     )
     d <- files_daf(dir, mode = "r")
-    v <- format_get_vector(d, "cell", "s")
-    expect_equal(v, c(A = "foo", B = "bar"))
+    v <- format_get_vector(d, "cell", "s")$value
+    expect_equal(unname(v), c("foo", "bar"))
+    expect_equal(names(v), c("A", "B"))
 })
 
 test_that("format_get_vector errors on missing descriptor", {
@@ -119,7 +124,7 @@ test_that("format_get_vector errors on missing descriptor", {
     writeLines('{"version":[1,0]}', file.path(dir, "daf.json"))
     writeLines("A", file.path(dir, "axes", "cell.txt"))
     d <- files_daf(dir, mode = "r")
-    expect_error(format_get_vector(d, "cell", "nope"), "does not exist")
+    expect_error(format_get_vector(d, "cell", "nope"), "missing vector:")
 })
 
 test_that("format_get_vector errors on truncated payload", {
@@ -182,7 +187,7 @@ test_that("set_vector rejects wrong length / requires overwrite", {
     add_axis(d, "cell", c("A", "B"))
     expect_error(set_vector(d, "cell", "x", c(1, 2, 3)), "length")
     set_vector(d, "cell", "x", c(1, 2))
-    expect_error(set_vector(d, "cell", "x", c(3, 4)), "already exists")
+    expect_error(set_vector(d, "cell", "x", c(3, 4)), "existing vector:")
     set_vector(d, "cell", "x", c(3, 4), overwrite = TRUE)
 })
 
@@ -201,7 +206,7 @@ test_that("delete_vector must_exist=FALSE is a no-op on missing", {
     d <- files_daf(dir, mode = "w+")
     add_axis(d, "cell", "A")
     expect_silent(delete_vector(d, "cell", "nope", must_exist = FALSE))
-    expect_error(delete_vector(d, "cell", "nope"), "does not exist")
+    expect_error(delete_vector(d, "cell", "nope"), "missing vector:")
 })
 
 test_that("format_get_vector densifies a sparse Float64 vector written Julia-style", {
@@ -221,8 +226,9 @@ test_that("format_get_vector densifies a sparse Float64 vector written Julia-sty
         size = 8L, endian = "little"
     )
     d <- files_daf(dir, mode = "r")
-    v <- format_get_vector(d, "cell", "sv")
-    expect_equal(v, c(A = 0, B = 10, C = 0, D = 30))
+    v <- format_get_vector(d, "cell", "sv")$value
+    expect_equal(unname(v), c(0, 10, 0, 30))
+    expect_equal(names(v), c("A", "B", "C", "D"))
 })
 
 test_that("format_get_vector sparse Bool without .nzval file synthesizes fill(TRUE, nnz)", {
@@ -239,8 +245,9 @@ test_that("format_get_vector sparse Bool without .nzval file synthesizes fill(TR
         size = 4L, endian = "little"
     )
     d <- files_daf(dir, mode = "r")
-    v <- format_get_vector(d, "cell", "sb")
-    expect_equal(v, c(A = TRUE, B = FALSE, C = TRUE))
+    v <- format_get_vector(d, "cell", "sb")$value
+    expect_equal(unname(v), c(TRUE, FALSE, TRUE))
+    expect_equal(names(v), c("A", "B", "C"))
 })
 
 test_that("format_get_vector sparse String reads .nztxt", {
@@ -258,8 +265,9 @@ test_that("format_get_vector sparse String reads .nztxt", {
     )
     writeLines(c("foo", "bar"), file.path(dir, "vectors", "cell", "ss.nztxt"))
     d <- files_daf(dir, mode = "r")
-    v <- format_get_vector(d, "cell", "ss")
-    expect_equal(v, c(A = "", B = "foo", C = "", D = "", E = "bar"))
+    v <- format_get_vector(d, "cell", "ss")$value
+    expect_equal(unname(v), c("", "foo", "", "", "bar"))
+    expect_equal(names(v), c("A", "B", "C", "D", "E"))
 })
 
 test_that("set_vector auto-sparsifies a vector dominated by zeros", {
@@ -332,4 +340,21 @@ test_that("set_vector accepts Matrix::sparseVector and writes sparse uncondition
     expect_equal(j$format, "sparse")
     d2 <- files_daf(dir, mode = "r")
     expect_equal(unname(get_vector(d2, "cell", "sv")), c(0, 10, 0, 30))
+})
+
+test_that("get_vector on files_daf preserves axis-entry names (slice-14 regression guard)", {
+    tmp <- tempfile(fileext = ".daf")
+    d <- memory_daf()
+    add_axis(d, "cell", c("A", "B", "C"))
+    set_vector(d, "cell", "x", c(1.0, 2.0, 3.0))
+    fd_w <- files_daf(tmp, mode = "w")
+    copy_all(fd_w, d, relayout = FALSE)
+    fd <- files_daf(tmp, mode = "r")
+    v <- get_vector(fd, "cell", "x")
+    expect_equal(names(v), c("A", "B", "C"))
+    expect_equal(unname(v), c(1.0, 2.0, 3.0))
+
+    # Also after a second call (cache hit path) — names must persist:
+    v2 <- get_vector(fd, "cell", "x")
+    expect_equal(names(v2), c("A", "B", "C"))
 })

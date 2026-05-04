@@ -1,0 +1,5 @@
+{
+    "jl_line": 525,
+    "expr": "has_vector(cells, \"cell\", \"type\")",
+    "value": false
+}

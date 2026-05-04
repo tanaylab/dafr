@@ -4,6 +4,14 @@
 #' bidirectionally compatible with Julia's `DataAxesFormats.FilesDaf`.
 #' Writes are non-atomic; only one writer may touch a store at a time.
 #'
+#' @section Concurrent access:
+#' `files_daf` does not lock the store. Two writers opening the same
+#' path in mode `"r+"` or `"w+"` will race on `metadata.zip` rebuilds
+#' and per-entry JSON writes, with no guarantee of last-writer-wins
+#' consistency. The supported pattern is single-writer plus arbitrary
+#' read-only readers; cross-process concurrency must be coordinated
+#' externally (e.g., a job scheduler).
+#'
 #' @param path Directory path.
 #' @param mode One of `"r"` (read-only, store must exist), `"r+"`
 #'   (read-write, store must exist), `"w"` (create; fails if store already
@@ -51,7 +59,7 @@ files_daf <- function(path, mode = c("r", "r+", "w", "w+"), name = NULL) {
     internal$mode <- mode
     internal$axes <- new.env(parent = emptyenv())
     ctor <- if (mode == "r") FilesDafReadOnly else FilesDaf
-    ctor(
+    daf <- ctor(
         name                   = name,
         internal               = internal,
         cache                  = new_cache_env(),
@@ -59,6 +67,15 @@ files_daf <- function(path, mode = c("r", "r+", "w", "w+"), name = NULL) {
         vector_version_counter = new_counter_env(),
         matrix_version_counter = new_counter_env()
     )
+    # Recovery: a writeable open inherits any leftover .reorder.backup/
+    # from a previously-crashed reorder. Roll it back BEFORE returning the
+    # daf so the caller never sees a partially-replaced store. Read-only
+    # opens leave the backup alone (no permission to mutate).
+    if (mode %in% c("r+", "w+")) {
+        .files_daf_recover_reorder(daf)
+        .ensure_metadata_zip(path)
+    }
+    daf
 }
 
 #' File-backed Daf writer class.
@@ -160,6 +177,31 @@ S7::method(
     .read_only_guard("relayout_matrix")
 }
 
+# ---- Description header --------------------------------------------------
+# Upstream Julia Formats.format_description_header(::FilesDaf, ...) at
+# files_format.jl:1632 emits type/path/mode. Both writer and read-only
+# variants render `type: FilesDaf` (the storage kind), then path and the
+# open mode held on internal.
+.files_daf_description_header <- function(daf, indent) {
+    internal <- S7::prop(daf, "internal")
+    c(paste0(indent, "type: FilesDaf"),
+      paste0(indent, "path: ", internal$path),
+      paste0(indent, "mode: ", internal$mode))
+}
+S7::method(format_description_header, FilesDaf) <- function(daf, indent = "",
+                                                             deep = FALSE) {
+    .files_daf_description_header(daf, indent)
+}
+S7::method(format_description_header, FilesDafReadOnly) <- function(daf,
+                                                                     indent = "",
+                                                                     deep = FALSE) {
+    .files_daf_description_header(daf, indent)
+}
+
+# Upstream Julia Readers.is_leaf(::FilesDaf) at files_format.jl:273.
+S7::method(is_leaf, FilesDaf) <- function(daf) TRUE
+S7::method(is_leaf, FilesDafReadOnly) <- function(daf) TRUE
+
 .files_daf_init <- function(path, truncate) {
     if (!dir.exists(path)) {
         dir.create(path, recursive = TRUE)
@@ -170,13 +212,16 @@ S7::method(
             if (dir.exists(sp)) unlink(sp, recursive = TRUE, force = TRUE)
         }
         unlink(file.path(path, "daf.json"), force = TRUE)
+        unlink(file.path(path, ".reorder.backup"), recursive = TRUE, force = TRUE)
     }
     for (sub in c("scalars", "axes", "vectors", "matrices")) {
         dir.create(file.path(path, sub), recursive = TRUE, showWarnings = FALSE)
     }
+    .write_axes_metadata(path)  # axes/metadata.json: empty array on fresh init
     if (!file.exists(file.path(path, "daf.json"))) {
         writeLines('{"version":[1,0]}', con = file.path(path, "daf.json"), sep = "\n")
     }
+    .metadata_zip_rebuild(path)
     invisible()
 }
 
@@ -204,16 +249,10 @@ S7::method(
         v1 <- v[[1L]]
         v2 <- v[[2L]]
     }
-    if (v1 != 1L) {
+    if (v1 != 1L || v2 > 0L) {
         stop(sprintf(
-            "files_daf: %s daf.json major version %d unsupported (expected 1)",
-            sQuote(path), v1
-        ), call. = FALSE)
-    }
-    if (v2 > 0L) {
-        stop(sprintf(
-            "files_daf: %s daf.json minor version %d exceeds supported (0)",
-            sQuote(path), v2
+            "incompatible format version: %d.%d\nfor the daf directory: %s\nthe code supports version: 1.0",
+            v1, v2, path
         ), call. = FALSE)
     }
     invisible()

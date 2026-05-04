@@ -21,8 +21,7 @@ The scalar value.
 Get a scalar, optionally with a default when missing.
 }
 \examples{
-d <- memory_daf()
-set_scalar(d, "organism", "human")
-get_scalar(d, "organism")
-get_scalar(d, "reference", default = "GRCh38")
+# Mirrors readers.jl jldoctests at lines 157 + 165.
+get_scalar(example_cells_daf(), "organism") # "human"
+get_scalar(example_metacells_daf(), "organism", default = NULL) # NULL
 }

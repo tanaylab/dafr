@@ -28,9 +28,11 @@ Named atomic vector.
 Get a vector, returning it as an axis-named R vector.
 }
 \examples{
-d <- example_cells_daf()
-donor <- get_vector(d, "cell", "donor")
-head(donor)
-# default value for a missing vector (recycled to axis length):
-head(get_vector(d, "cell", "missing_vec", default = NA_character_))
+# Mirrors readers.jl jldoctest at line 633.
+get_vector(example_metacells_daf(), "type", "color")
+# memory-B="steelblue" MEBEMP-E="#eebb6e" MEBEMP-L="plum" MPP="gold"
+
+# Default for a missing vector (recycled to axis length):
+head(get_vector(example_cells_daf(), "cell", "missing_vec",
+                default = NA_character_))
 }

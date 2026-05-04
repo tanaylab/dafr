@@ -1,0 +1,19 @@
+{
+    "jl_line": 1147,
+    "expr": "delete_matrix! UMIs (relayout, must_exist)",
+    "stage0": [
+        true,
+        true,
+        true
+    ],
+    "stage1": [
+        true,
+        false,
+        true
+    ],
+    "stage2": [
+        false,
+        false,
+        false
+    ]
+}

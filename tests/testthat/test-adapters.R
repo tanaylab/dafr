@@ -28,7 +28,7 @@ test_that("copy_all errors on pre-existing scalars unless overwrite", {
 
     expect_error(
         copy_all(dest, viewer(src), relayout = FALSE, overwrite = FALSE),
-        "already exists"
+        "existing scalar:"
     )
     copy_all(dest, viewer(src), relayout = FALSE, overwrite = TRUE)
     expect_identical(get_scalar(dest, "x"), 1L)
@@ -264,6 +264,6 @@ test_that("adapter: sparse pad-mode copy-back preserves sparsity", {
         relayout = FALSE
     )
     expect_identical(result, "ok")
-    res <- format_get_matrix(d, "cell", "gene", "UMIs")
+    res <- format_get_matrix(d, "cell", "gene", "UMIs")$value
     expect_s4_class(res, "dgCMatrix")
 })

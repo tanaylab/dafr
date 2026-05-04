@@ -1,0 +1,38 @@
+{
+    "jl_line": 22,
+    "fn": "example_cells_daf",
+    "structure": {
+        "scalars": {
+            "organism": "human",
+            "reference": "test"
+        },
+        "axes": {
+            "cell": 856,
+            "donor": 95,
+            "experiment": 23,
+            "gene": 683
+        },
+        "vectors": {
+            "cell": [
+                "donor",
+                "experiment"
+            ],
+            "donor": [
+                "age",
+                "sex"
+            ],
+            "gene": [
+                "is_lateral"
+            ]
+        },
+        "matrices": {
+            "cell,gene": [
+                "UMIs"
+            ],
+            "gene,cell": [
+                "UMIs"
+            ]
+        }
+    },
+    "raw_text": "name: cells!\ntype: MemoryDaf\nscalars:\n  organism: \"human\"\n  reference: \"test\"\naxes:\n  cell: 856 entries\n  donor: 95 entries\n  experiment: 23 entries\n  gene: 683 entries\nvectors:\n  cell:\n    donor: 856 x Str (Dense)\n    experiment: 856 x Str (Dense)\n  donor:\n    age: 95 x UInt32 (Dense)\n    sex: 95 x Str (Dense)\n  gene:\n    is_lateral: 683 x Bool (Dense; 438 (64%) true)\nmatrices:\n  cell,gene:\n    UMIs: 856 x 683 x UInt8 in Columns (Dense)\n  gene,cell:\n    UMIs: 683 x 856 x UInt8 in Columns (Dense)\n"
+}

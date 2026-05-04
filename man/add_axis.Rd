@@ -20,7 +20,9 @@ Invisibly the input \code{daf}.
 Add a new axis.
 }
 \examples{
-d <- memory_daf()
-add_axis(d, "cell", c("c1", "c2", "c3"))
-axis_length(d, "cell")
+# Mirrors writers.jl jldoctest at line 161.
+d <- example_cells_daf()
+has_axis(d, "block")                  # FALSE
+add_axis(d, "block", c("B1", "B2"))
+has_axis(d, "block")                  # TRUE
 }

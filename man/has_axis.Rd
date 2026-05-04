@@ -18,8 +18,7 @@ Logical scalar.
 Test whether an axis exists.
 }
 \examples{
-d <- memory_daf()
-add_axis(d, "cell", c("c1", "c2"))
-has_axis(d, "cell")
-has_axis(d, "gene")
+# Mirrors readers.jl jldoctest at lines 210 + 218.
+has_axis(example_cells_daf(),     "metacell") # FALSE
+has_axis(example_metacells_daf(), "metacell") # TRUE
 }

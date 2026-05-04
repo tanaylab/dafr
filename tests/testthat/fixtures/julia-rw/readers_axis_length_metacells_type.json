@@ -1,0 +1,5 @@
+{
+    "jl_line": 487,
+    "expr": "axis_length(metacells, \"type\")",
+    "value": 4
+}

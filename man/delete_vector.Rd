@@ -22,9 +22,9 @@ Invisibly the input \code{daf}.
 Delete a vector on an axis.
 }
 \examples{
-d <- memory_daf()
-add_axis(d, "cell", c("c1", "c2"))
-set_vector(d, "cell", "donor", c("d1", "d2"))
-delete_vector(d, "cell", "donor")
-has_vector(d, "cell", "donor")
+# Mirrors writers.jl jldoctest at line 618.
+m <- example_metacells_daf()
+has_vector(m, "type", "color")    # TRUE
+delete_vector(m, "type", "color")
+has_vector(m, "type", "color")    # FALSE
 }

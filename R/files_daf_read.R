@@ -3,6 +3,34 @@ NULL
 
 .files_root <- function(daf) S7::prop(daf, "internal")$path
 
+# Per-item cache_group classifier for files_daf reads. Mirrors upstream
+# DataAxesFormats.jl `src/files_format.jl` post-49fbba1 thresholds.
+#
+# Upstream classifies MappedData vs MemoryData based on whether the returned
+# value is mmap-backed or fully materialized into heap memory. There are NO
+# size-based thresholds. MemoryData is returned for:
+#   - string/character vectors (dense or sparse-string reconstructed)
+#   - sparse-Bool vectors/matrices where .nzval file was absent (synthesized)
+#   - sparse-string matrices (reconstructed in-memory)
+#
+# In R all reads go through readBin (no real mmap), but we mirror the upstream
+# classification: character/factor → MEMORY_DATA; everything else → MAPPED_DATA.
+# The synthesized-Bool case is indistinguishable from the returned value alone,
+# so it correctly stays MAPPED_DATA (same as upstream's non-absent nzval path).
+#
+# CALLED ONLY from format_get_vector / format_get_matrix S7 methods on
+# FilesDaf / FilesDafReadOnly. The wrap site uses the returned constant to
+# populate the cache_group field.
+.files_daf_classify_vector <- function(value) {
+    if (is.character(value) || is.factor(value)) return(MEMORY_DATA)
+    MAPPED_DATA
+}
+
+.files_daf_classify_matrix <- function(value) {
+    if (is.character(value) || is.factor(value)) return(MEMORY_DATA)
+    MAPPED_DATA
+}
+
 # ---- scalars: query ----
 S7::method(
     format_has_scalar,
@@ -20,7 +48,7 @@ S7::method(
 .files_get_scalar <- function(daf, name) {
     p <- .path_scalar(.files_root(daf), name)
     if (!file.exists(p)) {
-        stop(sprintf("scalar %s does not exist", sQuote(name)), call. = FALSE)
+        .require_scalar(daf, name)
     }
     .read_scalar_json(p)
 }
@@ -28,13 +56,13 @@ S7::method(
     format_get_scalar,
     list(FilesDaf, S7::class_character)
 ) <- function(daf, name) {
-    .files_get_scalar(daf, name)
+    .cache_group_value(.files_get_scalar(daf, name), MEMORY_DATA)
 }
 S7::method(
     format_get_scalar,
     list(FilesDafReadOnly, S7::class_character)
 ) <- function(daf, name) {
-    .files_get_scalar(daf, name)
+    .cache_group_value(.files_get_scalar(daf, name), MEMORY_DATA)
 }
 
 .files_scalars_set <- function(daf) {
@@ -67,10 +95,9 @@ S7::method(format_scalars_set, FilesDafReadOnly) <- function(daf) {
         )
     }
     if (anyDuplicated(entries)) {
-        dup <- entries[duplicated(entries)][1L]
         stop(sprintf(
-            "files_daf: axis %s has duplicate entry %s",
-            sQuote(axis), sQuote(dup)
+            "non-unique entries for new axis: %s\nin the daf data: %s",
+            axis, S7::prop(daf, "name")
         ), call. = FALSE)
     }
     dict <- new.env(parent = emptyenv(), size = length(entries))
@@ -108,7 +135,7 @@ S7::method(format_axes_set, FilesDafReadOnly) <- function(daf) .files_axes_set(d
 .files_axis_require <- function(daf, axis) {
     parsed <- .files_axis_parsed(daf, axis)
     if (is.null(parsed)) {
-        stop(sprintf("axis %s does not exist", sQuote(axis)), call. = FALSE)
+        .require_axis(daf, "for: files backend", axis)
     }
     parsed
 }
@@ -130,13 +157,13 @@ S7::method(
     format_axis_array,
     list(FilesDaf, S7::class_character)
 ) <- function(daf, axis) {
-    .files_axis_require(daf, axis)$entries
+    .cache_group_value(.files_axis_require(daf, axis)$entries, MEMORY_DATA)
 }
 S7::method(
     format_axis_array,
     list(FilesDafReadOnly, S7::class_character)
 ) <- function(daf, axis) {
-    .files_axis_require(daf, axis)$entries
+    .cache_group_value(.files_axis_require(daf, axis)$entries, MEMORY_DATA)
 }
 
 S7::method(
@@ -309,10 +336,7 @@ S7::method(
     root <- .files_root(daf)
     desc_path <- .files_vector_desc_path(root, axis, name)
     if (!file.exists(desc_path)) {
-        stop(sprintf(
-            "vector %s does not exist on axis %s",
-            sQuote(name), sQuote(axis)
-        ), call. = FALSE)
+        .require_vector(daf, axis, name)
     }
     desc <- .read_descriptor(desc_path)
     n <- format_axis_length(daf, axis)
@@ -333,24 +357,28 @@ S7::method(
     stamp <- vector_stamp(daf, axis, name)
     hit <- cache_lookup(ce, "mapped", key, stamp)
     if (!is.null(hit)) {
-        return(.attach_vector_axis_names(daf, axis, hit))
+        return(hit)
     }
     v <- .files_get_vector_impl(daf, axis, name)
     cache_store(ce, "mapped", key, v, stamp, size_bytes = 0)
-    .attach_vector_axis_names(daf, axis, v)
+    v
 }
 
 S7::method(
     format_get_vector,
     list(FilesDaf, S7::class_character, S7::class_character)
 ) <- function(daf, axis, name) {
-    .files_get_vector_cached(daf, axis, name)
+    v <- .files_get_vector_cached(daf, axis, name)
+    .cache_group_value(.attach_vector_axis_names(daf, axis, v),
+                       .files_daf_classify_vector(v))
 }
 S7::method(
     format_get_vector,
     list(FilesDafReadOnly, S7::class_character, S7::class_character)
 ) <- function(daf, axis, name) {
-    .files_get_vector_cached(daf, axis, name)
+    v <- .files_get_vector_cached(daf, axis, name)
+    .cache_group_value(.attach_vector_axis_names(daf, axis, v),
+                       .files_daf_classify_vector(v))
 }
 
 # ---- matrices: query ----
@@ -416,13 +444,7 @@ S7::method(
     root <- .files_root(daf)
     desc_path <- .files_matrix_desc_path(root, rows_axis, columns_axis, name)
     if (!file.exists(desc_path)) {
-        stop(
-            sprintf(
-                "matrix %s does not exist on axes (%s, %s)",
-                sQuote(name), sQuote(rows_axis), sQuote(columns_axis)
-            ),
-            call. = FALSE
-        )
+        .require_matrix(daf, rows_axis, columns_axis, name, relayout = FALSE)
     }
     desc <- .read_descriptor(desc_path)
     nr <- format_axis_length(daf, rows_axis)
@@ -551,22 +573,26 @@ S7::method(
     stamp <- matrix_stamp(daf, rows_axis, columns_axis, name)
     hit <- cache_lookup(ce, "mapped", key, stamp)
     if (!is.null(hit)) {
-        return(.attach_matrix_axis_dimnames(daf, rows_axis, columns_axis, hit))
+        return(hit)
     }
     m <- .files_get_matrix_impl(daf, rows_axis, columns_axis, name)
     cache_store(ce, "mapped", key, m, stamp, size_bytes = 0)
-    .attach_matrix_axis_dimnames(daf, rows_axis, columns_axis, m)
+    m
 }
 
 S7::method(
     format_get_matrix,
     list(FilesDaf, S7::class_character, S7::class_character, S7::class_character)
 ) <- function(daf, rows_axis, columns_axis, name) {
-    .files_get_matrix_cached(daf, rows_axis, columns_axis, name)
+    m <- .files_get_matrix_cached(daf, rows_axis, columns_axis, name)
+    .cache_group_value(.attach_matrix_axis_dimnames(daf, rows_axis, columns_axis, m),
+                       .files_daf_classify_matrix(m))
 }
 S7::method(
     format_get_matrix,
     list(FilesDafReadOnly, S7::class_character, S7::class_character, S7::class_character)
 ) <- function(daf, rows_axis, columns_axis, name) {
-    .files_get_matrix_cached(daf, rows_axis, columns_axis, name)
+    m <- .files_get_matrix_cached(daf, rows_axis, columns_axis, name)
+    .cache_group_value(.attach_matrix_axis_dimnames(daf, rows_axis, columns_axis, m),
+                       .files_daf_classify_matrix(m))
 }

@@ -4,7 +4,14 @@
 \alias{delete_matrix}
 \title{Delete a matrix.}
 \usage{
-delete_matrix(daf, rows_axis, columns_axis, name, must_exist = TRUE)
+delete_matrix(
+  daf,
+  rows_axis,
+  columns_axis,
+  name,
+  must_exist = TRUE,
+  relayout = TRUE
+)
 }
 \arguments{
 \item{daf}{A \code{DafReader}.}
@@ -16,6 +23,10 @@ delete_matrix(daf, rows_axis, columns_axis, name, must_exist = TRUE)
 \item{name}{Matrix name.}
 
 \item{must_exist}{See \code{delete_axis}.}
+
+\item{relayout}{If \code{TRUE} (default), also delete the flipped layout
+\verb{(columns_axis, rows_axis, name)} if present. Mirrors Julia
+\verb{delete_matrix!(...; relayout)}.}
 }
 \value{
 Invisibly the input \code{daf}.
@@ -24,11 +35,14 @@ Invisibly the input \code{daf}.
 Delete a matrix.
 }
 \examples{
-d <- memory_daf()
-add_axis(d, "cell", c("c1", "c2"))
-add_axis(d, "gene", c("g1", "g2", "g3"))
-m <- matrix(0L, nrow = 2, ncol = 3)
-set_matrix(d, "cell", "gene", "counts", m)
-delete_matrix(d, "cell", "gene", "counts")
-has_matrix(d, "cell", "gene", "counts")
+# Mirrors writers.jl jldoctest at line 1147.
+d <- example_cells_daf()
+has_matrix(d, "gene", "cell", "UMIs", relayout = FALSE)  # TRUE
+has_matrix(d, "cell", "gene", "UMIs", relayout = FALSE)  # TRUE
+delete_matrix(d, "gene", "cell", "UMIs", relayout = FALSE)
+has_matrix(d, "gene", "cell", "UMIs", relayout = FALSE)  # FALSE
+has_matrix(d, "cell", "gene", "UMIs", relayout = FALSE)  # TRUE
+delete_matrix(d, "gene", "cell", "UMIs", must_exist = FALSE)
+has_matrix(d, "gene", "cell", "UMIs", relayout = FALSE)  # FALSE
+has_matrix(d, "cell", "gene", "UMIs", relayout = FALSE)  # FALSE
 }

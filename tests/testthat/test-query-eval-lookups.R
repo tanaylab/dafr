@@ -26,17 +26,18 @@ test_that("get_query with '? @' returns axis names", {
 
 test_that("get_query errors on missing scalar unless IfMissing", {
     d <- memory_daf(name = "t")
-    expect_error(get_query(d, ". missing"), "no scalar")
-    # Auto-typed default (Julia parity, queries.jl:284-312) — `0` parses as
-    # integer; pre-strictness behaviour returned the literal "0" string.
+    expect_error(get_query(d, ". missing"), "missing scalar:")
+    # `|| 0` (no type) is interpreted as integer 0 (Julia parity — value
+    # is typed at parse time based on its literal form). Use `|| 0 String`
+    # for the string default.
     expect_equal(get_query(d, ". missing || 0"), 0L)
+    expect_equal(get_query(d, ". missing || 0 String"), "0")
 })
 
 test_that("get_query returns a vector", {
     d <- memory_daf(name = "t")
     add_axis(d, "cell", c("c1", "c2", "c3"))
     set_vector(d, "cell", "age", c(1, 2, 3))
-    # Named-everywhere: get_query lookups expose axis-entry names.
     expect_equal(get_query(d, "@ cell : age"), c(c1 = 1, c2 = 2, c3 = 3))
 })
 
@@ -44,8 +45,8 @@ test_that("get_query with '@ axis : ?' returns vector names", {
     d <- memory_daf(name = "t")
     add_axis(d, "cell", "c1")
     set_vector(d, "cell", "age", 1)
-    set_vector(d, "cell", "name", "x")
-    expect_setequal(get_query(d, "@ cell : ?"), c("age", "name"))
+    set_vector(d, "cell", "color", "x")
+    expect_setequal(get_query(d, "@ cell : ?"), c("age", "color"))
 })
 
 test_that("get_query returns a matrix", {
@@ -64,5 +65,5 @@ test_that("get_query returns a matrix", {
 test_that("get_query errors on missing vector/matrix with no IfMissing", {
     d <- memory_daf(name = "t")
     add_axis(d, "cell", "c1")
-    expect_error(get_query(d, "@ cell : nope"), "no vector")
+    expect_error(get_query(d, "@ cell : nope"), "missing vector:")
 })

@@ -235,7 +235,7 @@ viewer <- function(daf, name = NULL, axes = NULL, data = NULL) {
     for (view_name in names(view_axes)) {
         q <- view_axes[[view_name]]
         base_axis <- renames[[view_name]]
-        base_entries <- format_axis_array(daf, base_axis)
+        base_entries <- format_axis_array(daf, base_axis)$value
         if (identical(q, "=") || identical(q, view_name)) {
             out[[view_name]] <- seq_along(base_entries)
         } else {
@@ -478,7 +478,8 @@ S7::method(
     format_get_scalar,
     list(ViewDaf, S7::class_character)
 ) <- function(daf, name) {
-    get_query(daf@base, .view_query_for_scalar(daf, name))
+    value <- get_query(daf@base, .view_query_for_scalar(daf, name))
+    .cache_group_value(value, MEMORY_DATA)
 }
 
 S7::method(format_scalars_set, ViewDaf) <- function(daf) {
@@ -517,7 +518,20 @@ S7::method(
 ) <- function(daf, axis) {
     idx <- daf@view_axis_indices[[axis]]
     base_axis <- daf@view_axis_renames[[axis]]
-    format_axis_array(daf@base, base_axis)[idx]
+    inner <- format_axis_array(daf@base, base_axis)
+    .cache_group_value(inner$value[idx], MEMORY_DATA)
+}
+
+# Build a fresh dict over the post-permutation entries; can't reuse the
+# base axis's dict because a view may rename / drop / reorder entries.
+S7::method(
+    format_axis_dict,
+    list(ViewDaf, S7::class_character)
+) <- function(daf, axis) {
+    entries <- format_axis_array(daf, axis)$value
+    dict <- new.env(parent = emptyenv(), size = length(entries))
+    for (i in seq_along(entries)) assign(entries[[i]], i, envir = dict)
+    dict
 }
 
 S7::method(
@@ -543,14 +557,11 @@ S7::method(
 ) <- function(daf, axis, name) {
     q_str <- .view_query_for_vector(daf, axis, name)
     if (is.null(q_str)) {
-        stop(sprintf(
-            "no vector %s on view axis %s",
-            sQuote(name), sQuote(axis)
-        ), call. = FALSE)
+        .require_vector(daf, axis, name)
     }
     raw <- get_query(daf@base, q_str)
     idx <- daf@view_axis_indices[[axis]]
-    raw[idx]
+    .cache_group_value(raw[idx], MEMORY_DATA)
 }
 
 S7::method(
@@ -576,13 +587,10 @@ S7::method(
 ) <- function(daf, rows_axis, columns_axis, name) {
     q_str <- .view_query_for_matrix(daf, rows_axis, columns_axis, name)
     if (is.null(q_str)) {
-        stop(sprintf(
-            "no matrix %s on view axes (%s, %s)",
-            sQuote(name), sQuote(rows_axis), sQuote(columns_axis)
-        ), call. = FALSE)
+        .require_matrix(daf, rows_axis, columns_axis, name, relayout = FALSE)
     }
     raw <- get_query(daf@base, q_str)
     r_idx <- daf@view_axis_indices[[rows_axis]]
     c_idx <- daf@view_axis_indices[[columns_axis]]
-    raw[r_idx, c_idx, drop = FALSE]
+    .cache_group_value(raw[r_idx, c_idx, drop = FALSE], MEMORY_DATA)
 }

@@ -60,7 +60,7 @@
     }
     n <- format_axis_length(daf, axis)
     if (!is.null(names(vec))) {
-        entries <- format_axis_array(daf, axis)
+        entries <- format_axis_array(daf, axis)$value
         missing <- setdiff(names(vec), entries)
         if (length(missing)) {
             stop(
@@ -72,28 +72,12 @@
                 call. = FALSE
             )
         }
-        if (length(vec) != n) {
-            stop(
-                sprintf(
-                    "vector %s has length %d (expected %d) on axis %s",
-                    sQuote(name), length(vec), n, sQuote(axis)
-                ),
-                call. = FALSE
-            )
-        }
+        .require_axis_length(daf, length(vec), sprintf("vector: %s", name), axis)
         # Reorder to axis order; drop names but preserve class (e.g. bit64).
         vec <- vec[entries]
         names(vec) <- NULL
     } else {
-        if (length(vec) != n) {
-            stop(
-                sprintf(
-                    "vector %s has length %d (expected %d) on axis %s",
-                    sQuote(name), length(vec), n, sQuote(axis)
-                ),
-                call. = FALSE
-            )
-        }
+        .require_axis_length(daf, length(vec), sprintf("vector: %s", name), axis)
     }
     vec
 }
@@ -101,13 +85,16 @@
 # Attach axis-entry names to a vector returned by format_get_vector.
 # Internal — every format_get_vector method must call this on the value
 # it returns so the format-API contract ("returns are named") holds at
-# every layer (memory, files, chain, view, contract, http).
+# every layer (memory, files, zarr, http, chain, view, contract).
 #
 # The helper is length-strict: a backend that returns a value of the
 # wrong length is buggy regardless of names, and we'd rather surface
 # that immediately than silently mismatch names to data.
+#
+# Note: on main, format_axis_array returns a cache_group_value list, so
+# we unpack `$value` to get the bare axis entries.
 .attach_vector_axis_names <- function(daf, axis, vec) {
-    entries <- format_axis_array(daf, axis)
+    entries <- format_axis_array(daf, axis)$value
     if (length(vec) != length(entries)) {
         stop(sprintf(
             "format_get_vector contract violation: value has length %d, axis %s has %d entries",
@@ -122,8 +109,8 @@
 # Handles both base R dense matrices and Matrix::dgCMatrix /
 # Matrix::lgCMatrix (which carry dimnames on the @Dimnames slot).
 .attach_matrix_axis_dimnames <- function(daf, rows_axis, columns_axis, mat) {
-    rows <- format_axis_array(daf, rows_axis)
-    cols <- format_axis_array(daf, columns_axis)
+    rows <- format_axis_array(daf, rows_axis)$value
+    cols <- format_axis_array(daf, columns_axis)$value
     d <- dim(mat)
     if (d[[1L]] != length(rows) || d[[2L]] != length(cols)) {
         stop(sprintf(

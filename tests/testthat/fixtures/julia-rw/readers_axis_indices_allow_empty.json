@@ -1,0 +1,8 @@
+{
+    "jl_line": 389,
+    "expr": "axis_indices(metacells, \"type\", [\"MPP\",\"\"]; allow_empty=true)",
+    "values": [
+        4,
+        0
+    ]
+}

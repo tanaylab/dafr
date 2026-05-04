@@ -18,8 +18,7 @@ Logical scalar.
 Test whether a scalar exists.
 }
 \examples{
-d <- memory_daf()
-set_scalar(d, "organism", "human")
-has_scalar(d, "organism")
-has_scalar(d, "reference")
+# Mirrors readers.jl jldoctests at lines 92 + 100.
+has_scalar(example_cells_daf(),     "organism") # TRUE
+has_scalar(example_metacells_daf(), "organism") # FALSE
 }

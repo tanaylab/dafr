@@ -1,0 +1,229 @@
+# Tests for cache_group constants and the per-item classification
+# returned by format_get_* / format_set_*. Phase 2 populates the bulk
+# of these; Phase 9 adds boundary-case assertions.
+
+test_that("cache_group constants have expected values", {
+    expect_identical(MEMORY_DATA, "MemoryData")
+    expect_identical(MAPPED_DATA, "MappedData")
+    expect_identical(QUERY_DATA, "QueryData")
+})
+
+test_that(".is_cache_group accepts the three constants", {
+    .is_cache_group <- dafr:::.is_cache_group
+    expect_true(.is_cache_group(MEMORY_DATA))
+    expect_true(.is_cache_group(MAPPED_DATA))
+    expect_true(.is_cache_group(QUERY_DATA))
+})
+
+test_that(".is_cache_group rejects bad inputs", {
+    .is_cache_group <- dafr:::.is_cache_group
+    expect_false(.is_cache_group("memory"))
+    expect_false(.is_cache_group(""))
+    expect_false(.is_cache_group(NA_character_))
+    expect_false(.is_cache_group(c(MEMORY_DATA, MAPPED_DATA)))
+    expect_false(.is_cache_group(NULL))
+    expect_false(.is_cache_group(1L))
+})
+
+# ---- Phase-A signature tests (un-skipped at Phase 8) -----------------------
+
+test_that("memory_daf format_get_scalar returns list(value, cache_group)", {
+    d <- memory_daf()
+    set_scalar(d, "n", 42L)
+    out <- dafr:::format_get_scalar(d, "n")
+    expect_named(out, c("value", "cache_group"))
+    expect_identical(out$value, 42L)
+    expect_identical(out$cache_group, MEMORY_DATA)
+})
+
+test_that("memory_daf format_axis_array returns list(value, cache_group)", {
+    d <- memory_daf()
+    add_axis(d, "cell", c("c1", "c2"))
+    out <- dafr:::format_axis_array(d, "cell")
+    expect_named(out, c("value", "cache_group"))
+    expect_identical(out$value, c("c1", "c2"))
+    expect_identical(out$cache_group, MEMORY_DATA)
+})
+
+test_that("memory_daf format_get_vector returns list(value, cache_group)", {
+    d <- memory_daf()
+    add_axis(d, "cell", c("c1", "c2"))
+    set_vector(d, "cell", "donor", c("A", "B"))
+    out <- dafr:::format_get_vector(d, "cell", "donor")
+    expect_named(out, c("value", "cache_group"))
+    expect_equal(unname(out$value), c("A", "B"))
+    expect_identical(out$cache_group, MEMORY_DATA)
+})
+
+test_that("memory_daf format_get_matrix returns list(value, cache_group)", {
+    d <- memory_daf()
+    add_axis(d, "cell", c("c1", "c2"))
+    add_axis(d, "gene", c("g1", "g2"))
+    set_matrix(d, "cell", "gene", "UMIs", matrix(1:4, 2, 2))
+    out <- dafr:::format_get_matrix(d, "cell", "gene", "UMIs")
+    expect_named(out, c("value", "cache_group"))
+    expect_identical(out$cache_group, MEMORY_DATA)
+})
+
+test_that("files_daf format_get_vector returns MAPPED_DATA on mmap path", {
+    tmp <- tempfile("test-cg-")
+    d <- memory_daf(); add_axis(d, "cell", paste0("c", 1:3))
+    set_vector(d, "cell", "x", c(1.0, 2.0, 3.0))
+    fd_w <- files_daf(tmp, mode = "w"); copy_all(fd_w, d, relayout = FALSE); rm(fd_w)
+    fd <- files_daf(tmp, mode = "r")
+    out <- dafr:::format_get_vector(fd, "cell", "x")
+    expect_named(out, c("value", "cache_group"))
+    expect_identical(out$cache_group, MAPPED_DATA)
+})
+
+test_that("files_daf format_get_scalar returns MEMORY_DATA (not mmap'd)", {
+    tmp <- tempfile("test-cg-")
+    d <- memory_daf(); set_scalar(d, "n", 7L)
+    fd_w <- files_daf(tmp, mode = "w"); copy_all(fd_w, d, relayout = FALSE); rm(fd_w)
+    fd <- files_daf(tmp, mode = "r")
+    out <- dafr:::format_get_scalar(fd, "n")
+    expect_named(out, c("value", "cache_group"))
+    expect_identical(out$cache_group, MEMORY_DATA)
+})
+
+test_that("memory_daf format_set_scalar returns MEMORY_DATA", {
+    d <- memory_daf()
+    rv <- dafr:::format_set_scalar(d, "n", 1L, FALSE)
+    expect_identical(rv, MEMORY_DATA)
+})
+
+test_that("memory_daf format_set_vector returns MEMORY_DATA", {
+    d <- memory_daf()
+    add_axis(d, "cell", c("c1", "c2"))
+    rv <- dafr:::format_set_vector(d, "cell", "x", c(1, 2), FALSE)
+    expect_identical(rv, MEMORY_DATA)
+})
+
+test_that("memory_daf format_set_matrix returns MEMORY_DATA", {
+    d <- memory_daf()
+    add_axis(d, "cell", c("c1", "c2"))
+    add_axis(d, "gene", c("g1", "g2"))
+    rv <- dafr:::format_set_matrix(
+        d, "cell", "gene", "M", matrix(1:4, 2, 2), FALSE
+    )
+    expect_identical(rv, MEMORY_DATA)
+})
+
+# Sanity: cache classification round-trips through public get_* paths
+# (no behavior change visible to user — these are infrastructure tests).
+
+test_that("after get_vector, cache contains entry under returned tier", {
+    d <- memory_daf(); add_axis(d, "cell", c("c1", "c2"))
+    set_vector(d, "cell", "x", c(1.0, 2.0))
+    empty_cache(d)
+    get_vector(d, "cell", "x")
+    cache_env <- S7::prop(d, "cache")
+    # MEMORY_DATA → "memory" tier
+    expect_true(exists(
+        dafr:::cache_key_vector("cell", "x"),
+        envir = cache_env$memory, inherits = FALSE
+    ))
+    expect_false(exists(
+        dafr:::cache_key_vector("cell", "x"),
+        envir = cache_env$mapped, inherits = FALSE
+    ))
+})
+
+test_that("after get_vector on files_daf, cache hits mapped tier", {
+    tmp <- tempfile("test-cg-")
+    d <- memory_daf(); add_axis(d, "cell", paste0("c", 1:3))
+    set_vector(d, "cell", "x", c(1.0, 2.0, 3.0))
+    fd_w <- files_daf(tmp, mode = "w"); copy_all(fd_w, d, relayout = FALSE); rm(fd_w)
+    fd <- files_daf(tmp, mode = "r")
+    empty_cache(fd)
+    get_vector(fd, "cell", "x")
+    cache_env <- S7::prop(fd, "cache")
+    # MAPPED_DATA → "mapped" tier (already happens internally — verify)
+    expect_true(exists(
+        dafr:::cache_key_vector("cell", "x"),
+        envir = cache_env$mapped, inherits = FALSE
+    ))
+})
+
+test_that("empty_cache(daf, clear = MAPPED_DATA) clears mapped tier only", {
+    tmp <- tempfile("test-cg-")
+    d <- memory_daf(); add_axis(d, "cell", paste0("c", 1:3))
+    set_vector(d, "cell", "x", c(1.0, 2.0, 3.0))
+    fd_w <- files_daf(tmp, mode = "w"); copy_all(fd_w, d, relayout = FALSE); rm(fd_w)
+    fd <- files_daf(tmp, mode = "r")
+    get_vector(fd, "cell", "x")  # primes mapped tier
+    empty_cache(fd, clear = MAPPED_DATA)
+    cache_env <- S7::prop(fd, "cache")
+    expect_equal(length(ls(cache_env$mapped, all.names = TRUE)), 0L)
+})
+
+# ---- Phase B: per-item classification — upstream 49fbba1 structural rules ---
+#
+# Upstream files_format.jl classifies by STRUCTURE, not size:
+#   MemoryData: sparse-string vectors/matrices (reconstructed in-memory),
+#               sparse-Bool vectors/matrices where .nzval file is absent
+#               (synthesized rep(TRUE, nnz)), and string/character values.
+#   MappedData: dense numeric vectors/matrices, sparse numeric with .nzval.
+# There is NO length/nnz size threshold — only structural type matters.
+
+test_that("dense numeric vector in files_daf is MAPPED_DATA (no size threshold)", {
+    tmp <- tempfile(fileext = ".daf")
+    d <- memory_daf(); add_axis(d, "tiny", paste0("e", 1:3))
+    set_vector(d, "tiny", "x", c(1.0, 2.0, 3.0))
+    fd_w <- files_daf(tmp, mode = "w")
+    copy_all(fd_w, d, relayout = FALSE)
+    fd <- files_daf(tmp, mode = "r")
+    out <- dafr:::format_get_vector(fd, "tiny", "x")
+    expect_identical(out$cache_group, MAPPED_DATA)
+})
+
+test_that("string axis entries (format_axis_array) are MEMORY_DATA", {
+    tmp <- tempfile(fileext = ".daf")
+    d <- memory_daf(); add_axis(d, "cell", paste0("c", 1:1000))
+    fd_w <- files_daf(tmp, mode = "w")
+    copy_all(fd_w, d, relayout = FALSE)
+    fd <- files_daf(tmp, mode = "r")
+    out <- dafr:::format_axis_array(fd, "cell")
+    expect_identical(out$cache_group, MEMORY_DATA)
+})
+
+test_that("dense string vector in files_daf is MEMORY_DATA", {
+    tmp <- tempfile(fileext = ".daf")
+    d <- memory_daf(); add_axis(d, "cell", paste0("c", 1:3))
+    set_vector(d, "cell", "label", c("A", "B", "C"))
+    fd_w <- files_daf(tmp, mode = "w")
+    copy_all(fd_w, d, relayout = FALSE)
+    fd <- files_daf(tmp, mode = "r")
+    out <- dafr:::format_get_vector(fd, "cell", "label")
+    expect_identical(out$cache_group, MEMORY_DATA)
+})
+
+test_that("sparse numeric matrix (nzval present) in files_daf is MAPPED_DATA", {
+    tmp <- tempfile(fileext = ".daf")
+    d <- memory_daf()
+    add_axis(d, "cell", paste0("c", 1:5))
+    add_axis(d, "gene", paste0("g", 1:5))
+    m <- Matrix::sparseMatrix(i = c(1L, 3L), j = c(2L, 4L), x = c(1.0, 2.0),
+                              dims = c(5L, 5L))
+    set_matrix(d, "cell", "gene", "S", m)
+    fd_w <- files_daf(tmp, mode = "w")
+    copy_all(fd_w, d, relayout = FALSE)
+    fd <- files_daf(tmp, mode = "r")
+    out <- dafr:::format_get_matrix(fd, "cell", "gene", "S")
+    expect_identical(out$cache_group, MAPPED_DATA)
+})
+
+test_that("dense numeric matrix in files_daf is MAPPED_DATA", {
+    tmp <- tempfile(fileext = ".daf")
+    n <- 10L
+    d <- memory_daf()
+    add_axis(d, "cell", paste0("c", seq_len(n)))
+    add_axis(d, "gene", paste0("g", seq_len(n)))
+    set_matrix(d, "cell", "gene", "M",
+               matrix(as.numeric(seq_len(n * n)), nrow = n, ncol = n))
+    fd_w <- files_daf(tmp, mode = "w")
+    copy_all(fd_w, d, relayout = FALSE)
+    fd <- files_daf(tmp, mode = "r")
+    out <- dafr:::format_get_matrix(fd, "cell", "gene", "M")
+    expect_identical(out$cache_group, MAPPED_DATA)
+})

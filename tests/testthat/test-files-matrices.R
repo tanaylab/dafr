@@ -18,13 +18,13 @@ test_that("FilesDaf matrices_set lists descriptor-backed matrices", {
     expect_true(has_matrix(d, "cell", "gene", "m"))
 })
 
-test_that("has_matrix returns FALSE on missing axis", {
+test_that("has_matrix / matrices_set raise on missing axis (Julia parity)", {
     dir <- new_tempdir()
     dir.create(file.path(dir, "axes"), recursive = TRUE)
     writeLines('{"version":[1,0]}', file.path(dir, "daf.json"))
     d <- files_daf(dir, mode = "r")
-    expect_false(has_matrix(d, "cell", "gene", "m"))
-    expect_equal(matrices_set(d, "cell", "gene"), character(0L))
+    expect_error(has_matrix(d, "cell", "gene", "m"), "missing axis:")
+    expect_error(matrices_set(d, "cell", "gene"), "missing axis:")
 })
 
 test_that("format_get_matrix dense Float64 round-trips with correct shape", {
@@ -43,11 +43,11 @@ test_that("format_get_matrix dense Float64 round-trips with correct shape", {
         size = 8L, endian = "little"
     )
     d <- files_daf(dir, mode = "r")
-    m <- format_get_matrix(d, "cell", "gene", "m")
+    m <- format_get_matrix(d, "cell", "gene", "m")$value
     expect_equal(dim(m), c(3L, 2L))
-    expect_equal(m[2, 2], 5)
-    # Named-everywhere: dimnames carry through to single-column slice as names.
-    expect_equal(m[, 1], c(A = 1, B = 2, C = 3))
+    expect_equal(dimnames(m), list(c("A", "B", "C"), c("X", "Y")))
+    expect_equal(unname(m[2, 2]), 5)
+    expect_equal(unname(m[, 1]), c(1, 2, 3))
 })
 
 test_that("format_get_matrix dense Int32", {
@@ -66,7 +66,7 @@ test_that("format_get_matrix dense Int32", {
         size = 4L, endian = "little"
     )
     d <- files_daf(dir, mode = "r")
-    m <- format_get_matrix(d, "cell", "gene", "mi")
+    m <- format_get_matrix(d, "cell", "gene", "mi")$value
     expect_equal(dim(m), c(2L, 2L))
     expect_true(is.integer(m))
     expect_equal(unname(m), matrix(1:4, nrow = 2))
@@ -89,7 +89,7 @@ test_that("format_get_matrix dense String round-trip (column-major)", {
         file.path(dir, "matrices", "cell", "gene", "ms.txt")
     )
     d <- files_daf(dir, mode = "r")
-    m <- format_get_matrix(d, "cell", "gene", "ms")
+    m <- format_get_matrix(d, "cell", "gene", "ms")$value
     expect_equal(dim(m), c(2L, 2L))
     expect_equal(m[1, 1], "aX")
     expect_equal(m[2, 2], "bY")
@@ -147,7 +147,7 @@ test_that("delete_matrix must_exist semantics", {
     add_axis(d, "cell", "A")
     add_axis(d, "gene", "X")
     expect_silent(delete_matrix(d, "cell", "gene", "nope", must_exist = FALSE))
-    expect_error(delete_matrix(d, "cell", "gene", "nope"), "does not exist")
+    expect_error(delete_matrix(d, "cell", "gene", "nope"), "missing matrix:")
 })
 
 test_that("format_get_matrix densifies sparse CSC written Julia-style", {
@@ -176,15 +176,11 @@ test_that("format_get_matrix densifies sparse CSC written Julia-style", {
         size = 8L, endian = "little"
     )
     d <- files_daf(dir, mode = "r")
-    m <- format_get_matrix(d, "cell", "gene", "sm")
+    m <- format_get_matrix(d, "cell", "gene", "sm")$value
     expect_s4_class(m, "dgCMatrix")
     expect_equal(dim(m), c(3L, 2L))
-    # Named-everywhere: as.matrix preserves the dgCMatrix Dimnames.
-    expect_equal(
-        as.matrix(m),
-        matrix(c(10, 0, 20, 0, 30, 0), nrow = 3,
-               dimnames = list(c("A", "B", "C"), c("X", "Y")))
-    )
+    expect_equal(dimnames(m), list(c("A", "B", "C"), c("X", "Y")))
+    expect_equal(as.matrix(unname(m)), matrix(c(10, 0, 20, 0, 30, 0), nrow = 3))
 })
 
 test_that("format_get_matrix sparse Bool without nzval synthesizes TRUE", {
@@ -207,14 +203,11 @@ test_that("format_get_matrix sparse Bool without nzval synthesizes TRUE", {
         size = 4L, endian = "little"
     )
     d <- files_daf(dir, mode = "r")
-    m <- format_get_matrix(d, "cell", "gene", "sb")
+    m <- format_get_matrix(d, "cell", "gene", "sb")$value
     expect_s4_class(m, "lgCMatrix")
     expect_equal(dim(m), c(2L, 2L))
-    expect_equal(
-        as.matrix(m),
-        matrix(c(TRUE, FALSE, FALSE, TRUE), nrow = 2,
-               dimnames = list(c("A", "B"), c("X", "Y")))
-    )
+    expect_equal(dimnames(m), list(c("A", "B"), c("X", "Y")))
+    expect_equal(as.matrix(unname(m)), matrix(c(TRUE, FALSE, FALSE, TRUE), nrow = 2))
 })
 
 test_that("set_matrix + get_matrix sparse dgCMatrix round-trip", {

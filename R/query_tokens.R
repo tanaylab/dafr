@@ -17,6 +17,26 @@ NULL
             i <- i + 1L
             next
         }
+        # `# ... <eol>` line comment, per Julia tokens.jl SPACE_REGEX. Skip
+        # to the next \r / \n or end of string.
+        if (ch == "#") {
+            j <- i + 1L
+            while (j <= n && !(substr(s, j, j) %in% c("\n", "\r"))) {
+                j <- j + 1L
+            }
+            i <- j
+            next
+        }
+        # `''` is the canonical empty-string value token (round-trip with
+        # Julia's escape_value("") == "''"). Must beat the operator regex
+        # so the leading `'` isn't treated as an unexpected character.
+        if (ch == "'" && i < n && substr(s, i + 1L, i + 1L) == "'") {
+            tokens[[length(tokens) + 1L]] <- list(
+                type = "value", value = "", pos = i
+            )
+            i <- i + 2L
+            next
+        }
         op <- regmatches(
             substr(s, i, n),
             regexpr(.QUERY_OP_REGEX, substr(s, i, n), perl = TRUE)
@@ -68,28 +88,34 @@ NULL
             start, sQuote(s)
         ), call. = FALSE)
     }
-    # Decimal numeric literal (e.g. "2.0", "1.5").  Must be tried before the
-    # general value regex because '.' is otherwise treated as an operator token.
-    nm <- regmatches(
-        substr(s, start, n),
-        regexpr("^\\d+\\.\\d+(?:[eE][+-]?\\d+)?",
-            substr(s, start, n),
-            perl = TRUE
-        )
-    )
-    if (length(nm) == 1L && nzchar(nm)) {
-        return(list(value = nm, next_pos = start + nchar(nm)))
-    }
+    # Unquoted value: any run of value-safe characters (matching Julia's
+    # is_value_char in tokens.jl - letters, digits, '_', '.', '+', '-', plus
+    # any non-ASCII Unicode), with `\X` consuming the next character
+    # literally so axis-entry names containing otherwise-special characters
+    # can be embedded inline (e.g. `gene = AL627309\.1`).
+    #
+    # Single regex match (O(n) for the whole run) rather than a per-char R
+    # loop (O(n^2) due to the c(out, ch) accumulation, ~5s for a 50k-char
+    # value, a denial-of-service vector for any caller that forwards user
+    # input into a query).
+    rest <- substr(s, start, n)
     m <- regmatches(
-        substr(s, start, n),
-        regexpr("^[^\\s!&*%./:<=>?@\\[\\]^\\|~\"$#`]+",
-            substr(s, start, n),
-            perl = TRUE
+        rest,
+        regexpr(
+            "^(?:\\\\.|[0-9a-zA-Z_.+\\-]|[^\\x00-\\x7F])+",
+            rest, perl = TRUE
         )
     )
-    if (length(m) == 1L && nzchar(m)) {
-        list(value = m, next_pos = start + nchar(m))
-    } else {
-        NULL
+    if (length(m) != 1L || !nzchar(m)) {
+        # If the run starts with `\` but the regex couldn't pair it with a
+        # following char (orphan trailing backslash) the caller gets the
+        # same "unexpected character" path as before.
+        return(NULL)
     }
+    consumed <- nchar(m)
+    # Strip the `\` from each `\X` escape; R's regex engine uses `\1` for
+    # backreferences in replacement strings, so we leave the captured char
+    # alone.
+    value <- gsub("\\\\(.)", "\\1", m, perl = TRUE)
+    list(value = value, next_pos = start + consumed)
 }

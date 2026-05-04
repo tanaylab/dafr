@@ -218,3 +218,36 @@ The bake-off harness lives under `benchmarks/` (R runner) and
 catalog and fixture set and emit CSVs with identical schemas so the
 comparison step is a simple join. See `benchmarks/README.md` for the
 full workflow.
+
+## reorder_axes() — in-place axis permutation
+
+`reorder_axes(daf, axis = perm, ...)` permutes the entries of one or
+more axes in place, rewriting every vector and matrix that depends on
+the axis. It accepts named integer permutations (`new_entries[i] =
+old_entries[perm[i]]`):
+
+```{r}
+d <- memory_daf("demo")
+add_axis(d, "cell", c("c1", "c2", "c3"))
+set_vector(d, "cell", "score", c(10, 20, 30))
+reorder_axes(d, cell = c(3L, 1L, 2L))
+axis_vector(d, "cell")     # c("c3", "c1", "c2")
+get_vector(d, "cell", "score")  # 30, 10, 20
+```
+
+The cost is bounded by the data: each dependent vector / matrix is
+rewritten exactly once via vectorised R indexing (memory-bound). For a
+1k-cell, 1k-gene store with ~10 dense vectors and 2 dense matrices, a
+full `cell`-axis reorder runs in tens of milliseconds on a single core.
+
+On `files_daf`, the operation is **crash-recoverable**. Before any
+in-place writes, the original tree is hardlink-snapshotted into
+`.reorder.backup/`. If the process is killed mid-reorder, the next
+writable open (`mode = "r+"` or `"w+"`) automatically rolls back from
+the backup before returning the daf to the caller. Manual recovery is
+also exposed via `reset_reorder_axes(daf)` but is rarely needed.
+
+`reorder_axes()` only operates on leaf storage formats (`memory_daf`,
+`files_daf`, `zarr_daf`, `http_daf` — though HTTP is read-only).
+Wrappers (`chain_reader`, `chain_writer`, `view`, `contractor`) are
+rejected up front; reorder them via the underlying writer instead.

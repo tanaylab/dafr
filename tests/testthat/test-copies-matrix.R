@@ -41,7 +41,7 @@ test_that("copy_matrix: insist=TRUE raises when destination has it", {
     set_matrix(dest, "cell", "gene", "UMIs", matrix(9, 1, 1,
                dimnames = list("c1", "g1")))
     expect_error(copy_matrix(dest, src, "cell", "gene", "UMIs"),
-                 "already exists")
+                 "existing matrix:")
 })
 
 test_that("copy_matrix: overwrite replaces destination matrix", {
@@ -130,7 +130,7 @@ test_that("copy_matrix: sparse source + source-is-subset + empty=0 stays sparse"
 
     copy_matrix(dest, src, "cell", "gene", "UMIs",
                 empty = 0, relayout = FALSE)
-    result <- format_get_matrix(dest, "cell", "gene", "UMIs")
+    result <- format_get_matrix(dest, "cell", "gene", "UMIs")$value
     expect_s4_class(result, "dgCMatrix")
     expect_equal(unname(as.matrix(result)),
                  matrix(c(10,0,0, 0,20,0), 3, 2))

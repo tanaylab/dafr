@@ -35,7 +35,7 @@ test_that("complete_chain sets base_daf_repository and returns a write chain", {
     chain <- complete_chain(base_daf = base, new_daf = new, absolute = TRUE)
 
     expect_true(format_has_scalar(new, "base_daf_repository"))
-    expect_identical(format_get_scalar(new, "base_daf_repository"),
+    expect_identical(format_get_scalar(new, "base_daf_repository")$value,
                      normalizePath(tmp_base))
     expect_identical(unname(get_vector(chain, "cell", "age")), c(1L, 2L))
     set_vector(chain, "cell", "tag", c("x", "y"))

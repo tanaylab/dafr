@@ -21,8 +21,8 @@ Character vector of entry names.
 Entry-name vector for an axis.
 }
 \examples{
-d <- memory_daf()
-add_axis(d, "cell", c("c1", "c2", "c3"))
-axis_vector(d, "cell")
-axis_vector(d, "gene", null_if_missing = TRUE)
+# Mirrors readers.jl jldoctest at line 308.
+axis_vector(example_metacells_daf(), "type")
+# "memory-B" "MEBEMP-E" "MEBEMP-L" "MPP"
+axis_vector(example_cells_daf(), "missing", null_if_missing = TRUE)
 }

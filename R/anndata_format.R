@@ -436,8 +436,8 @@ daf_as_h5ad <- function(daf, path, obs_axis = NULL, var_axis = NULL,
         space = hdf5r::H5S$new("scalar"))
 
     # Axes.
-    obs_names <- format_axis_array(daf, obs_axis)
-    var_names <- format_axis_array(daf, var_axis)
+    obs_names <- format_axis_array(daf, obs_axis)$value
+    var_names <- format_axis_array(daf, var_axis)$value
 
     # /X
     if (format_has_matrix(daf, obs_axis, var_axis, x_name)) {
@@ -457,7 +457,7 @@ daf_as_h5ad <- function(daf, path, obs_axis = NULL, var_axis = NULL,
     obs_grp <- h5$create_group("obs")
     obs_grp$create_dataset("_index", robj = obs_names)
     for (vn in format_vectors_set(daf, obs_axis)) {
-        v <- format_get_vector(daf, obs_axis, vn)
+        v <- format_get_vector(daf, obs_axis, vn)$value
         if (is.factor(v)) {
             .write_h5ad_categorical(obs_grp, vn, v)
         } else {
@@ -469,7 +469,7 @@ daf_as_h5ad <- function(daf, path, obs_axis = NULL, var_axis = NULL,
     var_grp <- h5$create_group("var")
     var_grp$create_dataset("_index", robj = var_names)
     for (vn in format_vectors_set(daf, var_axis)) {
-        v <- format_get_vector(daf, var_axis, vn)
+        v <- format_get_vector(daf, var_axis, vn)$value
         if (is.factor(v)) {
             .write_h5ad_categorical(var_grp, vn, v)
         } else {

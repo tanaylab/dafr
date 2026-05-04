@@ -1,0 +1,16 @@
+{
+    "jl_line": 353,
+    "expr": "axis_dict(metacells, \"type\")",
+    "keys": [
+        "memory-B",
+        "MEBEMP-E",
+        "MEBEMP-L",
+        "MPP"
+    ],
+    "values": [
+        1,
+        2,
+        3,
+        4
+    ]
+}

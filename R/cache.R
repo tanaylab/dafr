@@ -90,7 +90,16 @@ empty_cache <- function(daf, clear = NULL, keep = NULL) {
     unname(out)
 }
 
-# ---- Version counters (monotonic integers, bumped on mutation) ----
+# ---- Version counters (monotonic integers, bumped on mutation) -------------
+# Bump policy mirrors Julia DAF (gold-standard reference):
+#   axis_version_counter   — bumped only on `delete_axis`  (NOT add_axis).
+#   vector_version_counter — bumped only on `set_vector`   (NOT delete_vector).
+#   matrix_version_counter — bumped only on `set_matrix`   (NOT delete_matrix
+#                            or relayout_matrix).
+# The narrower policy is sufficient for cache invalidation because the axis
+# stamp is folded into vector/matrix stamps: deleting an axis already
+# invalidates every vector/matrix cache on it, and re-creating the axis with
+# `overwrite = TRUE` goes through delete_axis first.
 bump_axis_counter <- function(daf, axis) {
     counters <- S7::prop(daf, "axis_version_counter")
     counters[[axis]] <- (counters[[axis]] %||% 0L) + 1L
@@ -138,18 +147,21 @@ matrix_stamp <- function(daf, rows_axis, columns_axis, name) {
 
 #' Per-axis version counter.
 #'
-#' Returns the monotonic counter for `axis` on `daf`. Incremented on
-#' `add_axis` / `delete_axis`. Returns `0L` if the axis has never been
-#' mutated (including non-existent axes, to match wrapper semantics).
+#' Returns the monotonic counter for `axis` on `daf`. Mirrors Julia DAF:
+#' incremented every time `delete_axis` is called (NOT on `add_axis`).
+#' Returns `0L` if `axis` has never been deleted (including non-existent
+#' axes, to match wrapper semantics).
 #'
 #' @param daf A [DafReader].
 #' @param axis Axis name (character scalar).
 #' @return `integer(1)`.
 #' @examples
-#' d <- memory_daf()
-#' axis_version_counter(d, "cell") # 0L
-#' add_axis(d, "cell", c("c1", "c2"))
-#' axis_version_counter(d, "cell") # 1L
+#' # Mirrors readers.jl jldoctest at line 246.
+#' m <- example_metacells_daf()
+#' axis_version_counter(m, "type")           # 0L
+#' delete_axis(m, "type")
+#' add_axis(m, "type", c("Foo", "Bar", "Baz"))
+#' axis_version_counter(m, "type")           # 1L
 #' @seealso [vector_version_counter()], [matrix_version_counter()]
 #' @export
 axis_version_counter <- function(daf, axis) {
@@ -159,18 +171,19 @@ axis_version_counter <- function(daf, axis) {
 #' Per-vector version counter.
 #'
 #' Returns the monotonic counter for the `name` vector on `axis`.
-#' Incremented on `set_vector` / `delete_vector`. Returns `0L` if the
-#' vector has never been mutated.
+#' Mirrors Julia DAF: incremented every time `set_vector` is called
+#' (NOT on `delete_vector`). Returns `0L` if the vector has never been
+#' set.
 #'
 #' @inheritParams axis_version_counter
 #' @param name Vector name (character scalar).
 #' @return `integer(1)`.
 #' @examples
-#' d <- memory_daf()
-#' add_axis(d, "cell", c("c1", "c2"))
-#' vector_version_counter(d, "cell", "donor") # 0L
-#' set_vector(d, "cell", "donor", c("A", "B"))
-#' vector_version_counter(d, "cell", "donor") # 1L
+#' # Mirrors readers.jl jldoctest at line 566.
+#' m <- example_metacells_daf()
+#' vector_version_counter(m, "type", "color")                       # 1L
+#' set_vector(m, "type", "color", as.character(1:4), overwrite = TRUE)
+#' vector_version_counter(m, "type", "color")                       # 2L
 #' @export
 vector_version_counter <- function(daf, axis, name) {
     key <- paste0(axis, ":", name)
@@ -180,18 +193,22 @@ vector_version_counter <- function(daf, axis, name) {
 #' Per-matrix version counter.
 #'
 #' Returns the monotonic counter for the `name` matrix on
-#' `(rows_axis, columns_axis)`. Incremented on `set_matrix` /
-#' `delete_matrix` / `relayout_matrix`. Returns `0L` if never mutated.
+#' `(rows_axis, columns_axis)`. Mirrors Julia DAF: incremented every
+#' time `set_matrix` is called (NOT on `delete_matrix` or
+#' `relayout_matrix`). Returns `0L` if never set.
 #'
 #' @inheritParams axis_version_counter
 #' @param rows_axis,columns_axis Axis names.
 #' @param name Matrix name.
 #' @return `integer(1)`.
 #' @examples
-#' d <- memory_daf()
-#' add_axis(d, "cell", c("c1", "c2"))
-#' add_axis(d, "gene", c("g1", "g2", "g3"))
-#' matrix_version_counter(d, "cell", "gene", "UMIs") # 0L
+#' # Mirrors readers.jl jldoctest at line 1088.
+#' m <- example_metacells_daf()
+#' matrix_version_counter(m, "gene", "metacell", "fraction") # 1L
+#' set_matrix(m, "gene", "metacell", "fraction",
+#'            matrix(stats::runif(683L * 7L), 683L, 7L),
+#'            overwrite = TRUE)
+#' matrix_version_counter(m, "gene", "metacell", "fraction") # 2L
 #' @export
 matrix_version_counter <- function(daf, rows_axis, columns_axis, name) {
     key <- paste0(rows_axis, ":", columns_axis, ":", name)

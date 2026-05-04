@@ -1,0 +1,6 @@
+{
+    "jl_line": 109,
+    "expr": "delete_scalar!(cells, \"organism\")",
+    "before": true,
+    "after": false
+}

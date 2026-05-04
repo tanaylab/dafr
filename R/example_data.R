@@ -130,9 +130,9 @@ NULL
 #' @return A [`MemoryDaf`] pre-populated with 856 cells, 683 genes, 95 donors,
 #'   and 23 experiments.
 #' @examples
+#' # Mirrors example_data.jl jldoctest at line 22.
 #' d <- example_cells_daf()
-#' axes_set(d)
-#' axis_length(d, "cell")
+#' cat(description(d))
 #' @export
 example_cells_daf <- function(name = "cells!") {
     .example_daf("c", name)
@@ -146,8 +146,9 @@ example_cells_daf <- function(name = "cells!") {
 #' @return A [`MemoryDaf`] pre-populated with 856 cells, 683 genes, 7
 #'   metacells, and 4 types.
 #' @examples
+#' # Mirrors example_data.jl jldoctest at line 62.
 #' m <- example_metacells_daf()
-#' axes_set(m)
+#' cat(description(m))
 #' @export
 example_metacells_daf <- function(name = "metacells!") {
     .example_daf("m", name)
@@ -161,8 +162,9 @@ example_metacells_daf <- function(name = "metacells!") {
 #' @return A [`WriteChainDaf`] combining `example_cells_daf()` and
 #'   `example_metacells_daf()`.
 #' @examples
+#' # Mirrors example_data.jl jldoctest at line 205.
 #' ch <- example_chain_daf()
-#' axes_set(ch)
+#' cat(description(ch))
 #' @export
 example_chain_daf <- function(name = "chain!") {
     chain_writer(

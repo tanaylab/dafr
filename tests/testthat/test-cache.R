@@ -123,18 +123,19 @@ test_that("cache_store persists stamp + size alongside value", {
 test_that("axis_stamp / vector_stamp / matrix_stamp mirror counter state", {
     d <- memory_daf()
     add_axis(d, "cell", c("A", "B"))
+    # Julia parity: add_axis does NOT bump the counter; only delete_axis does.
     # axis_stamp: scalar
-    expect_equal(axis_stamp(d, "cell"), 1L) # bumped by add_axis
-    expect_equal(axis_stamp(d, "gene"), 0L) # missing axis -> 0
+    expect_equal(axis_stamp(d, "cell"), 0L) # never deleted -> 0
+    expect_equal(axis_stamp(d, "gene"), 0L) # missing axis  -> 0
     # vector_stamp: c(axis_stamp, vector_counter)
-    expect_equal(vector_stamp(d, "cell", "v"), c(1L, 0L))
+    expect_equal(vector_stamp(d, "cell", "v"), c(0L, 0L))
     bump_vector_counter(d, "cell", "v")
-    expect_equal(vector_stamp(d, "cell", "v"), c(1L, 1L))
+    expect_equal(vector_stamp(d, "cell", "v"), c(0L, 1L))
     # matrix_stamp: c(rows_axis_stamp, columns_axis_stamp, matrix_counter)
     add_axis(d, "gene", "X")
-    expect_equal(matrix_stamp(d, "cell", "gene", "m"), c(1L, 1L, 0L))
+    expect_equal(matrix_stamp(d, "cell", "gene", "m"), c(0L, 0L, 0L))
     bump_matrix_counter(d, "cell", "gene", "m")
-    expect_equal(matrix_stamp(d, "cell", "gene", "m"), c(1L, 1L, 1L))
+    expect_equal(matrix_stamp(d, "cell", "gene", "m"), c(0L, 0L, 1L))
 })
 
 # ---- I2: LRU + memory-cap eviction ------------------------------------------

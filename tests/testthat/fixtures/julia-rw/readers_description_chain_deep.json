@@ -1,0 +1,54 @@
+{
+    "jl_line": 1170,
+    "expr": "description(example_chain_daf(); deep=true)",
+    "structure": {
+        "scalars": {
+            "organism": "human",
+            "reference": "test"
+        },
+        "axes": {
+            "cell": 856,
+            "donor": 95,
+            "experiment": 23,
+            "gene": 683,
+            "metacell": 7,
+            "type": 4
+        },
+        "vectors": {
+            "cell": [
+                "donor",
+                "experiment",
+                "metacell"
+            ],
+            "donor": [
+                "age",
+                "sex"
+            ],
+            "gene": [
+                "is_lateral",
+                "is_marker"
+            ],
+            "metacell": [
+                "type"
+            ],
+            "type": [
+                "color"
+            ]
+        },
+        "matrices": {
+            "cell,gene": [
+                "UMIs"
+            ],
+            "gene,cell": [
+                "UMIs"
+            ],
+            "gene,metacell": [
+                "fraction"
+            ],
+            "metacell,metacell": [
+                "edge_weight"
+            ]
+        }
+    },
+    "raw_text": "name: chain!\ntype: Write Chain\nscalars:\n  organism: \"human\"\n  reference: \"test\"\naxes:\n  cell: 856 entries\n  donor: 95 entries\n  experiment: 23 entries\n  gene: 683 entries\n  metacell: 7 entries\n  type: 4 entries\nvectors:\n  cell:\n    donor: 856 x Str (Dense)\n    experiment: 856 x Str (Dense)\n    metacell: 856 x Str (Dense)\n  donor:\n    age: 95 x UInt32 (Dense)\n    sex: 95 x Str (Dense)\n  gene:\n    is_lateral: 683 x Bool (Dense; 438 (64%) true)\n    is_marker: 683 x Bool (Dense; 650 (95%) true)\n  metacell:\n    type: 7 x Str (Dense)\n  type:\n    color: 4 x Str (Dense)\nmatrices:\n  cell,gene:\n    UMIs: 856 x 683 x UInt8 in Columns (Dense)\n  gene,cell:\n    UMIs: 683 x 856 x UInt8 in Columns (Dense)\n  gene,metacell:\n    fraction: 683 x 7 x Float32 in Columns (Dense)\n  metacell,metacell:\n    edge_weight: 7 x 7 x Float32 in Columns (Dense)\nchain:\n- name: cells!\n  type: MemoryDaf\n  scalars:\n    organism: \"human\"\n    reference: \"test\"\n  axes:\n    cell: 856 entries\n    donor: 95 entries\n    experiment: 23 entries\n    gene: 683 entries\n  vectors:\n    cell:\n      donor: 856 x Str (Dense)\n      experiment: 856 x Str (Dense)\n    donor:\n      age: 95 x UInt32 (Dense)\n      sex: 95 x Str (Dense)\n    gene:\n      is_lateral: 683 x Bool (Dense; 438 (64%) true)\n  matrices:\n    cell,gene:\n      UMIs: 856 x 683 x UInt8 in Columns (Dense)\n    gene,cell:\n      UMIs: 683 x 856 x UInt8 in Columns (Dense)\n- name: metacells!\n  type: MemoryDaf\n  axes:\n    cell: 856 entries\n    gene: 683 entries\n    metacell: 7 entries\n    type: 4 entries\n  vectors:\n    cell:\n      metacell: 856 x Str (Dense)\n    gene:\n      is_marker: 683 x Bool (Dense; 650 (95%) true)\n    metacell:\n      type: 7 x Str (Dense)\n    type:\n      color: 4 x Str (Dense)\n  matrices:\n    gene,metacell:\n      fraction: 683 x 7 x Float32 in Columns (Dense)\n    metacell,metacell:\n      edge_weight: 7 x 7 x Float32 in Columns (Dense)\n"
+}

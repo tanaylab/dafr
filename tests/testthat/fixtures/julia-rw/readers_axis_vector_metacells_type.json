@@ -1,0 +1,10 @@
+{
+    "jl_line": 308,
+    "expr": "axis_vector(metacells, \"type\")",
+    "values": [
+        "memory-B",
+        "MEBEMP-E",
+        "MEBEMP-L",
+        "MPP"
+    ]
+}

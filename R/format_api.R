@@ -52,3 +52,57 @@ format_relayout_matrix <- S7::new_generic(
     "format_relayout_matrix",
     c("daf", "rows_axis", "columns_axis", "name")
 )
+
+# ---- Reorder (Julia: Reorder.format_replace_reorder!, etc.) ----
+format_replace_reorder <- S7::new_generic(
+    "format_replace_reorder",
+    c("daf", "plan"),
+    function(daf, plan, crash_counter = NULL) {
+        S7::S7_dispatch()
+    }
+)
+format_cleanup_reorder <- S7::new_generic(
+    "format_cleanup_reorder",
+    c("daf", "plan"),
+    function(daf, plan, crash_counter = NULL) {
+        S7::S7_dispatch()
+    }
+)
+format_reset_reorder <- S7::new_generic(
+    "format_reset_reorder",
+    c("daf"),
+    function(daf, crash_counter = NULL) {
+        S7::S7_dispatch()
+    }
+)
+
+# ---- Description header (Julia: Formats.format_description_header) ----
+# Returns a character vector of header lines (each prefixed with `indent`)
+# that `description()` emits between the `name:` line and the structural
+# sections. Default emits just `<indent>type: <ClassName>`; per-format
+# overrides add storage-specific identifiers (path/mode/url).
+format_description_header <- S7::new_generic(
+    "format_description_header",
+    "daf",
+    function(daf, indent = "", deep = FALSE) {
+        S7::S7_dispatch()
+    }
+)
+
+#' Is `daf` a leaf storage format?
+#'
+#' Returns `TRUE` for storage classes that own their on-disk or in-memory
+#' state directly (`MemoryDaf`, `FilesDaf` / `FilesDafReadOnly`, `ZarrDaf`
+#' / `ZarrDafReadOnly`, `HttpDaf`) and `FALSE` for wrappers
+#' (`ReadOnlyChainDaf`, `WriteChainDaf`, `ContractDaf`, `ViewDaf`). Used
+#' by [reorder_axes()] to reject non-leaf inputs because permuting
+#' indices is only meaningful on the underlying storage. Mirrors
+#' upstream Julia `Readers.is_leaf`.
+#'
+#' @param daf A [DafReader].
+#' @param ... Reserved for method-specific extensions.
+#' @return Logical scalar.
+#' @examples
+#' is_leaf(memory_daf())
+#' @export
+is_leaf <- S7::new_generic("is_leaf", "daf")

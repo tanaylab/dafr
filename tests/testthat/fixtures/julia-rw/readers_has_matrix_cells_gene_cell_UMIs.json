@@ -1,0 +1,5 @@
+{
+    "jl_line": 748,
+    "expr": "has_matrix(cells, \"gene\", \"cell\", \"UMIs\")",
+    "value": true
+}

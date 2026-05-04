@@ -20,21 +20,21 @@ test_that("format_axis_length + format_axis_array + format_axis_dict are consist
     dict <- list2env(list(A = 1L, B = 2L, C = 3L), parent = emptyenv())
     d@internal$axes$cell <- list(entries = c("A", "B", "C"), dict = dict)
     expect_equal(format_axis_length(d, "cell"), 3L)
-    expect_equal(format_axis_array(d, "cell"), c("A", "B", "C"))
+    expect_equal(format_axis_array(d, "cell")$value, c("A", "B", "C"))
     expect_identical(format_axis_dict(d, "cell"), dict)
 })
 
 test_that("format_axis_* reject unknown axis", {
     d <- memory_daf()
-    expect_error(format_axis_length(d, "cell"), "does not exist")
-    expect_error(format_axis_array(d, "cell"), "does not exist")
-    expect_error(format_axis_dict(d, "cell"), "does not exist")
+    expect_error(format_axis_length(d, "cell"), "missing axis:")
+    expect_error(format_axis_array(d, "cell"), "missing axis:")
+    expect_error(format_axis_dict(d, "cell"), "missing axis:")
 })
 
 test_that("format_add_axis stores entries + builds a 1-based index dict", {
     d <- memory_daf()
     format_add_axis(d, "cell", c("A", "B", "C"))
-    expect_equal(format_axis_array(d, "cell"), c("A", "B", "C"))
+    expect_equal(format_axis_array(d, "cell")$value, c("A", "B", "C"))
     expect_equal(format_axis_length(d, "cell"), 3L)
     dict <- format_axis_dict(d, "cell")
     expect_equal(dict$A, 1L)
@@ -42,23 +42,23 @@ test_that("format_add_axis stores entries + builds a 1-based index dict", {
     expect_equal(dict$C, 3L)
 })
 
-test_that("format_add_axis bumps the axis version counter", {
+test_that("format_add_axis does NOT bump the axis version counter (Julia parity)", {
     d <- memory_daf()
     counters <- S7::prop(d, "axis_version_counter")
     expect_null(counters$cell)
     format_add_axis(d, "cell", c("A"))
-    expect_equal(counters$cell, 1L)
+    expect_null(counters$cell)
 })
 
 test_that("format_add_axis rejects duplicate axis", {
     d <- memory_daf()
     format_add_axis(d, "cell", c("A"))
-    expect_error(format_add_axis(d, "cell", c("A")), "already exists")
+    expect_error(format_add_axis(d, "cell", c("A")), "existing axis:")
 })
 
 test_that("format_add_axis rejects duplicate / NA / empty entries", {
     d <- memory_daf()
-    expect_error(format_add_axis(d, "cell", c("A", "A")), "duplicate")
+    expect_error(format_add_axis(d, "cell", c("A", "A")), "non-unique entries")
     expect_error(format_add_axis(d, "cell", c("A", NA)), "NA")
     expect_error(format_add_axis(d, "cell", c("A", "")), "empty")
     expect_error(format_add_axis(d, "cell", integer(0)), "find method") # S7 dispatch rejects non-character before reaching the guard
@@ -68,10 +68,10 @@ test_that("format_delete_axis removes axis + bumps counter", {
     d <- memory_daf()
     format_add_axis(d, "cell", c("A"))
     counters <- S7::prop(d, "axis_version_counter")
-    stamp <- counters$cell
+    expect_null(counters$cell) # add_axis does not bump (Julia parity)
     format_delete_axis(d, "cell", must_exist = TRUE)
     expect_false(format_has_axis(d, "cell"))
-    expect_gt(counters$cell, stamp)
+    expect_equal(counters$cell, 1L)
 })
 
 test_that("format_delete_axis with must_exist=FALSE ignores missing", {
@@ -81,7 +81,7 @@ test_that("format_delete_axis with must_exist=FALSE ignores missing", {
 
 test_that("format_delete_axis with must_exist=TRUE errors on missing", {
     d <- memory_daf()
-    expect_error(format_delete_axis(d, "cell", must_exist = TRUE), "does not exist")
+    expect_error(format_delete_axis(d, "cell", must_exist = TRUE), "missing axis:")
 })
 
 test_that("format_delete_axis also removes vectors/matrices on that axis", {
@@ -139,7 +139,7 @@ test_that("axis_length / axis_vector / axis_entries mirror Julia semantics", {
 
 test_that("axis_vector default handling", {
     d <- memory_daf()
-    expect_error(axis_vector(d, "cell"), "does not exist")
+    expect_error(axis_vector(d, "cell"), "missing axis:")
     expect_null(axis_vector(d, "cell", null_if_missing = TRUE))
 })
 
@@ -149,7 +149,7 @@ test_that("axis_indices maps entries to 1-based positions", {
     expect_equal(axis_indices(d, "cell", c("A", "C")), c(1L, 3L))
     expect_equal(axis_indices(d, "cell", "B"), 2L)
     expect_error(axis_indices(d, "cell", c(1L, 2L)), "character")
-    expect_error(axis_indices(d, "cell", c("A", "Z")), "not found")
+    expect_error(axis_indices(d, "cell", c("A", "Z")), "missing entry:")
 })
 
 test_that("axis_dict is queryable by [[", {
@@ -165,7 +165,7 @@ test_that("delete_axis composes with axes_set", {
     add_axis(d, "cell", c("A"))
     delete_axis(d, "cell")
     expect_equal(length(axes_set(d)), 0L)
-    expect_error(delete_axis(d, "cell"), "does not exist")
+    expect_error(delete_axis(d, "cell"), "missing axis:")
     expect_silent(delete_axis(d, "cell", must_exist = FALSE))
 })
 

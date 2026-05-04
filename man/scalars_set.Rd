@@ -16,6 +16,6 @@ Character vector.
 Names of all scalars, sorted.
 }
 \examples{
-d <- example_cells_daf()
-scalars_set(d)
+# Mirrors readers.jl jldoctest at line 125.
+scalars_set(example_cells_daf()) # "organism" "reference"
 }

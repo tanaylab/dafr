@@ -1,0 +1,6 @@
+{
+    "jl_line": 217,
+    "expr": "delete_axis!(metacells, \"type\")",
+    "before": true,
+    "after": false
+}

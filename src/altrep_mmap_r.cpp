@@ -1,10 +1,12 @@
 #include <cpp11.hpp>
 #include "altrep_mmap.h"
 #include "mmap_region.h"
+#include "mmap_zip_store.h"
 
 [[cpp11::init]]
 void dafr_init_altrep_mmap(DllInfo* dll) {
     dafr::init_altrep_mmap(dll);
+    dafr::init_altrep_zip_raw(dll);
 }
 
 [[cpp11::register]]

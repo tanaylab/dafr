@@ -1,10 +1,16 @@
-test_that("axis_version_counter starts at 0L and increments on mutation", {
+test_that("axis_version_counter starts at 0L and increments only on delete_axis (Julia parity)", {
     d <- memory_daf(name = "vc")
     expect_identical(axis_version_counter(d, "cell"), 0L)
     add_axis(d, "cell", c("c1", "c2"))
+    # Julia parity: add_axis does NOT bump the counter.
+    expect_identical(axis_version_counter(d, "cell"), 0L)
+    delete_axis(d, "cell")
     expect_identical(axis_version_counter(d, "cell"), 1L)
-    add_axis(d, "gene", c("g1", "g2", "g3"))
     # Unrelated axis mutation does not bump "cell".
+    add_axis(d, "gene", c("g1", "g2", "g3"))
+    expect_identical(axis_version_counter(d, "cell"), 1L)
+    expect_identical(axis_version_counter(d, "gene"), 0L)
+    delete_axis(d, "gene")
     expect_identical(axis_version_counter(d, "cell"), 1L)
     expect_identical(axis_version_counter(d, "gene"), 1L)
 })

@@ -35,7 +35,7 @@ test_that("add_axis rejects existing", {
     dir <- new_tempdir()
     d <- files_daf(dir, mode = "w+")
     add_axis(d, "cell", "A")
-    expect_error(add_axis(d, "cell", "B"), "already exists")
+    expect_error(add_axis(d, "cell", "B"), "existing axis:")
 })
 
 test_that("delete_axis without dependents removes the file", {
@@ -49,7 +49,7 @@ test_that("delete_axis without dependents removes the file", {
     # must_exist = FALSE on missing axis is a no-op:
     expect_silent(delete_axis(d, "cell", must_exist = FALSE))
     # must_exist = TRUE on missing axis errors:
-    expect_error(delete_axis(d, "cell"), "does not exist")
+    expect_error(delete_axis(d, "cell"), "missing axis:")
 })
 
 test_that("delete_axis cascades to dependent vectors + matrices on FilesDaf", {

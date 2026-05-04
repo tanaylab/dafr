@@ -6,19 +6,90 @@ NULL
 # query_requires_relayout.
 
 #' Evaluate a query against a daf reader.
+#'
+#' The query language follows DataAxesFormats.jl's `queries.jl` exactly;
+#' the examples below mirror its jldoctest blocks one-for-one so any
+#' regression is caught by `R CMD check`.
+#'
 #' @param daf A `DafReader`.
 #' @param query_string A query string (character scalar) or a
 #'   [DafrQuery] object produced by the query builders (e.g.
 #'   `Axis("cell") |> LookupVector("donor")`).
 #' @return A scalar, vector, matrix, names set, or NULL if missing.
+#'   Data-bearing results carry axis-entry names: vectors are returned
+#'   with `names()` set to the axis entries (filtered by any mask) and
+#'   matrices with `dimnames()` set to
+#'   `list(rows-axis-entries, cols-axis-entries)`. Names-set queries
+#'   (`?`) and axis-only queries (whose values *are* the entry names)
+#'   are returned unnamed.
 #' @examples
-#' d <- example_cells_daf()
-#' get_query(d, ". organism")
-#' head(get_query(d, "@ cell : donor"))
+#' cells <- example_cells_daf()
+#' metacells <- example_metacells_daf()
+#' chain <- example_chain_daf()
+#'
+#' # --- Names queries (jl:92-140) -------------------------------------------
+#' cells[". ?"]                            # scalar names
+#' cells["@ ?"]                            # axis names
+#' cells["@ gene : ?"]                     # vector names on gene
+#' cells["@ cell @ gene :: ?"]             # matrix names on cell x gene
+#'
+#' # --- Reductions to scalar (jl:162, 174) ----------------------------------
+#' cells["@ gene : is_lateral >> Sum type Int64"]
+#' cells["@ cell @ gene :: UMIs >> Sum type Int64"]
+#'
+#' # --- Axis vectors and masks (jl:195, 254, 293) ---------------------------
+#' head(cells["@ experiment"])
+#' head(cells["@ gene [ ! is_lateral ]"])
+#' head(cells["@ donor [ age > 60 & sex = male ]"])
+#'
+#' # --- Vector lookup (jl:332) ----------------------------------------------
+#' metacells["@ metacell : type"]
+#'
+#' # --- Matrix-by-axis column slice (jl:357) --------------------------------
+#' head(metacells["@ gene :: fraction @ metacell = M412.08"])
+#'
+#' # --- Square matrix slices (jl:386, 408) ----------------------------------
+#' metacells["@ metacell :: edge_weight @| M412.08"]
+#' metacells["@ metacell :: edge_weight @- M412.08"]
+#'
+#' # --- Chained vector lookup (jl:448) --------------------------------------
+#' metacells["@ metacell : type : color"]
+#'
+#' # --- Eltwise + comparator on vector (jl:468, 498) ------------------------
+#' head(cells["@ donor : age % Clamp min 40 max 60 type Int64"])
+#' head(cells["@ donor : age > 60"])
+#'
+#' # --- AsAxis explicit and named (jl:548, 566) -----------------------------
+#' metacells["@ metacell : type =@ : color"]
+#' metacells["@ metacell : type =@ type : color"]
+#'
+#' # --- Group-by + chain + reduction (jl:598, 620) --------------------------
+#' chain["@ cell : donor : age / metacell ?? : type >> Mean"]
+#' chain[paste(
+#'     "@ cell [ metacell ?? : type != memory-B ] :",
+#'     "donor : age / metacell : type =@ >> Mean || 0"
+#' )]
+#'
+#' # --- Matrix reductions to a vector (jl:647, 668) -------------------------
+#' metacells["@ metacell @ gene :: fraction >| Max"]
+#' head(metacells["@ metacell @ gene :: fraction >- Max"])
+#'
+#' # --- Full matrix lookup (jl:709) -----------------------------------------
+#' dim(cells["@ cell @ gene :: UMIs"])
+#'
+#' # --- Count-by + chained vector (jl:754, 786) -----------------------------
+#' cells["@ cell : experiment * donor : sex"]
+#' cells["@ cell : experiment =@ * donor : sex"]
+#'
+#' # --- Matrix eltwise + group rows by (jl:830, 866, 889) -------------------
+#' dim(metacells["@ metacell @ gene :: fraction % Log base 2 eps 1e-5"])
+#' dim(metacells["@ metacell @ gene :: fraction -/ type >- Mean"])
+#' dim(metacells["@ metacell @ gene :: fraction -/ type =@ >- Mean"])
 #' @export
 get_query <- function(daf, query_string) {
     parts <- .get_query_dispatch(query_string)
     ast <- parts$ast
+    .validate_query_ast(ast, parts$canonical)
     canon <- parts$canonical
     key <- cache_key_query(canon)
     touched <- .collect_query_versions(daf, ast)
@@ -33,6 +104,30 @@ get_query <- function(daf, query_string) {
         size_bytes = as.numeric(object.size(value))
     )
     value
+}
+
+# Structural sanity checks on a parsed AST. Catches malformed queries that
+# the per-token parser accepts but cannot evaluate, matching Julia's
+# behaviour for queries.jl > "queries > invalid > partial" and
+# "queries > names > unexpected".
+.validate_query_ast <- function(ast, canonical) {
+    if (length(ast) == 0L) return(invisible(NULL))
+    ops <- vapply(ast, `[[`, "", "op")
+
+    # `? ?` (two consecutive Names ops) is invalid: Names is terminal.
+    if (sum(ops == "Names") > 1L) {
+        stop(sprintf("invalid query: %s", canonical), call. = FALSE)
+    }
+
+    # An AST that consists solely of 2+ Axis pushes is "partial" — there is
+    # no terminal that could turn the pushed axes into a result. Examples:
+    # `@ cell @ gene`, `@ cell @ gene @ batch`. Axes inside masks, grouping,
+    # or reductions are legitimate scope markers and are not flagged here.
+    if (length(ast) >= 2L && all(ops == "Axis")) {
+        stop(sprintf("invalid query: %s", canonical), call. = FALSE)
+    }
+
+    invisible(NULL)
 }
 
 # Resolve either a character scalar or DafrQuery into (ast, canonical).

@@ -180,6 +180,83 @@ extern "C" SEXP _dafr_kernel_var_csc_cpp(SEXP x, SEXP i, SEXP p, SEXP nrow, SEXP
     return cpp11::as_sexp(kernel_var_csc_cpp(cpp11::as_cpp<cpp11::decay_t<cpp11::doubles>>(x), cpp11::as_cpp<cpp11::decay_t<cpp11::integers>>(i), cpp11::as_cpp<cpp11::decay_t<cpp11::integers>>(p), cpp11::as_cpp<cpp11::decay_t<int>>(nrow), cpp11::as_cpp<cpp11::decay_t<int>>(ncol), cpp11::as_cpp<cpp11::decay_t<int>>(axis), cpp11::as_cpp<cpp11::decay_t<std::string>>(variant), cpp11::as_cpp<cpp11::decay_t<double>>(eps), cpp11::as_cpp<cpp11::decay_t<int>>(threshold)));
   END_CPP11
 }
+// mmap_zip_store.cpp
+SEXP dafr_mmap_zip_open(std::string path, std::string mode, double max_file_size_double);
+extern "C" SEXP _dafr_dafr_mmap_zip_open(SEXP path, SEXP mode, SEXP max_file_size_double) {
+  BEGIN_CPP11
+    return cpp11::as_sexp(dafr_mmap_zip_open(cpp11::as_cpp<cpp11::decay_t<std::string>>(path), cpp11::as_cpp<cpp11::decay_t<std::string>>(mode), cpp11::as_cpp<cpp11::decay_t<double>>(max_file_size_double)));
+  END_CPP11
+}
+// mmap_zip_store.cpp
+SEXP dafr_mmap_zip_close(SEXP xptr);
+extern "C" SEXP _dafr_dafr_mmap_zip_close(SEXP xptr) {
+  BEGIN_CPP11
+    return cpp11::as_sexp(dafr_mmap_zip_close(cpp11::as_cpp<cpp11::decay_t<SEXP>>(xptr)));
+  END_CPP11
+}
+// mmap_zip_store.cpp
+SEXP dafr_mmap_zip_get_bytes(SEXP xptr, std::string key);
+extern "C" SEXP _dafr_dafr_mmap_zip_get_bytes(SEXP xptr, SEXP key) {
+  BEGIN_CPP11
+    return cpp11::as_sexp(dafr_mmap_zip_get_bytes(cpp11::as_cpp<cpp11::decay_t<SEXP>>(xptr), cpp11::as_cpp<cpp11::decay_t<std::string>>(key)));
+  END_CPP11
+}
+// mmap_zip_store.cpp
+SEXP dafr_mmap_zip_set_bytes(SEXP xptr, std::string key, cpp11::raws bytes);
+extern "C" SEXP _dafr_dafr_mmap_zip_set_bytes(SEXP xptr, SEXP key, SEXP bytes) {
+  BEGIN_CPP11
+    return cpp11::as_sexp(dafr_mmap_zip_set_bytes(cpp11::as_cpp<cpp11::decay_t<SEXP>>(xptr), cpp11::as_cpp<cpp11::decay_t<std::string>>(key), cpp11::as_cpp<cpp11::decay_t<cpp11::raws>>(bytes)));
+  END_CPP11
+}
+// mmap_zip_store.cpp
+SEXP dafr_mmap_zip_delete(SEXP xptr, std::string key);
+extern "C" SEXP _dafr_dafr_mmap_zip_delete(SEXP xptr, SEXP key) {
+  BEGIN_CPP11
+    return cpp11::as_sexp(dafr_mmap_zip_delete(cpp11::as_cpp<cpp11::decay_t<SEXP>>(xptr), cpp11::as_cpp<cpp11::decay_t<std::string>>(key)));
+  END_CPP11
+}
+// mmap_zip_store.cpp
+SEXP dafr_mmap_zip_data_offsets(SEXP xptr);
+extern "C" SEXP _dafr_dafr_mmap_zip_data_offsets(SEXP xptr) {
+  BEGIN_CPP11
+    return cpp11::as_sexp(dafr_mmap_zip_data_offsets(cpp11::as_cpp<cpp11::decay_t<SEXP>>(xptr)));
+  END_CPP11
+}
+// mmap_zip_store.cpp
+SEXP dafr_mmap_zip_exists(SEXP xptr, std::string key);
+extern "C" SEXP _dafr_dafr_mmap_zip_exists(SEXP xptr, SEXP key) {
+  BEGIN_CPP11
+    return cpp11::as_sexp(dafr_mmap_zip_exists(cpp11::as_cpp<cpp11::decay_t<SEXP>>(xptr), cpp11::as_cpp<cpp11::decay_t<std::string>>(key)));
+  END_CPP11
+}
+// mmap_zip_store.cpp
+SEXP dafr_mmap_zip_list(SEXP xptr, std::string prefix);
+extern "C" SEXP _dafr_dafr_mmap_zip_list(SEXP xptr, SEXP prefix) {
+  BEGIN_CPP11
+    return cpp11::as_sexp(dafr_mmap_zip_list(cpp11::as_cpp<cpp11::decay_t<SEXP>>(xptr), cpp11::as_cpp<cpp11::decay_t<std::string>>(prefix)));
+  END_CPP11
+}
+// mmap_zip_store.cpp
+SEXP dafr_mmap_zip_reserve(SEXP xptr, std::string key, double size_double);
+extern "C" SEXP _dafr_dafr_mmap_zip_reserve(SEXP xptr, SEXP key, SEXP size_double) {
+  BEGIN_CPP11
+    return cpp11::as_sexp(dafr_mmap_zip_reserve(cpp11::as_cpp<cpp11::decay_t<SEXP>>(xptr), cpp11::as_cpp<cpp11::decay_t<std::string>>(key), cpp11::as_cpp<cpp11::decay_t<double>>(size_double)));
+  END_CPP11
+}
+// mmap_zip_store.cpp
+SEXP dafr_mmap_zip_patch_crc(SEXP xptr, std::string key);
+extern "C" SEXP _dafr_dafr_mmap_zip_patch_crc(SEXP xptr, SEXP key) {
+  BEGIN_CPP11
+    return cpp11::as_sexp(dafr_mmap_zip_patch_crc(cpp11::as_cpp<cpp11::decay_t<SEXP>>(xptr), cpp11::as_cpp<cpp11::decay_t<std::string>>(key)));
+  END_CPP11
+}
+// mmap_zip_store.cpp
+SEXP dafr_mmap_zip_set_crash_counter(SEXP xptr, SEXP counter, SEXP ns_env);
+extern "C" SEXP _dafr_dafr_mmap_zip_set_crash_counter(SEXP xptr, SEXP counter, SEXP ns_env) {
+  BEGIN_CPP11
+    return cpp11::as_sexp(dafr_mmap_zip_set_crash_counter(cpp11::as_cpp<cpp11::decay_t<SEXP>>(xptr), cpp11::as_cpp<cpp11::decay_t<SEXP>>(counter), cpp11::as_cpp<cpp11::decay_t<SEXP>>(ns_env)));
+  END_CPP11
+}
 // thread_control.cpp
 void dafr_set_num_threads(int n);
 extern "C" SEXP _dafr_dafr_set_num_threads(SEXP n) {
@@ -207,6 +284,17 @@ extern "C" {
 static const R_CallMethodDef CallEntries[] = {
     {"_dafr_dafr_get_max_threads",            (DL_FUNC) &_dafr_dafr_get_max_threads,             0},
     {"_dafr_dafr_has_openmp",                 (DL_FUNC) &_dafr_dafr_has_openmp,                  0},
+    {"_dafr_dafr_mmap_zip_close",             (DL_FUNC) &_dafr_dafr_mmap_zip_close,              1},
+    {"_dafr_dafr_mmap_zip_data_offsets",      (DL_FUNC) &_dafr_dafr_mmap_zip_data_offsets,       1},
+    {"_dafr_dafr_mmap_zip_delete",            (DL_FUNC) &_dafr_dafr_mmap_zip_delete,             2},
+    {"_dafr_dafr_mmap_zip_exists",            (DL_FUNC) &_dafr_dafr_mmap_zip_exists,             2},
+    {"_dafr_dafr_mmap_zip_get_bytes",         (DL_FUNC) &_dafr_dafr_mmap_zip_get_bytes,          2},
+    {"_dafr_dafr_mmap_zip_list",              (DL_FUNC) &_dafr_dafr_mmap_zip_list,               2},
+    {"_dafr_dafr_mmap_zip_open",              (DL_FUNC) &_dafr_dafr_mmap_zip_open,               3},
+    {"_dafr_dafr_mmap_zip_patch_crc",         (DL_FUNC) &_dafr_dafr_mmap_zip_patch_crc,          2},
+    {"_dafr_dafr_mmap_zip_reserve",           (DL_FUNC) &_dafr_dafr_mmap_zip_reserve,            3},
+    {"_dafr_dafr_mmap_zip_set_bytes",         (DL_FUNC) &_dafr_dafr_mmap_zip_set_bytes,          3},
+    {"_dafr_dafr_mmap_zip_set_crash_counter", (DL_FUNC) &_dafr_dafr_mmap_zip_set_crash_counter,  3},
     {"_dafr_dafr_set_num_threads",            (DL_FUNC) &_dafr_dafr_set_num_threads,             1},
     {"_dafr_is_altrep_cpp",                   (DL_FUNC) &_dafr_is_altrep_cpp,                    1},
     {"_dafr_kernel_csc_colsums_cpp",          (DL_FUNC) &_dafr_kernel_csc_colsums_cpp,           4},

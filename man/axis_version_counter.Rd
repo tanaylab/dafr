@@ -15,15 +15,18 @@ axis_version_counter(daf, axis)
 \code{integer(1)}.
 }
 \description{
-Returns the monotonic counter for \code{axis} on \code{daf}. Incremented on
-\code{add_axis} / \code{delete_axis}. Returns \code{0L} if the axis has never been
-mutated (including non-existent axes, to match wrapper semantics).
+Returns the monotonic counter for \code{axis} on \code{daf}. Mirrors Julia DAF:
+incremented every time \code{delete_axis} is called (NOT on \code{add_axis}).
+Returns \code{0L} if \code{axis} has never been deleted (including non-existent
+axes, to match wrapper semantics).
 }
 \examples{
-d <- memory_daf()
-axis_version_counter(d, "cell") # 0L
-add_axis(d, "cell", c("c1", "c2"))
-axis_version_counter(d, "cell") # 1L
+# Mirrors readers.jl jldoctest at line 246.
+m <- example_metacells_daf()
+axis_version_counter(m, "type")           # 0L
+delete_axis(m, "type")
+add_axis(m, "type", c("Foo", "Bar", "Baz"))
+axis_version_counter(m, "type")           # 1L
 }
 \seealso{
 \code{\link[=vector_version_counter]{vector_version_counter()}}, \code{\link[=matrix_version_counter]{matrix_version_counter()}}

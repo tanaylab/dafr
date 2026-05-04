@@ -64,9 +64,12 @@ S7::method(
 ) <- function(daf, name) {
     scalars <- S7::prop(daf, "internal")$scalars
     if (!exists(name, envir = scalars, inherits = FALSE)) {
-        stop(sprintf("scalar %s does not exist", sQuote(name)), call. = FALSE)
+        .require_scalar(daf, name)
     }
-    get(name, envir = scalars, inherits = FALSE)
+    .cache_group_value(
+        get(name, envir = scalars, inherits = FALSE),
+        MEMORY_DATA
+    )
 }
 
 S7::method(format_scalars_set, MemoryDaf) <- function(daf) {
@@ -83,11 +86,11 @@ S7::method(
 ) <- function(daf, name, value, overwrite) {
     .assert_scalar_value(name, value)
     scalars <- S7::prop(daf, "internal")$scalars
-    if (exists(name, envir = scalars, inherits = FALSE) && !overwrite) {
-        stop(sprintf("scalar %s already exists; use overwrite = TRUE", sQuote(name)), call. = FALSE)
+    if (!overwrite) {
+        .require_no_scalar(daf, name)
     }
     assign(name, value, envir = scalars)
-    invisible()
+    MEMORY_DATA
 }
 
 S7::method(
@@ -97,7 +100,7 @@ S7::method(
     scalars <- S7::prop(daf, "internal")$scalars
     if (!exists(name, envir = scalars, inherits = FALSE)) {
         if (must_exist) {
-            stop(sprintf("scalar %s does not exist", sQuote(name)), call. = FALSE)
+            .require_scalar(daf, name)
         }
         return(invisible())
     }
@@ -119,7 +122,7 @@ S7::method(format_axes_set, MemoryDaf) <- function(daf) {
 .memory_axis <- function(daf, axis) {
     axes <- S7::prop(daf, "internal")$axes
     if (!exists(axis, envir = axes, inherits = FALSE)) {
-        stop(sprintf("axis %s does not exist", sQuote(axis)), call. = FALSE)
+        .require_axis(daf, "for: memory backend", axis)
     }
     get(axis, envir = axes, inherits = FALSE)
 }
@@ -129,7 +132,7 @@ S7::method(format_axis_length, list(MemoryDaf, S7::class_character)) <- function
 }
 
 S7::method(format_axis_array, list(MemoryDaf, S7::class_character)) <- function(daf, axis) {
-    .memory_axis(daf, axis)$entries
+    .cache_group_value(.memory_axis(daf, axis)$entries, MEMORY_DATA)
 }
 
 S7::method(format_axis_dict, list(MemoryDaf, S7::class_character)) <- function(daf, axis) {
@@ -152,17 +155,16 @@ S7::method(
         stop(sprintf("axis %s entries contain empty strings", sQuote(axis)), call. = FALSE)
     }
     if (anyDuplicated(entries)) {
-        dup <- entries[duplicated(entries)][1L]
-        stop(sprintf("axis %s has duplicate entry %s", sQuote(axis), sQuote(dup)), call. = FALSE)
+        stop(sprintf(
+            "non-unique entries for new axis: %s\nin the daf data: %s",
+            axis, S7::prop(daf, "name")
+        ), call. = FALSE)
     }
+    .require_no_axis(daf, axis)
     axes <- S7::prop(daf, "internal")$axes
-    if (exists(axis, envir = axes, inherits = FALSE)) {
-        stop(sprintf("axis %s already exists", sQuote(axis)), call. = FALSE)
-    }
     dict <- new.env(parent = emptyenv(), size = length(entries))
     for (i in seq_along(entries)) assign(entries[[i]], i, envir = dict)
     assign(axis, list(entries = entries, dict = dict), envir = axes)
-    bump_axis_counter(daf, axis)
     invisible()
 }
 
@@ -173,7 +175,7 @@ S7::method(
     internal <- S7::prop(daf, "internal")
     if (!exists(axis, envir = internal$axes, inherits = FALSE)) {
         if (must_exist) {
-            stop(sprintf("axis %s does not exist", sQuote(axis)), call. = FALSE)
+            .require_axis(daf, "for: delete_axis", axis)
         }
         return(invisible())
     }
@@ -199,7 +201,7 @@ S7::method(
 
 .memory_axis_vectors <- function(daf, axis, create = FALSE) {
     if (!format_has_axis(daf, axis)) {
-        stop(sprintf("axis %s does not exist", sQuote(axis)), call. = FALSE)
+        .require_axis(daf, "for: memory backend vectors", axis)
     }
     vectors <- S7::prop(daf, "internal")$vectors
     if (exists(axis, envir = vectors, inherits = FALSE)) {
@@ -244,12 +246,13 @@ S7::method(
 ) <- function(daf, axis, name) {
     env <- .memory_axis_vectors(daf, axis, create = FALSE)
     if (is.null(env) || !exists(name, envir = env, inherits = FALSE)) {
-        stop(sprintf(
-            "vector %s does not exist on axis %s",
-            sQuote(name), sQuote(axis)
-        ), call. = FALSE)
+        .require_vector(daf, axis, name)
     }
-    .attach_vector_axis_names(daf, axis, get(name, envir = env, inherits = FALSE))
+    .cache_group_value(
+        .attach_vector_axis_names(daf, axis,
+            get(name, envir = env, inherits = FALSE)),
+        MEMORY_DATA
+    )
 }
 
 # ---- Vectors: mutation ------------------------------------------------------
@@ -259,16 +262,13 @@ S7::method(
     list(MemoryDaf, S7::class_character, S7::class_character, S7::class_any, S7::class_logical)
 ) <- function(daf, axis, name, vec, overwrite) {
     vec <- .validate_vector_value(daf, axis, name, vec)
-    env <- .memory_axis_vectors(daf, axis, create = TRUE)
-    if (exists(name, envir = env, inherits = FALSE) && !overwrite) {
-        stop(sprintf(
-            "vector %s already exists on axis %s; use overwrite = TRUE",
-            sQuote(name), sQuote(axis)
-        ), call. = FALSE)
+    if (!overwrite) {
+        .require_no_vector(daf, axis, name)
     }
+    env <- .memory_axis_vectors(daf, axis, create = TRUE)
     assign(name, vec, envir = env)
     bump_vector_counter(daf, axis, name)
-    invisible()
+    MEMORY_DATA
 }
 
 S7::method(
@@ -278,27 +278,19 @@ S7::method(
     env <- .memory_axis_vectors(daf, axis, create = FALSE)
     if (is.null(env) || !exists(name, envir = env, inherits = FALSE)) {
         if (must_exist) {
-            stop(sprintf(
-                "vector %s does not exist on axis %s",
-                sQuote(name), sQuote(axis)
-            ), call. = FALSE)
+            .require_vector(daf, axis, name)
         }
         return(invisible())
     }
     rm(list = name, envir = env)
-    bump_vector_counter(daf, axis, name)
     invisible()
 }
 
 # ---- Matrices: query --------------------------------------------------------
 
 .memory_matrix_bucket <- function(daf, rows_axis, columns_axis, create = FALSE) {
-    if (!format_has_axis(daf, rows_axis)) {
-        stop(sprintf("axis %s does not exist", sQuote(rows_axis)), call. = FALSE)
-    }
-    if (!format_has_axis(daf, columns_axis)) {
-        stop(sprintf("axis %s does not exist", sQuote(columns_axis)), call. = FALSE)
-    }
+    .require_axis(daf, "for the rows of: memory backend matrices", rows_axis)
+    .require_axis(daf, "for the columns of: memory backend matrices", columns_axis)
     matrices <- S7::prop(daf, "internal")$matrices
     if (!exists(rows_axis, envir = matrices, inherits = FALSE)) {
         if (!create) {
@@ -347,17 +339,12 @@ S7::method(
 ) <- function(daf, rows_axis, columns_axis, name) {
     env <- .memory_matrix_bucket(daf, rows_axis, columns_axis, create = FALSE)
     if (is.null(env) || !exists(name, envir = env, inherits = FALSE)) {
-        stop(
-            sprintf(
-                "matrix %s does not exist on axes (%s, %s)",
-                sQuote(name), sQuote(rows_axis), sQuote(columns_axis)
-            ),
-            call. = FALSE
-        )
+        .require_matrix(daf, rows_axis, columns_axis, name, relayout = FALSE)
     }
-    .attach_matrix_axis_dimnames(
-        daf, rows_axis, columns_axis,
-        get(name, envir = env, inherits = FALSE)
+    .cache_group_value(
+        .attach_matrix_axis_dimnames(daf, rows_axis, columns_axis,
+            get(name, envir = env, inherits = FALSE)),
+        MEMORY_DATA
     )
 }
 
@@ -394,19 +381,13 @@ S7::method(
     list(MemoryDaf, S7::class_character, S7::class_character, S7::class_character, S7::class_any, S7::class_logical)
 ) <- function(daf, rows_axis, columns_axis, name, mat, overwrite) {
     mat <- .validate_matrix_value(daf, rows_axis, columns_axis, name, mat)
-    env <- .memory_matrix_bucket(daf, rows_axis, columns_axis, create = TRUE)
-    if (exists(name, envir = env, inherits = FALSE) && !overwrite) {
-        stop(
-            sprintf(
-                "matrix %s already exists on axes (%s, %s); use overwrite = TRUE",
-                sQuote(name), sQuote(rows_axis), sQuote(columns_axis)
-            ),
-            call. = FALSE
-        )
+    if (!overwrite) {
+        .require_no_matrix(daf, rows_axis, columns_axis, name, relayout = FALSE)
     }
+    env <- .memory_matrix_bucket(daf, rows_axis, columns_axis, create = TRUE)
     assign(name, mat, envir = env)
     bump_matrix_counter(daf, rows_axis, columns_axis, name)
-    invisible()
+    MEMORY_DATA
 }
 
 S7::method(
@@ -416,18 +397,11 @@ S7::method(
     env <- .memory_matrix_bucket(daf, rows_axis, columns_axis, create = FALSE)
     if (is.null(env) || !exists(name, envir = env, inherits = FALSE)) {
         if (must_exist) {
-            stop(
-                sprintf(
-                    "matrix %s does not exist on axes (%s, %s)",
-                    sQuote(name), sQuote(rows_axis), sQuote(columns_axis)
-                ),
-                call. = FALSE
-            )
+            .require_matrix(daf, rows_axis, columns_axis, name, relayout = FALSE)
         }
         return(invisible())
     }
     rm(list = name, envir = env)
-    bump_matrix_counter(daf, rows_axis, columns_axis, name)
     invisible()
 }
 
@@ -435,7 +409,7 @@ S7::method(
     format_relayout_matrix,
     list(MemoryDaf, S7::class_character, S7::class_character, S7::class_character)
 ) <- function(daf, rows_axis, columns_axis, name) {
-    src <- format_get_matrix(daf, rows_axis, columns_axis, name)
+    src <- format_get_matrix(daf, rows_axis, columns_axis, name)$value
     transposed <- if (methods::is(src, "dgCMatrix") || methods::is(src, "lgCMatrix")) {
         Matrix::t(src)
     } else {
@@ -444,3 +418,69 @@ S7::method(
     format_set_matrix(daf, columns_axis, rows_axis, name, transposed, overwrite = TRUE)
     invisible()
 }
+
+# ---- Reorder ----------------------------------------------------------------
+
+S7::method(format_replace_reorder, list(MemoryDaf, S7::class_list)) <-
+    function(daf, plan, crash_counter = NULL) {
+        # In-memory: permute every axis, vector, and matrix in place.
+        # No on-disk crash recovery needed; if R crashes the in-memory
+        # store is gone anyway.
+        for (axis in names(plan$planned_axes)) {
+            tick_crash_counter(crash_counter)
+            pa <- plan$planned_axes[[axis]]
+            ax_obj <- .memory_axis(daf, axis)
+            ax_obj$entries <- pa$new_entries
+            # Rebuild the entry -> index dict.
+            dict <- new.env(parent = emptyenv(), size = length(pa$new_entries))
+            for (i in seq_along(pa$new_entries)) {
+                assign(pa$new_entries[[i]], i, envir = dict)
+            }
+            ax_obj$dict <- dict
+            assign(axis, ax_obj, envir = S7::prop(daf, "internal")$axes)
+            bump_axis_counter(daf, axis)
+        }
+        for (pv in plan$planned_vectors) {
+            tick_crash_counter(crash_counter)
+            pa <- plan$planned_axes[[pv$axis]]
+            env <- .memory_axis_vectors(daf, pv$axis, create = FALSE)
+            v <- get(pv$name, envir = env, inherits = FALSE)
+            assign(pv$name, v[pa$permutation], envir = env)
+            bump_vector_counter(daf, pv$axis, pv$name)
+        }
+        for (pm in plan$planned_matrices) {
+            tick_crash_counter(crash_counter)
+            env <- .memory_matrix_bucket(daf, pm$rows_axis, pm$columns_axis,
+                                         create = FALSE)
+            m <- get(pm$name, envir = env, inherits = FALSE)
+            r_perm <- if (pm$rows_axis %in% names(plan$planned_axes)) {
+                plan$planned_axes[[pm$rows_axis]]$permutation
+            } else {
+                seq_len(nrow(m))
+            }
+            c_perm <- if (pm$columns_axis %in% names(plan$planned_axes)) {
+                plan$planned_axes[[pm$columns_axis]]$permutation
+            } else {
+                seq_len(ncol(m))
+            }
+            assign(pm$name, m[r_perm, c_perm, drop = FALSE], envir = env)
+            bump_matrix_counter(daf, pm$rows_axis, pm$columns_axis, pm$name)
+        }
+        invisible()
+    }
+
+S7::method(format_cleanup_reorder, list(MemoryDaf, S7::class_list)) <-
+    function(daf, plan, crash_counter = NULL) {
+        # No-op for memory_daf -- no on-disk state to clean up.
+        # Counters were already bumped in format_replace_reorder.
+        invisible()
+    }
+
+S7::method(format_reset_reorder, MemoryDaf) <-
+    function(daf, crash_counter = NULL) {
+        # No-op for memory_daf -- no incomplete reorder state ever exists.
+        invisible()
+    }
+
+# Upstream Julia Readers.is_leaf(::MemoryDaf) at memory_format.jl:64.
+S7::method(is_leaf, MemoryDaf) <- function(daf) TRUE

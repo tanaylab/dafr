@@ -100,6 +100,50 @@ kernel_var_csc_cpp <- function(x, i, p, nrow, ncol, axis, variant, eps, threshol
   .Call(`_dafr_kernel_var_csc_cpp`, x, i, p, nrow, ncol, axis, variant, eps, threshold)
 }
 
+dafr_mmap_zip_open <- function(path, mode, max_file_size_double) {
+  .Call(`_dafr_dafr_mmap_zip_open`, path, mode, max_file_size_double)
+}
+
+dafr_mmap_zip_close <- function(xptr) {
+  .Call(`_dafr_dafr_mmap_zip_close`, xptr)
+}
+
+dafr_mmap_zip_get_bytes <- function(xptr, key) {
+  .Call(`_dafr_dafr_mmap_zip_get_bytes`, xptr, key)
+}
+
+dafr_mmap_zip_set_bytes <- function(xptr, key, bytes) {
+  .Call(`_dafr_dafr_mmap_zip_set_bytes`, xptr, key, bytes)
+}
+
+dafr_mmap_zip_delete <- function(xptr, key) {
+  .Call(`_dafr_dafr_mmap_zip_delete`, xptr, key)
+}
+
+dafr_mmap_zip_data_offsets <- function(xptr) {
+  .Call(`_dafr_dafr_mmap_zip_data_offsets`, xptr)
+}
+
+dafr_mmap_zip_exists <- function(xptr, key) {
+  .Call(`_dafr_dafr_mmap_zip_exists`, xptr, key)
+}
+
+dafr_mmap_zip_list <- function(xptr, prefix) {
+  .Call(`_dafr_dafr_mmap_zip_list`, xptr, prefix)
+}
+
+dafr_mmap_zip_reserve <- function(xptr, key, size_double) {
+  .Call(`_dafr_dafr_mmap_zip_reserve`, xptr, key, size_double)
+}
+
+dafr_mmap_zip_patch_crc <- function(xptr, key) {
+  .Call(`_dafr_dafr_mmap_zip_patch_crc`, xptr, key)
+}
+
+dafr_mmap_zip_set_crash_counter <- function(xptr, counter, ns_env) {
+  .Call(`_dafr_dafr_mmap_zip_set_crash_counter`, xptr, counter, ns_env)
+}
+
 dafr_set_num_threads <- function(n) {
   invisible(.Call(`_dafr_dafr_set_num_threads`, n))
 }

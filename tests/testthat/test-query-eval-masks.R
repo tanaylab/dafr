@@ -63,3 +63,66 @@ test_that("NA in masked property drops entries (Julia parity)", {
     result <- get_query(d, "@ cell [ score > 0 ]")
     expect_identical(result, c("A", "C"))
 })
+
+# E1: mask after the second axis filters the cols axis. Pre-fix this
+# raised "'[' mask requires axis in scope".
+
+test_that("E1: cols-axis mask `@ rows @ cols [ filter ] :: M` narrows the matrix", {
+    d <- memory_daf(name = "t")
+    add_axis(d, "cell", c("X", "Y"))
+    add_axis(d, "gene", c("A", "B", "C"))
+    set_vector(d, "gene", "is_q", c(TRUE, FALSE, TRUE))
+    set_matrix(d, "cell", "gene", "UMIs", matrix(
+        c(0L, 3L, 1L, 4L, 2L, 5L), nrow = 2L, byrow = FALSE,
+        dimnames = list(c("X", "Y"), c("A", "B", "C"))
+    ))
+    res <- get_query(d, "@ cell @ gene [ is_q ] :: UMIs")
+    expect_equal(dim(res), c(2L, 2L))
+    expect_equal(colnames(res), c("A", "C"))
+    expect_equal(unname(res), matrix(c(0, 3, 2, 5), 2, 2))
+})
+
+test_that("E1: cols-axis mask flowing into >| / >- reductions", {
+    d <- memory_daf(name = "t")
+    add_axis(d, "cell", c("X", "Y"))
+    add_axis(d, "gene", c("A", "B", "C"))
+    set_vector(d, "gene", "is_q", c(FALSE, FALSE, FALSE))
+    set_matrix(d, "cell", "gene", "UMIs", matrix(
+        c(0L, 3L, 1L, 4L, 2L, 5L), nrow = 2L, byrow = FALSE,
+        dimnames = list(c("X", "Y"), c("A", "B", "C"))
+    ))
+    # All cols filtered out: >| reduces an empty cols dim per row -> needs IfMissing.
+    out <- get_query(d, "@ cell @ gene [ is_q ] :: UMIs >| Sum || 0")
+    expect_equal(out, c(X = 0, Y = 0))
+    # >- reduces rows -> result is along the (empty) cols axis -> empty vector.
+    out2 <- get_query(d, "@ cell @ gene [ is_q ] :: UMIs >- Sum || 0")
+    expect_length(out2, 0L)
+    # Without IfMissing, the empty-matrix reduction errors uniformly.
+    expect_error(
+        get_query(d, "@ cell @ gene [ is_q ] :: UMIs >| Sum"),
+        "IfMissing|empty"
+    )
+})
+
+# E2: virtual `name` property — both as a mask comparator and as a `: name`
+# lookup — returns the axis-entry vector.
+
+test_that("E2: `[ name = X ]` matches the axis entry name", {
+    d <- memory_daf(name = "t")
+    add_axis(d, "cell", c("X", "Y", "Z"))
+    expect_equal(get_query(d, "@ cell [ name = Y ]"), "Y")
+    expect_setequal(get_query(d, "@ cell [ ! name = Y ]"), c("X", "Z"))
+})
+
+test_that("E2: `: name` returns the axis-entry vector", {
+    d <- memory_daf(name = "t")
+    add_axis(d, "cell", c("X", "Y", "Z"))
+    out <- get_query(d, "@ cell : name")
+    expect_equal(unname(out), c("X", "Y", "Z"))
+})
+
+test_that("E2: `[ name ~ pattern ]` regex-matches axis entries", {
+    d <- memory_daf(name = "t")
+    add_axis(d, "cell", c("HOX1", "MYC", "HOX2"))
+    expect_setequal(get_query(d, "@ cell [ name ~ ^HOX ]"), c("HOX1", "HOX2"))
+})

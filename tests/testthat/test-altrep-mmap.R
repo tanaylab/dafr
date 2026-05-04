@@ -112,42 +112,24 @@ test_that("mmap_lgl serialize roundtrip preserves logicals including NA", {
     expect_identical(as.logical(restored), c(TRUE, FALSE, NA, TRUE, FALSE))
 })
 
-test_that("ALTREP-mmap survives names<-", {
-    dir <- new_tempdir()
-    dir.create(file.path(dir, "axes"), recursive = TRUE)
-    dir.create(file.path(dir, "vectors", "cell"), recursive = TRUE)
-    writeLines('{"version":[1,0]}', file.path(dir, "daf.json"))
-    writeLines(c("A", "B", "C"), file.path(dir, "axes", "cell.txt"))
-    writeLines(
-        '{"format":"dense","eltype":"Float64"}',
-        file.path(dir, "vectors", "cell", "x.json")
-    )
-    writeBin(c(1.5, 2.5, -3.25),
-        file.path(dir, "vectors", "cell", "x.data"),
-        size = 8L, endian = "little"
-    )
-    d <- files_daf(dir, mode = "r")
-    v <- format_get_vector(d, "cell", "x")
-    expect_equal(v, c(A = 1.5, B = 2.5, C = -3.25))
+test_that("ALTREP-mmap Float64 survives names<-", {
+    f <- tempfile()
+    writeBin(c(1.5, 2.5, -3.25), f, size = 8L, endian = "little")
+    v <- mmap_real(f, 3L)
+    expect_true(is_altrep(v))
+    names(v) <- c("A", "B", "C")
     expect_true(is_altrep(v))
     expect_equal(names(v), c("A", "B", "C"))
+    expect_equal(unname(v), c(1.5, 2.5, -3.25))
 })
 
 test_that("ALTREP-mmap Int32 survives names<-", {
-    dir <- new_tempdir()
-    dir.create(file.path(dir, "axes"), recursive = TRUE)
-    dir.create(file.path(dir, "vectors", "cell"), recursive = TRUE)
-    writeLines('{"version":[1,0]}', file.path(dir, "daf.json"))
-    writeLines(c("A", "B", "C"), file.path(dir, "axes", "cell.txt"))
-    writeLines(
-        '{"format":"dense","eltype":"Int32"}',
-        file.path(dir, "vectors", "cell", "i.json")
-    )
-    writeBin(c(1L, -2L, 3L), file.path(dir, "vectors", "cell", "i.data"),
-        size = 4L, endian = "little"
-    )
-    d <- files_daf(dir, mode = "r")
-    v <- format_get_vector(d, "cell", "i")
-    expect_true(is_altrep(v) || is.integer(v))
+    f <- tempfile()
+    writeBin(c(1L, -2L, 3L), f, size = 4L, endian = "little")
+    v <- mmap_int(f, 3L)
+    expect_true(is_altrep(v))
+    names(v) <- c("A", "B", "C")
+    expect_true(is_altrep(v))
     expect_equal(names(v), c("A", "B", "C"))
+    expect_equal(unname(v), c(1L, -2L, 3L))
 })

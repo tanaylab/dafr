@@ -32,6 +32,7 @@ Imports:
     Matrix,
     cli,
     bit64,
+    httr2,
     jsonlite,
     matrixStats,
     methods,
@@ -45,6 +46,7 @@ Suggests:
     hdf5r,
     knitr,
     pkgload,
+    processx,
     rmarkdown,
     rprojroot,
     scran,
@@ -55,7 +57,7 @@ Suggests:
     tidyr,
     tidyselect,
     withr
-SystemRequirements: C++17
+SystemRequirements: C++17, zlib
 VignetteBuilder: knitr
 Config/testthat/edition: 3
 Encoding: UTF-8
@@ -81,6 +83,7 @@ Collate:
     'handlers.R'
     'anndata_facade.R'
     'anndata_format.R'
+    'cache_group.R'
     'writers.R'
     'readers.R'
     'memory_daf.R'
@@ -92,6 +95,7 @@ Collate:
     'concat.R'
     'contract_ux.R'
     'cpp11.R'
+    'crash_counter.R'
     'dafr-package.R'
     'dataframes.R'
     'dplyr_backend.R'
@@ -100,12 +104,23 @@ Collate:
     'files_io.R'
     'files_daf_read.R'
     'files_daf_write.R'
+    'files_metadata_zip.R'
     'groups.R'
+    'http_client.R'
+    'http_format.R'
+    'zarr_store.R'
+    'http_store.R'
     'mmap.R'
+    'open_daf.R'
     'options.R'
     'query_builders.R'
     'query_builders_exports.R'
     'reconstruction.R'
+    'reorder.R'
+    'reorder_plan.R'
     'threads.R'
     'top_k_per_col.R'
+    'zarr_v2.R'
+    'zarr_format.R'
+    'zarr_convert.R'
     'zzz.R'

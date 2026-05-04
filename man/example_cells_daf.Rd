@@ -20,7 +20,7 @@ using the same lattice as Julia (Bool → UInt32/Int32 → Float32 for vectors;
 UInt8 → UInt16 → Float32 for matrices).
 }
 \examples{
+# Mirrors example_data.jl jldoctest at line 22.
 d <- example_cells_daf()
-axes_set(d)
-axis_length(d, "cell")
+cat(description(d))
 }
