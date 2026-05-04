@@ -152,12 +152,18 @@ get_dataframe_query <- function(daf, query, columns = NULL, cache = TRUE) {
         # Auto-prefix the axis when the column query is a bare lookup
         # (`: vec`, `:: m`, `. scalar`); Julia parity — column queries
         # without an explicit `@ axis` inherit the frame's axis context.
+        # Also auto-resolve a bare property name (no leading operator) as
+        # a vector on the frame's axis (the `list("age", ...)` shorthand
+        # form mirrors Julia's `["age", "doublet" => ":is_doublet"]`).
         eff_q <- q
-        first_char <- substr(trimws(q), 1L, 1L)
-        if (!is.null(axis_name) &&
-            !grepl("^@", trimws(q)) &&
-            first_char %in% c(":", ".")) {
-            eff_q <- sprintf("@ %s %s", axis_name, q)
+        trimmed <- trimws(q)
+        first_char <- substr(trimmed, 1L, 1L)
+        if (!is.null(axis_name) && !grepl("^@", trimmed)) {
+            if (first_char %in% c(":", ".")) {
+                eff_q <- sprintf("@ %s %s", axis_name, q)
+            } else if (grepl("^[[:alnum:]_.]+$", trimmed)) {
+                eff_q <- sprintf("@ %s : %s", axis_name, trimmed)
+            }
         }
         result <- tryCatch(get_query(daf, eff_q),
             error = function(e) {

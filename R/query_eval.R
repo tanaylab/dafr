@@ -430,11 +430,14 @@ NULL
             stop("':' requires an axis in scope to list vector names",
                 call. = FALSE)
         }
+        # Stash IfMissing under a pending-only key — `.eval_query` resets
+        # `state$if_missing` after every lookup dispatch; using a different
+        # key keeps the default alive for `.apply_top_level_vector_entry`.
         return(list(
             kind = "vector_entry_pending_axis",
             property = node$name,
-            if_missing = state$if_missing,
-            if_missing_type = state$if_missing_type
+            pending_if_missing = state$if_missing,
+            pending_if_missing_type = state$if_missing_type
         ))
     }
     if (!identical(state$kind, "axis")) {
@@ -531,11 +534,14 @@ NULL
             stop("'::' requires two axes in scope to list matrix names",
                 call. = FALSE)
         }
+        # Stash IfMissing under a pending-only key — `.eval_query` resets
+        # `state$if_missing` after every lookup dispatch; using a different
+        # key keeps the default alive for `.apply_top_level_matrix_entry`.
         return(list(
             kind = "matrix_entry_pending_first_axis",
             matrix_property = node$name,
-            if_missing = state$if_missing,
-            if_missing_type = state$if_missing_type
+            pending_if_missing = state$if_missing,
+            pending_if_missing_type = state$if_missing_type
         ))
     }
     if (identical(state$kind, "axis")) {
@@ -1629,9 +1635,9 @@ NULL
     axis <- state$axis
     prop <- state$property
     if (!format_has_vector(daf, axis, prop)) {
-        if (!is.null(state$if_missing)) {
+        if (!is.null(state$pending_if_missing)) {
             default <- .coerce_if_missing_default(
-                state$if_missing, state$if_missing_type
+                state$pending_if_missing, state$pending_if_missing_type
             )
             return(list(kind = "scalar", value = default))
         }
@@ -1665,9 +1671,9 @@ NULL
         if (format_has_matrix(daf, cols, rows, prop)) {
             transposed <- TRUE
         } else {
-            if (!is.null(state$if_missing)) {
+            if (!is.null(state$pending_if_missing)) {
                 default <- .coerce_if_missing_default(
-                    state$if_missing, state$if_missing_type
+                    state$pending_if_missing, state$pending_if_missing_type
                 )
                 return(list(kind = "scalar", value = default))
             }

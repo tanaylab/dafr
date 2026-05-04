@@ -9,14 +9,16 @@ bugs (wrong answer) — fixed inline in this slice — and structural parser /
 evaluator gaps that warrant their own follow-up. This document is the punch
 list for that follow-up.
 
-## Status (2026-05-04)
+## Status (2026-05-04 — post-Slice-1b)
 
-- B1-B6 fixed in the literal-port slice.
-- P1-P5, E1, E2 fixed in the parser-strictness follow-up slice. See "FIXED
-  in the parser-strictness slice" section below.
-- N1 fixed in the names-everywhere slice (S1, format-API layer) and the
-  Slice 1a follow-up (axis-listing layer). See "FIXED — N1" below.
-- E3-E11, B7-B9, API1 still deferred.
+- **Closed:** B1-B6 (literal-port), P1-P5 (parser-strictness), E1, E2
+  (parser-strictness), N1 (S1 + Slice 1a), E4, E5, E10, B7, B9, API1
+  (Slice 1b).
+- **Open:** E3 (Slice 2), E6 (Slice 3), E7 (Slice 2), E8 (Slice 2), E9
+  (Slice 3), E11 (Slice 2), B8 (introspection deferral, harmless).
+- Three T-class error-text-only divergences are documented and skipped
+  with sharp messages (`>| Sum` / `>- Sum` on string matrix; `?? foo`
+  with `as.integer` coercion warning).
 
 ## FIXED in this slice (commits in slice-18 / dev)
 

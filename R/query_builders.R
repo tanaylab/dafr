@@ -138,18 +138,26 @@ inherits_dafr_query <- function(x) S7::S7_inherits(x, DafrQuery)
                 "{.field reduction} must be a {.cls DafrQuery}"
             )
         }
-        # The reduction DafrQuery should have a trailing Eltwise node
+        # The reduction DafrQuery should have a trailing reduction node
         # (e.g. built by `Sum()`, `Quantile(p = 0.5)`). Extract its name
-        # and params for the ReduceToColumn/ReduceToRow node.
+        # and params for the ReduceToColumn/ReduceToRow node. Reduction
+        # builders since the B7 fix emit `ReduceToScalar` nodes; older
+        # `Eltwise`-emitted queries are also accepted for back-compat.
         last_node <- actual_reduction@ast[[length(actual_reduction@ast)]]
-        if (is.null(last_node) || last_node$op != "Eltwise") {
+        if (is.null(last_node) ||
+            !(last_node$op %in% c("ReduceToScalar", "Eltwise"))) {
             cli::cli_abort(
                 "{.code {op_name}} requires a reduction query (e.g. {.code Sum()}), got a query whose trailing node is {.val {last_node$op}}"
             )
         }
+        red_name <- if (identical(last_node$op, "ReduceToScalar")) {
+            last_node$reduction
+        } else {
+            last_node$name
+        }
         frag <- .build_fragment(
             qop_builder,
-            last_node$name,
+            red_name,
             last_node$params
         )
         .compose_query(query, frag$ast, frag$canonical)

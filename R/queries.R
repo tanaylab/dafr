@@ -290,10 +290,26 @@ is_axis_query <- function(query_string) {
 #' @export
 query_axis_name <- function(query_string) {
     ast <- parse_query(query_string)
-    axes <- vapply(ast, function(n) {
-        if (identical(n$op, "Axis")) n$axis_name else NA_character_
-    }, character(1))
-    axes <- axes[!is.na(axes)]
+    # `Axis` nodes inside a `[ ... ]` mask scope are part of a sub-query
+    # (e.g. `[ UMIs @ gene = B ]`); they don't widen the result-axis set.
+    # Skip everything between BeginMask / BeginNegatedMask and the matching
+    # EndMask before counting outer-scope axes.
+    depth <- 0L
+    axes <- character(0)
+    for (n in ast) {
+        op <- n$op
+        if (identical(op, "BeginMask") || identical(op, "BeginNegatedMask")) {
+            depth <- depth + 1L
+            next
+        }
+        if (identical(op, "EndMask")) {
+            depth <- max(0L, depth - 1L)
+            next
+        }
+        if (depth == 0L && identical(op, "Axis")) {
+            axes <- c(axes, n$axis_name)
+        }
+    }
     if (length(axes) == 1L) axes else NA_character_
 }
 
