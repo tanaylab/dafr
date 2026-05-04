@@ -98,11 +98,10 @@ test_that(">| Sum with empty rows yields empty result vector (no default needed)
 })
 
 test_that(">| Sum with empty reduction-axis + default fills per-row defaults", {
-    # NB: dafr currently does not parse a mask on the second axis of a
-    # 2D query (`@ cell @ gene [ ... ] :: UMIs`). To exercise the
-    # "reduce-axis empty" branch we put the mask on the first axis and
-    # use >- (which reduces along the first axis), matching the Julia
-    # `column > empty` semantics.
+    # The first iteration of this test pre-dated E1 (mask on the second axis
+    # of a 2D query was not supported). Now `@ cell @ gene [ filter ] :: UMIs`
+    # parses and the mask narrows the cols axis. Keep both forms to pin
+    # both the rows-mask and the cols-mask path.
     d <- memory_daf(name = "memory!")
     add_axis(d, "cell", c("X", "Y"))
     add_axis(d, "gene", c("A", "B", "C"))
