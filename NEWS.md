@@ -1,3 +1,31 @@
+# dafr 0.4.0 (in development)
+
+## S1 — Names everywhere on `format_get_*`
+
+The format-API contract is now: every `format_get_vector(daf, axis, name)`
+returns a named atomic vector with `names = format_axis_array(daf, axis)`,
+and every `format_get_matrix(daf, rows_axis, columns_axis, name)` returns a
+dense matrix or `dgCMatrix`/`lgCMatrix` whose dimnames are
+`list(rows-axis entries, cols-axis entries)`.
+
+- The contract is enforced for every backend: `MemoryDaf`, `FilesDaf`,
+  `FilesDafReadOnly`, and propagates automatically through wrapper layers
+  (`ReadOnlyChainDaf` / `WriteChainDaf`, `ContractDaf`, `ViewDaf`).
+- ALTREP-mmap vectors (`mmap_real` / `mmap_int` / `mmap_lgl`) preserve
+  ALTREP status across `names<-`, via a new `Duplicate_method` on each
+  ALTREP class. The mmap region is shared rather than copied when R
+  duplicates the wrapper.
+- Internal cleanup: `get_vector` / `get_matrix` no longer reattach names
+  defensively; `query_eval.R::.apply_chained_lookup_vector` now asserts
+  the named contract instead of working around it.
+- Bug fixes surfaced by the slice: `R/concat.R::.concat_axis_vector` and
+  `R/copies.R::.copy_vector` now strip intermediate names before calling
+  `format_set_vector` (whose `.validate_vector_value` correctly rejects
+  names that don't match the destination axis).
+- Storage stays canonical: `format_set_*` continues to strip names so the
+  on-disk / in-memory representation only carries axis entries on the
+  axis itself, not redundantly on every value.
+
 # dafr 0.3.0
 
 ## queries.jl literal-parity slice + parser-strictness
