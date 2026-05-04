@@ -567,12 +567,20 @@ S7::method(format_vectors_set,
 S7::method(format_get_vector,
            list(ZarrDaf, S7::class_character, S7::class_character)) <-
     function(daf, axis, name) {
-        .cache_group_value(.zarr_get_vector(daf, axis, name), MEMORY_DATA)
+        .cache_group_value(
+            .attach_vector_axis_names(daf, axis,
+                .zarr_get_vector(daf, axis, name)),
+            MEMORY_DATA
+        )
     }
 S7::method(format_get_vector,
            list(ZarrDafReadOnly, S7::class_character, S7::class_character)) <-
     function(daf, axis, name) {
-        .cache_group_value(.zarr_get_vector(daf, axis, name), MEMORY_DATA)
+        .cache_group_value(
+            .attach_vector_axis_names(daf, axis,
+                .zarr_get_vector(daf, axis, name)),
+            MEMORY_DATA
+        )
     }
 
 # format_set_vector dispatches based on input type (dense vs sparse).
@@ -873,7 +881,8 @@ S7::method(format_get_matrix,
                 S7::class_character)) <-
     function(daf, rows_axis, columns_axis, name) {
         .cache_group_value(
-            .zarr_get_matrix(daf, rows_axis, columns_axis, name),
+            .attach_matrix_axis_dimnames(daf, rows_axis, columns_axis,
+                .zarr_get_matrix(daf, rows_axis, columns_axis, name)),
             MEMORY_DATA
         )
     }
@@ -882,7 +891,8 @@ S7::method(format_get_matrix,
                 S7::class_character)) <-
     function(daf, rows_axis, columns_axis, name) {
         .cache_group_value(
-            .zarr_get_matrix(daf, rows_axis, columns_axis, name),
+            .attach_matrix_axis_dimnames(daf, rows_axis, columns_axis,
+                .zarr_get_matrix(daf, rows_axis, columns_axis, name)),
             MEMORY_DATA
         )
     }

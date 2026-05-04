@@ -344,11 +344,13 @@ S7::method(
                 stop(sprintf("HttpDaf: string vector %s has %d entries (expected %d)",
                              sQuote(name), length(lines), n), call. = FALSE)
             }
-            return(.cache_group_value(lines, MEMORY_DATA))
+            return(.cache_group_value(
+                .attach_vector_axis_names(daf, axis, lines), MEMORY_DATA))
         }
         bytes <- .dafr_http_get(paste0(base, ".data"))
         v <- .http_bytes_to_dense(bytes, desc$eltype, n)
-        return(.cache_group_value(v, MEMORY_DATA))
+        return(.cache_group_value(
+            .attach_vector_axis_names(daf, axis, v), MEMORY_DATA))
     }
 
     # sparse
@@ -366,7 +368,8 @@ S7::method(
         }
         out <- rep("", n)
         out[as.integer(idx)] <- vals
-        return(.cache_group_value(out, MEMORY_DATA))
+        return(.cache_group_value(
+            .attach_vector_axis_names(daf, axis, out), MEMORY_DATA))
     }
     if (desc$eltype == "Bool") {
         nzval_bytes <- .dafr_http_get(paste0(base, ".nzval"), allow_404 = TRUE)
@@ -378,13 +381,14 @@ S7::method(
             vals <- as.logical(.http_bytes_to_dense(nzval_bytes, "Bool", nnz))
             out[as.integer(idx)] <- vals
         }
-        return(.cache_group_value(out, MEMORY_DATA))
+        return(.cache_group_value(
+            .attach_vector_axis_names(daf, axis, out), MEMORY_DATA))
     }
     nzval_bytes <- .dafr_http_get(paste0(base, ".nzval"))
     vals <- .http_bytes_to_dense(nzval_bytes, desc$eltype, nnz)
     out <- .http_zero_vector(desc$eltype, n)
     out[as.integer(idx)] <- vals
-    .cache_group_value(out, MEMORY_DATA)
+    .cache_group_value(.attach_vector_axis_names(daf, axis, out), MEMORY_DATA)
 }
 
 # ---- Matrices --------------------------------------------------------------
@@ -431,14 +435,18 @@ S7::method(
                 stop(sprintf("HttpDaf: string matrix has %d lines (expected %d)",
                              length(vals), expected), call. = FALSE)
             }
-            return(.cache_group_value(matrix(vals, nrow = nr, ncol = nc),
-                                      MEMORY_DATA))
+            return(.cache_group_value(
+                .attach_matrix_axis_dimnames(daf, rows_axis, columns_axis,
+                    matrix(vals, nrow = nr, ncol = nc)),
+                MEMORY_DATA))
         }
         bytes <- .dafr_http_get(paste0(base, ".data"))
         total <- as.integer(nr) * as.integer(nc)
         v <- .http_bytes_to_dense(bytes, desc$eltype, total)
         dim(v) <- c(as.integer(nr), as.integer(nc))
-        return(.cache_group_value(v, MEMORY_DATA))
+        return(.cache_group_value(
+            .attach_matrix_axis_dimnames(daf, rows_axis, columns_axis, v),
+            MEMORY_DATA))
     }
 
     # sparse — CSC layout
@@ -468,7 +476,9 @@ S7::method(
             Dim = c(as.integer(nr), as.integer(nc)),
             Dimnames = list(NULL, NULL)
         )
-        return(.cache_group_value(m, MEMORY_DATA))
+        return(.cache_group_value(
+            .attach_matrix_axis_dimnames(daf, rows_axis, columns_axis, m),
+            MEMORY_DATA))
     }
 
     if (desc$eltype == "String") {
@@ -490,7 +500,9 @@ S7::method(
                 }
             }
         }
-        return(.cache_group_value(m, MEMORY_DATA))
+        return(.cache_group_value(
+            .attach_matrix_axis_dimnames(daf, rows_axis, columns_axis, m),
+            MEMORY_DATA))
     }
 
     nzval_bytes <- .dafr_http_get(paste0(base, ".nzval"))
@@ -506,7 +518,9 @@ S7::method(
         Dim = c(as.integer(nr), as.integer(nc)),
         Dimnames = list(NULL, NULL)
     )
-    .cache_group_value(m, MEMORY_DATA)
+    .cache_group_value(
+        .attach_matrix_axis_dimnames(daf, rows_axis, columns_axis, m),
+        MEMORY_DATA)
 }
 
 S7::method(
