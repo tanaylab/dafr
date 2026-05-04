@@ -15,13 +15,16 @@ test_that("format_vectors_set errors on unknown axis", {
     expect_error(format_vectors_set(d, "cell"), "does not exist")
 })
 
-test_that("format_get_vector returns the stored SEXP unchanged", {
+test_that("format_get_vector returns the stored SEXP with axis names attached", {
     d <- memory_daf()
     add_axis(d, "cell", c("A", "B"))
     vectors <- S7::prop(d, "internal")$vectors
     vectors$cell <- new.env(parent = emptyenv())
     vectors$cell$score <- c(1.5, 2.5)
-    expect_equal(format_get_vector(d, "cell", "score"), c(1.5, 2.5))
+    # Named-everywhere contract: format_get_vector attaches axis entries
+    # as names. The underlying storage is still unnamed.
+    expect_equal(format_get_vector(d, "cell", "score"), c(A = 1.5, B = 2.5))
+    expect_null(names(vectors$cell$score))
 })
 
 test_that("format_get_vector errors on unknown axis / vector", {
@@ -36,20 +39,27 @@ test_that("format_set_vector stores dense numeric/integer/logical/character vect
     add_axis(d, "cell", c("A", "B", "C"))
     for (v in list(c(1.0, 2.0, 3.0), c(1L, 2L, 3L), c(TRUE, FALSE, TRUE), c("x", "y", "z"))) {
         format_set_vector(d, "cell", "v", v, overwrite = TRUE)
-        expect_identical(format_get_vector(d, "cell", "v"), v)
+        # Named-everywhere contract: format_get_vector returns axis-named.
+        expect_identical(format_get_vector(d, "cell", "v"),
+                         setNames(v, c("A", "B", "C")))
     }
 })
 
-test_that("format_set_vector strips names to the axis entry order (named input)", {
+test_that("format_set_vector reorders by names + format_get_vector returns canonical axis names", {
     d <- memory_daf()
     add_axis(d, "cell", c("A", "B", "C"))
+    # Storage normalisation: a named input is reordered to axis order; the
+    # underlying storage SEXP is unnamed (verified directly below).
     format_set_vector(d, "cell", "v",
         c(B = 20.0, A = 10.0, C = 30.0),
         overwrite = FALSE
     )
+    stored <- S7::prop(d, "internal")$vectors$cell$v
+    expect_equal(stored, c(10.0, 20.0, 30.0))
+    expect_null(names(stored))
+    # Get-side contract: format_get_vector reattaches axis entries as names.
     got <- format_get_vector(d, "cell", "v")
-    expect_equal(got, c(10.0, 20.0, 30.0), ignore_attr = TRUE)
-    expect_null(names(got))
+    expect_equal(got, c(A = 10.0, B = 20.0, C = 30.0))
 })
 
 test_that("format_set_vector errors on length mismatch / unknown axis / NULL", {
@@ -90,7 +100,7 @@ test_that("format_set_vector honours overwrite", {
         "already exists"
     )
     format_set_vector(d, "cell", "v", c(3.0, 4.0), overwrite = TRUE)
-    expect_equal(format_get_vector(d, "cell", "v"), c(3.0, 4.0))
+    expect_equal(format_get_vector(d, "cell", "v"), c(A = 3.0, B = 4.0))
 })
 
 test_that("format_set_vector bumps the vector version counter", {
