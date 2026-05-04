@@ -9,9 +9,10 @@
 # skips is the queries-jl parser-strictness follow-up slice
 # (kickoff in dev/notes/2026-05-03-slice-queries-jl-parser-strictness-kickoff.md).
 #
-# Per N1 (vector/matrix results are returned without dimnames in dafr today),
-# value comparisons drop names via unname() / as.vector(). Length and value
-# parity are still asserted.
+# N1 (named query results) is closed: format_get_* and axis-listing return
+# named values (S1 + N1 slices). Existing unname() / as.vector() in this file
+# are vestigial defensive workarounds; they pass either way and are left as-is
+# to avoid mass test churn. Newly-added assertions should drop them.
 
 # ---------------------------------------------------------------------------
 # Helpers

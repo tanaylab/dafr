@@ -138,3 +138,30 @@ test_that("matrix eltwise (Abs slow path) preserves dimnames", {
     expect_equal(rownames(out), c("c1", "c2"))
     expect_equal(colnames(out), c("g1", "g2"))
 })
+
+# N1 — bare axis listing returns names == entries (Julia parity).
+test_that("bare axis listing returns named character vector", {
+    d <- memory_daf(name = "t")
+    add_axis(d, "cell", c("c1", "c2", "c3"))
+    out <- get_query(d, "@ cell")
+    expect_equal(names(out), c("c1", "c2", "c3"))
+    expect_equal(unname(out), c("c1", "c2", "c3"))
+})
+
+test_that("masked axis listing returns named character vector", {
+    d <- memory_daf(name = "t")
+    add_axis(d, "donor", c("d1", "d2", "d3", "d4"))
+    set_vector(d, "donor", "age", c(10, 50, 70, 90))
+    out <- get_query(d, "@ donor [ age > 60 ]")
+    expect_equal(names(out), c("d3", "d4"))
+    expect_equal(unname(out), c("d3", "d4"))
+})
+
+test_that("masked-out-empty axis listing returns named character(0)", {
+    d <- memory_daf(name = "t")
+    add_axis(d, "donor", c("d1", "d2"))
+    set_vector(d, "donor", "age", c(10, 50))
+    out <- get_query(d, "@ donor [ age > 1000 ]")
+    expect_equal(length(out), 0L)
+    expect_equal(names(out), character(0))
+})

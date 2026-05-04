@@ -2,28 +2,28 @@ test_that("mask with '>' comparator filters axis", {
     d <- memory_daf(name = "t")
     add_axis(d, "donor", c("d1", "d2", "d3", "d4"))
     set_vector(d, "donor", "age", c(10, 50, 70, 90))
-    expect_equal(get_query(d, "@ donor [ age > 60 ]"), c("d3", "d4"))
+    expect_equal(get_query(d, "@ donor [ age > 60 ]"), c(d3 = "d3", d4 = "d4"))
 })
 
 test_that("mask with '=' comparator filters axis", {
     d <- memory_daf(name = "t")
     add_axis(d, "donor", c("d1", "d2", "d3"))
     set_vector(d, "donor", "sex", c("M", "F", "M"))
-    expect_equal(get_query(d, "@ donor [ sex = M ]"), c("d1", "d3"))
+    expect_equal(get_query(d, "@ donor [ sex = M ]"), c(d1 = "d1", d3 = "d3"))
 })
 
 test_that("negated mask filters axis", {
     d <- memory_daf(name = "t")
     add_axis(d, "gene", c("g1", "g2", "g3"))
     set_vector(d, "gene", "is_lateral", c(TRUE, FALSE, TRUE))
-    expect_equal(get_query(d, "@ gene [ ! is_lateral ]"), "g2")
+    expect_equal(get_query(d, "@ gene [ ! is_lateral ]"), c(g2 = "g2"))
 })
 
 test_that("mask with '~' regex match filters axis", {
     d <- memory_daf(name = "t")
     add_axis(d, "gene", c("HOX1", "MYC", "HOX2"))
     set_vector(d, "gene", "symbol", c("HOX1", "MYC", "HOX2"))
-    expect_equal(get_query(d, "@ gene [ symbol ~ ^HOX ]"), c("HOX1", "HOX2"))
+    expect_equal(get_query(d, "@ gene [ symbol ~ ^HOX ]"), c(HOX1 = "HOX1", HOX2 = "HOX2"))
 })
 
 test_that("mask AND combines two properties", {
@@ -31,7 +31,7 @@ test_that("mask AND combines two properties", {
     add_axis(d, "donor", c("d1", "d2", "d3", "d4"))
     set_vector(d, "donor", "age", c(10, 70, 70, 10))
     set_vector(d, "donor", "sex", c("M", "M", "F", "F"))
-    expect_equal(get_query(d, "@ donor [ age > 60 & sex = M ]"), "d2")
+    expect_equal(get_query(d, "@ donor [ age > 60 & sex = M ]"), c(d2 = "d2"))
 })
 
 test_that("mask OR combines two properties", {
@@ -61,7 +61,7 @@ test_that("NA in masked property drops entries (Julia parity)", {
     # '> 0' on NA returns NA; Julia drops NA mask entries silently.
     # Expected kept entries: A, C.
     result <- get_query(d, "@ cell [ score > 0 ]")
-    expect_identical(result, c("A", "C"))
+    expect_identical(result, c(A = "A", C = "C"))
 })
 
 # E1: mask after the second axis filters the cols axis. Pre-fix this
@@ -110,7 +110,7 @@ test_that("E1: cols-axis mask flowing into >| / >- reductions", {
 test_that("E2: `[ name = X ]` matches the axis entry name", {
     d <- memory_daf(name = "t")
     add_axis(d, "cell", c("X", "Y", "Z"))
-    expect_equal(get_query(d, "@ cell [ name = Y ]"), "Y")
+    expect_equal(get_query(d, "@ cell [ name = Y ]"), c(Y = "Y"))
     expect_setequal(get_query(d, "@ cell [ ! name = Y ]"), c("X", "Z"))
 })
 
