@@ -48,6 +48,18 @@
     <div class="section level2">
 <h2 class="pkg-version" data-toc-text="0.2.0" id="dafr-020-in-development">dafr 0.2.0 (in development)<a class="anchor" aria-label="anchor" href="#dafr-020-in-development"></a></h2>
 <div class="section level3">
+<h3 id="queriesjl-parity--slice-e3-e7-e8-closed-e11-reclassified-0-2-0">queries.jl parity — Slice 2 (E3, E7, E8 closed; E11 reclassified)<a class="anchor" aria-label="anchor" href="#queriesjl-parity--slice-e3-e7-e8-closed-e11-reclassified-0-2-0"></a></h3>
+<ul><li>
+<strong>E3</strong> (matrix-slice-as-mask, <code>[ UMIs @ gene = A &gt; 0 ]</code>) — already worked in the evaluator; un-skipped.</li>
+<li>
+<strong>E7</strong> (group-by / count-by matrix-slice) — already worked across every passing matrix/group/* test; no skip remained for this class.</li>
+<li>
+<strong>E8</strong> (cross-tabulate <code>: vec * other =@</code>) — already worked; the failing test asserted <code>sum=2</code> but the Julia reference (queries.jl line 1134) shows <code>sum=3</code>. Test expectation corrected.</li>
+<li>
+<strong>E11</strong> reclassified as <strong>T-class</strong> (error-text-only divergence). R’s kernel promotes integer matrices to double during <code>Sum</code> reduction, losing the type signal Julia uses to raise <code>InexactError</code> when the IfMissing default (<code>0.5</code>) is non-integer for an integer matrix. Real result is identical otherwise; only the error case diverges.</li>
+</ul><p>Suite: <code>FAIL 0 | WARN 1 | SKIP 12 | PASS 4610</code> (+7 over Slice 1b).</p>
+</div>
+<div class="section level3">
 <h3 id="queriesjl-parity--sliceb-quick-wins-e4-e5-e10-b7-b9-api1-0-2-0">queries.jl parity — Slice 1b (quick wins: E4, E5, E10, B7, B9, API1)<a class="anchor" aria-label="anchor" href="#queriesjl-parity--sliceb-quick-wins-e4-e5-e10-b7-b9-api1-0-2-0"></a></h3>
 <p>Six divergences from the Julia parity audit closed in one slice. 58 fewer parity-test skips, 113 more passes vs the post-Slice-1a baseline.</p>
 <ul><li>

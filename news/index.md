@@ -2,6 +2,23 @@
 
 ## dafr 0.2.0 (in development)
 
+### queries.jl parity — Slice 2 (E3, E7, E8 closed; E11 reclassified)
+
+- **E3** (matrix-slice-as-mask, `[ UMIs @ gene = A > 0 ]`) — already
+  worked in the evaluator; un-skipped.
+- **E7** (group-by / count-by matrix-slice) — already worked across
+  every passing matrix/group/\* test; no skip remained for this class.
+- **E8** (cross-tabulate `: vec * other =@`) — already worked; the
+  failing test asserted `sum=2` but the Julia reference (queries.jl
+  line 1134) shows `sum=3`. Test expectation corrected.
+- **E11** reclassified as **T-class** (error-text-only divergence). R’s
+  kernel promotes integer matrices to double during `Sum` reduction,
+  losing the type signal Julia uses to raise `InexactError` when the
+  IfMissing default (`0.5`) is non-integer for an integer matrix. Real
+  result is identical otherwise; only the error case diverges.
+
+Suite: `FAIL 0 | WARN 1 | SKIP 12 | PASS 4610` (+7 over Slice 1b).
+
 ### queries.jl parity — Slice 1b (quick wins: E4, E5, E10, B7, B9, API1)
 
 Six divergences from the Julia parity audit closed in one slice. 58
