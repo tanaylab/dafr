@@ -28,9 +28,9 @@ rm(d); gc()
 # Reopen read-only and inspect.
 d <- zarr_daf(path, mode = "r")
 cat(description(d))
-#> name: file280561b0e175.daf.zarr
+#> name: file280d36054af7.daf.zarr
 #> type: ZarrDaf
-#> path: /tmp/RtmpOEuEnv/file280561b0e175.daf.zarr
+#> path: /tmp/RtmprFznUW/file280d36054af7.daf.zarr
 #> mode: r
 #> scalars:
 #>   organism: "human"
@@ -72,7 +72,7 @@ set_vector(d, "gene", "is_marker", c(TRUE, FALSE))
 rm(d); gc()
 #>           used  (Mb) gc trigger  (Mb) max used  (Mb)
 #> Ncells 2732904 146.0    5035590 269.0  3274578 174.9
-#> Vcells 4682461  35.8   10146329  77.5  7111407  54.3
+#> Vcells 4682465  35.8   10146329  77.5  7111407  54.3
 
 # Reopen.
 d <- zarr_daf(zip_path, mode = "r")
