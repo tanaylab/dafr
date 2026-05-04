@@ -127,3 +127,15 @@ test_that("copy_vector: sparse same-axis value passes through", {
     copy_vector(dest, src, "cell", "age")
     expect_equal(unname(get_vector(dest, "cell", "age")), c(1, 0, 3))
 })
+
+test_that("copy_vector preserves S1 named-getter contract end-to-end", {
+    src <- memory_daf(name = "src")
+    add_axis(src, "cell", c("c1", "c2", "c3"))
+    set_vector(src, "cell", "age", c(10L, 20L, 30L))
+    dst <- memory_daf(name = "dst")
+    add_axis(dst, "cell", c("c1", "c2", "c3"))
+    copy_vector(dst, src, "cell", "age")
+    # Source-axis names don't leak through the setter; result carries destination names.
+    expect_equal(get_vector(dst, "cell", "age"),
+                 c(c1 = 10L, c2 = 20L, c3 = 30L))
+})

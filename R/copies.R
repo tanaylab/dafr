@@ -230,7 +230,7 @@ copy_vector <- function(destination, source, axis, name,
         out[idx] <- value
     }
     out <- .cast_vector_type(out, type)
-    format_set_vector(destination, final_axis, final_name, out,
+    format_set_vector(destination, final_axis, final_name, unname(out),
                       overwrite = overwrite)
     invisible(destination)
 }
