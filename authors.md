@@ -12,7 +12,7 @@
 ## Citation
 
 Source:
-[`DESCRIPTION`](https://github.com/tanaylab/dafr/blob/main/DESCRIPTION)
+[`DESCRIPTION`](https://github.com/tanaylab/dafr/blob/v0.3.0/DESCRIPTION)
 
 Lifshitz A, Ben-Kiki O (2026). *dafr: Data in Axes in Formats (DAF) for
 R*. R package version 0.3.0, <https://tanaylab.github.io/dafr/>.
