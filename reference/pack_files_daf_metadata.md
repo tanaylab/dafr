@@ -32,11 +32,11 @@ The absolute path to the written `metadata.zip`, invisibly.
 p <- tempfile("daf-")
 files_daf(p, "w+")
 #> <dafr::FilesDaf>
-#>  @ name                  : chr "daf-1b026991057c"
-#>  @ internal              :<environment: 0x55a8a0710a30> 
-#>  @ cache                 :<environment: 0x55a8a0711558> 
-#>  @ axis_version_counter  :<environment: 0x55a8a070f248> 
-#>  @ vector_version_counter:<environment: 0x55a8a070f520> 
-#>  @ matrix_version_counter:<environment: 0x55a8a070b9c8> 
+#>  @ name                  : chr "daf-1b28121e1ffe"
+#>  @ internal              :<environment: 0x563493088598> 
+#>  @ cache                 :<environment: 0x5634930890c0> 
+#>  @ axis_version_counter  :<environment: 0x563493084e90> 
+#>  @ vector_version_counter:<environment: 0x563493085168> 
+#>  @ matrix_version_counter:<environment: 0x563493085440> 
 pack_files_daf_metadata(p)
 ```
