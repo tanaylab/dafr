@@ -83,3 +83,55 @@ test_that("FilesDafReadOnly inherits the named contract", {
     m <- format_get_matrix(d, "cell", "gene", "expr_sparse")
     expect_equal(m@Dimnames, list(c("c1", "c2", "c3"), c("gA", "gB")))
 })
+
+test_that("ReadOnlyChainDaf format_get_* delegates with names", {
+    a <- .fixture_named_memory_daf()
+    b <- memory_daf(name = "overlay")
+    add_axis(b, "cell", c("c1", "c2", "c3"))
+    add_axis(b, "gene", c("gA", "gB"))
+    set_vector(b, "cell", "donor_alt", c("dA", "dB", "dA"))
+    ch <- chain_reader(list(a, b))
+
+    expect_equal(names(format_get_vector(ch, "cell", "donor")),
+                 c("c1", "c2", "c3"))
+    expect_equal(names(format_get_vector(ch, "cell", "donor_alt")),
+                 c("c1", "c2", "c3"))
+    m <- format_get_matrix(ch, "cell", "gene", "expr")
+    expect_equal(rownames(m), c("c1", "c2", "c3"))
+    expect_equal(colnames(m), c("gA", "gB"))
+})
+
+test_that("ContractDaf format_get_* delegates with names", {
+    skip_if_not_installed("withr")
+    base <- .fixture_named_memory_daf()
+    withr::with_options(list(dafr.enforce_contracts = TRUE), {
+        ct <- Contract(
+            axes = list(
+                cell = list(RequiredInput, "per-cell axis"),
+                gene = list(RequiredInput, "per-gene axis")
+            ),
+            data = list(
+                contract_vector("cell", "donor",
+                    RequiredInput, "character", "donor id"),
+                contract_matrix("cell", "gene", "expr",
+                    RequiredInput, "numeric", "cell-gene expression")
+            )
+        )
+        cd <- contractor("names_test", ct, base)
+        expect_equal(names(format_get_vector(cd, "cell", "donor")),
+                     c("c1", "c2", "c3"))
+        m <- format_get_matrix(cd, "cell", "gene", "expr")
+        expect_equal(rownames(m), c("c1", "c2", "c3"))
+        expect_equal(colnames(m), c("gA", "gB"))
+    })
+})
+
+test_that("ViewDaf format_get_* preserves names through identity view", {
+    base <- .fixture_named_memory_daf()
+    v <- viewer(base, axes = list(VIEW_ALL_AXES))
+    expect_equal(names(format_get_vector(v, "cell", "donor")),
+                 c("c1", "c2", "c3"))
+    m <- format_get_matrix(v, "cell", "gene", "expr")
+    expect_equal(rownames(m), c("c1", "c2", "c3"))
+    expect_equal(colnames(m), c("gA", "gB"))
+})
