@@ -258,6 +258,9 @@ get_query <- function(daf, query_string) {
 #' canonical_query("@ cell : donor")
 #' @export
 canonical_query <- function(query_string) {
+    if (S7::S7_inherits(query_string, DafrQuery)) {
+        return(S7::prop(query_string, "canonical"))
+    }
     .canonicalise_ast(parse_query(query_string))
 }
 

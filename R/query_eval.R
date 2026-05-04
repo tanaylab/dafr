@@ -47,6 +47,14 @@ NULL
     if (identical(state$kind, "pending_count")) {
         state <- .finalize_pending_count(state, daf)
     }
+    # Julia parity: a partial / unconsumed query (e.g. `@ cell @ gene` with no
+    # lookup, or just `.`) leaves state in a non-terminal kind. Reject rather
+    # than returning NULL, mirroring DAF.jl's `invalid query: ...` error.
+    if (!state$kind %in% c("scalar", "vector", "matrix", "names", "axis")) {
+        stop(sprintf("invalid query: %s", .canonicalise_ast(ast)),
+            call. = FALSE
+        )
+    }
     state$value
 }
 
@@ -373,7 +381,13 @@ NULL
             value = format_matrices_set(daf, state$rows_axis, state$cols_axis)
         ))
     }
-    list(kind = "names", value = format_axes_set(daf))
+    if (identical(state$kind, "init")) {
+        return(list(kind = "names", value = format_axes_set(daf)))
+    }
+    # Julia parity: a `?` after an already-resolved query (e.g. `? ?` after the
+    # first `?` has produced names) is invalid. Reject rather than silently
+    # re-listing axes.
+    stop(sprintf("'?' is not valid after %s", state$kind), call. = FALSE)
 }
 
 .apply_if_missing <- function(node, state, daf) state # consumed via lookahead
@@ -1759,14 +1773,7 @@ NULL
     )
 }
 .apply_eltwise <- function(node, state, daf) {
-    if (identical(state$kind, "scalar")) {
-        # `. v % Abs` etc. - eltwise on a scalar is a 1-element apply.
-        fn <- get_eltwise(node$name)
-        params <- .coerce_params(node$params)
-        state$value <- do.call(fn, c(list(state$value), params))
-        return(state)
-    }
-    if (!state$kind %in% c("vector", "matrix")) {
+    if (!state$kind %in% c("scalar", "vector", "matrix")) {
         stop("'%' eltwise requires scalar, vector, or matrix in scope",
             call. = FALSE)
     }
