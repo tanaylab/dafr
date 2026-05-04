@@ -111,3 +111,25 @@ test_that("mmap_lgl serialize roundtrip preserves logicals including NA", {
 
     expect_identical(as.logical(restored), c(TRUE, FALSE, NA, TRUE, FALSE))
 })
+
+test_that("ALTREP-mmap Float64 survives names<-", {
+    f <- tempfile()
+    writeBin(c(1.5, 2.5, -3.25), f, size = 8L, endian = "little")
+    v <- mmap_real(f, 3L)
+    expect_true(is_altrep(v))
+    names(v) <- c("A", "B", "C")
+    expect_true(is_altrep(v))
+    expect_equal(names(v), c("A", "B", "C"))
+    expect_equal(unname(v), c(1.5, 2.5, -3.25))
+})
+
+test_that("ALTREP-mmap Int32 survives names<-", {
+    f <- tempfile()
+    writeBin(c(1L, -2L, 3L), f, size = 4L, endian = "little")
+    v <- mmap_int(f, 3L)
+    expect_true(is_altrep(v))
+    names(v) <- c("A", "B", "C")
+    expect_true(is_altrep(v))
+    expect_equal(names(v), c("A", "B", "C"))
+    expect_equal(unname(v), c(1L, -2L, 3L))
+})
