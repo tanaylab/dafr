@@ -249,7 +249,8 @@ S7::method(
         .require_vector(daf, axis, name)
     }
     .cache_group_value(
-        get(name, envir = env, inherits = FALSE),
+        .attach_vector_axis_names(daf, axis,
+            get(name, envir = env, inherits = FALSE)),
         MEMORY_DATA
     )
 }
@@ -341,7 +342,8 @@ S7::method(
         .require_matrix(daf, rows_axis, columns_axis, name, relayout = FALSE)
     }
     .cache_group_value(
-        get(name, envir = env, inherits = FALSE),
+        .attach_matrix_axis_dimnames(daf, rows_axis, columns_axis,
+            get(name, envir = env, inherits = FALSE)),
         MEMORY_DATA
     )
 }

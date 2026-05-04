@@ -369,14 +369,16 @@ S7::method(
     list(FilesDaf, S7::class_character, S7::class_character)
 ) <- function(daf, axis, name) {
     v <- .files_get_vector_cached(daf, axis, name)
-    .cache_group_value(v, .files_daf_classify_vector(v))
+    .cache_group_value(.attach_vector_axis_names(daf, axis, v),
+                       .files_daf_classify_vector(v))
 }
 S7::method(
     format_get_vector,
     list(FilesDafReadOnly, S7::class_character, S7::class_character)
 ) <- function(daf, axis, name) {
     v <- .files_get_vector_cached(daf, axis, name)
-    .cache_group_value(v, .files_daf_classify_vector(v))
+    .cache_group_value(.attach_vector_axis_names(daf, axis, v),
+                       .files_daf_classify_vector(v))
 }
 
 # ---- matrices: query ----
@@ -583,12 +585,14 @@ S7::method(
     list(FilesDaf, S7::class_character, S7::class_character, S7::class_character)
 ) <- function(daf, rows_axis, columns_axis, name) {
     m <- .files_get_matrix_cached(daf, rows_axis, columns_axis, name)
-    .cache_group_value(m, .files_daf_classify_matrix(m))
+    .cache_group_value(.attach_matrix_axis_dimnames(daf, rows_axis, columns_axis, m),
+                       .files_daf_classify_matrix(m))
 }
 S7::method(
     format_get_matrix,
     list(FilesDafReadOnly, S7::class_character, S7::class_character, S7::class_character)
 ) <- function(daf, rows_axis, columns_axis, name) {
     m <- .files_get_matrix_cached(daf, rows_axis, columns_axis, name)
-    .cache_group_value(m, .files_daf_classify_matrix(m))
+    .cache_group_value(.attach_matrix_axis_dimnames(daf, rows_axis, columns_axis, m),
+                       .files_daf_classify_matrix(m))
 }
