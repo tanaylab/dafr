@@ -1,3 +1,43 @@
+# dafr 0.3.0
+
+## queries.jl literal-parity slice — B4-B6 + E1, E2
+
+Closes the remaining behaviour and evaluator gaps surfaced by a
+literal port of `~/src/DataAxesFormats.jl/test/queries.jl`. The
+related parser-strictness (P1-P5) was already in place on `main`
+from earlier slices; this bumps R-side parity to match DAF.jl on
+every test that does not hit one of the still-deferred IDs (E3-E11,
+B7-B9, API1, N1) catalogued during the port.
+
+### Evaluator behaviour
+
+- **B4.** `% <Op>` element-wise on a numeric scalar applies the op
+  (was: `'%' eltwise requires vector or matrix in scope`). Numeric R
+  ops handle scalar natively; string scalars still error from base R.
+- **B5.** Partial / unconsumed queries (e.g. `@ cell @ gene`)
+  now error with `invalid query: <canonical>` (was: silent `NULL`).
+- **B6.** A second `?` after a fully-resolved Names result errors
+  `'?' is not valid after <kind>` (was: silently re-listed axes).
+
+Plus: `canonical_query()` now accepts a `DafrQuery` directly (uses
+the stored canonical string).
+
+### Evaluator additions
+
+- **E1.** `[ filter ]` after `@ rows @ cols` is now valid; the mask
+  filters the most-recently-entered axis (cols). The matrix lookup
+  honours both `row_indices` and the new `col_indices`. Cols-mask
+  reductions hit the existing empty-matrix IfMissing branch.
+- **E2.** Virtual `name` property on every axis. `[ name = X ]`,
+  logical-mask combinators on `name`, and `: name` lookups now
+  return the axis-entry vector (`format_axis_array(daf, axis)`).
+  The dataframe-side `name` column remains tracked under API1.
+
+Plus: IfMissing defaults in vector and matrix lookups now route
+through `.coerce_if_missing_default` so the fill type matches the
+type of a real default (e.g. `: age || 1` returns an integer column,
+not a character one).
+
 # dafr 0.2.1
 
 ## R-only quirks vs Julia parity (audit pass)
