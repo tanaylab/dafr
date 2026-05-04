@@ -707,12 +707,23 @@ NULL
     pivot_values <- state$value
     target_axis <- state$chain_target_axis
     if (is.null(target_axis)) {
-        # Bare '=@': infer target axis from pivot vector's property name.
+        # Bare '=@' or implicit `: prop : ...`: infer target axis from
+        # pivot vector's property name.
         target_axis <- state$property
         if (is.null(target_axis)) {
             stop("bare '=@' requires a named vector lookup before it",
                 call. = FALSE
             )
+        }
+    }
+    if (!format_has_axis(daf, target_axis) && grepl("\\.", target_axis)) {
+        # Julia parity (ensure_vector_is_axis): a property named
+        # `<axis>.<suffix>` falls back to `<axis>` (everything up to
+        # the last dot) if `<axis>.<suffix>` is not itself an axis.
+        # `type.manual` -> `type`, `kind.left.right` -> `kind.left`.
+        base <- sub("\\.[^.]+$", "", target_axis)
+        if (nzchar(base) && format_has_axis(daf, base)) {
+            target_axis <- base
         }
     }
     if (!format_has_axis(daf, target_axis)) {
@@ -809,7 +820,23 @@ NULL
             base_entries <- base_entries[keep]
             final_mask <- final_mask[keep]
         } else {
-            sentinel_typed <- methods::as(sentinel, class(lookup_vec)[[1L]])
+            target_class <- class(lookup_vec)[[1L]]
+            sentinel_typed <- withCallingHandlers(
+                methods::as(sentinel, target_class),
+                warning = function(w) {
+                    # Julia parity: a sentinel that doesn't parse into the
+                    # lookup vector's type errors with a clear message
+                    # rather than silently producing NA via R's coercion.
+                    if (grepl("NAs introduced by coercion", conditionMessage(w))) {
+                        stop(sprintf(
+                            "cannot parse IfNot sentinel %s as %s for property %s on axis %s",
+                            sQuote(sentinel), target_class,
+                            sQuote(node$name), sQuote(target_axis)
+                        ), call. = FALSE)
+                    }
+                    invokeRestart("muffleWarning")
+                }
+            )
             out[new_empty] <- sentinel_typed
             final_mask[new_empty] <- TRUE
         }
@@ -1724,8 +1751,13 @@ NULL
     }
     n_rows_out <- length(row_names)
 
+    transposed <- FALSE
     if (!format_has_matrix(daf, rows, cols, prop)) {
-        if (!is.null(state$matrix_if_missing)) {
+        if (format_has_matrix(daf, cols, rows, prop)) {
+            # Julia parity: auto-relayout if the matrix is stored on the
+            # transposed orientation (`get_matrix(...; relayout = true)`).
+            transposed <- TRUE
+        } else if (!is.null(state$matrix_if_missing)) {
             default <- .coerce_if_missing_default(
                 state$matrix_if_missing, state$matrix_if_missing_type
             )
@@ -1734,8 +1766,9 @@ NULL
                 axis = rows,
                 value = setNames(rep(default, n_rows_out), row_names)
             ))
+        } else {
+            .require_matrix(daf, rows, cols, prop, relayout = FALSE)
         }
-        .require_matrix(daf, rows, cols, prop, relayout = FALSE)
     }
 
     cols_array <- format_axis_array(daf, cols)$value
@@ -1744,7 +1777,16 @@ NULL
         .require_axis_entry(daf, cols, as.character(node$value))
     }
 
-    m <- format_get_matrix(daf, rows, cols, prop)$value
+    m <- if (transposed) {
+        m_stored <- format_get_matrix(daf, cols, rows, prop)$value
+        if (methods::is(m_stored, "Matrix")) {
+            Matrix::t(m_stored)
+        } else {
+            t(m_stored)
+        }
+    } else {
+        format_get_matrix(daf, rows, cols, prop)$value
+    }
     vec <- m[, col_idx, drop = TRUE]
     if (!is.null(state$row_indices)) {
         vec <- vec[state$row_indices]
@@ -1951,6 +1993,17 @@ NULL
     # raise (Julia parity — queries.jl > matrix > reduction > empty/!empty).
     empty_result <- .matrix_reduction_empty(node, state, daf)
     if (!is.null(empty_result)) return(empty_result)
+    # Julia parity: numeric reductions on a character matrix raise a
+    # `non-numeric / character` error rather than letting R's downstream
+    # `'x' must be numeric` from base sum/mean leak through. Mode and
+    # Count are excluded — they handle character inputs natively.
+    if (is.character(state$value) &&
+        !node$reduction %in% c("Mode", "Count")) {
+        stop(sprintf(
+            "non-numeric input: cannot apply %s reduction to a character matrix",
+            node$reduction
+        ), call. = FALSE)
+    }
     fn <- get_reduction(node$reduction)
     params <- .coerce_params(node$params)
 

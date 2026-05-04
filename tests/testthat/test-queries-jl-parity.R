@@ -589,7 +589,6 @@ test_that("queries / vector / lookup / ()", {
 })
 
 test_that("queries / vector / lookup / as_axis / implicit", {
-    skip("R divergence: E6 (vector-by-vector chain via ensure_vector_is_axis)")
     daf <- .fx_lookup()
     add_axis(daf, "cell", c("X", "Y"))
     set_vector(daf, "cell", "type", c("U", "V"))
@@ -601,7 +600,6 @@ test_that("queries / vector / lookup / as_axis / implicit", {
 })
 
 test_that("queries / vector / lookup / as_axis / explicit", {
-    skip("R divergence: E6 (vector-by-vector chain via ensure_vector_is_axis)")
     daf <- .fx_lookup()
     add_axis(daf, "cell", c("X", "Y"))
     set_vector(daf, "cell", "type", c("U", "V"))
@@ -680,7 +678,6 @@ test_that("queries / vector / lookup / if_not / missing", {
 })
 
 test_that("queries / vector / lookup / if_not / !missing", {
-    skip("R divergence: T-class error-text (R warns 'NAs introduced by coercion' before erroring; Julia errors with parse-style text)")
     daf <- .fx_lookup()
     add_axis(daf, "cell", c("A", "B", "C"))
     set_vector(daf, "cell", "metacell", c("X", "Y", ""))
@@ -706,7 +703,6 @@ test_that("queries / vector / lookup / if_not / !missing", {
 }
 
 test_that("queries / vector / matrix / column", {
-    skip("R divergence: E6 (matrix-column slice `@ axis :: M @ other = entry` chain)")
     daf <- .fx_vec_matrix()
     expect_equal(unname(get_query(daf, "@ cell :: UMIs @ gene = A")),
         c(0L, 3L))
@@ -756,7 +752,6 @@ test_that("queries / vector / matrix / reduction / column / !empty / cols", {
 })
 
 test_that("queries / vector / matrix / reduction / column / !string", {
-    skip("R divergence: T-class error-text (>| Sum on string matrix passes wrong-type error path; differs from Julia text)")
     daf <- .fx_vec_matrix()
     set_matrix(daf, "cell", "gene", "kind",
         matrix(c("A", "B", "A", "B", "A", "B"), 2, 3, byrow = TRUE))
@@ -807,7 +802,6 @@ test_that("queries / vector / matrix / reduction / row / !empty / cols", {
 })
 
 test_that("queries / vector / matrix / reduction / row / !string", {
-    skip("R divergence: T-class error-text (>- Sum on string matrix passes wrong-type error path; differs from Julia text)")
     daf <- .fx_vec_matrix()
     set_matrix(daf, "cell", "gene", "kind",
         matrix(c("A", "B", "A", "B", "A", "B"), 2, 3, byrow = TRUE))

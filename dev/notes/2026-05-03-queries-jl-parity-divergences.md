@@ -9,18 +9,19 @@ bugs (wrong answer) — fixed inline in this slice — and structural parser /
 evaluator gaps that warrant their own follow-up. This document is the punch
 list for that follow-up.
 
-## Status (2026-05-04 — post-Slice-2)
+## Status (2026-05-04 — post-Slice-3, FINAL for parity work)
 
-- **Closed:** B1-B6 (literal-port), P1-P5 (parser-strictness), E1, E2
-  (parser-strictness), N1 (S1 + Slice 1a), E4, E5, E10, B7, B9, API1
-  (Slice 1b), E3, E7, E8 (Slice 2 — already-working confirmations).
-- **Open:** E6 (Slice 3, vector/matrix lookup chains), E9 (Slice 3,
-  auto-relayout), B8 (introspection deferral, harmless).
-- **Reclassified to T-class** (error-text-only): E11 (R kernels promote
-  int matrices to double during Sum reduction, losing the type signal
-  Julia uses for InexactError on non-integer IfMissing defaults).
-- Three other T-class divergences: `>| Sum` / `>- Sum` on string matrix;
-  `?? foo` with R's `as.integer` coercion warning.
+- **Closed:** B1-B6, P1-P5, E1-E10, N1, B7, B9, API1. Every E-class
+  semantic divergence in the audit is closed.
+- **Open:** E11 only (kernel-level type-strictness for InexactError on
+  Float64-default vs Int-result mismatch). Out of scope without a
+  reduction-kernel rewrite.
+- **B8** (introspection too-lenient on partial queries) — harmless;
+  `query_result_dimensions` returns 0/1/NA rather than erroring on
+  malformed input. The parity test's `test_invalid` helper checks
+  `get_query` (which does error) so this doesn't gate any test.
+- All previously-T-class items closed in Slice 3 (numeric-reduction
+  type-check; IfNot sentinel coercion).
 
 ## FIXED in this slice (commits in slice-18 / dev)
 
