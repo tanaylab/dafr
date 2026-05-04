@@ -33,7 +33,8 @@ test_that("format_get_vector returns an ALTREP-backed vector for Float64 dense",
     )
     d <- files_daf(dir, mode = "r")
     v <- format_get_vector(d, "cell", "x")$value
-    expect_equal(v, c(1.5, 2.5, -3.25))
+    expect_equal(unname(v), c(1.5, 2.5, -3.25))
+    expect_equal(names(v), c("A", "B", "C"))
     expect_true(is_altrep(v))
 })
 
@@ -55,7 +56,8 @@ test_that("format_get_vector eager-reads Float64 when dafr.mmap = FALSE", {
         list(dafr.mmap = FALSE),
         format_get_vector(d, "cell", "x")
     )$value
-    expect_equal(v, c(10.0, 20.0))
+    expect_equal(unname(v), c(10.0, 20.0))
+    expect_equal(names(v), c("A", "B"))
     expect_false(is_altrep(v))
 })
 
@@ -74,7 +76,8 @@ test_that("format_get_vector densifies Int32 via mmap", {
     )
     d <- files_daf(dir, mode = "r")
     v <- format_get_vector(d, "cell", "i")$value
-    expect_equal(v, c(1L, -2L, 3L))
+    expect_equal(unname(v), c(1L, -2L, 3L))
+    expect_equal(names(v), c("A", "B", "C"))
     expect_true(is_altrep(v) || is.integer(v))
 })
 
@@ -91,7 +94,8 @@ test_that("format_get_vector Bool dense (eager read path, not mmap)", {
     writeBin(as.raw(c(1L, 0L, 1L)), file.path(dir, "vectors", "cell", "b.data"))
     d <- files_daf(dir, mode = "r")
     v <- format_get_vector(d, "cell", "b")$value
-    expect_equal(v, c(TRUE, FALSE, TRUE))
+    expect_equal(unname(v), c(TRUE, FALSE, TRUE))
+    expect_equal(names(v), c("A", "B", "C"))
 })
 
 test_that("format_get_vector String dense round-trip", {
@@ -110,7 +114,8 @@ test_that("format_get_vector String dense round-trip", {
     )
     d <- files_daf(dir, mode = "r")
     v <- format_get_vector(d, "cell", "s")$value
-    expect_equal(v, c("foo", "bar"))
+    expect_equal(unname(v), c("foo", "bar"))
+    expect_equal(names(v), c("A", "B"))
 })
 
 test_that("format_get_vector errors on missing descriptor", {
@@ -222,7 +227,8 @@ test_that("format_get_vector densifies a sparse Float64 vector written Julia-sty
     )
     d <- files_daf(dir, mode = "r")
     v <- format_get_vector(d, "cell", "sv")$value
-    expect_equal(v, c(0, 10, 0, 30))
+    expect_equal(unname(v), c(0, 10, 0, 30))
+    expect_equal(names(v), c("A", "B", "C", "D"))
 })
 
 test_that("format_get_vector sparse Bool without .nzval file synthesizes fill(TRUE, nnz)", {
@@ -240,7 +246,8 @@ test_that("format_get_vector sparse Bool without .nzval file synthesizes fill(TR
     )
     d <- files_daf(dir, mode = "r")
     v <- format_get_vector(d, "cell", "sb")$value
-    expect_equal(v, c(TRUE, FALSE, TRUE))
+    expect_equal(unname(v), c(TRUE, FALSE, TRUE))
+    expect_equal(names(v), c("A", "B", "C"))
 })
 
 test_that("format_get_vector sparse String reads .nztxt", {
@@ -259,7 +266,8 @@ test_that("format_get_vector sparse String reads .nztxt", {
     writeLines(c("foo", "bar"), file.path(dir, "vectors", "cell", "ss.nztxt"))
     d <- files_daf(dir, mode = "r")
     v <- format_get_vector(d, "cell", "ss")$value
-    expect_equal(v, c("", "foo", "", "", "bar"))
+    expect_equal(unname(v), c("", "foo", "", "", "bar"))
+    expect_equal(names(v), c("A", "B", "C", "D", "E"))
 })
 
 test_that("set_vector auto-sparsifies a vector dominated by zeros", {
