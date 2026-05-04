@@ -97,3 +97,45 @@
     }
     vec
 }
+
+# Attach axis-entry names to a vector returned by format_get_vector.
+# Internal — every format_get_vector method must call this on the value
+# it returns so the format-API contract ("returns are named") holds at
+# every layer (memory, files, chain, view, contract, http).
+#
+# The helper is length-strict: a backend that returns a value of the
+# wrong length is buggy regardless of names, and we'd rather surface
+# that immediately than silently mismatch names to data.
+.attach_vector_axis_names <- function(daf, axis, vec) {
+    entries <- format_axis_array(daf, axis)
+    if (length(vec) != length(entries)) {
+        stop(sprintf(
+            "format_get_vector contract violation: value has length %d, axis %s has %d entries",
+            length(vec), sQuote(axis), length(entries)
+        ), call. = FALSE)
+    }
+    names(vec) <- entries
+    vec
+}
+
+# Attach axis-entry dimnames to a matrix returned by format_get_matrix.
+# Handles both base R dense matrices and Matrix::dgCMatrix /
+# Matrix::lgCMatrix (which carry dimnames on the @Dimnames slot).
+.attach_matrix_axis_dimnames <- function(daf, rows_axis, columns_axis, mat) {
+    rows <- format_axis_array(daf, rows_axis)
+    cols <- format_axis_array(daf, columns_axis)
+    d <- dim(mat)
+    if (d[[1L]] != length(rows) || d[[2L]] != length(cols)) {
+        stop(sprintf(
+            "format_get_matrix contract violation: matrix is %dx%d, axes (%s,%s) are %dx%d",
+            d[[1L]], d[[2L]], sQuote(rows_axis), sQuote(columns_axis),
+            length(rows), length(cols)
+        ), call. = FALSE)
+    }
+    if (methods::is(mat, "dgCMatrix") || methods::is(mat, "lgCMatrix")) {
+        mat@Dimnames <- list(rows, cols)
+    } else {
+        dimnames(mat) <- list(rows, cols)
+    }
+    mat
+}
