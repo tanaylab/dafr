@@ -33,7 +33,7 @@ A [DafrQuery](https://tanaylab.github.io/dafr/reference/DafrQuery.md).
 
 ``` r
 Quantile(p = 0.5)
-#> <DafrQuery> % Quantile p: "0.5" 
+#> <DafrQuery> >> Quantile p: "0.5" 
 Quantile(p = 0.9, type = "Float64")
-#> <DafrQuery> % Quantile type: Float64 p: "0.9" 
+#> <DafrQuery> >> Quantile type: Float64 p: "0.9" 
 ```

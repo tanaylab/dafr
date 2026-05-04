@@ -33,7 +33,7 @@ A [DafrQuery](https://tanaylab.github.io/dafr/reference/DafrQuery.md).
 
 ``` r
 StdN()
-#> <DafrQuery> % StdN 
+#> <DafrQuery> >> StdN 
 StdN(eps = 1)
-#> <DafrQuery> % StdN eps: 1 
+#> <DafrQuery> >> StdN eps: 1 
 ```

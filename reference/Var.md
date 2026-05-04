@@ -33,5 +33,5 @@ A [DafrQuery](https://tanaylab.github.io/dafr/reference/DafrQuery.md).
 
 ``` r
 Var()
-#> <DafrQuery> % Var 
+#> <DafrQuery> >> Var 
 ```

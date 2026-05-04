@@ -30,5 +30,5 @@ A [DafrQuery](https://tanaylab.github.io/dafr/reference/DafrQuery.md).
 
 ``` r
 Max()
-#> <DafrQuery> % Max 
+#> <DafrQuery> >> Max 
 ```

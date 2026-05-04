@@ -33,7 +33,7 @@ A [DafrQuery](https://tanaylab.github.io/dafr/reference/DafrQuery.md).
 
 ``` r
 GeoMean()
-#> <DafrQuery> % GeoMean 
+#> <DafrQuery> >> GeoMean 
 GeoMean(eps = 1)
-#> <DafrQuery> % GeoMean eps: 1 
+#> <DafrQuery> >> GeoMean eps: 1 
 ```

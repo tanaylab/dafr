@@ -33,7 +33,7 @@ A [DafrQuery](https://tanaylab.github.io/dafr/reference/DafrQuery.md).
 
 ``` r
 Mean()
-#> <DafrQuery> % Mean 
+#> <DafrQuery> >> Mean 
 Mean(type = "Float64")
-#> <DafrQuery> % Mean type: Float64 
+#> <DafrQuery> >> Mean type: Float64 
 ```

@@ -33,7 +33,7 @@ A [DafrQuery](https://tanaylab.github.io/dafr/reference/DafrQuery.md).
 
 ``` r
 VarN()
-#> <DafrQuery> % VarN 
+#> <DafrQuery> >> VarN 
 VarN(eps = 1)
-#> <DafrQuery> % VarN eps: 1 
+#> <DafrQuery> >> VarN eps: 1 
 ```

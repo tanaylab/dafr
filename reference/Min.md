@@ -29,5 +29,5 @@ A [DafrQuery](https://tanaylab.github.io/dafr/reference/DafrQuery.md).
 
 ``` r
 Min()
-#> <DafrQuery> % Min 
+#> <DafrQuery> >> Min 
 ```

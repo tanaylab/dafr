@@ -48,6 +48,24 @@
     <div class="section level2">
 <h2 class="pkg-version" data-toc-text="0.2.0" id="dafr-020-in-development">dafr 0.2.0 (in development)<a class="anchor" aria-label="anchor" href="#dafr-020-in-development"></a></h2>
 <div class="section level3">
+<h3 id="queriesjl-parity--sliceb-quick-wins-e4-e5-e10-b7-b9-api1-0-2-0">queries.jl parity — Slice 1b (quick wins: E4, E5, E10, B7, B9, API1)<a class="anchor" aria-label="anchor" href="#queriesjl-parity--sliceb-quick-wins-e4-e5-e10-b7-b9-api1-0-2-0"></a></h3>
+<p>Six divergences from the Julia parity audit closed in one slice. 58 fewer parity-test skips, 113 more passes vs the post-Slice-1a baseline.</p>
+<ul><li>
+<strong>E4</strong> (top-level comparator after <code>:</code> / <code>::</code>). Already worked in the evaluator; un-skipped 7 tests. <code>@ cell : score &lt; 1.0</code> returns a named bool vector; <code>@ cell @ gene :: UMIs &gt; 0</code> returns a named bool matrix.</li>
+<li>
+<strong>E5</strong> (<code>:</code> / <code>::</code> standalone with IfMissing fallback). Fixed: the <code>pending_if_missing</code> state-key shim in <code>R/query_eval.R</code> keeps the default alive across the lookahead reset that fires after every lookup. <code>: age || 1 @ cell = X</code> now returns <code>1</code> when <code>age</code> is missing instead of erroring. <code>:: UMIs || 0 @ cell = Y @ gene = B</code> likewise.</li>
+<li>
+<strong>E10</strong> (regex escape sequences in masks). Already worked; un-skipped.</li>
+<li>
+<strong>B7</strong> (<code><a href="../reference/Sum.html">Sum()</a></code> / <code><a href="../reference/Mean.html">Mean()</a></code> / etc. builders canonical form). Fixed: the reduction builders in <code>R/query_ast.R</code> now emit <code>ReduceToScalar</code> nodes (<code>&gt;&gt; Sum</code>) instead of broken <code>Eltwise</code> nodes (<code>% Sum</code>, which erred at runtime because the eltwise registry has no <code>Sum</code>). <code>ReduceToColumn</code> / <code>ReduceToRow</code> rewrap accepts both old <code>Eltwise</code> and new <code>ReduceToScalar</code> trailing nodes for back-compat.</li>
+<li>
+<strong>B9</strong> (<code>query_axis_name</code> introspection strictness). Fixed: the function now skips <code>Axis</code> nodes inside <code>[ ... ]</code> mask scopes when counting outer-axis references, so compound-mask and matrix-derived sub-mask queries get the same axis answer that <code>get_query</code> resolves.</li>
+<li>
+<strong>API1</strong> (<code>get_dataframe</code> named-list column-spec). Fixed: the bare-name shorthand form (<code>list("age", doublet = "is_doublet")</code>) now auto-prefixes to <code>@ axis : age</code>, mirroring Julia’s <code>["age", "doublet" =&gt; ":is_doublet"]</code>. Named-list (<code>list(out = ":query")</code>) and complex axis-traversal forms already worked.</li>
+</ul><p>Cumulative test-suite tally: <code>FAIL 0 | WARN 1 | SKIP 14 | PASS 4603</code> (was <code>SKIP 72 | PASS 4489</code> before Slice 1a).</p>
+<p>Remaining skips: - E3 (matrix-slice-as-mask) — Slice 2 - E6 (vector-by-vector / matrix-then-vector chains) — Slice 3 - E8 (cross-tabulate <code>* type =@</code>) — Slice 2 - E11 (as_axis group with <code>=@</code> IfMissing-coverage) — Slice 2 - 3 T-class error-text-only divergences (harmless; Julia and R reach the same failure mode through different error wordings)</p>
+</div>
+<div class="section level3">
 <h3 id="queriesjl-parity--slicea-n1-named-axis-listing-0-2-0">queries.jl parity — Slice 1a (N1: named axis-listing)<a class="anchor" aria-label="anchor" href="#queriesjl-parity--slicea-n1-named-axis-listing-0-2-0"></a></h3>
 <p><code>get_query</code> now returns a named character vector for axis-listing queries, matching Julia’s NamedVector convention where names equal entries.</p>
 <ul><li>

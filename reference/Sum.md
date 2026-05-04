@@ -33,7 +33,7 @@ A [DafrQuery](https://tanaylab.github.io/dafr/reference/DafrQuery.md).
 
 ``` r
 Sum()
-#> <DafrQuery> % Sum 
+#> <DafrQuery> >> Sum 
 Sum(type = "Float64")
-#> <DafrQuery> % Sum type: Float64 
+#> <DafrQuery> >> Sum type: Float64 
 ```

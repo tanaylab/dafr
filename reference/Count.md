@@ -32,5 +32,5 @@ A [DafrQuery](https://tanaylab.github.io/dafr/reference/DafrQuery.md).
 
 ``` r
 Count()
-#> <DafrQuery> % Count 
+#> <DafrQuery> >> Count 
 ```
