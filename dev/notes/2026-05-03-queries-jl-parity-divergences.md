@@ -9,16 +9,18 @@ bugs (wrong answer) — fixed inline in this slice — and structural parser /
 evaluator gaps that warrant their own follow-up. This document is the punch
 list for that follow-up.
 
-## Status (2026-05-04 — post-Slice-1b)
+## Status (2026-05-04 — post-Slice-2)
 
 - **Closed:** B1-B6 (literal-port), P1-P5 (parser-strictness), E1, E2
   (parser-strictness), N1 (S1 + Slice 1a), E4, E5, E10, B7, B9, API1
-  (Slice 1b).
-- **Open:** E3 (Slice 2), E6 (Slice 3), E7 (Slice 2), E8 (Slice 2), E9
-  (Slice 3), E11 (Slice 2), B8 (introspection deferral, harmless).
-- Three T-class error-text-only divergences are documented and skipped
-  with sharp messages (`>| Sum` / `>- Sum` on string matrix; `?? foo`
-  with `as.integer` coercion warning).
+  (Slice 1b), E3, E7, E8 (Slice 2 — already-working confirmations).
+- **Open:** E6 (Slice 3, vector/matrix lookup chains), E9 (Slice 3,
+  auto-relayout), B8 (introspection deferral, harmless).
+- **Reclassified to T-class** (error-text-only): E11 (R kernels promote
+  int matrices to double during Sum reduction, losing the type signal
+  Julia uses for InexactError on non-integer IfMissing defaults).
+- Three other T-class divergences: `>| Sum` / `>- Sum` on string matrix;
+  `?? foo` with R's `as.integer` coercion warning.
 
 ## FIXED in this slice (commits in slice-18 / dev)
 

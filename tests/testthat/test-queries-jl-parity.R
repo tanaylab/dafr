@@ -449,7 +449,6 @@ test_that("queries / vector / mask / negated", {
 })
 
 test_that("queries / vector / mask / matrix", {
-    skip("R divergence: E3 (matrix-slice-as-mask not supported)")
     daf <- fresh_daf()
     add_axis(daf, "cell", c("X", "Y"))
     add_axis(daf, "gene", c("A", "B"))
@@ -1219,16 +1218,14 @@ test_that("queries / matrix / compare / >", {
 }
 
 test_that("queries / matrix / count / vector", {
-    skip("R divergence: E8 (cross-tabulate `* type =@` count behavior differs from Julia)")
     daf <- .fx_count()
     add_axis(daf, "type", c("U", "V", "W"))
     set_vector(daf, "gene", "type", c("U", "U", "V"))
     res <- get_query(daf, "@ gene : width * type =@")
     expect_equal(dim(res), c(2L, 3L))
-    # Find positions by row × col labels (when present); otherwise check
-    # value-set: counts are {0, 0, 0, 0, 1, 1}.
+    # Julia ref: c("1","U") = c("1","V") = c("2","U") = 1; rest = 0.
     expect_setequal(as.vector(res), c(0, 1))
-    expect_equal(sum(as.vector(res)), 2)
+    expect_equal(sum(as.vector(res)), 3)
 })
 
 test_that("queries / matrix / count / column", {
@@ -1330,7 +1327,7 @@ test_that("queries / matrix / group / column / as_axis / ()", {
 })
 
 test_that("queries / matrix / group / column / as_axis / ~missing", {
-    skip("R divergence: E11 (as_axis group with =@ IfMissing-coverage error semantics differ)")
+    skip("R divergence: T-class (R kernels promote integer matrices to double during Sum reduction; can't detect Float64-default vs Int-result mismatch like Julia's InexactError)")
     daf <- .fx_mgroup()
     expect_error(get_query(daf,
         "@ gene @ cell :: UMIs |/ type =@ >| Sum || 0.5"),
@@ -1386,7 +1383,7 @@ test_that("queries / matrix / group / row / as_axis / ()", {
 })
 
 test_that("queries / matrix / group / row / as_axis / ~missing", {
-    skip("R divergence: E11 (as_axis group with =@ IfMissing-coverage error semantics differ)")
+    skip("R divergence: T-class (R kernels promote integer matrices to double during Sum reduction; can't detect Float64-default vs Int-result mismatch like Julia's InexactError)")
     daf <- .fx_mgroup()
     expect_error(get_query(daf,
         "@ cell @ gene :: UMIs -/ type =@ >- Sum || 0.5"),
