@@ -6,7 +6,7 @@ test_that("format_has_matrix / format_matrices_set empty case", {
     expect_equal(format_matrices_set(d, "cell", "gene"), character(0L))
 })
 
-test_that("format_get_matrix returns stored dense matrix unchanged", {
+test_that("format_get_matrix returns stored dense matrix with axis dimnames", {
     d <- memory_daf()
     add_axis(d, "cell", c("A", "B"))
     add_axis(d, "gene", c("X", "Y", "Z"))
@@ -17,7 +17,13 @@ test_that("format_get_matrix returns stored dense matrix unchanged", {
     matrices$cell$gene$UMIs <- m
     expect_true(format_has_matrix(d, "cell", "gene", "UMIs"))
     expect_equal(format_matrices_set(d, "cell", "gene"), "UMIs")
-    expect_identical(format_get_matrix(d, "cell", "gene", "UMIs"), m)
+    # Named-everywhere contract: format_get_matrix attaches axis dimnames.
+    expect_identical(
+        format_get_matrix(d, "cell", "gene", "UMIs"),
+        `dimnames<-`(m, list(c("A", "B"), c("X", "Y", "Z")))
+    )
+    # Underlying storage is still untouched.
+    expect_null(dimnames(matrices$cell$gene$UMIs))
 })
 
 test_that("format_get_matrix errors on unknown axes / missing matrix", {
@@ -39,9 +45,11 @@ test_that("format_set_matrix accepts dense double / int / logical with correct s
     format_set_matrix(d, "cell", "gene", "d", m_d, overwrite = FALSE)
     format_set_matrix(d, "cell", "gene", "i", m_i, overwrite = FALSE)
     format_set_matrix(d, "cell", "gene", "l", m_l, overwrite = FALSE)
-    expect_identical(format_get_matrix(d, "cell", "gene", "d"), m_d)
-    expect_identical(format_get_matrix(d, "cell", "gene", "i"), m_i)
-    expect_identical(format_get_matrix(d, "cell", "gene", "l"), m_l)
+    # Named-everywhere: returns carry axis dimnames.
+    dn <- list(c("A", "B"), c("X", "Y", "Z"))
+    expect_identical(format_get_matrix(d, "cell", "gene", "d"), `dimnames<-`(m_d, dn))
+    expect_identical(format_get_matrix(d, "cell", "gene", "i"), `dimnames<-`(m_i, dn))
+    expect_identical(format_get_matrix(d, "cell", "gene", "l"), `dimnames<-`(m_l, dn))
 })
 
 test_that("format_set_matrix accepts dgCMatrix + lgCMatrix sparse", {
@@ -54,8 +62,12 @@ test_that("format_set_matrix accepts dgCMatrix + lgCMatrix sparse", {
     expect_s4_class(m_l, "lgCMatrix")
     format_set_matrix(d, "cell", "gene", "d", m_d, overwrite = FALSE)
     format_set_matrix(d, "cell", "gene", "l", m_l, overwrite = FALSE)
-    expect_equal(as.matrix(format_get_matrix(d, "cell", "gene", "d")), as.matrix(m_d))
-    expect_equal(as.matrix(format_get_matrix(d, "cell", "gene", "l")), as.matrix(m_l))
+    # `as.matrix` preserves dimnames, so compare against dimnames'd `m_d` / `m_l`.
+    dn <- list(c("A", "B"), c("X", "Y", "Z"))
+    expect_equal(as.matrix(format_get_matrix(d, "cell", "gene", "d")),
+                 `dimnames<-`(as.matrix(m_d), dn))
+    expect_equal(as.matrix(format_get_matrix(d, "cell", "gene", "l")),
+                 `dimnames<-`(as.matrix(m_l), dn))
 })
 
 test_that("format_set_matrix rejects shape mismatch / non-matrix / overwrite", {
@@ -85,17 +97,25 @@ test_that("format_set_matrix rejects shape mismatch / non-matrix / overwrite", {
         "already exists"
     )
     format_set_matrix(d, "cell", "gene", "m", matrix(1, 2, 3), overwrite = TRUE)
-    expect_equal(format_get_matrix(d, "cell", "gene", "m"), matrix(1, 2, 3))
+    expect_equal(
+        format_get_matrix(d, "cell", "gene", "m"),
+        matrix(1, 2, 3, dimnames = list(c("A", "B"), c("X", "Y", "Z")))
+    )
 })
 
-test_that("format_set_matrix strips dimnames at storage layer", {
+test_that("format_set_matrix strips dimnames at storage; format_get_matrix re-attaches", {
     d <- memory_daf()
     add_axis(d, "cell", c("A", "B"))
     add_axis(d, "gene", c("X", "Y", "Z"))
     m <- matrix(seq_len(6), 2, 3, dimnames = list(c("A", "B"), c("X", "Y", "Z")))
     format_set_matrix(d, "cell", "gene", "m", m, overwrite = FALSE)
+    # Storage layer is canonical (no dimnames).
+    stored <- S7::prop(d, "internal")$matrices$cell$gene$m
+    expect_null(dimnames(stored))
+    # Get layer reattaches axis-entry dimnames.
     got <- format_get_matrix(d, "cell", "gene", "m")
-    expect_null(dimnames(got))
+    expect_equal(rownames(got), c("A", "B"))
+    expect_equal(colnames(got), c("X", "Y", "Z"))
 })
 
 test_that("format_set_matrix bumps matrix version counter", {
@@ -129,7 +149,11 @@ test_that("format_relayout_matrix writes the transposed layout", {
     expect_false(format_has_matrix(d, "gene", "cell", "UMIs"))
     format_relayout_matrix(d, "cell", "gene", "UMIs")
     expect_true(format_has_matrix(d, "gene", "cell", "UMIs"))
-    expect_equal(format_get_matrix(d, "gene", "cell", "UMIs"), t(m))
+    # Named-everywhere: returns carry transposed axis dimnames.
+    expect_equal(
+        format_get_matrix(d, "gene", "cell", "UMIs"),
+        `dimnames<-`(t(m), list(c("X", "Y", "Z"), c("A", "B")))
+    )
 })
 
 test_that("format_relayout_matrix works for sparse (CSC -> transposed CSC)", {
@@ -141,7 +165,11 @@ test_that("format_relayout_matrix works for sparse (CSC -> transposed CSC)", {
     format_relayout_matrix(d, "cell", "gene", "UMIs")
     got <- format_get_matrix(d, "gene", "cell", "UMIs")
     expect_s4_class(got, "dgCMatrix")
-    expect_equal(as.matrix(got), as.matrix(Matrix::t(m)))
+    # Named-everywhere: as.matrix preserves dimnames, so compare with explicit dimnames.
+    expect_equal(
+        as.matrix(got),
+        `dimnames<-`(as.matrix(Matrix::t(m)), list(c("X", "Y", "Z"), c("A", "B")))
+    )
 })
 
 test_that("format_relayout_matrix errors when source matrix missing", {
@@ -235,12 +263,14 @@ test_that("get_matrix primary + flipped calls share one cache entry", {
     expect_equal(rownames(primary), c("A", "B"))
     expect_equal(rownames(flipped), c("X", "Y", "Z"))
 
-    # Cached entry retains its null dimnames; subsequent primary call rebuilds
-    # dimnames without polluting the stored copy.
+    # Named-everywhere: format_get_matrix attaches canonical dimnames before
+    # caching, so the cached entry carries the primary-orientation dimnames.
+    # Flipped consumers rotate via t() at lookup time without re-caching.
     stored <- get(cache_key_matrix("cell", "gene", "UMIs"),
         envir = cache_env$memory, inherits = FALSE
     )$value
-    expect_null(dimnames(stored))
+    expect_equal(rownames(stored), c("A", "B"))
+    expect_equal(colnames(stored), c("X", "Y", "Z"))
 })
 
 test_that("get_matrix flipped + sparse preserves class and applies rotated dimnames", {
