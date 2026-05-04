@@ -449,9 +449,23 @@ NULL
     indices <- state$indices
     entries <- format_axis_array(daf, axis)$value
     out_names <- if (is.null(indices)) entries else entries[indices]
+    # E2: `name` virtual property — return the axis-entry vector.
+    if (identical(node$name, "name") && !format_has_vector(daf, axis, node$name)) {
+        value <- out_names
+        names(value) <- out_names
+        return(list(
+            kind = "vector",
+            value = value,
+            axis = axis,
+            property = node$name
+        ))
+    }
     if (!format_has_vector(daf, axis, node$name)) {
         if (!is.null(state$if_missing)) {
-            out_value <- rep(state$if_missing, length(out_names))
+            default <- .coerce_if_missing_default(
+                state$if_missing, state$if_missing_type
+            )
+            out_value <- rep(default, length(out_names))
             names(out_value) <- out_names
             return(list(
                 kind = "vector",
@@ -553,9 +567,11 @@ NULL
         return(state)
     }
     row_indices <- state$row_indices
+    col_indices <- state$col_indices
     rows_entries <- format_axis_array(daf, rows)$value
+    cols_entries <- format_axis_array(daf, cols)$value
     out_rownames <- if (is.null(row_indices)) rows_entries else rows_entries[row_indices]
-    out_colnames <- format_axis_array(daf, cols)$value
+    out_colnames <- if (is.null(col_indices)) cols_entries else cols_entries[col_indices]
     transposed <- FALSE
     if (!format_has_matrix(daf, rows, cols, node$name)) {
         if (format_has_matrix(daf, cols, rows, node$name)) {
@@ -565,8 +581,11 @@ NULL
             transposed <- TRUE
         } else {
             if (!is.null(state$if_missing)) {
+                default <- .coerce_if_missing_default(
+                    state$if_missing, state$if_missing_type
+                )
                 m <- matrix(
-                    state$if_missing,
+                    default,
                     length(out_rownames),
                     length(out_colnames),
                     dimnames = list(out_rownames, out_colnames)
@@ -592,6 +611,9 @@ NULL
     }
     if (!is.null(row_indices)) {
         m <- m[row_indices, , drop = FALSE]
+    }
+    if (!is.null(col_indices)) {
+        m <- m[, col_indices, drop = FALSE]
     }
     dimnames(m) <- list(out_rownames, out_colnames)
     list(
@@ -1154,15 +1176,36 @@ NULL
 }
 
 .apply_begin_mask <- function(node, state, daf) {
-    if (!identical(state$kind, "axis")) {
+    # E1: a mask after `@ rows @ cols` filters the most-recently-entered
+    # axis (cols_axis). Disambiguation grammar (e.g. `@-`/`@|`-style mask
+    # selectors) is left for a future slice; current Julia tests only
+    # exercise the cols_axis case.
+    if (identical(state$kind, "axis")) {
+        mask_axis <- state$axis
+        scope <- "single"
+    } else if (identical(state$kind, "two_axes")) {
+        mask_axis <- state$cols_axis
+        scope <- "two_axes"
+    } else {
         stop("'[' mask requires an axis in scope", call. = FALSE)
     }
     negated <- identical(node$op, "BeginNegatedMask")
-    if (format_has_vector(daf, state$axis, node$property)) {
-        vec <- format_get_vector(daf, state$axis, node$property)$value
+    # E2: virtual `name` property returns the axis-entry vector.
+    # Otherwise, only treat it as a vector mask if a real vector exists
+    # on the mask axis (single or cols of two_axes).
+    is_name_virtual <- identical(node$property, "name") &&
+        !format_has_vector(daf, mask_axis, node$property)
+    if (is_name_virtual || format_has_vector(daf, mask_axis, node$property)) {
+        vec <- if (is_name_virtual) {
+            format_axis_array(daf, mask_axis)$value
+        } else {
+            format_get_vector(daf, mask_axis, node$property)$value
+        }
         mask <- .as_booleans(vec)
         state$pending_mask <- mask
         state$pending_property <- node$property
+        state$pending_mask_axis <- mask_axis
+        state$pending_mask_scope <- scope
         # Carry a comparator-ready copy. R's `<`/`>` on a factor either
         # returns NA (unordered) or compares level codes (ordered) — both
         # diverge from Julia, which compares the stored string lexically.
@@ -1179,7 +1222,14 @@ NULL
     # Vector lookup failed: the property is (presumably) a matrix and the
     # column axis arrives next via `@ axis = entry` or `@| / @-`. Defer to
     # the matrix-mask resolver. (Julia lookup_matrix_column_mask /
-    # lookup_square_matrix_*_mask phrases.)
+    # lookup_square_matrix_*_mask phrases.) The matrix-mask path is
+    # single-axis only — two_axes scope must resolve to a vector or name.
+    if (identical(scope, "two_axes")) {
+        stop(sprintf(
+            "no vector %s on axis %s",
+            sQuote(node$property), sQuote(mask_axis)
+        ), call. = FALSE)
+    }
     state$kind <- "mask_matrix_pending_axis"
     state$matrix_property <- node$property
     state$pending_mask_negated <- negated
@@ -1187,8 +1237,6 @@ NULL
 }
 
 .apply_end_mask <- function(node, state, daf) {
-    axis <- state$axis
-    entries <- format_axis_array(daf, axis)$value
     mask <- state$pending_mask
     if (isTRUE(state$pending_mask_negated)) {
         # Outer-bracket negation (`[ ! ... ]`) is applied to the final mask
@@ -1197,6 +1245,18 @@ NULL
         mask <- !mask
     }
     keep <- !is.na(mask) & mask
+    if (identical(state$pending_mask_scope, "two_axes")) {
+        # E1: narrow the cols axis of a two_axes scope.
+        return(list(
+            kind = "two_axes",
+            rows_axis = state$rows_axis,
+            cols_axis = state$cols_axis,
+            row_indices = state$row_indices,
+            col_indices = if (all(keep)) NULL else which(keep)
+        ))
+    }
+    axis <- state$axis
+    entries <- format_axis_array(daf, axis)$value
     # Carry the surviving-entry indices forward so that a subsequent
     # LookupVector / LookupMatrix subsets by the mask rather than returning
     # the full axis-length vector. indices=NULL (i.e. all entries pass) is
@@ -1219,11 +1279,20 @@ NULL
         state$pending_mask <- !state$pending_mask
         state$pending_mask_negated <- FALSE
     }
+    mask_axis <- state$pending_mask_axis %||% state$axis
     negated <- grepl("NegatedMask$", node$op)
     op <- if (startsWith(node$op, "And")) "And"
           else if (startsWith(node$op, "Or")) "Or"
           else "Xor"
-    if (!format_has_vector(daf, state$axis, node$property)) {
+    is_name_virtual <- identical(node$property, "name") &&
+        !format_has_vector(daf, mask_axis, node$property)
+    if (!is_name_virtual && !format_has_vector(daf, mask_axis, node$property)) {
+        if (identical(state$pending_mask_scope, "two_axes")) {
+            stop(sprintf(
+                "no vector %s on axis %s",
+                sQuote(node$property), sQuote(mask_axis)
+            ), call. = FALSE)
+        }
         # Property isn't a vector on the in-scope axis - defer to
         # `mask_matrix_pending_combinator`. Subsequent `@ axis = entry`
         # (or `@| / @-`) supplies the column slice, then a comparator
@@ -1236,7 +1305,11 @@ NULL
         state$matrix_combinator_prior <- state$pending_mask
         return(state)
     }
-    vec <- format_get_vector(daf, state$axis, node$property)$value
+    vec <- if (is_name_virtual) {
+        format_axis_array(daf, mask_axis)$value
+    } else {
+        format_get_vector(daf, mask_axis, node$property)$value
+    }
     m <- .as_booleans(vec)
     if (negated) m <- !m
     combined <- switch(op,
