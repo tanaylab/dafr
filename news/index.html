@@ -48,6 +48,21 @@
     <div class="section level2">
 <h2 class="pkg-version" data-toc-text="0.2.0" id="dafr-020-in-development">dafr 0.2.0 (in development)<a class="anchor" aria-label="anchor" href="#dafr-020-in-development"></a></h2>
 <div class="section level3">
+<h3 id="queriesjl-parity--slice-e6-e9-plus-three-t-class-wins-0-2-0">queries.jl parity — Slice 3 (E6, E9, plus three T-class wins)<a class="anchor" aria-label="anchor" href="#queriesjl-parity--slice-e6-e9-plus-three-t-class-wins-0-2-0"></a></h3>
+<p>Slice 3 closes the last two semantic divergences plus three T-class error-text items that turned out to be tractable.</p>
+<ul><li>
+<strong>E6 (vector-by-vector chain implicit AsAxis)</strong> — fixed. <code>.apply_chained_lookup_vector</code> now falls back to the property name’s base (everything up to the last <code>.</code>) when the property name itself is not an axis. Mirrors Julia’s <code>ensure_vector_is_axis</code>. <code>@ cell : type.manual : color</code> now resolves through the <code>type</code> axis.</li>
+<li>
+<strong>E6 (matrix-column slice auto-relayout)</strong> — fixed. <code>.apply_matrix_column_by_axis</code> now auto-transposes when the matrix is stored on the swapped orientation (<code>(cols, rows)</code> instead of <code>(rows, cols)</code>). Mirrors <code>.apply_lookup_matrix</code>’s existing relayout.</li>
+<li>
+<strong>E9 (auto-relayout)</strong> — already worked; no skip remained for this class.</li>
+<li>
+<strong>T-class: numeric-reduction-on-character-matrix</strong> — <code>.apply_reduction</code> now type-checks before dispatching <code>Sum</code>/<code>Mean</code>/<code>Max</code>/etc., raising a <code>non-numeric input</code> error instead of letting base R’s <code>'x' must be numeric</code> leak through. Closes the <code>&gt;| Sum</code> / <code>&gt;- Sum</code> on string-matrix tests.</li>
+<li>
+<strong>T-class: IfNot sentinel coercion error</strong> — <code>.apply_chained_lookup_vector</code> now wraps the sentinel coercion in <code>withCallingHandlers</code> and converts an <code>NAs introduced by coercion</code> warning into a <code>cannot parse IfNot sentinel &lt;s&gt; as &lt;type&gt;</code> error. Closes the <code>?? foo : phase</code> test.</li>
+</ul><p>Suite: <code>FAIL 0 | WARN 1 | SKIP 6 | PASS 4619</code> (+9 over Slice 2). The final 2 parity skips are both E11 (kernel-level type-strictness; out of scope per Slice 2 exit).</p>
+</div>
+<div class="section level3">
 <h3 id="queriesjl-parity--slice-e3-e7-e8-closed-e11-reclassified-0-2-0">queries.jl parity — Slice 2 (E3, E7, E8 closed; E11 reclassified)<a class="anchor" aria-label="anchor" href="#queriesjl-parity--slice-e3-e7-e8-closed-e11-reclassified-0-2-0"></a></h3>
 <ul><li>
 <strong>E3</strong> (matrix-slice-as-mask, <code>[ UMIs @ gene = A &gt; 0 ]</code>) — already worked in the evaluator; un-skipped.</li>

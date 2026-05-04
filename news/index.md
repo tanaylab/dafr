@@ -2,6 +2,37 @@
 
 ## dafr 0.2.0 (in development)
 
+### queries.jl parity — Slice 3 (E6, E9, plus three T-class wins)
+
+Slice 3 closes the last two semantic divergences plus three T-class
+error-text items that turned out to be tractable.
+
+- **E6 (vector-by-vector chain implicit AsAxis)** — fixed.
+  `.apply_chained_lookup_vector` now falls back to the property name’s
+  base (everything up to the last `.`) when the property name itself is
+  not an axis. Mirrors Julia’s `ensure_vector_is_axis`.
+  `@ cell : type.manual : color` now resolves through the `type` axis.
+- **E6 (matrix-column slice auto-relayout)** — fixed.
+  `.apply_matrix_column_by_axis` now auto-transposes when the matrix is
+  stored on the swapped orientation (`(cols, rows)` instead of
+  `(rows, cols)`). Mirrors `.apply_lookup_matrix`’s existing relayout.
+- **E9 (auto-relayout)** — already worked; no skip remained for this
+  class.
+- **T-class: numeric-reduction-on-character-matrix** —
+  `.apply_reduction` now type-checks before dispatching
+  `Sum`/`Mean`/`Max`/etc., raising a `non-numeric input` error instead
+  of letting base R’s `'x' must be numeric` leak through. Closes the
+  `>| Sum` / `>- Sum` on string-matrix tests.
+- **T-class: IfNot sentinel coercion error** —
+  `.apply_chained_lookup_vector` now wraps the sentinel coercion in
+  `withCallingHandlers` and converts an `NAs introduced by coercion`
+  warning into a `cannot parse IfNot sentinel <s> as <type>` error.
+  Closes the `?? foo : phase` test.
+
+Suite: `FAIL 0 | WARN 1 | SKIP 6 | PASS 4619` (+9 over Slice 2). The
+final 2 parity skips are both E11 (kernel-level type-strictness; out of
+scope per Slice 2 exit).
+
 ### queries.jl parity — Slice 2 (E3, E7, E8 closed; E11 reclassified)
 
 - **E3** (matrix-slice-as-mask, `[ UMIs @ gene = A > 0 ]`) — already
