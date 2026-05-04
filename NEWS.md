@@ -1,5 +1,46 @@
 # dafr 0.2.0 (in development)
 
+## queries.jl parity — Slice 1b (quick wins: E4, E5, E10, B7, B9, API1)
+
+Six divergences from the Julia parity audit closed in one slice. 58 fewer
+parity-test skips, 113 more passes vs the post-Slice-1a baseline.
+
+- **E4** (top-level comparator after `:` / `::`). Already worked in the
+  evaluator; un-skipped 7 tests. `@ cell : score < 1.0` returns a named
+  bool vector; `@ cell @ gene :: UMIs > 0` returns a named bool matrix.
+- **E5** (`:` / `::` standalone with IfMissing fallback). Fixed: the
+  `pending_if_missing` state-key shim in `R/query_eval.R` keeps the
+  default alive across the lookahead reset that fires after every lookup.
+  `: age || 1 @ cell = X` now returns `1` when `age` is missing instead
+  of erroring. `:: UMIs || 0 @ cell = Y @ gene = B` likewise.
+- **E10** (regex escape sequences in masks). Already worked; un-skipped.
+- **B7** (`Sum()` / `Mean()` / etc. builders canonical form). Fixed: the
+  reduction builders in `R/query_ast.R` now emit `ReduceToScalar` nodes
+  (`>> Sum`) instead of broken `Eltwise` nodes (`% Sum`, which erred at
+  runtime because the eltwise registry has no `Sum`). `ReduceToColumn`
+  / `ReduceToRow` rewrap accepts both old `Eltwise` and new
+  `ReduceToScalar` trailing nodes for back-compat.
+- **B9** (`query_axis_name` introspection strictness). Fixed: the
+  function now skips `Axis` nodes inside `[ ... ]` mask scopes when
+  counting outer-axis references, so compound-mask and matrix-derived
+  sub-mask queries get the same axis answer that `get_query` resolves.
+- **API1** (`get_dataframe` named-list column-spec). Fixed: the bare-name
+  shorthand form (`list("age", doublet = "is_doublet")`) now auto-prefixes
+  to `@ axis : age`, mirroring Julia's `["age", "doublet" => ":is_doublet"]`.
+  Named-list (`list(out = ":query")`) and complex axis-traversal forms
+  already worked.
+
+Cumulative test-suite tally: `FAIL 0 | WARN 1 | SKIP 14 | PASS 4603`
+(was `SKIP 72 | PASS 4489` before Slice 1a).
+
+Remaining skips:
+- E3 (matrix-slice-as-mask) — Slice 2
+- E6 (vector-by-vector / matrix-then-vector chains) — Slice 3
+- E8 (cross-tabulate `* type =@`) — Slice 2
+- E11 (as_axis group with `=@` IfMissing-coverage) — Slice 2
+- 3 T-class error-text-only divergences (harmless; Julia and R reach the
+  same failure mode through different error wordings)
+
 ## queries.jl parity — Slice 1a (N1: named axis-listing)
 
 `get_query` now returns a named character vector for axis-listing queries,

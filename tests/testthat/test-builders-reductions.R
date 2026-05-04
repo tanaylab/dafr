@@ -17,13 +17,13 @@
 test_that("Max() builds a nullary reduction query", {
     q <- Max()
     expect_true(S7::S7_inherits(q, DafrQuery))
-    expect_identical(q@canonical, "% Max")
-    expect_identical(q@ast, parse_query("% Max"))
+    expect_identical(q@canonical, ">> Max")
+    expect_identical(q@ast, parse_query(">> Max"))
 })
 
 test_that("Max composes via pipe", {
     q <- .prior_matrix_query() |> Max()
-    expect_identical(q@canonical, "@ cell @ gene :: UMIs % Max")
+    expect_identical(q@canonical, "@ cell @ gene :: UMIs >> Max")
     expect_identical(q@ast, parse_query(q@canonical))
 })
 
@@ -35,13 +35,13 @@ test_that("Max rejects non-query arguments", {
 
 test_that("Min() builds a nullary reduction query", {
     q <- Min()
-    expect_identical(q@canonical, "% Min")
+    expect_identical(q@canonical, ">> Min")
     expect_identical(q@ast, parse_query(q@canonical))
 })
 
 test_that("Min composes via pipe", {
     q <- .prior_matrix_query() |> Min()
-    expect_identical(q@canonical, "@ cell @ gene :: UMIs % Min")
+    expect_identical(q@canonical, "@ cell @ gene :: UMIs >> Min")
     expect_identical(q@ast, parse_query(q@canonical))
 })
 
@@ -53,13 +53,13 @@ test_that("Min rejects non-query arguments", {
 
 test_that("Mode() builds a bare eltwise query", {
     q <- Mode()
-    expect_identical(q@canonical, "% Mode")
+    expect_identical(q@canonical, ">> Mode")
     expect_identical(q@ast, parse_query(q@canonical))
 })
 
 test_that("Mode composes via pipe", {
     q <- .prior_matrix_query() |> Mode()
-    expect_identical(q@canonical, "@ cell @ gene :: UMIs % Mode")
+    expect_identical(q@canonical, "@ cell @ gene :: UMIs >> Mode")
     expect_identical(q@ast, parse_query(q@canonical))
 })
 
@@ -71,19 +71,19 @@ test_that("Mode rejects non-scalar type", {
 
 test_that("Sum() builds a bare reduction query", {
     q <- Sum()
-    expect_identical(q@canonical, "% Sum")
+    expect_identical(q@canonical, ">> Sum")
     expect_identical(q@ast, parse_query(q@canonical))
 })
 
 test_that("Sum(type) serialises a type param", {
     q <- Sum(type = "Float64")
-    expect_identical(q@canonical, "% Sum type: Float64")
+    expect_identical(q@canonical, ">> Sum type: Float64")
     expect_identical(q@ast, parse_query(q@canonical))
 })
 
 test_that("Sum composes via pipe", {
     q <- .prior_matrix_query() |> Sum()
-    expect_identical(q@canonical, "@ cell @ gene :: UMIs % Sum")
+    expect_identical(q@canonical, "@ cell @ gene :: UMIs >> Sum")
     expect_identical(q@ast, parse_query(q@canonical))
 })
 
@@ -95,19 +95,19 @@ test_that("Sum rejects non-scalar type", {
 
 test_that("Mean() builds a bare reduction query", {
     q <- Mean()
-    expect_identical(q@canonical, "% Mean")
+    expect_identical(q@canonical, ">> Mean")
     expect_identical(q@ast, parse_query(q@canonical))
 })
 
 test_that("Mean(type) serialises a type param", {
     q <- Mean(type = "Float64")
-    expect_identical(q@canonical, "% Mean type: Float64")
+    expect_identical(q@canonical, ">> Mean type: Float64")
     expect_identical(q@ast, parse_query(q@canonical))
 })
 
 test_that("Mean composes via pipe", {
     q <- .prior_matrix_query() |> Mean()
-    expect_identical(q@canonical, "@ cell @ gene :: UMIs % Mean")
+    expect_identical(q@canonical, "@ cell @ gene :: UMIs >> Mean")
     expect_identical(q@ast, parse_query(q@canonical))
 })
 
@@ -119,19 +119,19 @@ test_that("Mean rejects non-character type", {
 
 test_that("Median() builds a bare reduction query", {
     q <- Median()
-    expect_identical(q@canonical, "% Median")
+    expect_identical(q@canonical, ">> Median")
     expect_identical(q@ast, parse_query(q@canonical))
 })
 
 test_that("Median(type) serialises a type param", {
     q <- Median(type = "Float64")
-    expect_identical(q@canonical, "% Median type: Float64")
+    expect_identical(q@canonical, ">> Median type: Float64")
     expect_identical(q@ast, parse_query(q@canonical))
 })
 
 test_that("Median composes via pipe", {
     q <- .prior_matrix_query() |> Median()
-    expect_identical(q@canonical, "@ cell @ gene :: UMIs % Median")
+    expect_identical(q@canonical, "@ cell @ gene :: UMIs >> Median")
     expect_identical(q@ast, parse_query(q@canonical))
 })
 
@@ -143,19 +143,19 @@ test_that("Median rejects non-character type", {
 
 test_that("Count() builds a bare reduction query", {
     q <- Count()
-    expect_identical(q@canonical, "% Count")
+    expect_identical(q@canonical, ">> Count")
     expect_identical(q@ast, parse_query(q@canonical))
 })
 
 test_that("Count(type) serialises a type param", {
     q <- Count(type = "Int64")
-    expect_identical(q@canonical, "% Count type: Int64")
+    expect_identical(q@canonical, ">> Count type: Int64")
     expect_identical(q@ast, parse_query(q@canonical))
 })
 
 test_that("Count composes via pipe", {
     q <- .prior_matrix_query() |> Count()
-    expect_identical(q@canonical, "@ cell @ gene :: UMIs % Count")
+    expect_identical(q@canonical, "@ cell @ gene :: UMIs >> Count")
     expect_identical(q@ast, parse_query(q@canonical))
 })
 
@@ -167,19 +167,19 @@ test_that("Count rejects non-character type", {
 
 test_that("GeoMean() builds a bare reduction query", {
     q <- GeoMean()
-    expect_identical(q@canonical, "% GeoMean")
+    expect_identical(q@canonical, ">> GeoMean")
     expect_identical(q@ast, parse_query(q@canonical))
 })
 
 test_that("GeoMean(eps) serialises eps param", {
     q <- GeoMean(eps = 1)
-    expect_identical(q@canonical, "% GeoMean eps: 1")
+    expect_identical(q@canonical, ">> GeoMean eps: 1")
     expect_identical(q@ast, parse_query(q@canonical))
 })
 
 test_that("GeoMean composes via pipe with eps", {
     q <- .prior_matrix_query() |> GeoMean(eps = 1)
-    expect_identical(q@canonical, "@ cell @ gene :: UMIs % GeoMean eps: 1")
+    expect_identical(q@canonical, "@ cell @ gene :: UMIs >> GeoMean eps: 1")
     expect_identical(q@ast, parse_query(q@canonical))
 })
 
@@ -193,13 +193,13 @@ test_that("Quantile(p = 0.5) builds a reduction query with p param", {
     q <- Quantile(p = 0.5)
     # `0.5` contains a `.`, which is a query metacharacter — the
     # canonical escaper double-quotes the value. Round-trip still holds.
-    expect_identical(q@canonical, "% Quantile p: \"0.5\"")
+    expect_identical(q@canonical, ">> Quantile p: \"0.5\"")
     expect_identical(q@ast, parse_query(q@canonical))
 })
 
 test_that("Quantile(p, type) serialises both params in order", {
     q <- Quantile(p = 0.9, type = "Float64")
-    expect_identical(q@canonical, "% Quantile type: Float64 p: \"0.9\"")
+    expect_identical(q@canonical, ">> Quantile type: Float64 p: \"0.9\"")
     expect_identical(q@ast, parse_query(q@canonical))
 })
 
@@ -207,7 +207,7 @@ test_that("Quantile composes via pipe", {
     q <- .prior_matrix_query() |> Quantile(p = 0.5)
     expect_identical(
         q@canonical,
-        "@ cell @ gene :: UMIs % Quantile p: \"0.5\""
+        "@ cell @ gene :: UMIs >> Quantile p: \"0.5\""
     )
     expect_identical(q@ast, parse_query(q@canonical))
 })
@@ -220,19 +220,19 @@ test_that("Quantile rejects non-scalar type", {
 
 test_that("Std() builds a bare reduction query", {
     q <- Std()
-    expect_identical(q@canonical, "% Std")
+    expect_identical(q@canonical, ">> Std")
     expect_identical(q@ast, parse_query(q@canonical))
 })
 
 test_that("Std(type) serialises a type param", {
     q <- Std(type = "Float64")
-    expect_identical(q@canonical, "% Std type: Float64")
+    expect_identical(q@canonical, ">> Std type: Float64")
     expect_identical(q@ast, parse_query(q@canonical))
 })
 
 test_that("Std composes via pipe", {
     q <- .prior_matrix_query() |> Std()
-    expect_identical(q@canonical, "@ cell @ gene :: UMIs % Std")
+    expect_identical(q@canonical, "@ cell @ gene :: UMIs >> Std")
     expect_identical(q@ast, parse_query(q@canonical))
 })
 
@@ -244,19 +244,19 @@ test_that("Std rejects non-character type", {
 
 test_that("StdN() builds a bare reduction query", {
     q <- StdN()
-    expect_identical(q@canonical, "% StdN")
+    expect_identical(q@canonical, ">> StdN")
     expect_identical(q@ast, parse_query(q@canonical))
 })
 
 test_that("StdN(eps) serialises eps param", {
     q <- StdN(eps = 1)
-    expect_identical(q@canonical, "% StdN eps: 1")
+    expect_identical(q@canonical, ">> StdN eps: 1")
     expect_identical(q@ast, parse_query(q@canonical))
 })
 
 test_that("StdN composes via pipe with eps", {
     q <- .prior_matrix_query() |> StdN(eps = 1)
-    expect_identical(q@canonical, "@ cell @ gene :: UMIs % StdN eps: 1")
+    expect_identical(q@canonical, "@ cell @ gene :: UMIs >> StdN eps: 1")
     expect_identical(q@ast, parse_query(q@canonical))
 })
 
@@ -268,19 +268,19 @@ test_that("StdN rejects non-scalar type", {
 
 test_that("Var() builds a bare reduction query", {
     q <- Var()
-    expect_identical(q@canonical, "% Var")
+    expect_identical(q@canonical, ">> Var")
     expect_identical(q@ast, parse_query(q@canonical))
 })
 
 test_that("Var(type) serialises a type param", {
     q <- Var(type = "Float64")
-    expect_identical(q@canonical, "% Var type: Float64")
+    expect_identical(q@canonical, ">> Var type: Float64")
     expect_identical(q@ast, parse_query(q@canonical))
 })
 
 test_that("Var composes via pipe", {
     q <- .prior_matrix_query() |> Var()
-    expect_identical(q@canonical, "@ cell @ gene :: UMIs % Var")
+    expect_identical(q@canonical, "@ cell @ gene :: UMIs >> Var")
     expect_identical(q@ast, parse_query(q@canonical))
 })
 
@@ -292,19 +292,19 @@ test_that("Var rejects non-character type", {
 
 test_that("VarN() builds a bare reduction query", {
     q <- VarN()
-    expect_identical(q@canonical, "% VarN")
+    expect_identical(q@canonical, ">> VarN")
     expect_identical(q@ast, parse_query(q@canonical))
 })
 
 test_that("VarN(eps) serialises eps param", {
     q <- VarN(eps = 1)
-    expect_identical(q@canonical, "% VarN eps: 1")
+    expect_identical(q@canonical, ">> VarN eps: 1")
     expect_identical(q@ast, parse_query(q@canonical))
 })
 
 test_that("VarN composes via pipe with eps", {
     q <- .prior_matrix_query() |> VarN(eps = 1)
-    expect_identical(q@canonical, "@ cell @ gene :: UMIs % VarN eps: 1")
+    expect_identical(q@canonical, "@ cell @ gene :: UMIs >> VarN eps: 1")
     expect_identical(q@ast, parse_query(q@canonical))
 })
 

@@ -20,18 +20,13 @@
 
 # Asserts axis-query-ness if axis_name is non-NULL, then returns the result.
 # Per B8, query_result_dimensions is too lenient; we don't assert it.
-# Per B9 (has_query / query_axis_name / query_requires_relayout return false /
-# NA / error on some queries that get_query handles), introspection
-# assertions are best-effort: we record but don't fail the test on them.
+# B9 (introspection strictness) closed: query_axis_name now agrees with
+# get_query on compound masks, square-slice masks, and the other previously
+# divergent shapes.
 get_result <- function(daf, query, axis_name = NULL,
                        requires_relayout = FALSE) {
     if (!is.null(axis_name)) {
-        # Best-effort: skip strict assertions if dafr's introspection doesn't
-        # recognize the query (B9).
-        ax <- tryCatch(query_axis_name(query), error = function(e) NA)
-        if (!is.na(ax)) {
-            expect_equal(ax, axis_name)
-        }
+        expect_equal(query_axis_name(query), axis_name)
     }
     get_query(daf, query)
 }
@@ -131,7 +126,6 @@ test_that("queries / combine / three", {
 })
 
 test_that("queries / combine / four", {
-    skip("R divergence: B7 (Sum() builder canonical produces % Sum not >> Sum)")
     q <- Axis("cell") |> Axis("gene") |> LookupMatrix("UMIs") |> Sum()
     expect_equal(canonical_query(q), "@ cell @ gene :: UMIs >> Sum")
 })
@@ -252,7 +246,6 @@ test_that("queries / scalar / lookup / with_default / ()", {
 })
 
 test_that("queries / scalar / lookup / with_default / string", {
-    skip("R divergence: see dev/notes/2026-05-03-queries-jl-parity-divergences.md (parser/eval gaps E5-E11)")
     daf <- fresh_daf()
     expect_equal(get_query(daf, ". version || 1.0 String"), "1.0")
     expect_equal(get_query(daf, ". version || foo"), "foo")
@@ -295,7 +288,6 @@ test_that("queries / scalar / lookup / with_default / !int", {
 # ---------------------------------------------------------------------------
 
 test_that("queries / scalar / vector / ()", {
-    skip("R divergence: see dev/notes/2026-05-03-queries-jl-parity-divergences.md (parser/eval gaps E5-E11)")
     daf <- fresh_daf()
     add_axis(daf, "cell", c("X", "Y"))
     set_vector(daf, "cell", "type", c("U", "V"))
@@ -303,7 +295,6 @@ test_that("queries / scalar / vector / ()", {
 })
 
 test_that("queries / scalar / vector / missing", {
-    skip("R divergence: see dev/notes/2026-05-03-queries-jl-parity-divergences.md (parser/eval gaps E5-E11)")
     daf <- fresh_daf()
     add_axis(daf, "cell", c("X", "Y"))
     expect_equal(as.numeric(get_query(daf, ": age || 1 @ cell = X")), 1)
@@ -347,7 +338,6 @@ test_that("queries / scalar / vector / reduction / !string", {
 # ---------------------------------------------------------------------------
 
 test_that("queries / scalar / matrix / ()", {
-    skip("R divergence: see dev/notes/2026-05-03-queries-jl-parity-divergences.md (parser/eval gaps E5-E11)")
     daf <- fresh_daf()
     add_axis(daf, "cell", c("X", "Y"))
     add_axis(daf, "gene", c("A", "B"))
@@ -357,7 +347,6 @@ test_that("queries / scalar / matrix / ()", {
 })
 
 test_that("queries / scalar / matrix / missing", {
-    skip("R divergence: see dev/notes/2026-05-03-queries-jl-parity-divergences.md (parser/eval gaps E5-E11)")
     daf <- fresh_daf()
     add_axis(daf, "cell", c("X", "Y"))
     add_axis(daf, "gene", c("A", "B"))
@@ -475,7 +464,6 @@ test_that("queries / vector / mask / matrix", {
 })
 
 test_that("queries / vector / mask / square / column", {
-    skip("R divergence: see dev/notes/2026-05-03-queries-jl-parity-divergences.md (parser/eval gaps E5-E11)")
     daf <- fresh_daf()
     add_axis(daf, "cell", c("X", "Y"))
     set_matrix(daf, "cell", "cell", "distance",
@@ -491,7 +479,6 @@ test_that("queries / vector / mask / square / column", {
 })
 
 test_that("queries / vector / mask / square / row", {
-    skip("R divergence: see dev/notes/2026-05-03-queries-jl-parity-divergences.md (parser/eval gaps E5-E11)")
     daf <- fresh_daf()
     add_axis(daf, "cell", c("X", "Y"))
     set_matrix(daf, "cell", "cell", "distance",
@@ -556,7 +543,6 @@ test_that("queries / vector / mask / operation / xor / ()", {
 })
 
 test_that("queries / vector / mask / operation / column", {
-    skip("R divergence: see dev/notes/2026-05-03-queries-jl-parity-divergences.md (parser/eval gaps E5-E11)")
     daf <- .fx_mask_ops()
     set_matrix(daf, "gene", "cell", "UMIs",
         matrix(c(1L, 1L, 0L, 0L, 1L, 0L, 1L, 0L), 2, 4, byrow = TRUE))
@@ -565,7 +551,6 @@ test_that("queries / vector / mask / operation / column", {
 })
 
 test_that("queries / vector / mask / operation / square / column", {
-    skip("R divergence: see dev/notes/2026-05-03-queries-jl-parity-divergences.md (parser/eval gaps E5-E11)")
     daf <- .fx_mask_ops()
     set_matrix(daf, "cell", "cell", "distance",
         matrix(c(0L, 1L, 1L, 1L,
@@ -577,7 +562,6 @@ test_that("queries / vector / mask / operation / square / column", {
 })
 
 test_that("queries / vector / mask / operation / square / row", {
-    skip("R divergence: see dev/notes/2026-05-03-queries-jl-parity-divergences.md (parser/eval gaps E5-E11)")
     daf <- .fx_mask_ops()
     set_matrix(daf, "cell", "cell", "distance",
         matrix(c(0L, 1L, 1L, 1L,
@@ -606,7 +590,7 @@ test_that("queries / vector / lookup / ()", {
 })
 
 test_that("queries / vector / lookup / as_axis / implicit", {
-    skip("R divergence: see dev/notes/2026-05-03-queries-jl-parity-divergences.md (parser/eval gaps E5-E11)")
+    skip("R divergence: E6 (vector-by-vector chain via ensure_vector_is_axis)")
     daf <- .fx_lookup()
     add_axis(daf, "cell", c("X", "Y"))
     set_vector(daf, "cell", "type", c("U", "V"))
@@ -618,7 +602,7 @@ test_that("queries / vector / lookup / as_axis / implicit", {
 })
 
 test_that("queries / vector / lookup / as_axis / explicit", {
-    skip("R divergence: see dev/notes/2026-05-03-queries-jl-parity-divergences.md (parser/eval gaps E5-E11)")
+    skip("R divergence: E6 (vector-by-vector chain via ensure_vector_is_axis)")
     daf <- .fx_lookup()
     add_axis(daf, "cell", c("X", "Y"))
     set_vector(daf, "cell", "type", c("U", "V"))
@@ -646,7 +630,6 @@ test_that("queries / vector / lookup / missing", {
 })
 
 test_that("queries / vector / lookup / if_not / mask", {
-    skip("R divergence: see dev/notes/2026-05-03-queries-jl-parity-divergences.md (parser/eval gaps E5-E11)")
     daf <- .fx_lookup()
     add_axis(daf, "cell", c("A", "B", "C"))
     set_vector(daf, "cell", "metacell", c("X", "Y", ""))
@@ -658,7 +641,6 @@ test_that("queries / vector / lookup / if_not / mask", {
 })
 
 test_that("queries / vector / lookup / if_not / value", {
-    skip("R divergence: see dev/notes/2026-05-03-queries-jl-parity-divergences.md (parser/eval gaps E5-E11)")
     daf <- .fx_lookup()
     add_axis(daf, "cell", c("A", "B", "C"))
     set_vector(daf, "cell", "metacell", c("X", "Y", ""))
@@ -669,7 +651,6 @@ test_that("queries / vector / lookup / if_not / value", {
 })
 
 test_that("queries / vector / lookup / if_not / chained", {
-    skip("R divergence: see dev/notes/2026-05-03-queries-jl-parity-divergences.md (parser/eval gaps E5-E11)")
     daf <- .fx_lookup()
     add_axis(daf, "cell", c("A", "B", "C"))
     set_vector(daf, "cell", "metacell", c("X", "Y", ""))
@@ -689,7 +670,6 @@ test_that("queries / vector / lookup / if_not / chained", {
 })
 
 test_that("queries / vector / lookup / if_not / missing", {
-    skip("R divergence: see dev/notes/2026-05-03-queries-jl-parity-divergences.md (parser/eval gaps E5-E11)")
     daf <- .fx_lookup()
     add_axis(daf, "cell", c("A", "B", "C"))
     set_vector(daf, "cell", "metacell", c("X", "Y", ""))
@@ -701,7 +681,7 @@ test_that("queries / vector / lookup / if_not / missing", {
 })
 
 test_that("queries / vector / lookup / if_not / !missing", {
-    skip("R divergence: see dev/notes/2026-05-03-queries-jl-parity-divergences.md (parser/eval gaps E5-E11)")
+    skip("R divergence: T-class error-text (R warns 'NAs introduced by coercion' before erroring; Julia errors with parse-style text)")
     daf <- .fx_lookup()
     add_axis(daf, "cell", c("A", "B", "C"))
     set_vector(daf, "cell", "metacell", c("X", "Y", ""))
@@ -727,7 +707,7 @@ test_that("queries / vector / lookup / if_not / !missing", {
 }
 
 test_that("queries / vector / matrix / column", {
-    skip("R divergence: see dev/notes/2026-05-03-queries-jl-parity-divergences.md (parser/eval gaps E5-E11)")
+    skip("R divergence: E6 (matrix-column slice `@ axis :: M @ other = entry` chain)")
     daf <- .fx_vec_matrix()
     expect_equal(unname(get_query(daf, "@ cell :: UMIs @ gene = A")),
         c(0L, 3L))
@@ -777,7 +757,7 @@ test_that("queries / vector / matrix / reduction / column / !empty / cols", {
 })
 
 test_that("queries / vector / matrix / reduction / column / !string", {
-    skip("R divergence: see dev/notes/2026-05-03-queries-jl-parity-divergences.md (parser/eval gaps E5-E11)")
+    skip("R divergence: T-class error-text (>| Sum on string matrix passes wrong-type error path; differs from Julia text)")
     daf <- .fx_vec_matrix()
     set_matrix(daf, "cell", "gene", "kind",
         matrix(c("A", "B", "A", "B", "A", "B"), 2, 3, byrow = TRUE))
@@ -828,7 +808,7 @@ test_that("queries / vector / matrix / reduction / row / !empty / cols", {
 })
 
 test_that("queries / vector / matrix / reduction / row / !string", {
-    skip("R divergence: see dev/notes/2026-05-03-queries-jl-parity-divergences.md (parser/eval gaps E5-E11)")
+    skip("R divergence: T-class error-text (>- Sum on string matrix passes wrong-type error path; differs from Julia text)")
     daf <- .fx_vec_matrix()
     set_matrix(daf, "cell", "gene", "kind",
         matrix(c("A", "B", "A", "B", "A", "B"), 2, 3, byrow = TRUE))
@@ -842,7 +822,6 @@ test_that("queries / vector / matrix / reduction / row / !string", {
 # ---------------------------------------------------------------------------
 
 test_that("queries / vector / square / column", {
-    skip("R divergence: see dev/notes/2026-05-03-queries-jl-parity-divergences.md (parser/eval gaps E5-E11)")
     daf <- fresh_daf()
     add_axis(daf, "cell", c("X", "Y"))
     set_matrix(daf, "cell", "cell", "distance",
@@ -852,7 +831,6 @@ test_that("queries / vector / square / column", {
 })
 
 test_that("queries / vector / square / row", {
-    skip("R divergence: see dev/notes/2026-05-03-queries-jl-parity-divergences.md (parser/eval gaps E5-E11)")
     daf <- fresh_daf()
     add_axis(daf, "cell", c("X", "Y"))
     set_matrix(daf, "cell", "cell", "distance",
@@ -895,7 +873,6 @@ test_that("queries / vector / eltwise / !string", {
 }
 
 test_that("queries / vector / compare / !string", {
-    skip("R divergence: E4 (top-level comparator after `:` not supported)")
     daf <- .fx_compare()
     expect_error(get_query(daf, "@ cell : score ~ \\[UV\\]"),
         regexp = "Float|numeric|IsMatch|regex|character"
@@ -903,7 +880,6 @@ test_that("queries / vector / compare / !string", {
 })
 
 test_that("queries / vector / compare / !regex", {
-    skip("R divergence: E4 (top-level comparator after `:` not supported)")
     daf <- .fx_compare()
     expect_error(get_query(daf, "@ cell : type ~ \\[UV"),
         regexp = "regex|regular expression|missing|character"
@@ -911,7 +887,6 @@ test_that("queries / vector / compare / !regex", {
 })
 
 test_that("queries / vector / compare / !number", {
-    skip("R divergence: E4 (top-level comparator after `:` not supported)")
     daf <- .fx_compare()
     expect_error(get_query(daf, "@ cell : score = U"),
         regexp = "U|number|numeric|Float|parse"
@@ -961,14 +936,12 @@ test_that("queries / vector / compare / >", {
 })
 
 test_that("queries / vector / compare / ~", {
-    skip("R divergence: see dev/notes/2026-05-03-queries-jl-parity-divergences.md (parser/eval gaps E5-E11)")
     daf <- .fx_compare()
     expect_equal(unname(get_query(daf,
         "@ cell [ type ~ \\^\\[A-U\\] ] : type")), "U")
 })
 
 test_that("queries / vector / compare / !~", {
-    skip("R divergence: see dev/notes/2026-05-03-queries-jl-parity-divergences.md (parser/eval gaps E5-E11)")
     daf <- .fx_compare()
     expect_equal(unname(get_query(daf,
         "@ cell [ type !~ \\^\\[A-U\\] ] : type")), "V")
@@ -1003,7 +976,6 @@ test_that("queries / vector / group / vector / !string", {
 })
 
 test_that("queries / vector / group / vector / matrix", {
-    skip("R divergence: see dev/notes/2026-05-03-queries-jl-parity-divergences.md (parser/eval gaps E5-E11)")
     daf <- .fx_group()
     set_matrix(daf, "gene", "cell", "level",
         matrix(c("low", "middle", "middle", "high",
@@ -1016,7 +988,6 @@ test_that("queries / vector / group / vector / matrix", {
 })
 
 test_that("queries / vector / group / vector / square / column", {
-    skip("R divergence: see dev/notes/2026-05-03-queries-jl-parity-divergences.md (parser/eval gaps E5-E11)")
     daf <- .fx_group()
     set_matrix(daf, "cell", "cell", "distance",
         matrix(c(0L, 1L, 1L, 1L,
@@ -1029,7 +1000,6 @@ test_that("queries / vector / group / vector / square / column", {
 })
 
 test_that("queries / vector / group / vector / square / row", {
-    skip("R divergence: see dev/notes/2026-05-03-queries-jl-parity-divergences.md (parser/eval gaps E5-E11)")
     daf <- .fx_group()
     set_matrix(daf, "cell", "cell", "distance",
         matrix(c(0L, 1L, 1L, 1L,
@@ -1042,7 +1012,6 @@ test_that("queries / vector / group / vector / square / row", {
 })
 
 test_that("queries / vector / group / vector / as_axis", {
-    skip("R divergence: see dev/notes/2026-05-03-queries-jl-parity-divergences.md (parser/eval gaps E5-E11)")
     daf <- .fx_group()
     res <- get_query(daf, "@ cell : score / type =@ >> Sum || 0.0")
     expect_equal(sort(names(res)), c("U", "V", "W"))
@@ -1050,7 +1019,6 @@ test_that("queries / vector / group / vector / as_axis", {
 })
 
 test_that("queries / vector / group / vector / missing", {
-    skip("R divergence: see dev/notes/2026-05-03-queries-jl-parity-divergences.md (parser/eval gaps E5-E11)")
     daf <- .fx_group()
     expect_error(get_query(daf, "@ cell : score / type =@ >> Sum"),
         regexp = "IfMissing|unused|W|missing|axis"
@@ -1080,7 +1048,6 @@ test_that("queries / matrix / lookup / ()", {
 })
 
 test_that("queries / matrix / lookup / vector / ()", {
-    skip("R divergence: see dev/notes/2026-05-03-queries-jl-parity-divergences.md (parser/eval gaps E5-E11)")
     daf <- .fx_mat_lookup()
     add_axis(daf, "tag", c("U", "V", "W"))
     set_vector(daf, "tag", "color", c("red", "green", "blue"))
@@ -1092,7 +1059,6 @@ test_that("queries / matrix / lookup / vector / ()", {
 })
 
 test_that("queries / matrix / lookup / vector / as_axis", {
-    skip("R divergence: see dev/notes/2026-05-03-queries-jl-parity-divergences.md (parser/eval gaps E5-E11)")
     daf <- .fx_mat_lookup()
     add_axis(daf, "tag", c("U", "V", "W"))
     set_vector(daf, "tag", "color", c("red", "green", "blue"))
@@ -1104,7 +1070,6 @@ test_that("queries / matrix / lookup / vector / as_axis", {
 })
 
 test_that("queries / matrix / lookup / vector / if_not", {
-    skip("R divergence: see dev/notes/2026-05-03-queries-jl-parity-divergences.md (parser/eval gaps E5-E11)")
     daf <- .fx_mat_lookup()
     add_axis(daf, "tag", c("U", "V", "W"))
     set_vector(daf, "tag", "color", c("red", "green", "blue"))
@@ -1119,7 +1084,6 @@ test_that("queries / matrix / lookup / vector / if_not", {
 })
 
 test_that("queries / matrix / lookup / matrix / ()", {
-    skip("R divergence: see dev/notes/2026-05-03-queries-jl-parity-divergences.md (parser/eval gaps E5-E11)")
     daf <- .fx_mat_lookup()
     add_axis(daf, "tag", c("U", "V", "W"))
     add_axis(daf, "kind", c("K", "L"))
@@ -1134,7 +1098,6 @@ test_that("queries / matrix / lookup / matrix / ()", {
 })
 
 test_that("queries / matrix / lookup / matrix / as_axis", {
-    skip("R divergence: see dev/notes/2026-05-03-queries-jl-parity-divergences.md (parser/eval gaps E5-E11)")
     daf <- .fx_mat_lookup()
     add_axis(daf, "tag", c("U", "V", "W"))
     add_axis(daf, "kind", c("K", "L"))
@@ -1150,7 +1113,6 @@ test_that("queries / matrix / lookup / matrix / as_axis", {
 })
 
 test_that("queries / matrix / lookup / square / column", {
-    skip("R divergence: see dev/notes/2026-05-03-queries-jl-parity-divergences.md (parser/eval gaps E5-E11)")
     daf <- .fx_mat_lookup()
     add_axis(daf, "tag", c("U", "V", "W"))
     set_matrix(daf, "tag", "tag", "color",
@@ -1165,7 +1127,6 @@ test_that("queries / matrix / lookup / square / column", {
 })
 
 test_that("queries / matrix / lookup / square / row", {
-    skip("R divergence: see dev/notes/2026-05-03-queries-jl-parity-divergences.md (parser/eval gaps E5-E11)")
     daf <- .fx_mat_lookup()
     add_axis(daf, "tag", c("U", "V", "W"))
     set_matrix(daf, "tag", "tag", "color",
@@ -1216,7 +1177,6 @@ test_that("queries / matrix / eltwise / !string", {
 }
 
 test_that("queries / matrix / compare / !string", {
-    skip("R divergence: E4 (top-level comparator after `::` not supported)")
     daf <- .fx_mat_compare()
     expect_error(get_query(daf, "@ cell @ gene :: UMIs ~ \\[UV\\]"),
         regexp = "Int|numeric|IsMatch|regex|character"
@@ -1224,7 +1184,6 @@ test_that("queries / matrix / compare / !string", {
 })
 
 test_that("queries / matrix / compare / !regex", {
-    skip("R divergence: E4 (top-level comparator after `::` not supported)")
     daf <- .fx_mat_compare()
     expect_error(get_query(daf, "@ cell @ gene :: text ~ \\[UV"),
         regexp = "regex|regular expression|missing|character"
@@ -1232,7 +1191,6 @@ test_that("queries / matrix / compare / !regex", {
 })
 
 test_that("queries / matrix / compare / !number", {
-    skip("R divergence: E4 (top-level comparator after `::` not supported)")
     daf <- .fx_mat_compare()
     expect_error(get_query(daf, "@ cell @ gene :: UMIs = U"),
         regexp = "U|number|numeric|Float|parse"
@@ -1240,7 +1198,6 @@ test_that("queries / matrix / compare / !number", {
 })
 
 test_that("queries / matrix / compare / >", {
-    skip("R divergence: E4 (top-level comparator after `::` not supported)")
     daf <- .fx_mat_compare()
     res <- get_query(daf, "@ cell @ gene :: UMIs > 0")
     expect_equal(dim(res), c(2L, 3L))
@@ -1262,7 +1219,7 @@ test_that("queries / matrix / compare / >", {
 }
 
 test_that("queries / matrix / count / vector", {
-    skip("R divergence: see dev/notes/2026-05-03-queries-jl-parity-divergences.md (parser/eval gaps E5-E11)")
+    skip("R divergence: E8 (cross-tabulate `* type =@` count behavior differs from Julia)")
     daf <- .fx_count()
     add_axis(daf, "type", c("U", "V", "W"))
     set_vector(daf, "gene", "type", c("U", "U", "V"))
@@ -1275,7 +1232,6 @@ test_that("queries / matrix / count / vector", {
 })
 
 test_that("queries / matrix / count / column", {
-    skip("R divergence: see dev/notes/2026-05-03-queries-jl-parity-divergences.md (parser/eval gaps E5-E11)")
     daf <- .fx_count()
     set_matrix(daf, "cell", "gene", "level",
         matrix(c("low", "middle", "high",
@@ -1286,7 +1242,6 @@ test_that("queries / matrix / count / column", {
 })
 
 test_that("queries / matrix / count / square / column", {
-    skip("R divergence: see dev/notes/2026-05-03-queries-jl-parity-divergences.md (parser/eval gaps E5-E11)")
     daf <- .fx_count()
     set_matrix(daf, "gene", "gene", "distance",
         matrix(c(0L, 1L, 1L, 1L, 1L, 0L, 1L, 0L, 1L), 3, 3, byrow = TRUE))
@@ -1296,7 +1251,6 @@ test_that("queries / matrix / count / square / column", {
 })
 
 test_that("queries / matrix / count / square / row", {
-    skip("R divergence: see dev/notes/2026-05-03-queries-jl-parity-divergences.md (parser/eval gaps E5-E11)")
     daf <- .fx_count()
     set_matrix(daf, "gene", "gene", "distance",
         matrix(c(0L, 1L, 1L, 1L, 1L, 0L, 1L, 0L, 1L), 3, 3, byrow = TRUE))
@@ -1336,7 +1290,6 @@ test_that("queries / matrix / group / column / ()", {
 })
 
 test_that("queries / matrix / group / column / slice", {
-    skip("R divergence: see dev/notes/2026-05-03-queries-jl-parity-divergences.md (parser/eval gaps E5-E11)")
     daf <- .fx_mgroup()
     res <- get_query(daf,
         "@ gene @ cell :: UMIs |/ kind @ gene = X >| Sum")
@@ -1345,7 +1298,6 @@ test_that("queries / matrix / group / column / slice", {
 })
 
 test_that("queries / matrix / group / column / square / column", {
-    skip("R divergence: see dev/notes/2026-05-03-queries-jl-parity-divergences.md (parser/eval gaps E5-E11)")
     daf <- .fx_mgroup()
     res <- get_query(daf,
         "@ gene @ cell :: UMIs |/ distance @| B >| Sum")
@@ -1354,7 +1306,6 @@ test_that("queries / matrix / group / column / square / column", {
 })
 
 test_that("queries / matrix / group / column / square / row", {
-    skip("R divergence: see dev/notes/2026-05-03-queries-jl-parity-divergences.md (parser/eval gaps E5-E11)")
     daf <- .fx_mgroup()
     res <- get_query(daf,
         "@ gene @ cell :: UMIs |/ distance @- B >| Sum")
@@ -1371,7 +1322,6 @@ test_that("queries / matrix / group / column / !string", {
 })
 
 test_that("queries / matrix / group / column / as_axis / ()", {
-    skip("R divergence: see dev/notes/2026-05-03-queries-jl-parity-divergences.md (parser/eval gaps E5-E11)")
     daf <- .fx_mgroup()
     res <- get_query(daf,
         "@ gene @ cell :: UMIs |/ type =@ >| Sum || 0")
@@ -1380,7 +1330,7 @@ test_that("queries / matrix / group / column / as_axis / ()", {
 })
 
 test_that("queries / matrix / group / column / as_axis / ~missing", {
-    skip("R divergence: see dev/notes/2026-05-03-queries-jl-parity-divergences.md (parser/eval gaps E5-E11)")
+    skip("R divergence: E11 (as_axis group with =@ IfMissing-coverage error semantics differ)")
     daf <- .fx_mgroup()
     expect_error(get_query(daf,
         "@ gene @ cell :: UMIs |/ type =@ >| Sum || 0.5"),
@@ -1389,7 +1339,6 @@ test_that("queries / matrix / group / column / as_axis / ~missing", {
 })
 
 test_that("queries / matrix / group / column / missing", {
-    skip("R divergence: see dev/notes/2026-05-03-queries-jl-parity-divergences.md (parser/eval gaps E5-E11)")
     daf <- .fx_mgroup()
     expect_error(get_query(daf,
         "@ gene @ cell :: UMIs |/ type =@ >| Sum"),
@@ -1398,7 +1347,6 @@ test_that("queries / matrix / group / column / missing", {
 })
 
 test_that("queries / matrix / group / row / ()", {
-    skip("R divergence: see dev/notes/2026-05-03-queries-jl-parity-divergences.md (parser/eval gaps E5-E11)")
     daf <- .fx_mgroup()
     res <- get_query(daf, "@ cell @ gene :: UMIs -/ type >- Sum")
     expect_equal(dim(res), c(2L, 2L))
@@ -1406,7 +1354,6 @@ test_that("queries / matrix / group / row / ()", {
 })
 
 test_that("queries / matrix / group / row / slice", {
-    skip("R divergence: see dev/notes/2026-05-03-queries-jl-parity-divergences.md (parser/eval gaps E5-E11)")
     daf <- .fx_mgroup()
     res <- get_query(daf,
         "@ cell @ gene :: UMIs -/ kind @ gene = X >- Sum")
@@ -1415,7 +1362,6 @@ test_that("queries / matrix / group / row / slice", {
 })
 
 test_that("queries / matrix / group / row / square / column", {
-    skip("R divergence: see dev/notes/2026-05-03-queries-jl-parity-divergences.md (parser/eval gaps E5-E11)")
     daf <- .fx_mgroup()
     res <- get_query(daf,
         "@ cell @ gene :: UMIs -/ distance @| B >- Sum")
@@ -1424,7 +1370,6 @@ test_that("queries / matrix / group / row / square / column", {
 })
 
 test_that("queries / matrix / group / row / square / row", {
-    skip("R divergence: see dev/notes/2026-05-03-queries-jl-parity-divergences.md (parser/eval gaps E5-E11)")
     daf <- .fx_mgroup()
     res <- get_query(daf,
         "@ cell @ gene :: UMIs -/ distance @- B >- Sum")
@@ -1433,7 +1378,6 @@ test_that("queries / matrix / group / row / square / row", {
 })
 
 test_that("queries / matrix / group / row / as_axis / ()", {
-    skip("R divergence: see dev/notes/2026-05-03-queries-jl-parity-divergences.md (parser/eval gaps E5-E11)")
     daf <- .fx_mgroup()
     res <- get_query(daf,
         "@ cell @ gene :: UMIs -/ type =@ >- Sum || 0")
@@ -1442,7 +1386,7 @@ test_that("queries / matrix / group / row / as_axis / ()", {
 })
 
 test_that("queries / matrix / group / row / as_axis / ~missing", {
-    skip("R divergence: see dev/notes/2026-05-03-queries-jl-parity-divergences.md (parser/eval gaps E5-E11)")
+    skip("R divergence: E11 (as_axis group with =@ IfMissing-coverage error semantics differ)")
     daf <- .fx_mgroup()
     expect_error(get_query(daf,
         "@ cell @ gene :: UMIs -/ type =@ >- Sum || 0.5"),
@@ -1451,7 +1395,6 @@ test_that("queries / matrix / group / row / as_axis / ~missing", {
 })
 
 test_that("queries / matrix / group / row / !string", {
-    skip("R divergence: see dev/notes/2026-05-03-queries-jl-parity-divergences.md (parser/eval gaps E5-E11)")
     daf <- .fx_mgroup()
     expect_error(get_query(daf,
         "@ cell @ gene :: kind -/ type >- Sum"),
@@ -1460,7 +1403,6 @@ test_that("queries / matrix / group / row / !string", {
 })
 
 test_that("queries / matrix / group / row / missing", {
-    skip("R divergence: see dev/notes/2026-05-03-queries-jl-parity-divergences.md (parser/eval gaps E5-E11)")
     daf <- .fx_mgroup()
     expect_error(get_query(daf,
         "@ cell @ gene :: UMIs -/ type =@ >- Sum"),
@@ -1527,7 +1469,6 @@ test_that("queries / dataframes / simple / columns / names", {
 })
 
 test_that("queries / dataframes / simple / columns / queries", {
-    skip("R divergence: API1 (get_dataframe named-list column-spec not supported)")
     daf <- .fx_df_simple()
     df <- get_dataframe(daf, "cell",
         columns = list(age = ": age", doublet = ": is_doublet"))
@@ -1535,7 +1476,6 @@ test_that("queries / dataframes / simple / columns / queries", {
 })
 
 test_that("queries / dataframes / simple / columns / shorthands", {
-    skip("R divergence: API1 (get_dataframe named-list column-spec not supported)")
     daf <- .fx_df_simple()
     df <- get_dataframe(daf, "cell",
         columns = list("age", doublet = "is_doublet"))
@@ -1565,7 +1505,6 @@ test_that("queries / dataframes / simple / columns / !queries", {
 }
 
 test_that("queries / dataframes / complex / axis", {
-    skip("R divergence: API1 (get_dataframe named-list column-spec not supported)")
     daf <- .fx_df_complex()
     df <- get_dataframe(daf, "metacell",
         columns = list(mean_age = "@ cell : age / metacell >> Mean"))
@@ -1574,7 +1513,6 @@ test_that("queries / dataframes / complex / axis", {
 })
 
 test_that("queries / dataframes / complex / masked", {
-    skip("R divergence: API1 (get_dataframe named-list column-spec not supported)")
     daf <- .fx_df_complex()
     df <- get_dataframe_query(daf, "@ metacell [ type = U ]",
         columns = list(mean_age = "@ cell [ metacell : type = U ] : age / metacell >> Mean"))
@@ -1583,7 +1521,6 @@ test_that("queries / dataframes / complex / masked", {
 })
 
 test_that("queries / dataframes / complex / !masked", {
-    skip("R divergence: API1 (get_dataframe named-list column-spec not supported)")
     daf <- .fx_df_complex()
     expect_error(
         get_dataframe_query(daf, "@ metacell [ type = U ]",
