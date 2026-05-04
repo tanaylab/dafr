@@ -355,8 +355,12 @@ concatenate <- function(destination, axis, sources,
     if (action == MERGE_LAST_VALUE) {
         for (i in rev(seq_along(sources))) {
             if (format_has_vector(sources[[i]], axis, name)) {
+                # Strip source-axis names so .validate_vector_value doesn't
+                # reject them when the destination axis differs (mirrors the
+                # .concat_axis_vector unname() defense).
                 format_set_vector(destination, axis, name,
-                                  format_get_vector(sources[[i]], axis, name)$value,
+                                  unname(format_get_vector(sources[[i]], axis,
+                                                           name)$value),
                                   overwrite = overwrite)
                 return(invisible())
             }
