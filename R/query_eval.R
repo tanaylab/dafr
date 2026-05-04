@@ -734,7 +734,7 @@ NULL
             # subsequent hops from prior .apply_chained_lookup_vector calls.
             base_entries <- names(pivot_values)
             if (is.null(base_entries) || length(base_entries) != length(pivot_values)) {
-                stop("internal: pivot vector lost its names — format_get_vector contract violation",
+                stop("internal: pivot vector lost its names; format_get_vector contract violation",
                      call. = FALSE)
             }
             if (isTRUE(state$if_not_present)) {
@@ -787,7 +787,7 @@ NULL
     # subsequent hops from prior .apply_chained_lookup_vector calls.
     base_entries <- names(pivot_values)
     if (is.null(base_entries) || length(base_entries) != length(pivot_values)) {
-        stop("internal: pivot vector lost its names — format_get_vector contract violation",
+        stop("internal: pivot vector lost its names; format_get_vector contract violation",
              call. = FALSE)
     }
     if (isTRUE(state$if_not_present)) {
