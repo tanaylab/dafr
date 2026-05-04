@@ -249,7 +249,7 @@ S7::method(
             sQuote(name), sQuote(axis)
         ), call. = FALSE)
     }
-    get(name, envir = env, inherits = FALSE)
+    .attach_vector_axis_names(daf, axis, get(name, envir = env, inherits = FALSE))
 }
 
 # ---- Vectors: mutation ------------------------------------------------------
@@ -355,7 +355,10 @@ S7::method(
             call. = FALSE
         )
     }
-    get(name, envir = env, inherits = FALSE)
+    .attach_matrix_axis_dimnames(
+        daf, rows_axis, columns_axis,
+        get(name, envir = env, inherits = FALSE)
+    )
 }
 
 # ---- Matrices: mutation -----------------------------------------------------
