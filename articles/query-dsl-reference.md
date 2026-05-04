@@ -156,8 +156,10 @@ Returns a vector. Phrase kinds:
 ``` r
 
 head(cells["@ experiment"])
-#> [1] "demux_01_02_21_1" "demux_01_02_21_2" "demux_01_03_21_1" "demux_04_01_21_1"
-#> [5] "demux_04_01_21_2" "demux_07_03_21_1"
+#>   demux_01_02_21_1   demux_01_02_21_2   demux_01_03_21_1   demux_04_01_21_1 
+#> "demux_01_02_21_1" "demux_01_02_21_2" "demux_01_03_21_1" "demux_04_01_21_1" 
+#>   demux_04_01_21_2   demux_07_03_21_1 
+#> "demux_04_01_21_2" "demux_07_03_21_1"
 length(cells["@ gene [ ! is_lateral ]"])
 #> [1] 245
 head(cells["@ cell : donor"])

@@ -2,6 +2,26 @@
 
 ## dafr 0.2.0 (in development)
 
+### queries.jl parity — Slice 1a (N1: named axis-listing)
+
+`get_query` now returns a named character vector for axis-listing
+queries, matching Julia’s NamedVector convention where names equal
+entries.
+
+- `get_query(d, "@ cell")` → `c(c1 = "c1", c2 = "c2", c3 = "c3")` (was
+  unnamed `c("c1", "c2", "c3")`).
+- `get_query(d, "@ donor [ age > 60 ]")` → `c(d3 = "d3", d4 = "d4")`
+  (was unnamed `c("d3", "d4")`).
+- Lookup vectors / matrices already carried names from S1; this closes
+  N1 for the remaining axis-listing paths.
+
+Changes: - `R/query_eval.R::.apply_axis` and `.apply_end_mask` set
+`names(value) <- value` on the axis-entry character. - Test assertions
+in `test-query-eval-lookups.R`, `test-query-eval-masks.R`,
+`test-query-mask-variants.R` updated to the named contract. - New
+regression tests in `test-query-result-names.R` pin the bare and masked
+axis-listing paths.
+
 ### queries.jl parity port (P1-P3 + B-port) — caught up on main
 
 Six queries-jl-parity tests previously skipped on main now pass:

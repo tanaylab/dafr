@@ -48,6 +48,16 @@
     <div class="section level2">
 <h2 class="pkg-version" data-toc-text="0.2.0" id="dafr-020-in-development">dafr 0.2.0 (in development)<a class="anchor" aria-label="anchor" href="#dafr-020-in-development"></a></h2>
 <div class="section level3">
+<h3 id="queriesjl-parity--slicea-n1-named-axis-listing-0-2-0">queries.jl parity — Slice 1a (N1: named axis-listing)<a class="anchor" aria-label="anchor" href="#queriesjl-parity--slicea-n1-named-axis-listing-0-2-0"></a></h3>
+<p><code>get_query</code> now returns a named character vector for axis-listing queries, matching Julia’s NamedVector convention where names equal entries.</p>
+<ul><li>
+<code>get_query(d, "@ cell")</code> → <code>c(c1 = "c1", c2 = "c2", c3 = "c3")</code> (was unnamed <code>c("c1", "c2", "c3")</code>).</li>
+<li>
+<code>get_query(d, "@ donor [ age &gt; 60 ]")</code> → <code>c(d3 = "d3", d4 = "d4")</code> (was unnamed <code>c("d3", "d4")</code>).</li>
+<li>Lookup vectors / matrices already carried names from S1; this closes N1 for the remaining axis-listing paths.</li>
+</ul><p>Changes: - <code>R/query_eval.R::.apply_axis</code> and <code>.apply_end_mask</code> set <code>names(value) &lt;- value</code> on the axis-entry character. - Test assertions in <code>test-query-eval-lookups.R</code>, <code>test-query-eval-masks.R</code>, <code>test-query-mask-variants.R</code> updated to the named contract. - New regression tests in <code>test-query-result-names.R</code> pin the bare and masked axis-listing paths.</p>
+</div>
+<div class="section level3">
 <h3 id="queriesjl-parity-port-p1-p3--b-port--caught-up-on-main-0-2-0">queries.jl parity port (P1-P3 + B-port) — caught up on main<a class="anchor" aria-label="anchor" href="#queriesjl-parity-port-p1-p3--b-port--caught-up-on-main-0-2-0"></a></h3>
 <p>Six queries-jl-parity tests previously skipped on main now pass:</p>
 <ul><li>

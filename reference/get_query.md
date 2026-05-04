@@ -59,12 +59,16 @@ cells["@ cell @ gene :: UMIs >> Sum type Int64"]
 
 # --- Axis vectors and masks (jl:195, 254, 293) ---------------------------
 head(cells["@ experiment"])
-#> [1] "demux_01_02_21_1" "demux_01_02_21_2" "demux_01_03_21_1" "demux_04_01_21_1"
-#> [5] "demux_04_01_21_2" "demux_07_03_21_1"
+#>   demux_01_02_21_1   demux_01_02_21_2   demux_01_03_21_1   demux_04_01_21_1 
+#> "demux_01_02_21_1" "demux_01_02_21_2" "demux_01_03_21_1" "demux_04_01_21_1" 
+#>   demux_04_01_21_2   demux_07_03_21_1 
+#> "demux_04_01_21_2" "demux_07_03_21_1" 
 head(cells["@ gene [ ! is_lateral ]"])
-#> [1] "ENO1"    "PRDM2"   "HP1BP3"  "HNRNPR"  "RSRP1"   "KHDRBS1"
+#>      ENO1     PRDM2    HP1BP3    HNRNPR     RSRP1   KHDRBS1 
+#>    "ENO1"   "PRDM2"  "HP1BP3"  "HNRNPR"   "RSRP1" "KHDRBS1" 
 head(cells["@ donor [ age > 60 & sex = male ]"])
-#> [1] "N16" "N17" "N59" "N86" "N88" "N91"
+#>   N16   N17   N59   N86   N88   N91 
+#> "N16" "N17" "N59" "N86" "N88" "N91" 
 
 # --- Vector lookup (jl:332) ----------------------------------------------
 metacells["@ metacell : type"]
