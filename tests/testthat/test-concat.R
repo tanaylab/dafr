@@ -171,3 +171,17 @@ test_that("concatenate: rejects matrix with both axes in concat set", {
     expect_error(concatenate(dest, "cell", list(a, b)),
                  "both axes in the concat set")
 })
+
+test_that("concat preserves S1 named-getter contract end-to-end", {
+    a <- memory_daf(name = "a")
+    add_axis(a, "cell", c("c1", "c2"))
+    set_vector(a, "cell", "age", c(10L, 20L))
+    b <- memory_daf(name = "b")
+    add_axis(b, "cell", c("c3", "c4"))
+    set_vector(b, "cell", "age", c(30L, 40L))
+    dst <- memory_daf(name = "dst")
+    concatenate(dst, "cell", list(a, b), prefix = TRUE)
+    # Names from sources don't leak through the setter; result carries destination names.
+    expect_equal(get_vector(dst, "cell", "age"),
+                 c(a.c1 = 10L, a.c2 = 20L, b.c3 = 30L, b.c4 = 40L))
+})

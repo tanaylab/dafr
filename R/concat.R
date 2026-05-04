@@ -243,7 +243,7 @@ concatenate <- function(destination, axis, sources,
         parts[[i]] <- v
     }
     out <- do.call(c, parts)
-    format_set_vector(destination, axis, name, out, overwrite = overwrite)
+    format_set_vector(destination, axis, name, unname(out), overwrite = overwrite)
 }
 
 .concat_axis_matrix <- function(destination, axis, other_axis, name, sources,
@@ -350,7 +350,7 @@ concatenate <- function(destination, axis, sources,
         for (i in rev(seq_along(sources))) {
             if (format_has_vector(sources[[i]], axis, name)) {
                 format_set_vector(destination, axis, name,
-                                  format_get_vector(sources[[i]], axis, name),
+                                  unname(format_get_vector(sources[[i]], axis, name)),
                                   overwrite = overwrite)
                 return(invisible())
             }
