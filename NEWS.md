@@ -1,4 +1,4 @@
-# dafr 0.4.0 (in development)
+# dafr 0.2.0 (in development)
 
 ## S1 — Names everywhere on `format_get_*`
 
