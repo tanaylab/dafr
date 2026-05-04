@@ -110,6 +110,23 @@ test_that("concatenate: merge=SkipProperty drops a non-axis property", {
     expect_false(has_vector(dest, "cluster", "size"))
 })
 
+test_that("concatenate: merge=LastValue vector strips source-axis names", {
+    # Regression for the .concat_merge_vector name-leak: a source's
+    # format_get_vector now returns named values; passing them to
+    # format_set_vector on the destination would trip
+    # .validate_vector_value if source names mismatch destination axis.
+    a <- memory_daf(name = "A"); add_axis(a, "cell", c("a1", "a2"))
+    add_axis(a, "cluster", c("c1", "c2"))
+    set_vector(a, "cluster", "size", c(5L, 6L))
+    b <- memory_daf(name = "B"); add_axis(b, "cell", c("b1"))
+    add_axis(b, "cluster", c("c1", "c2"))
+    set_vector(b, "cluster", "size", c(7L, 8L))
+    dest <- memory_daf(name = "dest")
+    concatenate(dest, "cell", list(a, b),
+                merge = list("cluster|size" = MERGE_LAST_VALUE))
+    expect_equal(unname(get_vector(dest, "cluster", "size")), c(7L, 8L))
+})
+
 test_that("concatenate: merge=LastValue scalar uses last source", {
     a <- memory_daf(name = "A"); add_axis(a, "cell", c("a1"))
     set_scalar(a, "organism", "mouse")
