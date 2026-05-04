@@ -7,7 +7,7 @@ test_that("get_query returns scalar values", {
 test_that("get_query returns axis entry vector", {
     d <- memory_daf(name = "t")
     add_axis(d, "cell", c("c1", "c2", "c3"))
-    expect_equal(get_query(d, "@ cell"), c("c1", "c2", "c3"))
+    expect_equal(get_query(d, "@ cell"), c(c1 = "c1", c2 = "c2", c3 = "c3"))
 })
 
 test_that("get_query with '?' returns scalar names", {

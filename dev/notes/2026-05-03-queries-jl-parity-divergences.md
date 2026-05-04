@@ -9,12 +9,14 @@ bugs (wrong answer) — fixed inline in this slice — and structural parser /
 evaluator gaps that warrant their own follow-up. This document is the punch
 list for that follow-up.
 
-## Status (2026-05-03 end-of-day)
+## Status (2026-05-04)
 
-- B1-B6 fixed in the literal-port slice on `dev`.
+- B1-B6 fixed in the literal-port slice.
 - P1-P5, E1, E2 fixed in the parser-strictness follow-up slice. See "FIXED
   in the parser-strictness slice" section below.
-- E3-E11, B7-B9, API1, N1 still deferred.
+- N1 fixed in the names-everywhere slice (S1, format-API layer) and the
+  Slice 1a follow-up (axis-listing layer). See "FIXED — N1" below.
+- E3-E11, B7-B9, API1 still deferred.
 
 ## FIXED in this slice (commits in slice-18 / dev)
 
@@ -160,28 +162,30 @@ assertions now run.
 
 ---
 
-## DEFERRED — Evaluator divergences
+## FIXED — N1
 
-### N1. Vector / matrix results returned without dimnames
+### N1. Vector / matrix / axis-listing results carry names
 
-- **Symptom.** `get_query(d, "@ cell : age")` returns `c(0, 1, 2)` rather than
-  `c(A = 0, B = 1, C = 2)`. Same for masked results and the matrix path:
-  matrices come back without `rownames` / `colnames`. The names are present
-  in the underlying axis arrays but not threaded through `format_get_vector`
-  / `format_get_matrix`.
-- **Existing convention.** Pre-existing R query tests
-  (`tests/testthat/test-query-eval-lookups.R:37`, etc.) assert against
-  unnamed values, so this gap predates the queries.jl port. The memory note
-  `feedback_format_api_named.md` says names *should* propagate; current code
-  doesn't. Treated as a behavior gap to be closed by the parser-strictness
-  follow-up slice (or a sibling slice).
-- **Test guard.** The parity test helpers compare values via `unname()` /
-  positional order. Tests still verify the right entries survive a mask by
-  cross-checking length and values, but the per-entry name assertion that
-  Julia carries via `Pair{String, ...}` is dropped pending the fix.
-- **Julia ref.** Julia's `NamedVector` / `NamedMatrix` always carry
-  dimnames; `get_query` dimensions / shape parity already works in dafr,
-  only names are missing.
+- **Status.** Closed across the S1 (format-API layer) and Slice 1a
+  (axis-listing layer) slices.
+- **S1 layer.** `format_get_vector` / `format_get_matrix` return named
+  values (names = axis entries / dimnames = (rows, cols) entries) for
+  every backend. `get_query` lookup vectors and matrix lookups inherit
+  names through these. See `tests/testthat/test-query-result-names.R`.
+- **Slice 1a layer.** `R/query_eval.R::.apply_axis` (bare `@ axis`) and
+  `R/query_eval.R::.apply_end_mask` (masked `@ axis [...]`) now return
+  axis-entry character vectors with `names == values`. Aligns with
+  Julia's NamedVector convention (axis-listing names are the entries).
+  Three `test-query-result-names.R` regressions pin the new contract.
+- **Test sweep.** `test-query-eval-lookups.R`, `test-query-eval-masks.R`,
+  `test-query-mask-variants.R` were updated to expect named axis-listing
+  results. `tests/testthat/test-queries-jl-parity.R` retains its
+  defensive `unname()` calls for now (vestigial; harmless).
+- **Julia ref.** `queries.jl` uses `("axis", ["entry" => value, ...])`
+  pair form for vector results; dafr's named-character mirror is the
+  closest faithful translation in R.
+
+(N1 closed — see "FIXED — N1" above.)
 
 (E1 closed — see "FIXED in the parser-strictness slice" above.)
 

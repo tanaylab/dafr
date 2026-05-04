@@ -268,7 +268,9 @@ NULL
         state$axis <- NULL
         return(state)
     }
-    state$value <- format_axis_array(daf, node$axis_name)$value
+    entries <- format_axis_array(daf, node$axis_name)$value
+    names(entries) <- entries
+    state$value <- entries
     state$axis <- node$axis_name
     state$kind <- "axis"
     state
@@ -1259,12 +1261,14 @@ NULL
     }
     axis <- state$axis
     entries <- format_axis_array(daf, axis)$value
+    surviving <- entries[keep]
+    names(surviving) <- surviving
     # Carry the surviving-entry indices forward so that a subsequent
     # LookupVector / LookupMatrix subsets by the mask rather than returning
     # the full axis-length vector. indices=NULL (i.e. all entries pass) is
     # treated as "no filter" by downstream consumers.
     list(
-        kind = "axis", axis = axis, value = entries[keep],
+        kind = "axis", axis = axis, value = surviving,
         indices = if (all(keep)) NULL else which(keep)
     )
 }
