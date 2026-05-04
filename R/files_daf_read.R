@@ -333,11 +333,11 @@ S7::method(
     stamp <- vector_stamp(daf, axis, name)
     hit <- cache_lookup(ce, "mapped", key, stamp)
     if (!is.null(hit)) {
-        return(hit)
+        return(.attach_vector_axis_names(daf, axis, hit))
     }
     v <- .files_get_vector_impl(daf, axis, name)
     cache_store(ce, "mapped", key, v, stamp, size_bytes = 0)
-    v
+    .attach_vector_axis_names(daf, axis, v)
 }
 
 S7::method(
@@ -551,11 +551,11 @@ S7::method(
     stamp <- matrix_stamp(daf, rows_axis, columns_axis, name)
     hit <- cache_lookup(ce, "mapped", key, stamp)
     if (!is.null(hit)) {
-        return(hit)
+        return(.attach_matrix_axis_dimnames(daf, rows_axis, columns_axis, hit))
     }
     m <- .files_get_matrix_impl(daf, rows_axis, columns_axis, name)
     cache_store(ce, "mapped", key, m, stamp, size_bytes = 0)
-    m
+    .attach_matrix_axis_dimnames(daf, rows_axis, columns_axis, m)
 }
 
 S7::method(

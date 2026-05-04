@@ -40,3 +40,46 @@ test_that("MemoryDaf format_get_matrix returns sparse with @Dimnames", {
     expect_s4_class(m, "dgCMatrix")
     expect_equal(m@Dimnames, list(c("c1", "c2", "c3"), c("gA", "gB")))
 })
+
+.fixture_named_files_daf <- function(envir = parent.frame()) {
+    src <- .fixture_named_memory_daf()
+    root <- tempfile(pattern = "dafr-names-")
+    dir.create(root)
+    withr::defer(unlink(root, recursive = TRUE), envir = envir)
+    dst <- files_daf(root, mode = "w+")
+    copy_all(dst, src)
+    dst
+}
+
+test_that("FilesDaf format_get_vector returns named atomic", {
+    skip_if_not_installed("withr")
+    d <- .fixture_named_files_daf()
+    v <- format_get_vector(d, "cell", "donor")
+    expect_equal(names(v), c("c1", "c2", "c3"))
+    expect_equal(unname(v), c("d1", "d2", "d1"))
+})
+
+test_that("FilesDaf format_get_matrix returns dense with axis dimnames", {
+    skip_if_not_installed("withr")
+    d <- .fixture_named_files_daf()
+    m <- format_get_matrix(d, "cell", "gene", "expr")
+    expect_equal(rownames(m), c("c1", "c2", "c3"))
+    expect_equal(colnames(m), c("gA", "gB"))
+})
+
+test_that("FilesDaf format_get_matrix returns sparse with @Dimnames", {
+    skip_if_not_installed("withr")
+    d <- .fixture_named_files_daf()
+    m <- format_get_matrix(d, "cell", "gene", "expr_sparse")
+    expect_s4_class(m, "dgCMatrix")
+    expect_equal(m@Dimnames, list(c("c1", "c2", "c3"), c("gA", "gB")))
+})
+
+test_that("FilesDafReadOnly inherits the named contract", {
+    skip_if_not_installed("withr")
+    d <- read_only(.fixture_named_files_daf())
+    expect_equal(names(format_get_vector(d, "cell", "donor")),
+                 c("c1", "c2", "c3"))
+    m <- format_get_matrix(d, "cell", "gene", "expr_sparse")
+    expect_equal(m@Dimnames, list(c("c1", "c2", "c3"), c("gA", "gB")))
+})
