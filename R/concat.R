@@ -243,6 +243,12 @@ concatenate <- function(destination, axis, sources,
         parts[[i]] <- v
     }
     out <- do.call(c, parts)
+    # Strip names: `format_get_vector(...)$value` is now axis-named, so
+    # `do.call(c, parts)` carries source-axis names. When the destination
+    # axis is prefix-rewritten or otherwise distinct, those names do not
+    # match the destination axis entries and `format_set_vector`'s
+    # `.validate_vector_value` correctly rejects the value.
+    out <- unname(out)
     format_set_vector(destination, axis, name, out, overwrite = overwrite)
 }
 
