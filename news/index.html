@@ -7,7 +7,7 @@
 
     <a class="navbar-brand me-2" href="../index.html">dafr</a>
 
-    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">0.2.1</small>
+    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">0.3.0</small>
 
 
     <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbar" aria-controls="navbar" aria-expanded="false" aria-label="Toggle navigation">
@@ -42,9 +42,34 @@
   <main id="main" class="col-md-9"><div class="page-header">
 
       <h1>Changelog</h1>
-      <small>Source: <a href="https://github.com/tanaylab/dafr/blob/v0.2.1/NEWS.md" class="external-link"><code>NEWS.md</code></a></small>
+      <small>Source: <a href="https://github.com/tanaylab/dafr/blob/main/NEWS.md" class="external-link"><code>NEWS.md</code></a></small>
     </div>
 
+    <div class="section level2">
+<h2 class="pkg-version" data-toc-text="0.3.0" id="dafr-030">dafr 0.3.0<a class="anchor" aria-label="anchor" href="#dafr-030"></a></h2>
+<div class="section level3">
+<h3 id="queriesjl-literal-parity-slice--b4-b6--e1-e2-0-3-0">queries.jl literal-parity slice — B4-B6 + E1, E2<a class="anchor" aria-label="anchor" href="#queriesjl-literal-parity-slice--b4-b6--e1-e2-0-3-0"></a></h3>
+<p>Closes the remaining behaviour and evaluator gaps surfaced by a literal port of <code>~/src/DataAxesFormats.jl/test/queries.jl</code>. The related parser-strictness (P1-P5) was already in place on <code>main</code> from earlier slices; this bumps R-side parity to match DAF.jl on every test that does not hit one of the still-deferred IDs (E3-E11, B7-B9, API1, N1) catalogued during the port.</p>
+<div class="section level4">
+<h4 id="evaluator-behaviour-0-3-0">Evaluator behaviour<a class="anchor" aria-label="anchor" href="#evaluator-behaviour-0-3-0"></a></h4>
+<ul><li>
+<strong>B4.</strong> <code>% &lt;Op&gt;</code> element-wise on a numeric scalar applies the op (was: <code>'%' eltwise requires vector or matrix in scope</code>). Numeric R ops handle scalar natively; string scalars still error from base R.</li>
+<li>
+<strong>B5.</strong> Partial / unconsumed queries (e.g. <code>@ cell @ gene</code>) now error with <code>invalid query: &lt;canonical&gt;</code> (was: silent <code>NULL</code>).</li>
+<li>
+<strong>B6.</strong> A second <code>?</code> after a fully-resolved Names result errors <code>'?' is not valid after &lt;kind&gt;</code> (was: silently re-listed axes).</li>
+</ul><p>Plus: <code><a href="../reference/canonical_query.html">canonical_query()</a></code> now accepts a <code>DafrQuery</code> directly (uses the stored canonical string).</p>
+</div>
+<div class="section level4">
+<h4 id="evaluator-additions-0-3-0">Evaluator additions<a class="anchor" aria-label="anchor" href="#evaluator-additions-0-3-0"></a></h4>
+<ul><li>
+<strong>E1.</strong> <code>[ filter ]</code> after <code>@ rows @ cols</code> is now valid; the mask filters the most-recently-entered axis (cols). The matrix lookup honours both <code>row_indices</code> and the new <code>col_indices</code>. Cols-mask reductions hit the existing empty-matrix IfMissing branch.</li>
+<li>
+<strong>E2.</strong> Virtual <code>name</code> property on every axis. <code>[ name = X ]</code>, logical-mask combinators on <code>name</code>, and <code>: name</code> lookups now return the axis-entry vector (<code>format_axis_array(daf, axis)</code>). The dataframe-side <code>name</code> column remains tracked under API1.</li>
+</ul><p>Plus: IfMissing defaults in vector and matrix lookups now route through <code>.coerce_if_missing_default</code> so the fill type matches the type of a real default (e.g. <code>: age || 1</code> returns an integer column, not a character one).</p>
+</div>
+</div>
+</div>
     <div class="section level2">
 <h2 class="pkg-version" data-toc-text="0.2.1" id="dafr-021">dafr 0.2.1<a class="anchor" aria-label="anchor" href="#dafr-021"></a></h2>
 <div class="section level3">
