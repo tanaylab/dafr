@@ -21,7 +21,7 @@ test_that("format_get_vector returns the stored SEXP unchanged", {
     vectors <- S7::prop(d, "internal")$vectors
     vectors$cell <- new.env(parent = emptyenv())
     vectors$cell$score <- c(1.5, 2.5)
-    expect_equal(format_get_vector(d, "cell", "score")$value, c(1.5, 2.5))
+    expect_equal(format_get_vector(d, "cell", "score")$value, c(A = 1.5, B = 2.5))
 })
 
 test_that("format_get_vector errors on unknown axis / vector", {
@@ -36,11 +36,13 @@ test_that("format_set_vector stores dense numeric/integer/logical/character vect
     add_axis(d, "cell", c("A", "B", "C"))
     for (v in list(c(1.0, 2.0, 3.0), c(1L, 2L, 3L), c(TRUE, FALSE, TRUE), c("x", "y", "z"))) {
         format_set_vector(d, "cell", "v", v, overwrite = TRUE)
-        expect_identical(format_get_vector(d, "cell", "v")$value, v)
+        got <- format_get_vector(d, "cell", "v")$value
+        expect_equal(names(got), c("A", "B", "C"))
+        expect_identical(unname(got), v)
     }
 })
 
-test_that("format_set_vector strips names to the axis entry order (named input)", {
+test_that("format_set_vector reorders named input to axis order; format_get_vector returns axis-named", {
     d <- memory_daf()
     add_axis(d, "cell", c("A", "B", "C"))
     format_set_vector(d, "cell", "v",
@@ -48,8 +50,10 @@ test_that("format_set_vector strips names to the axis entry order (named input)"
         overwrite = FALSE
     )
     got <- format_get_vector(d, "cell", "v")$value
-    expect_equal(got, c(10.0, 20.0, 30.0), ignore_attr = TRUE)
-    expect_null(names(got))
+    # Stored payload is reordered to axis order; format_get_* re-attaches
+    # axis-entry names per the S1 named-everywhere contract.
+    expect_equal(unname(got), c(10.0, 20.0, 30.0))
+    expect_equal(names(got), c("A", "B", "C"))
 })
 
 test_that("format_set_vector errors on length mismatch / unknown axis / NULL", {
@@ -90,7 +94,7 @@ test_that("format_set_vector honours overwrite", {
         "existing vector:"
     )
     format_set_vector(d, "cell", "v", c(3.0, 4.0), overwrite = TRUE)
-    expect_equal(format_get_vector(d, "cell", "v")$value, c(3.0, 4.0))
+    expect_equal(format_get_vector(d, "cell", "v")$value, c(A = 3.0, B = 4.0))
 })
 
 test_that("format_set_vector bumps the vector version counter", {
