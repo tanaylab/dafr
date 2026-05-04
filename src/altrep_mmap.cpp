@@ -154,12 +154,43 @@ static SEXP mmap_real_serialized_state(SEXP x) {
 }
 static SEXP mmap_real_unserialize(SEXP, SEXP state) { return state; }
 
+// Duplicate_method: preserve ALTREP-ness across operations like
+// `names<-`, which internally do `x <- duplicate(x); setAttrib(x,...)`.
+// Without this override, R's default duplicate materializes the data,
+// destroying the mmap optimization. The mmap region is PROT_READ and
+// immutable, so sharing data1 (the EXTPTRSXP region holder) between
+// wrappers is safe: each wrapper has its own (data1, data2) slots, and
+// shared_ptr<MmapRegion> keeps the region alive while any wrapper holds
+// it. If one wrapper later materializes (writeable Dataptr), it mutates
+// only its own slots; the other wrapper still points at the read-only
+// mmap.
+//
+// Attribute handling: we copy attributes from the source onto the
+// duplicate. R's do_duplicate does not guarantee post-method attribute
+// copy for ALTREP results, and copying here is the safe convention used
+// by canonical examples in R-source/src/main/altrep.c.
+static SEXP mmap_real_duplicate(SEXP x, Rboolean /*deep*/) {
+    SEXP d1 = R_altrep_data1(x);
+    if (d1 == R_NilValue) {
+        // Already materialized: deep-copy the materialized vector.
+        return Rf_duplicate(R_altrep_data2(x));
+    }
+    SEXP out = PROTECT(R_new_altrep(MmapRealClass, d1, R_NilValue));
+    SEXP attrs = ATTRIB(x);
+    if (attrs != R_NilValue) {
+        SET_ATTRIB(out, Rf_duplicate(attrs));
+    }
+    UNPROTECT(1);
+    return out;
+}
+
 static void init_mmap_real(DllInfo *dll) {
     MmapRealClass = R_make_altreal_class("MmapRealAltrep", "dafr", dll);
     R_set_altrep_Length_method(MmapRealClass, mmap_real_length);
     R_set_altrep_Inspect_method(MmapRealClass, mmap_real_inspect);
     R_set_altrep_Serialized_state_method(MmapRealClass, mmap_real_serialized_state);
     R_set_altrep_Unserialize_method(MmapRealClass, mmap_real_unserialize);
+    R_set_altrep_Duplicate_method(MmapRealClass, mmap_real_duplicate);
     R_set_altvec_Dataptr_method(MmapRealClass, mmap_real_dataptr);
     R_set_altvec_Dataptr_or_null_method(MmapRealClass, mmap_real_dataptr_or_null);
     R_set_altreal_Elt_method(MmapRealClass, mmap_real_elt);
@@ -239,6 +270,21 @@ static SEXP mmap_int_serialized_state(SEXP x) {
 }
 static SEXP mmap_int_unserialize(SEXP, SEXP state) { return state; }
 
+// See mmap_real_duplicate for design rationale.
+static SEXP mmap_int_duplicate(SEXP x, Rboolean /*deep*/) {
+    SEXP d1 = R_altrep_data1(x);
+    if (d1 == R_NilValue) {
+        return Rf_duplicate(R_altrep_data2(x));
+    }
+    SEXP out = PROTECT(R_new_altrep(MmapIntClass, d1, R_NilValue));
+    SEXP attrs = ATTRIB(x);
+    if (attrs != R_NilValue) {
+        SET_ATTRIB(out, Rf_duplicate(attrs));
+    }
+    UNPROTECT(1);
+    return out;
+}
+
 static void init_mmap_int(DllInfo *dll) {
     MmapIntClass = R_make_altinteger_class("MmapIntAltrep", "dafr", dll);
     R_set_altrep_Length_method(MmapIntClass, mmap_int_length);
@@ -248,6 +294,7 @@ static void init_mmap_int(DllInfo *dll) {
     R_set_altinteger_Get_region_method(MmapIntClass, mmap_int_get_region);
     R_set_altrep_Serialized_state_method(MmapIntClass, mmap_int_serialized_state);
     R_set_altrep_Unserialize_method(MmapIntClass, mmap_int_unserialize);
+    R_set_altrep_Duplicate_method(MmapIntClass, mmap_int_duplicate);
 }
 
 SEXP make_mmap_int_altrep(std::shared_ptr<MmapRegion> region, R_xlen_t length) {
@@ -323,6 +370,21 @@ static SEXP mmap_lgl_serialized_state(SEXP x) {
 }
 static SEXP mmap_lgl_unserialize(SEXP, SEXP state) { return state; }
 
+// See mmap_real_duplicate for design rationale.
+static SEXP mmap_lgl_duplicate(SEXP x, Rboolean /*deep*/) {
+    SEXP d1 = R_altrep_data1(x);
+    if (d1 == R_NilValue) {
+        return Rf_duplicate(R_altrep_data2(x));
+    }
+    SEXP out = PROTECT(R_new_altrep(MmapLglClass, d1, R_NilValue));
+    SEXP attrs = ATTRIB(x);
+    if (attrs != R_NilValue) {
+        SET_ATTRIB(out, Rf_duplicate(attrs));
+    }
+    UNPROTECT(1);
+    return out;
+}
+
 static void init_mmap_lgl(DllInfo *dll) {
     MmapLglClass = R_make_altlogical_class("MmapLglAltrep", "dafr", dll);
     R_set_altrep_Length_method(MmapLglClass, mmap_lgl_length);
@@ -332,6 +394,7 @@ static void init_mmap_lgl(DllInfo *dll) {
     R_set_altlogical_Get_region_method(MmapLglClass, mmap_lgl_get_region);
     R_set_altrep_Serialized_state_method(MmapLglClass, mmap_lgl_serialized_state);
     R_set_altrep_Unserialize_method(MmapLglClass, mmap_lgl_unserialize);
+    R_set_altrep_Duplicate_method(MmapLglClass, mmap_lgl_duplicate);
 }
 
 SEXP make_mmap_lgl_altrep(std::shared_ptr<MmapRegion> region, R_xlen_t length) {
