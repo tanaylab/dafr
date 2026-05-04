@@ -169,6 +169,23 @@ static SEXP mmap_real_unserialize(SEXP, SEXP state) { return state; }
 // duplicate. R's do_duplicate does not guarantee post-method attribute
 // copy for ALTREP results, and copying here is the safe convention used
 // by canonical examples in R-source/src/main/altrep.c.
+//
+// We copy the canonical vector/matrix attributes (names, dim, dimnames,
+// class) via the public Rf_getAttrib / Rf_setAttrib API, rather than
+// the ATTRIB() / SET_ATTRIB() macros which are gated behind
+// USE_RINTERNALS in R 4.5+ and fail to compile cleanly on r-devel and
+// r-release runners.
+static void copy_common_attribs(SEXP from, SEXP to) {
+    // names is the load-bearing case (R's `names<-` triggers
+    // duplicate before setAttrib). dim / dimnames / class round out
+    // the standard atomic-vector / matrix attribute set.
+    SEXP keys[4] = {R_NamesSymbol, R_DimSymbol, R_DimNamesSymbol, R_ClassSymbol};
+    for (int i = 0; i < 4; i++) {
+        SEXP v = Rf_getAttrib(from, keys[i]);
+        if (v != R_NilValue) Rf_setAttrib(to, keys[i], v);
+    }
+}
+
 static SEXP mmap_real_duplicate(SEXP x, Rboolean /*deep*/) {
     SEXP d1 = R_altrep_data1(x);
     if (d1 == R_NilValue) {
@@ -176,10 +193,7 @@ static SEXP mmap_real_duplicate(SEXP x, Rboolean /*deep*/) {
         return Rf_duplicate(R_altrep_data2(x));
     }
     SEXP out = PROTECT(R_new_altrep(MmapRealClass, d1, R_NilValue));
-    SEXP attrs = ATTRIB(x);
-    if (attrs != R_NilValue) {
-        SET_ATTRIB(out, Rf_duplicate(attrs));
-    }
+    copy_common_attribs(x, out);
     UNPROTECT(1);
     return out;
 }
@@ -277,10 +291,7 @@ static SEXP mmap_int_duplicate(SEXP x, Rboolean /*deep*/) {
         return Rf_duplicate(R_altrep_data2(x));
     }
     SEXP out = PROTECT(R_new_altrep(MmapIntClass, d1, R_NilValue));
-    SEXP attrs = ATTRIB(x);
-    if (attrs != R_NilValue) {
-        SET_ATTRIB(out, Rf_duplicate(attrs));
-    }
+    copy_common_attribs(x, out);
     UNPROTECT(1);
     return out;
 }
@@ -377,10 +388,7 @@ static SEXP mmap_lgl_duplicate(SEXP x, Rboolean /*deep*/) {
         return Rf_duplicate(R_altrep_data2(x));
     }
     SEXP out = PROTECT(R_new_altrep(MmapLglClass, d1, R_NilValue));
-    SEXP attrs = ATTRIB(x);
-    if (attrs != R_NilValue) {
-        SET_ATTRIB(out, Rf_duplicate(attrs));
-    }
+    copy_common_attribs(x, out);
     UNPROTECT(1);
     return out;
 }
