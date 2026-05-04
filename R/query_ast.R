@@ -115,6 +115,11 @@ NULL
 #' @seealso [unescape_value()], [canonical_query()]
 #' @export
 escape_value <- function(s) {
+    if (!nzchar(s)) {
+        # Round-trip with the tokenizer's `''` empty-string value token,
+        # mirroring Julia DAF's escape_value("") == "''".
+        return("''")
+    }
     if (grepl("[\\s\\\\!&*%./:<=>?@\\[\\]^\\|~\"]", s, perl = TRUE)) {
         paste0("\"", gsub("([\\\\\"])", "\\\\\\1", s, perl = TRUE), "\"")
     } else {
@@ -141,6 +146,10 @@ escape_value <- function(s) {
 #' @export
 unescape_value <- function(s) {
     stopifnot(is.character(s), length(s) == 1L)
+    # Inverse of escape_value("") == "''" — the canonical empty-string token.
+    if (identical(s, "''")) {
+        return("")
+    }
     if (!startsWith(s, "\"") || !endsWith(s, "\"") || nchar(s) < 2L) {
         return(s)
     }

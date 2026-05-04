@@ -81,21 +81,18 @@ test_that("queries / invalid / unexpected / mask", {
 })
 
 test_that("queries / invalid / operation", {
-    skip("main parser wraps names in sQuote (curly quotes); test expects bare name in error message; tracked as queries-jl-parity-on-main P-port-followup")
     expect_error(parse_query(". score % Frobulate"),
         regexp = "unknown eltwise operation: Frobulate"
     )
 })
 
 test_that("queries / invalid / parameter", {
-    skip("main parser error format differs: uses sQuote and 'eltwise operation' wording; test expects queries.jl literal format; tracked as queries-jl-parity-on-main P-port-followup")
     expect_error(parse_query(". score % Log phase 2"),
         regexp = "the parameter: phase does not exist for the operation: Log"
     )
 })
 
 test_that("queries / invalid / parameters", {
-    skip("main parser error format differs: includes sQuote and operation context; test expects queries.jl literal 'repeated parameter: base'; tracked as queries-jl-parity-on-main P-port-followup")
     expect_error(parse_query(". score % Log base pi base e"),
         regexp = "repeated parameter: base"
     )
@@ -106,7 +103,6 @@ test_that("queries / invalid / parameters", {
 # ---------------------------------------------------------------------------
 
 test_that("queries / empty", {
-    skip("main canonical_query strips quotes from empty string: produces '@ metacell != ' instead of '@ metacell != \"\"'; tracked as queries-jl-parity-on-main B-port-followup")
     expect_equal(canonical_query("@ metacell != ''"), "@ metacell != ''")
 })
 
@@ -762,7 +758,6 @@ test_that("queries / vector / matrix / reduction / column / empty / cols", {
 })
 
 test_that("queries / vector / matrix / reduction / column / !empty / rows", {
-    skip("main evaluator does not error on empty-matrix column reduction; dev fix (B-port) raises 'no IfMissing value specified' error; tracked as queries-jl-parity-on-main B-port-followup")
     daf <- .fx_vec_matrix()
     set_vector(daf, "cell", "is_q", c(FALSE, FALSE))
     expect_error(get_query(daf,
@@ -823,7 +818,6 @@ test_that("queries / vector / matrix / reduction / row / !empty / rows", {
 })
 
 test_that("queries / vector / matrix / reduction / row / !empty / cols", {
-    skip("main evaluator does not error on empty-matrix row reduction; dev fix (B-port) raises 'no IfMissing value specified' error; tracked as queries-jl-parity-on-main B-port-followup")
     daf <- .fx_vec_matrix()
     set_vector(daf, "gene", "is_q", c(FALSE, FALSE, FALSE))
     expect_error(get_query(daf,
