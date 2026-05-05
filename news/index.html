@@ -48,6 +48,20 @@
     <div class="section level2">
 <h2 class="pkg-version" data-toc-text="0.2.0" id="dafr-020-in-development">dafr 0.2.0 (in development)<a class="anchor" aria-label="anchor" href="#dafr-020-in-development"></a></h2>
 <div class="section level3">
+<h3 id="windows-ci--mmapzipstore-posix-only-fallback-0-2-0">Windows CI — MmapZipStore POSIX-only fallback<a class="anchor" aria-label="anchor" href="#windows-ci--mmapzipstore-posix-only-fallback-0-2-0"></a></h3>
+<p>Closes the pre-existing slice-17 regression where Windows R-CMD-check ran <code>[ FAIL 201 | WARN 0 | SKIP 17 | PASS 4026 ]</code>. Every FilesDaf write went through <code>.metadata_zip_rebuild</code> → <code>new_mmap_zip_store</code> → the <code>MmapZipStore is not supported on Windows</code> runtime stub, killing the whole FilesDaf surface plus the zarr-zip API.</p>
+<ul><li>
+<code>R/files_metadata_zip.R::.metadata_zip_rebuild</code> and <code>.metadata_zip_append</code> now no-op on Windows (after writing <code>axes/metadata.json</code>, which doesn’t depend on MmapZipStore). Local FilesDaf reads/writes work fine on Windows; only the optional <code>metadata.zip</code> bundle (used by <code>http_daf</code> clients fetching from a server) is unavailable.</li>
+<li>
+<code>R/files_metadata_zip.R::pack_files_daf_metadata</code> errors on Windows with a clear “POSIX-only” message instead of the cryptic stub.</li>
+<li>
+<code>R/zarr_format.R::zarr_daf</code> errors at the API surface for <code>.daf.zarr.zip</code> paths on Windows; users fall back to the unzipped <code>.daf.zarr</code> directory store.</li>
+<li>Internal <code>.is_windows()</code> helper factored out so the fallback paths can be exercised on POSIX hosts via <code><a href="https://testthat.r-lib.org/reference/local_mocked_bindings.html" class="external-link">testthat::local_mocked_bindings()</a></code>.</li>
+<li>New <code>tests/testthat/test-windows-mmap-fallback.R</code> pins the four fallback contracts.</li>
+<li>
+<code>tests/testthat/test-mmap-zip-store-*.R</code> (5 files), the <code>.daf.zarr.zip</code> round-trip, and <code>test-files-metadata-zip.R</code> get <code>skip_if_no_mmap_zip()</code> at the top of every test_that — they exercise the API directly and have no fallback.</li>
+</ul></div>
+<div class="section level3">
 <h3 id="queriesjl-parity--slice-e6-e9-plus-three-t-class-wins-0-2-0">queries.jl parity — Slice 3 (E6, E9, plus three T-class wins)<a class="anchor" aria-label="anchor" href="#queriesjl-parity--slice-e6-e9-plus-three-t-class-wins-0-2-0"></a></h3>
 <p>Slice 3 closes the last two semantic divergences plus three T-class error-text items that turned out to be tractable.</p>
 <ul><li>

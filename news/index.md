@@ -2,6 +2,35 @@
 
 ## dafr 0.2.0 (in development)
 
+### Windows CI — MmapZipStore POSIX-only fallback
+
+Closes the pre-existing slice-17 regression where Windows R-CMD-check
+ran `[ FAIL 201 | WARN 0 | SKIP 17 | PASS 4026 ]`. Every FilesDaf write
+went through `.metadata_zip_rebuild` → `new_mmap_zip_store` → the
+`MmapZipStore is not supported on Windows` runtime stub, killing the
+whole FilesDaf surface plus the zarr-zip API.
+
+- `R/files_metadata_zip.R::.metadata_zip_rebuild` and
+  `.metadata_zip_append` now no-op on Windows (after writing
+  `axes/metadata.json`, which doesn’t depend on MmapZipStore). Local
+  FilesDaf reads/writes work fine on Windows; only the optional
+  `metadata.zip` bundle (used by `http_daf` clients fetching from a
+  server) is unavailable.
+- `R/files_metadata_zip.R::pack_files_daf_metadata` errors on Windows
+  with a clear “POSIX-only” message instead of the cryptic stub.
+- `R/zarr_format.R::zarr_daf` errors at the API surface for
+  `.daf.zarr.zip` paths on Windows; users fall back to the unzipped
+  `.daf.zarr` directory store.
+- Internal `.is_windows()` helper factored out so the fallback paths can
+  be exercised on POSIX hosts via
+  [`testthat::local_mocked_bindings()`](https://testthat.r-lib.org/reference/local_mocked_bindings.html).
+- New `tests/testthat/test-windows-mmap-fallback.R` pins the four
+  fallback contracts.
+- `tests/testthat/test-mmap-zip-store-*.R` (5 files), the
+  `.daf.zarr.zip` round-trip, and `test-files-metadata-zip.R` get
+  `skip_if_no_mmap_zip()` at the top of every test_that — they exercise
+  the API directly and have no fallback.
+
 ### queries.jl parity — Slice 3 (E6, E9, plus three T-class wins)
 
 Slice 3 closes the last two semantic divergences plus three T-class
