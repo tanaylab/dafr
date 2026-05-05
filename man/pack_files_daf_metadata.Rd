@@ -23,7 +23,10 @@ tree that was built by an older dafr (pre-0.2.0) or modified outside
 dafr.
 }
 \examples{
-p <- tempfile("daf-")
-files_daf(p, "w+")
-pack_files_daf_metadata(p)
+# The underlying mmap-zip writer is POSIX-only.
+if (.Platform$OS.type != "windows") {
+  p <- tempfile("daf-")
+  files_daf(p, "w+")
+  pack_files_daf_metadata(p)
+}
 }

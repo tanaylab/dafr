@@ -182,9 +182,12 @@ NULL
 #' @param path Directory path to a FilesDaf root.
 #' @return The absolute path to the written `metadata.zip`, invisibly.
 #' @examples
-#' p <- tempfile("daf-")
-#' files_daf(p, "w+")
-#' pack_files_daf_metadata(p)
+#' # The underlying mmap-zip writer is POSIX-only.
+#' if (.Platform$OS.type != "windows") {
+#'   p <- tempfile("daf-")
+#'   files_daf(p, "w+")
+#'   pack_files_daf_metadata(p)
+#' }
 #' @export
 pack_files_daf_metadata <- function(path) {
     stopifnot(is.character(path), length(path) == 1L, !is.na(path))
@@ -194,8 +197,8 @@ pack_files_daf_metadata <- function(path) {
     }
     if (.is_windows()) {
         stop(
-            "pack_files_daf_metadata: not supported on Windows. The slice-17 ",
-            "MmapZipStore writer used to bundle metadata.zip is POSIX-only; ",
+            "pack_files_daf_metadata: not supported on Windows. The ",
+            "underlying mmap-zip writer is POSIX-only; ",
             "run on Linux/macOS if you need a servable archive.",
             call. = FALSE
         )
