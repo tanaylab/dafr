@@ -96,15 +96,15 @@ tree on the local filesystem. The path conventionally ends in
 <span>           <span class="fu"><a href="https://rdrr.io/r/base/matrix.html" class="external-link">matrix</a></span><span class="op">(</span><span class="fu"><a href="https://rdrr.io/r/base/c.html" class="external-link">c</a></span><span class="op">(</span><span class="fl">1</span>, <span class="fl">0</span>, <span class="fl">0</span>, <span class="fl">0</span>, <span class="fl">1</span>, <span class="fl">0</span>, <span class="fl">0</span>, <span class="fl">0</span>, <span class="fl">1</span><span class="op">)</span>, <span class="fl">3</span>, <span class="fl">3</span><span class="op">)</span><span class="op">)</span></span>
 <span><span class="fu"><a href="https://rdrr.io/r/base/rm.html" class="external-link">rm</a></span><span class="op">(</span><span class="va">d</span><span class="op">)</span>; <span class="fu"><a href="https://rdrr.io/r/base/gc.html" class="external-link">gc</a></span><span class="op">(</span><span class="op">)</span></span>
 <span><span class="co">#&gt;           used  (Mb) gc trigger  (Mb) max used  (Mb)</span></span>
-<span><span class="co">#&gt; Ncells 2508366 134.0    5035757 269.0  3274581 174.9</span></span>
-<span><span class="co">#&gt; Vcells 4308353  32.9   10146329  77.5  7111928  54.3</span></span>
+<span><span class="co">#&gt; Ncells 2508395 134.0    5035637 269.0  3274930 175.0</span></span>
+<span><span class="co">#&gt; Vcells 4308408  32.9   10146329  77.5  7111962  54.3</span></span>
 <span></span>
 <span><span class="co"># Reopen read-only and inspect.</span></span>
 <span><span class="va">d</span> <span class="op">&lt;-</span> <span class="fu"><a href="../reference/zarr_daf.html">zarr_daf</a></span><span class="op">(</span><span class="va">path</span>, mode <span class="op">=</span> <span class="st">"r"</span><span class="op">)</span></span>
 <span><span class="fu"><a href="https://rdrr.io/r/base/cat.html" class="external-link">cat</a></span><span class="op">(</span><span class="fu"><a href="../reference/description.html">description</a></span><span class="op">(</span><span class="va">d</span><span class="op">)</span><span class="op">)</span></span>
-<span><span class="co">#&gt; name: file27c95a40b335.daf.zarr</span></span>
+<span><span class="co">#&gt; name: file278d383e99d9.daf.zarr</span></span>
 <span><span class="co">#&gt; type: ZarrDaf</span></span>
-<span><span class="co">#&gt; path: /tmp/RtmpIlZApy/file27c95a40b335.daf.zarr</span></span>
+<span><span class="co">#&gt; path: /tmp/RtmpxJ7LnK/file278d383e99d9.daf.zarr</span></span>
 <span><span class="co">#&gt; mode: r</span></span>
 <span><span class="co">#&gt; scalars:</span></span>
 <span><span class="co">#&gt;   organism: "human"</span></span>
@@ -140,8 +140,8 @@ protocol.</p>
 <span><span class="fu"><a href="../reference/set_vector.html">set_vector</a></span><span class="op">(</span><span class="va">d</span>, <span class="st">"gene"</span>, <span class="st">"is_marker"</span>, <span class="fu"><a href="https://rdrr.io/r/base/c.html" class="external-link">c</a></span><span class="op">(</span><span class="cn">TRUE</span>, <span class="cn">FALSE</span><span class="op">)</span><span class="op">)</span></span>
 <span><span class="fu"><a href="https://rdrr.io/r/base/rm.html" class="external-link">rm</a></span><span class="op">(</span><span class="va">d</span><span class="op">)</span>; <span class="fu"><a href="https://rdrr.io/r/base/gc.html" class="external-link">gc</a></span><span class="op">(</span><span class="op">)</span></span>
 <span><span class="co">#&gt;           used  (Mb) gc trigger  (Mb) max used  (Mb)</span></span>
-<span><span class="co">#&gt; Ncells 2732978 146.0    5035757 269.0  3274581 174.9</span></span>
-<span><span class="co">#&gt; Vcells 4682631  35.8   10146329  77.5  7111928  54.3</span></span>
+<span><span class="co">#&gt; Ncells 2733007 146.0    5035637 269.0  3274930 175.0</span></span>
+<span><span class="co">#&gt; Vcells 4682686  35.8   10146329  77.5  7111962  54.3</span></span>
 <span></span>
 <span><span class="co"># Reopen.</span></span>
 <span><span class="va">d</span> <span class="op">&lt;-</span> <span class="fu"><a href="../reference/zarr_daf.html">zarr_daf</a></span><span class="op">(</span><span class="va">zip_path</span>, mode <span class="op">=</span> <span class="st">"r"</span><span class="op">)</span></span>
