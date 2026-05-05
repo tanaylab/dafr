@@ -1,4 +1,5 @@
 test_that("pack_files_daf_metadata bundles every JSON in tree", {
+    skip_if_no_mmap_zip()
     path <- withr::local_tempdir("daf-pack-")
     d <- files_daf(path, "w+")
     add_axis(d, "cell", c("c1", "c2"))
@@ -28,6 +29,7 @@ test_that("pack_files_daf_metadata bundles every JSON in tree", {
 })
 
 test_that("pack_files_daf_metadata is atomic via .new + rename", {
+    skip_if_no_mmap_zip()
     path <- withr::local_tempdir("daf-pack-atomic-")
     files_daf(path, "w+")
     pack_files_daf_metadata(path)
@@ -37,6 +39,7 @@ test_that("pack_files_daf_metadata is atomic via .new + rename", {
 # Determinism relies on MmapZipStore writing fixed 1980-01-01 timestamps
 # (src/mmap_zip_store.cpp). If that ever changes, this test will fail.
 test_that("pack_files_daf_metadata is deterministic on a stable tree", {
+    skip_if_no_mmap_zip()
     path <- withr::local_tempdir("daf-pack-determ-")
     d <- files_daf(path, "w+")
     add_axis(d, "cell", c("c1", "c2"))
@@ -53,6 +56,7 @@ test_that("pack_files_daf_metadata is deterministic on a stable tree", {
 })
 
 test_that("pack_files_daf_metadata writes entries in deterministic sorted order", {
+    skip_if_no_mmap_zip()
     path <- withr::local_tempdir("daf-pack-order-")
     d <- files_daf(path, "w+")
     add_axis(d, "cell", c("c1", "c2"))
@@ -72,12 +76,14 @@ test_that("pack_files_daf_metadata writes entries in deterministic sorted order"
 })
 
 test_that("pack_files_daf_metadata errors on non-FilesDaf directory", {
+    skip_if_no_mmap_zip()
     path <- withr::local_tempdir("daf-pack-bad-")
     expect_error(pack_files_daf_metadata(path),
                  "not a FilesDaf directory")
 })
 
 test_that("pack_files_daf_metadata bundles matrix descriptor JSON", {
+    skip_if_no_mmap_zip()
     path <- withr::local_tempdir("daf-pack-mat-")
     d <- files_daf(path, "w+")
     add_axis(d, "row", c("r1", "r2"))
@@ -91,6 +97,7 @@ test_that("pack_files_daf_metadata bundles matrix descriptor JSON", {
 })
 
 test_that("set_scalar appends to metadata.zip", {
+    skip_if_no_mmap_zip()
     path <- withr::local_tempdir("daf-append-scalar-")
     d <- files_daf(path, "w+")
     set_scalar(d, "k", "v")
@@ -102,6 +109,7 @@ test_that("set_scalar appends to metadata.zip", {
 })
 
 test_that("set_vector appends to metadata.zip; entry set matches rebuild", {
+    skip_if_no_mmap_zip()
     path <- withr::local_tempdir("daf-append-vec-")
     d <- files_daf(path, "w+")
     add_axis(d, "cell", c("c1", "c2"))
@@ -115,6 +123,7 @@ test_that("set_vector appends to metadata.zip; entry set matches rebuild", {
 })
 
 test_that("set_matrix (dense) appends to metadata.zip", {
+    skip_if_no_mmap_zip()
     path <- withr::local_tempdir("daf-append-mat-dense-")
     d <- files_daf(path, "w+")
     add_axis(d, "row", c("r1", "r2"))
@@ -127,6 +136,7 @@ test_that("set_matrix (dense) appends to metadata.zip", {
 })
 
 test_that("set_matrix (sparse) appends to metadata.zip", {
+    skip_if_no_mmap_zip()
     path <- withr::local_tempdir("daf-append-mat-sparse-")
     d <- files_daf(path, "w+")
     add_axis(d, "row", c("r1", "r2", "r3"))
@@ -141,6 +151,7 @@ test_that("set_matrix (sparse) appends to metadata.zip", {
 })
 
 test_that("set_vector with sparseVector input appends to metadata.zip", {
+    skip_if_no_mmap_zip()
     path <- withr::local_tempdir("daf-append-svec-")
     d <- files_daf(path, "w+")
     add_axis(d, "cell", c("c1", "c2", "c3"))
@@ -153,6 +164,7 @@ test_that("set_vector with sparseVector input appends to metadata.zip", {
 })
 
 test_that("metadata_zip_append exercises append path on second set_*", {
+    skip_if_no_mmap_zip()
     # First set creates metadata.zip via missing-zip fallback. Second set
     # exercises the actual append branch (line 115+ of files_metadata_zip.R).
     path <- withr::local_tempdir("daf-append-second-")
@@ -177,6 +189,7 @@ test_that("metadata_zip_append exercises append path on second set_*", {
 })
 
 test_that("set_scalar with overwrite=TRUE rewrites metadata.zip entry", {
+    skip_if_no_mmap_zip()
     # Pins the dafr-only collision-fallback-to-rebuild divergence: dafr's
     # MmapZipStore is append-only, so an overwriting set_* triggers a full
     # rebuild. Verify exactly one entry remains and content is the new value.
@@ -199,6 +212,7 @@ test_that("set_scalar with overwrite=TRUE rewrites metadata.zip entry", {
 })
 
 test_that("delete_scalar rebuilds metadata.zip", {
+    skip_if_no_mmap_zip()
     path <- withr::local_tempdir("daf-del-scalar-")
     d <- files_daf(path, "w+")
     set_scalar(d, "k1", "v1")
@@ -219,6 +233,7 @@ test_that("delete_scalar rebuilds metadata.zip", {
 })
 
 test_that("delete_vector rebuilds metadata.zip", {
+    skip_if_no_mmap_zip()
     path <- withr::local_tempdir("daf-del-vec-")
     d <- files_daf(path, "w+")
     add_axis(d, "cell", c("c1", "c2"))
@@ -240,6 +255,7 @@ test_that("delete_vector rebuilds metadata.zip", {
 })
 
 test_that("delete_matrix rebuilds metadata.zip", {
+    skip_if_no_mmap_zip()
     path <- withr::local_tempdir("daf-del-mat-")
     d <- files_daf(path, "w+")
     add_axis(d, "row", c("r1", "r2"))
@@ -262,6 +278,7 @@ test_that("delete_matrix rebuilds metadata.zip", {
 })
 
 test_that("delete_axis rebuilds metadata.zip and updates axes/metadata.json", {
+    skip_if_no_mmap_zip()
     path <- withr::local_tempdir("daf-del-axis-")
     d <- files_daf(path, "w+")
     add_axis(d, "cell", c("c1", "c2"))
@@ -291,6 +308,7 @@ test_that("delete_axis rebuilds metadata.zip and updates axes/metadata.json", {
 })
 
 test_that("reorder_axes rebuilds metadata.zip", {
+    skip_if_no_mmap_zip()
     # After reorder, metadata.zip must match what a fresh rebuild would
     # produce on the post-reorder tree.
     path <- withr::local_tempdir("daf-reorder-")
@@ -312,6 +330,7 @@ test_that("reorder_axes rebuilds metadata.zip", {
 })
 
 test_that("reset_reorder_axes is idempotent (no-op) when no backup exists", {
+    skip_if_no_mmap_zip()
     # After a successful reorder there is no .reorder.backup/, so calling
     # reset_reorder_axes is a no-op and metadata.zip must remain a
     # consistent rebuild of the current (post-reorder) tree. The real
@@ -342,6 +361,7 @@ test_that("reset_reorder_axes is idempotent (no-op) when no backup exists", {
 })
 
 test_that("reorder_axes does not produce stale metadata.zip entries", {
+    skip_if_no_mmap_zip()
     # Verify the entry SET is what a rebuild would produce (no orphaned
     # entries from pre-reorder state).
     path <- withr::local_tempdir("daf-reorder-set-")
@@ -360,6 +380,7 @@ test_that("reorder_axes does not produce stale metadata.zip entries", {
 })
 
 test_that("ensure_metadata_zip rebuilds when missing", {
+    skip_if_no_mmap_zip()
     path <- withr::local_tempdir("daf-ensure-")
     d <- files_daf(path, "w+")
     add_axis(d, "cell", c("c1", "c2"))
@@ -379,6 +400,7 @@ test_that("ensure_metadata_zip rebuilds when missing", {
 })
 
 test_that("ensure_metadata_zip is a no-op when metadata.zip is fresh", {
+    skip_if_no_mmap_zip()
     path <- withr::local_tempdir("daf-ensure-fresh-")
     d <- files_daf(path, "w+")
     add_axis(d, "cell", c("c1", "c2"))
@@ -394,6 +416,7 @@ test_that("ensure_metadata_zip is a no-op when metadata.zip is fresh", {
 })
 
 test_that("read-only open does not write metadata.zip", {
+    skip_if_no_mmap_zip()
     path <- withr::local_tempdir("daf-ensure-ro-")
     d <- files_daf(path, "w+")
     add_axis(d, "cell", c("c1", "c2"))
@@ -408,6 +431,7 @@ test_that("read-only open does not write metadata.zip", {
 })
 
 test_that("fresh files_daf(w+) creates metadata.zip via init", {
+    skip_if_no_mmap_zip()
     # Phase 6 Change 2: .files_daf_init now produces metadata.zip on
     # fresh init.
     path <- withr::local_tempdir("daf-init-")

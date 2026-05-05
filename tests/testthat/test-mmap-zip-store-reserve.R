@@ -18,6 +18,7 @@ patch_crc <- function(store, key) {
 }
 
 test_that("reserve returns a writable ALTREP RAW view of the data region", {
+    skip_if_no_mmap_zip()
     path <- new_tempfile("zip")
     s <- new_mmap_zip_store(path, mode = "w")
     on.exit(dafr:::dafr_mmap_zip_close(S7::prop(s, "xptr")), add = TRUE)
@@ -28,6 +29,7 @@ test_that("reserve returns a writable ALTREP RAW view of the data region", {
 })
 
 test_that("write into the reserved view, patch_crc, close, reopen — verify bytes", {
+    skip_if_no_mmap_zip()
     path <- new_tempfile("zip")
     s <- new_mmap_zip_store(path, mode = "w")
     payload <- as.raw(c(0xde, 0xad, 0xbe, 0xef, 0x00, 0xff, 0x42, 0x10))
@@ -45,6 +47,7 @@ test_that("write into the reserved view, patch_crc, close, reopen — verify byt
 })
 
 test_that("reserve rejects overwriting an existing key", {
+    skip_if_no_mmap_zip()
     path <- new_tempfile("zip")
     s <- new_mmap_zip_store(path, mode = "w")
     on.exit(dafr:::dafr_mmap_zip_close(S7::prop(s, "xptr")), add = TRUE)
@@ -55,6 +58,7 @@ test_that("reserve rejects overwriting an existing key", {
 })
 
 test_that("reserve rejects on read-only stores", {
+    skip_if_no_mmap_zip()
     skip_if_no_python_zipfile()
     path <- new_tempfile("zip")
     build_zip(path, list("k" = "v"), compression = "stored")
@@ -64,6 +68,7 @@ test_that("reserve rejects on read-only stores", {
 })
 
 test_that("reserve of size 0 succeeds and patch_crc is a no-op verification", {
+    skip_if_no_mmap_zip()
     path <- new_tempfile("zip")
     s <- new_mmap_zip_store(path, mode = "w")
     v <- reserve_view(s, "empty", 0L)
@@ -78,6 +83,7 @@ test_that("reserve of size 0 succeeds and patch_crc is a no-op verification", {
 })
 
 test_that("multiple reserve+patch round-trips preserve append order", {
+    skip_if_no_mmap_zip()
     path <- new_tempfile("zip")
     s <- new_mmap_zip_store(path, mode = "w")
     payloads <- list(
@@ -105,6 +111,7 @@ test_that("multiple reserve+patch round-trips preserve append order", {
 # Recovery test: write via reserve, fail to patch_crc, reopen 'r+' triggers
 # rollback. Gated on NOT_CRAN to match other recovery tests.
 test_that("reserve without patch_crc rolls back on r+ reopen", {
+    skip_if_no_mmap_zip()
     if (!identical(Sys.getenv("NOT_CRAN"), "true")) {
         testthat::skip_on_cran()
     }

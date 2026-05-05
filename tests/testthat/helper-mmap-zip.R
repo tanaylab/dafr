@@ -30,6 +30,15 @@ skip_if_no_python_zipfile <- function() {
     }
 }
 
+# Slice-17 MmapZipStore is POSIX-only (no Win32 mmap port). Tests that
+# exercise the API directly skip on Windows, where the C++ stubs in
+# `src/mmap_zip_store_win_stubs.cpp` raise a clear runtime error.
+skip_if_no_mmap_zip <- function() {
+    if (.Platform$OS.type == "windows") {
+        testthat::skip("MmapZipStore is POSIX-only; not built on Windows")
+    }
+}
+
 # Returns TRUE iff python3 has the `zarr` module importable. Used by
 # Phase 12 cross-language tests that exercise zarr.storage.ZipStore.
 have_python3_zarr <- local({

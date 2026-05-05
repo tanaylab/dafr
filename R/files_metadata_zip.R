@@ -1,6 +1,11 @@
 #' @include files_daf.R
 NULL
 
+# Platform check, factored out so the Windows-specific no-op paths in
+# .metadata_zip_rebuild / .metadata_zip_append / pack_files_daf_metadata
+# can be exercised on POSIX hosts via testthat::local_mocked_bindings().
+.is_windows <- function() .Platform$OS.type == "windows"
+
 # Write axes/metadata.json: sorted JSON array of axis names currently present
 # in axes/*.txt. Mirrors upstream files_format.jl::write_axes_metadata!.
 .write_axes_metadata <- function(path) {
@@ -23,6 +28,14 @@ NULL
     # therefore O(K*N). Acceptable for the slice-18 release; a future phase
     # may defer rebuild to close-time via a "dirty" flag.
     .write_axes_metadata(path)
+    if (.is_windows()) {
+        # MmapZipStore is POSIX-only (slice-17). Skip the zip rebuild on
+        # Windows — `axes/metadata.json` is still written above, which is
+        # what local FilesDaf reads need. `metadata.zip` is only used by
+        # `http_daf` clients fetching from a server; on Windows, run a
+        # POSIX host (Linux/macOS) to produce a servable archive.
+        return(invisible(file.path(path, "metadata.zip")))
+    }
     zip_path <- file.path(path, "metadata.zip")
     staging <- paste0(zip_path, ".new")
     if (file.exists(staging)) unlink(staging, force = TRUE)
@@ -105,6 +118,12 @@ NULL
 # files_format.jl::metadata_zip_append! plus its ensure_metadata_zip
 # precondition.
 .metadata_zip_append <- function(path, relative_path) {
+    if (.is_windows()) {
+        # MmapZipStore is POSIX-only — caller has already written the
+        # on-disk JSON, and metadata.zip isn't maintained on Windows.
+        # See `.metadata_zip_rebuild` for the reasoning.
+        return(invisible())
+    }
     zip_path <- file.path(path, "metadata.zip")
     # Defensive: if metadata.zip is missing (user deleted it, or this is
     # the first set_* on a freshly-initialised store), rebuild from
@@ -172,6 +191,14 @@ pack_files_daf_metadata <- function(path) {
     if (!file.exists(file.path(path, "daf.json"))) {
         stop(sprintf("pack_files_daf_metadata: %s is not a FilesDaf directory (no daf.json)",
                      sQuote(path)), call. = FALSE)
+    }
+    if (.is_windows()) {
+        stop(
+            "pack_files_daf_metadata: not supported on Windows. The slice-17 ",
+            "MmapZipStore writer used to bundle metadata.zip is POSIX-only; ",
+            "run on Linux/macOS if you need a servable archive.",
+            call. = FALSE
+        )
     }
     invisible(.metadata_zip_rebuild(path))
 }
