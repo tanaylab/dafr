@@ -1,269 +1,119 @@
 # dafr 0.2.0 (in development)
 
-## Windows CI — MmapZipStore POSIX-only fallback
+## Windows support
 
-Closes the pre-existing slice-17 regression where Windows R-CMD-check
-ran `[ FAIL 201 | WARN 0 | SKIP 17 | PASS 4026 ]`. Every FilesDaf
-write went through `.metadata_zip_rebuild` → `new_mmap_zip_store` →
-the `MmapZipStore is not supported on Windows` runtime stub,
-killing the whole FilesDaf surface plus the zarr-zip API.
+`files_daf()` now works on Windows. Previously every write failed with
+`MmapZipStore is not supported on Windows`. On Windows, dafr skips the
+optional `metadata.zip` bundle (only used for serving a FilesDaf over
+HTTP via `http_daf()`); local reads, writes, and round-trips are
+unaffected. `pack_files_daf_metadata()` errors with a clear message,
+and `zarr_daf()` rejects `.daf.zarr.zip` paths there — use the
+unzipped `.daf.zarr` directory store instead, or run on Linux/macOS
+for zip-backed storage.
 
-- `R/files_metadata_zip.R::.metadata_zip_rebuild` and
-  `.metadata_zip_append` now no-op on Windows (after writing
-  `axes/metadata.json`, which doesn't depend on MmapZipStore). Local
-  FilesDaf reads/writes work fine on Windows; only the optional
-  `metadata.zip` bundle (used by `http_daf` clients fetching from a
-  server) is unavailable.
-- `R/files_metadata_zip.R::pack_files_daf_metadata` errors on Windows
-  with a clear "POSIX-only" message instead of the cryptic stub.
-- `R/zarr_format.R::zarr_daf` errors at the API surface for
-  `.daf.zarr.zip` paths on Windows; users fall back to the unzipped
-  `.daf.zarr` directory store.
-- Internal `.is_windows()` helper factored out so the fallback paths
-  can be exercised on POSIX hosts via
-  `testthat::local_mocked_bindings()`.
-- New `tests/testthat/test-windows-mmap-fallback.R` pins the four
-  fallback contracts.
-- `tests/testthat/test-mmap-zip-store-*.R` (5 files), the
-  `.daf.zarr.zip` round-trip, and `test-files-metadata-zip.R` get
-  `skip_if_no_mmap_zip()` at the top of every test_that — they
-  exercise the API directly and have no fallback.
+## Named query results
 
-## queries.jl parity — Slice 3 (E6, E9, plus three T-class wins)
+`get_query()` and the format API now return named values matching the
+Julia `NamedVector` / `NamedMatrix` convention:
 
-Slice 3 closes the last two semantic divergences plus three T-class
-error-text items that turned out to be tractable.
+- Lookup vectors / matrices carry axis-entry names / dimnames.
+- Axis listings (`@ cell`, `@ donor [ age > 60 ]`) return character
+  vectors with `names == values`.
+- IfMissing-default vectors (`@ cell : missing || 0 Int64`) carry
+  names too.
 
-- **E6 (vector-by-vector chain implicit AsAxis)** — fixed.
-  `.apply_chained_lookup_vector` now falls back to the property name's
-  base (everything up to the last `.`) when the property name itself is
-  not an axis. Mirrors Julia's `ensure_vector_is_axis`.
-  `@ cell : type.manual : color` now resolves through the `type` axis.
-- **E6 (matrix-column slice auto-relayout)** — fixed.
-  `.apply_matrix_column_by_axis` now auto-transposes when the matrix is
-  stored on the swapped orientation (`(cols, rows)` instead of
-  `(rows, cols)`). Mirrors `.apply_lookup_matrix`'s existing relayout.
-- **E9 (auto-relayout)** — already worked; no skip remained for this
-  class.
-- **T-class: numeric-reduction-on-character-matrix** — `.apply_reduction`
-  now type-checks before dispatching `Sum`/`Mean`/`Max`/etc., raising a
-  `non-numeric input` error instead of letting base R's
-  `'x' must be numeric` leak through. Closes the `>| Sum` / `>- Sum` on
-  string-matrix tests.
-- **T-class: IfNot sentinel coercion error** —
-  `.apply_chained_lookup_vector` now wraps the sentinel coercion in
-  `withCallingHandlers` and converts an `NAs introduced by coercion`
-  warning into a `cannot parse IfNot sentinel <s> as <type>` error.
-  Closes the `?? foo : phase` test.
+This is **a behavior change** — code that does
+`expect_equal(get_query(...), unnamed_vec)` may need updating to
+expect named results. ALTREP-mmap vectors (`mmap_real` / `mmap_int` /
+`mmap_lgl`) preserve their ALTREP status across `names<-`, so the
+mmap region stays shared rather than copied.
 
-Suite: `FAIL 0 | WARN 1 | SKIP 6 | PASS 4619` (+9 over Slice 2). The
-final 2 parity skips are both E11 (kernel-level type-strictness; out
-of scope per Slice 2 exit).
+## Julia parity for `get_query`
 
-## queries.jl parity — Slice 2 (E3, E7, E8 closed; E11 reclassified)
+Closes the remaining gaps from a literal port of the
+`DataAxesFormats.jl::queries.jl` test suite. New query forms supported:
 
-- **E3** (matrix-slice-as-mask, `[ UMIs @ gene = A > 0 ]`) — already
-  worked in the evaluator; un-skipped.
-- **E7** (group-by / count-by matrix-slice) — already worked across
-  every passing matrix/group/* test; no skip remained for this class.
-- **E8** (cross-tabulate `: vec * other =@`) — already worked; the
-  failing test asserted `sum=2` but the Julia reference (queries.jl
-  line 1134) shows `sum=3`. Test expectation corrected.
-- **E11** reclassified as **T-class** (error-text-only divergence). R's
-  kernel promotes integer matrices to double during `Sum` reduction,
-  losing the type signal Julia uses to raise `InexactError` when the
-  IfMissing default (`0.5`) is non-integer for an integer matrix. Real
-  result is identical otherwise; only the error case diverges.
+- **Top-level comparators** after `:` / `::` return a boolean vector /
+  matrix: `@ cell : score < 1.0`, `@ cell @ gene :: UMIs > 0`.
+- **Standalone `:` / `::` with `IfMissing`.**
+  `: age || 1 @ cell = X` returns `1` when `age` is missing; same for
+  the matrix form `:: UMIs || 0 @ cell = X @ gene = A`.
+- **Implicit AsAxis fallback.** `@ cell : type.manual : color`
+  resolves through the `type` axis when `type.manual` is not itself
+  an axis.
+- **Matrix-column slice auto-relayout.** `@ cell :: UMIs @ gene = A`
+  works regardless of `UMIs` storage orientation.
+- **Cols-axis mask after a second axis.** `@ rows @ cols [ filter ] :: M`
+  filters the cols axis; the matrix lookup honours both row and column
+  filters.
+- **Virtual `name` property** on every axis. `[ name = X ]` and
+  `: name` return the axis-entry vector.
+- **Eltwise on scalar.** `. score % Abs` applies element-wise on
+  numeric scalars (was: `'%' eltwise requires vector or matrix in
+  scope`).
+- **Regex escapes** in masks (`[ type ~ \^\[A-U\] ]`).
+- **Empty-string round-trip.** `escape_value("")` is `''`;
+  `unescape_value("''")` is `""`.
 
-Suite: `FAIL 0 | WARN 1 | SKIP 12 | PASS 4610` (+7 over Slice 1b).
+Stricter error reporting:
 
-## queries.jl parity — Slice 1b (quick wins: E4, E5, E10, B7, B9, API1)
+- Partial queries (`@ cell @ gene` with no lookup) error with
+  `invalid query: <canonical>` instead of silently returning `NULL`.
+  A second `?` after a `Names` result also errors.
+- Empty-matrix reductions without `IfMissing` always error (was: the
+  output-axis-empty branch silently returned an empty vector).
+- Numeric reductions on a character matrix error with
+  `non-numeric input` instead of leaking base R's
+  `'x' must be numeric`.
+- `?? sentinel : prop` raises a clear parse error when the sentinel
+  can't be coerced to the lookup vector's type (was: silent `NA` via
+  R's `as.integer` warning).
+- Parser errors for unknown operations / parameters and repeated
+  parameters now match the Julia DAF wording.
+- `query_axis_name()` agrees with `get_query()` on compound-mask
+  queries (`@ cell [ is_low & UMIs @ gene = B ]`).
 
-Six divergences from the Julia parity audit closed in one slice. 58 fewer
-parity-test skips, 113 more passes vs the post-Slice-1a baseline.
+## Reduction builders
 
-- **E4** (top-level comparator after `:` / `::`). Already worked in the
-  evaluator; un-skipped 7 tests. `@ cell : score < 1.0` returns a named
-  bool vector; `@ cell @ gene :: UMIs > 0` returns a named bool matrix.
-- **E5** (`:` / `::` standalone with IfMissing fallback). Fixed: the
-  `pending_if_missing` state-key shim in `R/query_eval.R` keeps the
-  default alive across the lookahead reset that fires after every lookup.
-  `: age || 1 @ cell = X` now returns `1` when `age` is missing instead
-  of erroring. `:: UMIs || 0 @ cell = Y @ gene = B` likewise.
-- **E10** (regex escape sequences in masks). Already worked; un-skipped.
-- **B7** (`Sum()` / `Mean()` / etc. builders canonical form). Fixed: the
-  reduction builders in `R/query_ast.R` now emit `ReduceToScalar` nodes
-  (`>> Sum`) instead of broken `Eltwise` nodes (`% Sum`, which erred at
-  runtime because the eltwise registry has no `Sum`). `ReduceToColumn`
-  / `ReduceToRow` rewrap accepts both old `Eltwise` and new
-  `ReduceToScalar` trailing nodes for back-compat.
-- **B9** (`query_axis_name` introspection strictness). Fixed: the
-  function now skips `Axis` nodes inside `[ ... ]` mask scopes when
-  counting outer-axis references, so compound-mask and matrix-derived
-  sub-mask queries get the same axis answer that `get_query` resolves.
-- **API1** (`get_dataframe` named-list column-spec). Fixed: the bare-name
-  shorthand form (`list("age", doublet = "is_doublet")`) now auto-prefixes
-  to `@ axis : age`, mirroring Julia's `["age", "doublet" => ":is_doublet"]`.
-  Named-list (`list(out = ":query")`) and complex axis-traversal forms
-  already worked.
+`Sum()`, `Mean()`, `Median()`, `Min()`, `Max()`, `Mode()`, `Count()`,
+`GeoMean()`, `Quantile()`, `Std()`, `StdN()`, `Var()`, `VarN()` now
+produce the canonical reduction form (`>> Sum`) instead of `% Sum`.
+The previous emission was an element-wise op that erred at runtime
+when piped after a matrix or vector. **Behavior change**: stored
+canonical strings from these builders change from `% Sum` to `>> Sum`.
+`ReduceToColumn()` / `ReduceToRow()` accept both shapes for
+back-compat. `canonical_query()` also accepts a `DafrQuery` directly.
 
-Cumulative test-suite tally: `FAIL 0 | WARN 1 | SKIP 14 | PASS 4603`
-(was `SKIP 72 | PASS 4489` before Slice 1a).
+`>> Mode` / `>| Mode` now accept character and factor inputs, matching
+the Julia operation's documented support for strings.
 
-Remaining skips:
-- E3 (matrix-slice-as-mask) — Slice 2
-- E6 (vector-by-vector / matrix-then-vector chains) — Slice 3
-- E8 (cross-tabulate `* type =@`) — Slice 2
-- E11 (as_axis group with `=@` IfMissing-coverage) — Slice 2
-- 3 T-class error-text-only divergences (harmless; Julia and R reach the
-  same failure mode through different error wordings)
+IfMissing defaults in vector and matrix lookups thread through the
+default coercion so `: age || 1` returns an integer column (not a
+character one).
 
-## queries.jl parity — Slice 1a (N1: named axis-listing)
+## `get_dataframe()` column-spec
 
-`get_query` now returns a named character vector for axis-listing queries,
-matching Julia's NamedVector convention where names equal entries.
+`get_dataframe()` and `get_dataframe_query()` accept a list mixing
+positional bare names with `name = ":query"` pairs:
 
-- `get_query(d, "@ cell")` → `c(c1 = "c1", c2 = "c2", c3 = "c3")` (was
-  unnamed `c("c1", "c2", "c3")`).
-- `get_query(d, "@ donor [ age > 60 ]")` → `c(d3 = "d3", d4 = "d4")`
-  (was unnamed `c("d3", "d4")`).
-- Lookup vectors / matrices already carried names from S1; this closes
-  N1 for the remaining axis-listing paths.
+```r
+get_dataframe(d, "cell", columns = list("age", doublet = ":is_doublet"))
+```
 
-Changes:
-- `R/query_eval.R::.apply_axis` and `.apply_end_mask` set
-  `names(value) <- value` on the axis-entry character.
-- Test assertions in `test-query-eval-lookups.R`, `test-query-eval-masks.R`,
-  `test-query-mask-variants.R` updated to the named contract.
-- New regression tests in `test-query-result-names.R` pin the bare and
-  masked axis-listing paths.
+Mirrors Julia's `["age", "doublet" => ":is_doublet"]`.
 
-## queries.jl parity port (P1-P3 + B-port) — caught up on main
+## Mask comparators on factor properties
 
-Six queries-jl-parity tests previously skipped on main now pass:
+`[ prop < value ]`, `[ prop > value ]`, etc. on a property stored as a
+factor (e.g. an h5ad categorical loaded via `categorical` encoding)
+now compare the stored strings lexically, matching Julia. Previously
+returned `NA` (unordered factor) or compared level codes (ordered
+factor).
 
-- **Parser error format** (`R/query_parse.R`): error messages for unknown
-  eltwise / reduction operations, unknown parameters, and repeated parameters
-  no longer wrap names in curly quotes via `sQuote`; the wording moves to the
-  Julia DAF literal form (`"parameter:" + colon`, no eltwise/reduction qualifier
-  on `"for the operation:"`).
-- **Empty-string round-trip** (`R/query_ast.R`): `escape_value("")` returns
-  `''` (mirroring Julia's `escape_value("") == "''"`); `unescape_value("''")`
-  is the symmetric inverse and returns `""`.
-- **Empty-matrix reduction semantics** (`R/query_eval.R`): both reduce-axis-empty
-  and output-axis-empty matrix reductions now raise `"no IfMissing value specified
-  for reducing an empty matrix"` when no `IfMissing` default is set — the previous
-  output-axis-empty branch silently returned an empty vector.
+## Build hygiene
 
-## fix(readers): cache-layering defensive name re-apply
-
-Restored the `if (is.null(names(out))) names(out) <- entries` defense in
-`R/readers.R::get_vector` and an analogous dimnames-guard in `get_matrix`,
-which the original S1 slice dropped on the assumption that `format_get_*()`
-returns are always named. They are at the format layer, but the format
-backend's own `mapped` cache tier holds bare values for canonical storage,
-and `get_vector`'s cache_lookup against the same tier would hit the bare
-entry. The restored guard preserves the user-facing named contract.
-
-## S1 — Names everywhere on `format_get_*`
-
-The format-API contract is now: every `format_get_vector(daf, axis, name)` returns a
-`.cache_group_value(named_vector, group)` whose `$value` is a named atomic vector with
-`names = format_axis_array(daf, axis)$value`, and every `format_get_matrix(daf, rows_axis,
-columns_axis, name)` returns a `.cache_group_value(<matrix>, group)` whose `$value`'s
-dimnames are `list(rows-axis entries, cols-axis entries)`.
-
-- The contract is enforced for every backend: `MemoryDaf`, `FilesDaf` /
-  `FilesDafReadOnly`, `ZarrDaf` / `ZarrDafReadOnly`, `HttpDaf`, and propagates
-  automatically through wrapper layers (`ReadOnlyChainDaf` / `WriteChainDaf`,
-  `ContractDaf`, `ViewDaf`).
-- ALTREP-mmap vectors (`mmap_real` / `mmap_int` / `mmap_lgl`) preserve ALTREP
-  status across `names<-`, via a new `Duplicate_method` on each ALTREP class. The
-  mmap region is shared rather than copied when R duplicates the wrapper.
-- Internal cleanup: `get_vector` / `get_matrix` no longer reattach names defensively;
-  `query_eval.R::.apply_chained_lookup_vector` now asserts the named contract instead
-  of working around it.
-- Bug fix surfaced by the slice: `R/concat.R::.concat_axis_vector` now strips
-  intermediate names (via `unname()`) before calling `format_set_vector` (whose
-  `.validate_vector_value` correctly rejects names that don't match the destination
-  axis). Latent risk in `.concat_merge_vector` flagged for follow-up.
-- Storage stays canonical: `format_set_*` continues to strip names so the on-disk /
-  in-memory representation only carries axis entries on the axis itself, not
-  redundantly on every value.
-- Test suite ported from dev's S1 slice: `tests/testthat/test-format-api-named-returns.R`
-  (35 contract tests covering memory + files + chain + contract + view + round-trip
-  + as_anndata) and `tests/testthat/test-queries-jl-parity.R` (134 PASS / 74 SKIP;
-  6 of the SKIPs are pre-existing parser/evaluator divergences on main awaiting a
-  P1-P5 / B1-B3 port from dev).
-
-## Carry-over from the previously-numbered v0.3.0: queries.jl literal-parity slice — B4-B6 + E1, E2
-
-Closes the remaining behaviour and evaluator gaps surfaced by a
-literal port of `~/src/DataAxesFormats.jl/test/queries.jl`. The
-related parser-strictness (P1-P5) was already in place on `main`
-from earlier slices; this bumps R-side parity to match DAF.jl on
-every test that does not hit one of the still-deferred IDs (E3-E11,
-B7-B9, API1, N1) catalogued during the port.
-
-### Evaluator behaviour
-
-- **B4.** `% <Op>` element-wise on a numeric scalar applies the op
-  (was: `'%' eltwise requires vector or matrix in scope`). Numeric R
-  ops handle scalar natively; string scalars still error from base R.
-- **B5.** Partial / unconsumed queries (e.g. `@ cell @ gene`)
-  now error with `invalid query: <canonical>` (was: silent `NULL`).
-- **B6.** A second `?` after a fully-resolved Names result errors
-  `'?' is not valid after <kind>` (was: silently re-listed axes).
-
-Plus: `canonical_query()` now accepts a `DafrQuery` directly (uses
-the stored canonical string).
-
-### Evaluator additions
-
-- **E1.** `[ filter ]` after `@ rows @ cols` is now valid; the mask
-  filters the most-recently-entered axis (cols). The matrix lookup
-  honours both `row_indices` and the new `col_indices`. Cols-mask
-  reductions hit the existing empty-matrix IfMissing branch.
-- **E2.** Virtual `name` property on every axis. `[ name = X ]`,
-  logical-mask combinators on `name`, and `: name` lookups now
-  return the axis-entry vector (`format_axis_array(daf, axis)`).
-  The dataframe-side `name` column remains tracked under API1.
-
-Plus: IfMissing defaults in vector and matrix lookups now route
-through `.coerce_if_missing_default` so the fill type matches the
-type of a real default (e.g. `: age || 1` returns an integer column,
-not a character one).
-
-# dafr 0.2.1
-
-## R-only quirks vs Julia parity (audit pass)
-
-Two correctness gaps surfaced by an audit of R-specific footguns
-that the ported `queries.jl` test suite does not exercise:
-
-- **Mask comparators on factor properties.** `[ prop < value ]`,
-  `[ prop > value ]`, etc. on a property stored as a factor
-  (e.g. an h5ad categorical loaded via the `categorical` encoding)
-  previously returned `NA` (unordered factor) or compared level
-  codes (ordered factor) — both diverging from
-  `DataAxesFormats.jl`, which compares the stored string lexically
-  (`queries.jl:2261-2400`). Mask helpers now coerce factor →
-  character before stashing the comparator-target vector, mirroring
-  the factor branch already in `.as_booleans` (the `ba9baa7`
-  precedent for the truthy `[ prop ]` mask).
-- **`>> Mode` on character / factor.** `Mode` previously rejected
-  non-numeric/non-logical inputs even though the Julia operation
-  is documented as supporting strings
-  (`operations.jl:1058-1115`, `supports_strings(::Mode) = true`).
-  `>> Mode` and `>| Mode` now accept character properties and
-  factors (factor → character at the boundary, matching Julia's
-  `CategoricalVector` → `Vector{String}` normalization at
-  `anndata_format.jl:403`). The grouped fast-path covers factor
-  inputs via the existing `.grouped_mode_character` helper.
-
-Build hygiene: `.Rbuildignore` excludes `AGENTS.md` and `CLAUDE.md`
-(development-only files) so they no longer surface as a
-`top-level files` NOTE under `R CMD check`.
+`.Rbuildignore` excludes `AGENTS.md` and `CLAUDE.md` so they no longer
+surface as a `top-level files` NOTE under `R CMD check`.
 
 # dafr 0.2.0
 
