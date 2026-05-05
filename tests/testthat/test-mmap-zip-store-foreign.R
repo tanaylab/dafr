@@ -13,6 +13,7 @@
 # zipfile must accept stored entries written by dafr.
 
 test_that("dafr reads a Python-written deflate zip byte-identical to source", {
+    skip_if_no_mmap_zip()
     skip_if_no_python_zipfile()
     path <- new_tempfile("zip")
     payload_a <- paste(rep("alpha-", 200L), collapse = "")
@@ -26,6 +27,7 @@ test_that("dafr reads a Python-written deflate zip byte-identical to source", {
 })
 
 test_that("Python's zipfile round-trips a multi-entry dafr-written archive", {
+    skip_if_no_mmap_zip()
     skip_if_no_python_zipfile()
     path <- new_tempfile("zip")
     s <- new_mmap_zip_store(path, mode = "w")
@@ -45,6 +47,7 @@ test_that("Python's zipfile round-trips a multi-entry dafr-written archive", {
 # ---- zarr.storage.ZipStore — Zarr-layer interop -------------------------
 
 test_that("dafr-written .daf.zarr.zip opens via zarr.open(zarr.storage.ZipStore(...))", {
+    skip_if_no_mmap_zip()
     skip_if_no_python_zipfile()
     skip_if_no_python_zarr()
 
@@ -106,6 +109,7 @@ test_that("dafr-written .daf.zarr.zip opens via zarr.open(zarr.storage.ZipStore(
 })
 
 test_that("Python's zipfile lists every entry of a dafr-written zarr_daf", {
+    skip_if_no_mmap_zip()
     skip_if_no_python_zipfile()
 
     path <- paste0(new_tempfile("zip"), ".daf.zarr.zip")

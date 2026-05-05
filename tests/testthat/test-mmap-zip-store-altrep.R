@@ -4,6 +4,7 @@
 # every previously produced ALTREP must read as raw(0) — no segfault.
 
 test_that("store_get_bytes returns an ALTREP RAW for stored entries", {
+    skip_if_no_mmap_zip()
     skip_if_no_python_zipfile()
     path <- new_tempfile("zip")
     build_zip(path, list("k" = "the-payload"), compression = "stored")
@@ -15,6 +16,7 @@ test_that("store_get_bytes returns an ALTREP RAW for stored entries", {
 })
 
 test_that("ALTREP RAW reads byte-identical to source", {
+    skip_if_no_mmap_zip()
     skip_if_no_python_zipfile()
     path <- new_tempfile("zip")
     payload <- as.raw(c(0x00, 0xff, 0x42, 0x10, 0x80, 0x7f, 0x01))
@@ -27,6 +29,7 @@ test_that("ALTREP RAW reads byte-identical to source", {
 })
 
 test_that("ALTREP RAW survives length() / element access / `[`", {
+    skip_if_no_mmap_zip()
     skip_if_no_python_zipfile()
     path <- new_tempfile("zip")
     payload <- as.raw(seq.int(0L, 255L))
@@ -43,6 +46,7 @@ test_that("ALTREP RAW survives length() / element access / `[`", {
 })
 
 test_that("close-time deactivation: vector reads as raw(0) after store close", {
+    skip_if_no_mmap_zip()
     skip_if_no_python_zipfile()
     path <- new_tempfile("zip")
     build_zip(path, list("k" = "abcdef"), compression = "stored")
@@ -59,6 +63,7 @@ test_that("close-time deactivation: vector reads as raw(0) after store close", {
 })
 
 test_that("close-time deactivation: vector accepted by base ops without segfault", {
+    skip_if_no_mmap_zip()
     skip_if_no_python_zipfile()
     path <- new_tempfile("zip")
     build_zip(path, list("k" = "deadbeef"), compression = "stored")
@@ -75,6 +80,7 @@ test_that("close-time deactivation: vector accepted by base ops without segfault
 })
 
 test_that("write-on-ALTREP materializes a copy and leaves the on-disk bytes untouched", {
+    skip_if_no_mmap_zip()
     skip_if_no_python_zipfile()
     path <- new_tempfile("zip")
     payload <- as.raw(c(0x10, 0x20, 0x30, 0x40))
@@ -94,6 +100,7 @@ test_that("write-on-ALTREP materializes a copy and leaves the on-disk bytes unto
 })
 
 test_that("decompressed entries return a regular RAWSXP, not ALTREP", {
+    skip_if_no_mmap_zip()
     skip_if_no_python_zipfile()
     path <- new_tempfile("zip")
     payload <- paste(rep("the quick brown fox ", 50L), collapse = "")
@@ -107,6 +114,7 @@ test_that("decompressed entries return a regular RAWSXP, not ALTREP", {
 })
 
 test_that("garbage collection of ALTREP without close doesn't double-free", {
+    skip_if_no_mmap_zip()
     skip_if_no_python_zipfile()
     path <- new_tempfile("zip")
     build_zip(path, list("k" = "hello"), compression = "stored")
@@ -127,6 +135,7 @@ test_that("garbage collection of ALTREP without close doesn't double-free", {
 })
 
 test_that("ALTREP keeps the store alive even without an R-side reference", {
+    skip_if_no_mmap_zip()
     skip_if_no_python_zipfile()
     path <- new_tempfile("zip")
     build_zip(path, list("k" = "stay-alive"), compression = "stored")
@@ -143,6 +152,7 @@ test_that("ALTREP keeps the store alive even without an R-side reference", {
 })
 
 test_that("stress: open/get/close 10 stores, deref every vector, no segfault", {
+    skip_if_no_mmap_zip()
     skip_if_no_python_zipfile()
     paths <- replicate(10L, new_tempfile("zip"))
     payloads <- lapply(seq_len(10L), function(i) {

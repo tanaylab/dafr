@@ -12,6 +12,7 @@ new_zip_path <- function() {
 }
 
 test_that("open_daf of a fresh .daf.zarr.zip path creates a writable ZarrDaf", {
+    skip_if_no_mmap_zip()
     path <- new_zip_path()
     d <- open_daf(path, mode = "w")
     expect_s7_class(d, ZarrDaf)
@@ -23,11 +24,13 @@ test_that("open_daf of a fresh .daf.zarr.zip path creates a writable ZarrDaf", {
 })
 
 test_that("zarr_daf .daf.zarr.zip mode='r' on missing store errors", {
+    skip_if_no_mmap_zip()
     path <- new_zip_path()
     expect_error(open_daf(path, mode = "r"), "store does not exist")
 })
 
 test_that("set_axis + get_axis round-trips through .daf.zarr.zip", {
+    skip_if_no_mmap_zip()
     path <- new_zip_path()
     d <- open_daf(path, mode = "w")
     add_axis(d, "cell", c("c1", "c2", "c3"))
@@ -38,6 +41,7 @@ test_that("set_axis + get_axis round-trips through .daf.zarr.zip", {
 })
 
 test_that("set_scalar of int/double/character round-trips", {
+    skip_if_no_mmap_zip()
     path <- new_zip_path()
     d <- open_daf(path, mode = "w")
     set_scalar(d, "n_int", 42L)
@@ -50,6 +54,7 @@ test_that("set_scalar of int/double/character round-trips", {
 })
 
 test_that("set_vector + get_vector round-trips", {
+    skip_if_no_mmap_zip()
     path <- new_zip_path()
     d <- open_daf(path, mode = "w")
     add_axis(d, "cell", c("c1", "c2", "c3"))
@@ -63,6 +68,7 @@ test_that("set_vector + get_vector round-trips", {
 })
 
 test_that("set_matrix dense round-trips", {
+    skip_if_no_mmap_zip()
     path <- new_zip_path()
     d <- open_daf(path, mode = "w")
     add_axis(d, "cell", c("c1", "c2"))
@@ -76,6 +82,7 @@ test_that("set_matrix dense round-trips", {
 })
 
 test_that("set_matrix sparse (dgCMatrix) round-trips", {
+    skip_if_no_mmap_zip()
     skip_if_not_installed("Matrix")
     path <- new_zip_path()
     d <- open_daf(path, mode = "w")
@@ -95,6 +102,7 @@ test_that("set_matrix sparse (dgCMatrix) round-trips", {
 })
 
 test_that("close the writer, reopen in 'r' mode, all data is intact", {
+    skip_if_no_mmap_zip()
     path <- new_zip_path()
     d <- open_daf(path, mode = "w")
     add_axis(d, "cell", c("c1", "c2"))
@@ -112,6 +120,7 @@ test_that("close the writer, reopen in 'r' mode, all data is intact", {
 })
 
 test_that("re-open in 'r' mode after partial write doesn't double-init the daf.json", {
+    skip_if_no_mmap_zip()
     # First write: create + populate.
     path <- new_zip_path()
     d <- open_daf(path, mode = "w")
@@ -127,6 +136,7 @@ test_that("re-open in 'r' mode after partial write doesn't double-init the daf.j
 })
 
 test_that("zarr_daf 'w+' on an existing zip truncates+recreates", {
+    skip_if_no_mmap_zip()
     path <- new_zip_path()
     d <- open_daf(path, mode = "w")
     add_axis(d, "cell", c("c1", "c2"))

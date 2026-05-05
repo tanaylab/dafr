@@ -92,6 +92,12 @@ zarr_daf <- function(uri = NULL, mode = c("r", "r+", "w", "w+"),
         # filesystem-level store; only the path component identifies the
         # zip archive.
         zip_path <- sub("#.*$", "", uri)
+        if (.is_windows()) {
+            stop(sprintf(
+                "zarr_daf: .daf.zarr.zip stores are not supported on Windows (path: %s). The slice-17 MmapZipStore is POSIX-only; use the unzipped .daf.zarr directory store instead, or run on Linux/macOS.",
+                sQuote(zip_path)
+            ), call. = FALSE)
+        }
         if (mode == "r" && !file.exists(zip_path)) {
             stop(sprintf("zarr_daf: store does not exist at %s", sQuote(zip_path)),
                 call. = FALSE

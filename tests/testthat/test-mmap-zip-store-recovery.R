@@ -122,6 +122,7 @@ data_offset_of_entry <- function(path, idx) {
 # ---- Direct rollback (byte-clobber) tests --------------------------------
 
 test_that("does not roll back valid entries", {
+    skip_if_no_mmap_zip()
     path <- new_tempfile("zip")
     s <- new_mmap_zip_store(path, mode = "w")
     store_set_bytes(s, "a", charToRaw("AAA"))
@@ -139,6 +140,7 @@ test_that("does not roll back valid entries", {
 })
 
 test_that("rolls back when LFH signature is missing on the last entry", {
+    skip_if_no_mmap_zip()
     path <- new_tempfile("zip")
     s <- new_mmap_zip_store(path, mode = "w")
     store_set_bytes(s, "first", charToRaw("FIRST"))
@@ -158,6 +160,7 @@ test_that("rolls back when LFH signature is missing on the last entry", {
 })
 
 test_that("rolls back when CRC mismatches on the last entry", {
+    skip_if_no_mmap_zip()
     path <- new_tempfile("zip")
     s <- new_mmap_zip_store(path, mode = "w")
     store_set_bytes(s, "first", charToRaw("FIRST"))
@@ -181,6 +184,7 @@ test_that("rolls back when CRC mismatches on the last entry", {
 })
 
 test_that("rolls back multiple trailing invalid entries", {
+    skip_if_no_mmap_zip()
     path <- new_tempfile("zip")
     s <- new_mmap_zip_store(path, mode = "w")
     for (i in 1:5) {
@@ -201,6 +205,7 @@ test_that("rolls back multiple trailing invalid entries", {
 })
 
 test_that("read-only open does not roll back invalid trailing entries", {
+    skip_if_no_mmap_zip()
     path <- new_tempfile("zip")
     s <- new_mmap_zip_store(path, mode = "w")
     store_set_bytes(s, "first", charToRaw("FIRST"))
@@ -219,6 +224,7 @@ test_that("read-only open does not roll back invalid trailing entries", {
 })
 
 test_that("after recovery, the archive can accept fresh appends", {
+    skip_if_no_mmap_zip()
     path <- new_tempfile("zip")
     s <- new_mmap_zip_store(path, mode = "w")
     store_set_bytes(s, "first", charToRaw("FIRST"))
@@ -267,6 +273,7 @@ with_crash_counter <- function(store, n) {
 }
 
 test_that("tick #1 (before resize): SimulatedCrash leaves archive untouched", {
+    skip_if_no_mmap_zip()
     skip_if_not_full_run()
     path <- new_tempfile("zip")
     s <- new_mmap_zip_store(path, mode = "w")
@@ -291,6 +298,7 @@ test_that("tick #1 (before resize): SimulatedCrash leaves archive untouched", {
 })
 
 test_that("tick #2 (after resize, before CD copy): reopen rolls back cleanly", {
+    skip_if_no_mmap_zip()
     skip_if_not_full_run()
     path <- new_tempfile("zip")
     s <- new_mmap_zip_store(path, mode = "w")
@@ -314,6 +322,7 @@ test_that("tick #2 (after resize, before CD copy): reopen rolls back cleanly", {
 })
 
 test_that("tick #3 (after CD copy, before LFH): rollback drops bad entry", {
+    skip_if_no_mmap_zip()
     skip_if_not_full_run()
     path <- new_tempfile("zip")
     s <- new_mmap_zip_store(path, mode = "w")
@@ -334,6 +343,7 @@ test_that("tick #3 (after CD copy, before LFH): rollback drops bad entry", {
 })
 
 test_that("tick #4 (after LFH, before data): rollback drops bad entry", {
+    skip_if_no_mmap_zip()
     skip_if_not_full_run()
     path <- new_tempfile("zip")
     s <- new_mmap_zip_store(path, mode = "w")
@@ -354,6 +364,7 @@ test_that("tick #4 (after LFH, before data): rollback drops bad entry", {
 })
 
 test_that("tick #5 (after data copy): SimulatedCrash, archive is valid", {
+    skip_if_no_mmap_zip()
     skip_if_not_full_run()
     path <- new_tempfile("zip")
     s <- new_mmap_zip_store(path, mode = "w")
@@ -376,6 +387,7 @@ test_that("tick #5 (after data copy): SimulatedCrash, archive is valid", {
 })
 
 test_that("rollback recovery + fresh append round-trips cross-process", {
+    skip_if_no_mmap_zip()
     skip_if_not_full_run()
     path <- new_tempfile("zip")
     s <- new_mmap_zip_store(path, mode = "w")

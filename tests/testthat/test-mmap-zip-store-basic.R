@@ -2,6 +2,7 @@
 # Writes happen in phase 4; this file only tests open/list/get/exists.
 
 test_that("opens an existing stored-mode zip and lists its entries", {
+    skip_if_no_mmap_zip()
     skip_if_no_python_zipfile()
     path <- new_tempfile("zip")
     build_zip(path, list(
@@ -18,6 +19,7 @@ test_that("opens an existing stored-mode zip and lists its entries", {
 })
 
 test_that("returns the right bytes for each entry (stored)", {
+    skip_if_no_mmap_zip()
     skip_if_no_python_zipfile()
     path <- new_tempfile("zip")
     build_zip(path, list(
@@ -37,6 +39,7 @@ test_that("returns the right bytes for each entry (stored)", {
 })
 
 test_that("returns NULL for missing keys", {
+    skip_if_no_mmap_zip()
     skip_if_no_python_zipfile()
     path <- new_tempfile("zip")
     build_zip(path, list("only" = "x"), compression = "stored")
@@ -46,6 +49,7 @@ test_that("returns NULL for missing keys", {
 })
 
 test_that("store_exists reports presence", {
+    skip_if_no_mmap_zip()
     skip_if_no_python_zipfile()
     path <- new_tempfile("zip")
     build_zip(path, list("present" = "yes"), compression = "stored")
@@ -56,12 +60,14 @@ test_that("store_exists reports presence", {
 })
 
 test_that("rejects non-existent zip files with a clear error", {
+    skip_if_no_mmap_zip()
     path <- file.path(tempdir(), "definitely-does-not-exist.zip")
     if (file.exists(path)) unlink(path)
     expect_error(new_mmap_zip_store(path, mode = "r"), "open|exist|stat")
 })
 
 test_that("rejects empty / corrupt files with a clear error", {
+    skip_if_no_mmap_zip()
     skip_if_no_python_zipfile()
     # Empty file: smaller than EOCD.
     empty_path <- new_tempfile("zip")
@@ -75,6 +81,7 @@ test_that("rejects empty / corrupt files with a clear error", {
 })
 
 test_that("decompresses method-8 (deflate) entries", {
+    skip_if_no_mmap_zip()
     skip_if_no_python_zipfile()
     path <- new_tempfile("zip")
     payload <- paste(rep("the quick brown fox jumps over the lazy dog ", 50L),
@@ -87,6 +94,7 @@ test_that("decompresses method-8 (deflate) entries", {
 })
 
 test_that("rejects unsupported compression methods", {
+    skip_if_no_mmap_zip()
     skip_if_no_python_zipfile()
     # bzip2 is method 12 — neither stored (0) nor deflate (8).
     rc <- system2("python3",
@@ -103,6 +111,7 @@ test_that("rejects unsupported compression methods", {
 })
 
 test_that("store_list with a directory prefix returns matching keys", {
+    skip_if_no_mmap_zip()
     skip_if_no_python_zipfile()
     path <- new_tempfile("zip")
     build_zip(path, list(
@@ -116,6 +125,7 @@ test_that("store_list with a directory prefix returns matching keys", {
 })
 
 test_that("set_bytes on a read-only store errors", {
+    skip_if_no_mmap_zip()
     skip_if_no_python_zipfile()
     path <- new_tempfile("zip")
     build_zip(path, list("k" = "v"), compression = "stored")
@@ -125,6 +135,7 @@ test_that("set_bytes on a read-only store errors", {
 })
 
 test_that("delete on a MmapZipStore errors with append-only message", {
+    skip_if_no_mmap_zip()
     skip_if_no_python_zipfile()
     path <- new_tempfile("zip")
     build_zip(path, list("k" = "v"), compression = "stored")
@@ -136,6 +147,7 @@ test_that("delete on a MmapZipStore errors with append-only message", {
 # ---- Phase 4 write-side tests --------------------------------------------
 
 test_that("creates an empty archive in mode='w'", {
+    skip_if_no_mmap_zip()
     path <- new_tempfile("zip")
     s <- new_mmap_zip_store(path, mode = "w")
     dafr:::dafr_mmap_zip_close(S7::prop(s, "xptr"))
@@ -146,6 +158,7 @@ test_that("creates an empty archive in mode='w'", {
 })
 
 test_that("appends a single entry and reopens to read", {
+    skip_if_no_mmap_zip()
     path <- new_tempfile("zip")
     payload <- charToRaw("phase-4 write payload")
     s <- new_mmap_zip_store(path, mode = "w")
@@ -160,6 +173,7 @@ test_that("appends a single entry and reopens to read", {
 })
 
 test_that("appends multiple entries and reads each back", {
+    skip_if_no_mmap_zip()
     path <- new_tempfile("zip")
     s <- new_mmap_zip_store(path, mode = "w")
     store_set_bytes(s, "a", charToRaw("alpha"))
@@ -176,6 +190,7 @@ test_that("appends multiple entries and reads each back", {
 })
 
 test_that("rejects overwriting an existing entry with append-only error", {
+    skip_if_no_mmap_zip()
     path <- new_tempfile("zip")
     s <- new_mmap_zip_store(path, mode = "w")
     on.exit(dafr:::dafr_mmap_zip_close(S7::prop(s, "xptr")), add = TRUE)
@@ -185,6 +200,7 @@ test_that("rejects overwriting an existing entry with append-only error", {
 })
 
 test_that("rejects entries with names longer than 64 KiB", {
+    skip_if_no_mmap_zip()
     path <- new_tempfile("zip")
     s <- new_mmap_zip_store(path, mode = "w")
     on.exit(dafr:::dafr_mmap_zip_close(S7::prop(s, "xptr")), add = TRUE)
@@ -194,6 +210,7 @@ test_that("rejects entries with names longer than 64 KiB", {
 })
 
 test_that("data offsets for written entries are 8-byte aligned", {
+    skip_if_no_mmap_zip()
     path <- new_tempfile("zip")
     s <- new_mmap_zip_store(path, mode = "w")
     # Names of varying lengths so unaligned LFHs would be exposed.
@@ -217,6 +234,7 @@ test_that("data offsets for written entries are 8-byte aligned", {
 })
 
 test_that("Python's zipfile reads entries written by MmapZipStore", {
+    skip_if_no_mmap_zip()
     skip_if_no_python_zipfile()
     path <- new_tempfile("zip")
     s <- new_mmap_zip_store(path, mode = "w")
@@ -231,6 +249,7 @@ test_that("Python's zipfile reads entries written by MmapZipStore", {
 })
 
 test_that("write empty bytes round-trips correctly", {
+    skip_if_no_mmap_zip()
     path <- new_tempfile("zip")
     s <- new_mmap_zip_store(path, mode = "w")
     store_set_bytes(s, "empty", raw(0))
@@ -243,6 +262,7 @@ test_that("write empty bytes round-trips correctly", {
 })
 
 test_that("w+ mode preserves existing entries and allows appends", {
+    skip_if_no_mmap_zip()
     path <- new_tempfile("zip")
     s <- new_mmap_zip_store(path, mode = "w")
     store_set_bytes(s, "first", charToRaw("AA"))
