@@ -48,134 +48,70 @@
     <div class="section level2">
 <h2 class="pkg-version" data-toc-text="0.2.0" id="dafr-020-in-development">dafr 0.2.0 (in development)<a class="anchor" aria-label="anchor" href="#dafr-020-in-development"></a></h2>
 <div class="section level3">
-<h3 id="windows-ci--mmapzipstore-posix-only-fallback-0-2-0">Windows CI — MmapZipStore POSIX-only fallback<a class="anchor" aria-label="anchor" href="#windows-ci--mmapzipstore-posix-only-fallback-0-2-0"></a></h3>
-<p>Closes the pre-existing slice-17 regression where Windows R-CMD-check ran <code>[ FAIL 201 | WARN 0 | SKIP 17 | PASS 4026 ]</code>. Every FilesDaf write went through <code>.metadata_zip_rebuild</code> → <code>new_mmap_zip_store</code> → the <code>MmapZipStore is not supported on Windows</code> runtime stub, killing the whole FilesDaf surface plus the zarr-zip API.</p>
+<h3 id="windows-support-0-2-0">Windows support<a class="anchor" aria-label="anchor" href="#windows-support-0-2-0"></a></h3>
+<p><code><a href="../reference/files_daf.html">files_daf()</a></code> now works on Windows. Previously every write failed with <code>MmapZipStore is not supported on Windows</code>. On Windows, dafr skips the optional <code>metadata.zip</code> bundle (only used for serving a FilesDaf over HTTP via <code><a href="../reference/HttpDaf.html">http_daf()</a></code>); local reads, writes, and round-trips are unaffected. <code><a href="../reference/pack_files_daf_metadata.html">pack_files_daf_metadata()</a></code> errors with a clear message, and <code><a href="../reference/zarr_daf.html">zarr_daf()</a></code> rejects <code>.daf.zarr.zip</code> paths there — use the unzipped <code>.daf.zarr</code> directory store instead, or run on Linux/macOS for zip-backed storage.</p>
+</div>
+<div class="section level3">
+<h3 id="named-query-results-0-2-0">Named query results<a class="anchor" aria-label="anchor" href="#named-query-results-0-2-0"></a></h3>
+<p><code><a href="../reference/get_query.html">get_query()</a></code> and the format API now return named values matching the Julia <code>NamedVector</code> / <code>NamedMatrix</code> convention:</p>
+<ul><li>Lookup vectors / matrices carry axis-entry names / dimnames.</li>
+<li>Axis listings (<code>@ cell</code>, <code>@ donor [ age &gt; 60 ]</code>) return character vectors with <code>names == values</code>.</li>
+<li>IfMissing-default vectors (<code>@ cell : missing || 0 Int64</code>) carry names too.</li>
+</ul><p>This is <strong>a behavior change</strong> — code that does <code>expect_equal(get_query(...), unnamed_vec)</code> may need updating to expect named results. ALTREP-mmap vectors (<code>mmap_real</code> / <code>mmap_int</code> / <code>mmap_lgl</code>) preserve their ALTREP status across <code>names&lt;-</code>, so the mmap region stays shared rather than copied.</p>
+</div>
+<div class="section level3">
+<h3 id="julia-parity-for-get_query-0-2-0">Julia parity for <code>get_query</code>
+<a class="anchor" aria-label="anchor" href="#julia-parity-for-get_query-0-2-0"></a></h3>
+<p>Closes the remaining gaps from a literal port of the <code>DataAxesFormats.jl::queries.jl</code> test suite. New query forms supported:</p>
 <ul><li>
-<code>R/files_metadata_zip.R::.metadata_zip_rebuild</code> and <code>.metadata_zip_append</code> now no-op on Windows (after writing <code>axes/metadata.json</code>, which doesn’t depend on MmapZipStore). Local FilesDaf reads/writes work fine on Windows; only the optional <code>metadata.zip</code> bundle (used by <code>http_daf</code> clients fetching from a server) is unavailable.</li>
+<strong>Top-level comparators</strong> after <code>:</code> / <code>::</code> return a boolean vector / matrix: <code>@ cell : score &lt; 1.0</code>, <code>@ cell @ gene :: UMIs &gt; 0</code>.</li>
 <li>
-<code>R/files_metadata_zip.R::pack_files_daf_metadata</code> errors on Windows with a clear “POSIX-only” message instead of the cryptic stub.</li>
+<strong>Standalone <code>:</code> / <code>::</code> with <code>IfMissing</code>.</strong> <code>: age || 1 @ cell = X</code> returns <code>1</code> when <code>age</code> is missing; same for the matrix form <code>:: UMIs || 0 @ cell = X @ gene = A</code>.</li>
 <li>
-<code>R/zarr_format.R::zarr_daf</code> errors at the API surface for <code>.daf.zarr.zip</code> paths on Windows; users fall back to the unzipped <code>.daf.zarr</code> directory store.</li>
-<li>Internal <code>.is_windows()</code> helper factored out so the fallback paths can be exercised on POSIX hosts via <code><a href="https://testthat.r-lib.org/reference/local_mocked_bindings.html" class="external-link">testthat::local_mocked_bindings()</a></code>.</li>
-<li>New <code>tests/testthat/test-windows-mmap-fallback.R</code> pins the four fallback contracts.</li>
+<strong>Implicit AsAxis fallback.</strong> <code>@ cell : type.manual : color</code> resolves through the <code>type</code> axis when <code>type.manual</code> is not itself an axis.</li>
 <li>
-<code>tests/testthat/test-mmap-zip-store-*.R</code> (5 files), the <code>.daf.zarr.zip</code> round-trip, and <code>test-files-metadata-zip.R</code> get <code>skip_if_no_mmap_zip()</code> at the top of every test_that — they exercise the API directly and have no fallback.</li>
+<strong>Matrix-column slice auto-relayout.</strong> <code>@ cell :: UMIs @ gene = A</code> works regardless of <code>UMIs</code> storage orientation.</li>
+<li>
+<strong>Cols-axis mask after a second axis.</strong> <code>@ rows @ cols [ filter ] :: M</code> filters the cols axis; the matrix lookup honours both row and column filters.</li>
+<li>
+<strong>Virtual <code>name</code> property</strong> on every axis. <code>[ name = X ]</code> and <code>: name</code> return the axis-entry vector.</li>
+<li>
+<strong>Eltwise on scalar.</strong> <code>. score % Abs</code> applies element-wise on numeric scalars (was: <code>'%' eltwise requires vector or matrix in scope</code>).</li>
+<li>
+<strong>Regex escapes</strong> in masks (<code>[ type ~ \^\[A-U\] ]</code>).</li>
+<li>
+<strong>Empty-string round-trip.</strong> <code>escape_value("")</code> is <code>''</code>; <code>unescape_value("''")</code> is <code>""</code>.</li>
+</ul><p>Stricter error reporting:</p>
+<ul><li>Partial queries (<code>@ cell @ gene</code> with no lookup) error with <code>invalid query: &lt;canonical&gt;</code> instead of silently returning <code>NULL</code>. A second <code>?</code> after a <code>Names</code> result also errors.</li>
+<li>Empty-matrix reductions without <code>IfMissing</code> always error (was: the output-axis-empty branch silently returned an empty vector).</li>
+<li>Numeric reductions on a character matrix error with <code>non-numeric input</code> instead of leaking base R’s <code>'x' must be numeric</code>.</li>
+<li>
+<code>?? sentinel : prop</code> raises a clear parse error when the sentinel can’t be coerced to the lookup vector’s type (was: silent <code>NA</code> via R’s <code>as.integer</code> warning).</li>
+<li>Parser errors for unknown operations / parameters and repeated parameters now match the Julia DAF wording.</li>
+<li>
+<code><a href="../reference/query_axis_name.html">query_axis_name()</a></code> agrees with <code><a href="../reference/get_query.html">get_query()</a></code> on compound-mask queries (<code>@ cell [ is_low &amp; UMIs @ gene = B ]</code>).</li>
 </ul></div>
 <div class="section level3">
-<h3 id="queriesjl-parity--slice-e6-e9-plus-three-t-class-wins-0-2-0">queries.jl parity — Slice 3 (E6, E9, plus three T-class wins)<a class="anchor" aria-label="anchor" href="#queriesjl-parity--slice-e6-e9-plus-three-t-class-wins-0-2-0"></a></h3>
-<p>Slice 3 closes the last two semantic divergences plus three T-class error-text items that turned out to be tractable.</p>
-<ul><li>
-<strong>E6 (vector-by-vector chain implicit AsAxis)</strong> — fixed. <code>.apply_chained_lookup_vector</code> now falls back to the property name’s base (everything up to the last <code>.</code>) when the property name itself is not an axis. Mirrors Julia’s <code>ensure_vector_is_axis</code>. <code>@ cell : type.manual : color</code> now resolves through the <code>type</code> axis.</li>
-<li>
-<strong>E6 (matrix-column slice auto-relayout)</strong> — fixed. <code>.apply_matrix_column_by_axis</code> now auto-transposes when the matrix is stored on the swapped orientation (<code>(cols, rows)</code> instead of <code>(rows, cols)</code>). Mirrors <code>.apply_lookup_matrix</code>’s existing relayout.</li>
-<li>
-<strong>E9 (auto-relayout)</strong> — already worked; no skip remained for this class.</li>
-<li>
-<strong>T-class: numeric-reduction-on-character-matrix</strong> — <code>.apply_reduction</code> now type-checks before dispatching <code>Sum</code>/<code>Mean</code>/<code>Max</code>/etc., raising a <code>non-numeric input</code> error instead of letting base R’s <code>'x' must be numeric</code> leak through. Closes the <code>&gt;| Sum</code> / <code>&gt;- Sum</code> on string-matrix tests.</li>
-<li>
-<strong>T-class: IfNot sentinel coercion error</strong> — <code>.apply_chained_lookup_vector</code> now wraps the sentinel coercion in <code>withCallingHandlers</code> and converts an <code>NAs introduced by coercion</code> warning into a <code>cannot parse IfNot sentinel &lt;s&gt; as &lt;type&gt;</code> error. Closes the <code>?? foo : phase</code> test.</li>
-</ul><p>Suite: <code>FAIL 0 | WARN 1 | SKIP 6 | PASS 4619</code> (+9 over Slice 2). The final 2 parity skips are both E11 (kernel-level type-strictness; out of scope per Slice 2 exit).</p>
+<h3 id="reduction-builders-0-2-0">Reduction builders<a class="anchor" aria-label="anchor" href="#reduction-builders-0-2-0"></a></h3>
+<p><code><a href="../reference/Sum.html">Sum()</a></code>, <code><a href="../reference/Mean.html">Mean()</a></code>, <code><a href="../reference/Median.html">Median()</a></code>, <code><a href="../reference/Min.html">Min()</a></code>, <code><a href="../reference/Max.html">Max()</a></code>, <code><a href="../reference/Mode.html">Mode()</a></code>, <code><a href="../reference/Count.html">Count()</a></code>, <code><a href="../reference/GeoMean.html">GeoMean()</a></code>, <code><a href="../reference/Quantile.html">Quantile()</a></code>, <code><a href="../reference/Std.html">Std()</a></code>, <code><a href="../reference/StdN.html">StdN()</a></code>, <code><a href="../reference/Var.html">Var()</a></code>, <code><a href="../reference/VarN.html">VarN()</a></code> now produce the canonical reduction form (<code>&gt;&gt; Sum</code>) instead of <code>% Sum</code>. The previous emission was an element-wise op that erred at runtime when piped after a matrix or vector. <strong>Behavior change</strong>: stored canonical strings from these builders change from <code>% Sum</code> to <code>&gt;&gt; Sum</code>. <code><a href="../reference/ReduceToColumn.html">ReduceToColumn()</a></code> / <code><a href="../reference/ReduceToRow.html">ReduceToRow()</a></code> accept both shapes for back-compat. <code><a href="../reference/canonical_query.html">canonical_query()</a></code> also accepts a <code>DafrQuery</code> directly.</p>
+<p><code>&gt;&gt; Mode</code> / <code>&gt;| Mode</code> now accept character and factor inputs, matching the Julia operation’s documented support for strings.</p>
+<p>IfMissing defaults in vector and matrix lookups thread through the default coercion so <code>: age || 1</code> returns an integer column (not a character one).</p>
 </div>
 <div class="section level3">
-<h3 id="queriesjl-parity--slice-e3-e7-e8-closed-e11-reclassified-0-2-0">queries.jl parity — Slice 2 (E3, E7, E8 closed; E11 reclassified)<a class="anchor" aria-label="anchor" href="#queriesjl-parity--slice-e3-e7-e8-closed-e11-reclassified-0-2-0"></a></h3>
-<ul><li>
-<strong>E3</strong> (matrix-slice-as-mask, <code>[ UMIs @ gene = A &gt; 0 ]</code>) — already worked in the evaluator; un-skipped.</li>
-<li>
-<strong>E7</strong> (group-by / count-by matrix-slice) — already worked across every passing matrix/group/* test; no skip remained for this class.</li>
-<li>
-<strong>E8</strong> (cross-tabulate <code>: vec * other =@</code>) — already worked; the failing test asserted <code>sum=2</code> but the Julia reference (queries.jl line 1134) shows <code>sum=3</code>. Test expectation corrected.</li>
-<li>
-<strong>E11</strong> reclassified as <strong>T-class</strong> (error-text-only divergence). R’s kernel promotes integer matrices to double during <code>Sum</code> reduction, losing the type signal Julia uses to raise <code>InexactError</code> when the IfMissing default (<code>0.5</code>) is non-integer for an integer matrix. Real result is identical otherwise; only the error case diverges.</li>
-</ul><p>Suite: <code>FAIL 0 | WARN 1 | SKIP 12 | PASS 4610</code> (+7 over Slice 1b).</p>
+<h3 id="get_dataframe-column-spec-0-2-0">
+<code>get_dataframe()</code> column-spec<a class="anchor" aria-label="anchor" href="#get_dataframe-column-spec-0-2-0"></a></h3>
+<p><code><a href="../reference/get_dataframe.html">get_dataframe()</a></code> and <code><a href="../reference/get_dataframe_query.html">get_dataframe_query()</a></code> accept a list mixing positional bare names with <code>name = ":query"</code> pairs:</p>
+<div class="sourceCode" id="cb1"><pre class="downlit sourceCode r">
+<code class="sourceCode R"><span><span class="fu"><a href="../reference/get_dataframe.html">get_dataframe</a></span><span class="op">(</span><span class="va">d</span>, <span class="st">"cell"</span>, columns <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/list.html" class="external-link">list</a></span><span class="op">(</span><span class="st">"age"</span>, doublet <span class="op">=</span> <span class="st">":is_doublet"</span><span class="op">)</span><span class="op">)</span></span></code></pre></div>
+<p>Mirrors Julia’s <code>["age", "doublet" =&gt; ":is_doublet"]</code>.</p>
 </div>
 <div class="section level3">
-<h3 id="queriesjl-parity--sliceb-quick-wins-e4-e5-e10-b7-b9-api1-0-2-0">queries.jl parity — Slice 1b (quick wins: E4, E5, E10, B7, B9, API1)<a class="anchor" aria-label="anchor" href="#queriesjl-parity--sliceb-quick-wins-e4-e5-e10-b7-b9-api1-0-2-0"></a></h3>
-<p>Six divergences from the Julia parity audit closed in one slice. 58 fewer parity-test skips, 113 more passes vs the post-Slice-1a baseline.</p>
-<ul><li>
-<strong>E4</strong> (top-level comparator after <code>:</code> / <code>::</code>). Already worked in the evaluator; un-skipped 7 tests. <code>@ cell : score &lt; 1.0</code> returns a named bool vector; <code>@ cell @ gene :: UMIs &gt; 0</code> returns a named bool matrix.</li>
-<li>
-<strong>E5</strong> (<code>:</code> / <code>::</code> standalone with IfMissing fallback). Fixed: the <code>pending_if_missing</code> state-key shim in <code>R/query_eval.R</code> keeps the default alive across the lookahead reset that fires after every lookup. <code>: age || 1 @ cell = X</code> now returns <code>1</code> when <code>age</code> is missing instead of erroring. <code>:: UMIs || 0 @ cell = Y @ gene = B</code> likewise.</li>
-<li>
-<strong>E10</strong> (regex escape sequences in masks). Already worked; un-skipped.</li>
-<li>
-<strong>B7</strong> (<code><a href="../reference/Sum.html">Sum()</a></code> / <code><a href="../reference/Mean.html">Mean()</a></code> / etc. builders canonical form). Fixed: the reduction builders in <code>R/query_ast.R</code> now emit <code>ReduceToScalar</code> nodes (<code>&gt;&gt; Sum</code>) instead of broken <code>Eltwise</code> nodes (<code>% Sum</code>, which erred at runtime because the eltwise registry has no <code>Sum</code>). <code>ReduceToColumn</code> / <code>ReduceToRow</code> rewrap accepts both old <code>Eltwise</code> and new <code>ReduceToScalar</code> trailing nodes for back-compat.</li>
-<li>
-<strong>B9</strong> (<code>query_axis_name</code> introspection strictness). Fixed: the function now skips <code>Axis</code> nodes inside <code>[ ... ]</code> mask scopes when counting outer-axis references, so compound-mask and matrix-derived sub-mask queries get the same axis answer that <code>get_query</code> resolves.</li>
-<li>
-<strong>API1</strong> (<code>get_dataframe</code> named-list column-spec). Fixed: the bare-name shorthand form (<code>list("age", doublet = "is_doublet")</code>) now auto-prefixes to <code>@ axis : age</code>, mirroring Julia’s <code>["age", "doublet" =&gt; ":is_doublet"]</code>. Named-list (<code>list(out = ":query")</code>) and complex axis-traversal forms already worked.</li>
-</ul><p>Cumulative test-suite tally: <code>FAIL 0 | WARN 1 | SKIP 14 | PASS 4603</code> (was <code>SKIP 72 | PASS 4489</code> before Slice 1a).</p>
-<p>Remaining skips: - E3 (matrix-slice-as-mask) — Slice 2 - E6 (vector-by-vector / matrix-then-vector chains) — Slice 3 - E8 (cross-tabulate <code>* type =@</code>) — Slice 2 - E11 (as_axis group with <code>=@</code> IfMissing-coverage) — Slice 2 - 3 T-class error-text-only divergences (harmless; Julia and R reach the same failure mode through different error wordings)</p>
+<h3 id="mask-comparators-on-factor-properties-0-2-0">Mask comparators on factor properties<a class="anchor" aria-label="anchor" href="#mask-comparators-on-factor-properties-0-2-0"></a></h3>
+<p><code>[ prop &lt; value ]</code>, <code>[ prop &gt; value ]</code>, etc. on a property stored as a factor (e.g. an h5ad categorical loaded via <code>categorical</code> encoding) now compare the stored strings lexically, matching Julia. Previously returned <code>NA</code> (unordered factor) or compared level codes (ordered factor).</p>
 </div>
 <div class="section level3">
-<h3 id="queriesjl-parity--slicea-n1-named-axis-listing-0-2-0">queries.jl parity — Slice 1a (N1: named axis-listing)<a class="anchor" aria-label="anchor" href="#queriesjl-parity--slicea-n1-named-axis-listing-0-2-0"></a></h3>
-<p><code>get_query</code> now returns a named character vector for axis-listing queries, matching Julia’s NamedVector convention where names equal entries.</p>
-<ul><li>
-<code>get_query(d, "@ cell")</code> → <code>c(c1 = "c1", c2 = "c2", c3 = "c3")</code> (was unnamed <code>c("c1", "c2", "c3")</code>).</li>
-<li>
-<code>get_query(d, "@ donor [ age &gt; 60 ]")</code> → <code>c(d3 = "d3", d4 = "d4")</code> (was unnamed <code>c("d3", "d4")</code>).</li>
-<li>Lookup vectors / matrices already carried names from S1; this closes N1 for the remaining axis-listing paths.</li>
-</ul><p>Changes: - <code>R/query_eval.R::.apply_axis</code> and <code>.apply_end_mask</code> set <code>names(value) &lt;- value</code> on the axis-entry character. - Test assertions in <code>test-query-eval-lookups.R</code>, <code>test-query-eval-masks.R</code>, <code>test-query-mask-variants.R</code> updated to the named contract. - New regression tests in <code>test-query-result-names.R</code> pin the bare and masked axis-listing paths.</p>
-</div>
-<div class="section level3">
-<h3 id="queriesjl-parity-port-p1-p3--b-port--caught-up-on-main-0-2-0">queries.jl parity port (P1-P3 + B-port) — caught up on main<a class="anchor" aria-label="anchor" href="#queriesjl-parity-port-p1-p3--b-port--caught-up-on-main-0-2-0"></a></h3>
-<p>Six queries-jl-parity tests previously skipped on main now pass:</p>
-<ul><li>
-<strong>Parser error format</strong> (<code>R/query_parse.R</code>): error messages for unknown eltwise / reduction operations, unknown parameters, and repeated parameters no longer wrap names in curly quotes via <code>sQuote</code>; the wording moves to the Julia DAF literal form (<code>"parameter:" + colon</code>, no eltwise/reduction qualifier on <code>"for the operation:"</code>).</li>
-<li>
-<strong>Empty-string round-trip</strong> (<code>R/query_ast.R</code>): <code>escape_value("")</code> returns <code>''</code> (mirroring Julia’s <code>escape_value("") == "''"</code>); <code>unescape_value("''")</code> is the symmetric inverse and returns <code>""</code>.</li>
-<li>
-<strong>Empty-matrix reduction semantics</strong> (<code>R/query_eval.R</code>): both reduce-axis-empty and output-axis-empty matrix reductions now raise <code>"no IfMissing value specified for reducing an empty matrix"</code> when no <code>IfMissing</code> default is set — the previous output-axis-empty branch silently returned an empty vector.</li>
-</ul></div>
-<div class="section level3">
-<h3 id="fixreaders-cache-layering-defensive-name-re-apply-0-2-0">fix(readers): cache-layering defensive name re-apply<a class="anchor" aria-label="anchor" href="#fixreaders-cache-layering-defensive-name-re-apply-0-2-0"></a></h3>
-<p>Restored the <code>if (is.null(names(out))) names(out) &lt;- entries</code> defense in <code>R/readers.R::get_vector</code> and an analogous dimnames-guard in <code>get_matrix</code>, which the original S1 slice dropped on the assumption that <code>format_get_*()</code> returns are always named. They are at the format layer, but the format backend’s own <code>mapped</code> cache tier holds bare values for canonical storage, and <code>get_vector</code>’s cache_lookup against the same tier would hit the bare entry. The restored guard preserves the user-facing named contract.</p>
-</div>
-<div class="section level3">
-<h3 id="s1--names-everywhere-on-format_get_-0-2-0">S1 — Names everywhere on <code>format_get_*</code>
-<a class="anchor" aria-label="anchor" href="#s1--names-everywhere-on-format_get_-0-2-0"></a></h3>
-<p>The format-API contract is now: every <code>format_get_vector(daf, axis, name)</code> returns a <code>.cache_group_value(named_vector, group)</code> whose <code>$value</code> is a named atomic vector with <code>names = format_axis_array(daf, axis)$value</code>, and every <code>format_get_matrix(daf, rows_axis, columns_axis, name)</code> returns a <code>.cache_group_value(&lt;matrix&gt;, group)</code> whose <code>$value</code>’s dimnames are <code>list(rows-axis entries, cols-axis entries)</code>.</p>
-<ul><li>The contract is enforced for every backend: <code>MemoryDaf</code>, <code>FilesDaf</code> / <code>FilesDafReadOnly</code>, <code>ZarrDaf</code> / <code>ZarrDafReadOnly</code>, <code>HttpDaf</code>, and propagates automatically through wrapper layers (<code>ReadOnlyChainDaf</code> / <code>WriteChainDaf</code>, <code>ContractDaf</code>, <code>ViewDaf</code>).</li>
-<li>ALTREP-mmap vectors (<code>mmap_real</code> / <code>mmap_int</code> / <code>mmap_lgl</code>) preserve ALTREP status across <code>names&lt;-</code>, via a new <code>Duplicate_method</code> on each ALTREP class. The mmap region is shared rather than copied when R duplicates the wrapper.</li>
-<li>Internal cleanup: <code>get_vector</code> / <code>get_matrix</code> no longer reattach names defensively; <code>query_eval.R::.apply_chained_lookup_vector</code> now asserts the named contract instead of working around it.</li>
-<li>Bug fix surfaced by the slice: <code>R/concat.R::.concat_axis_vector</code> now strips intermediate names (via <code><a href="https://rdrr.io/r/base/unname.html" class="external-link">unname()</a></code>) before calling <code>format_set_vector</code> (whose <code>.validate_vector_value</code> correctly rejects names that don’t match the destination axis). Latent risk in <code>.concat_merge_vector</code> flagged for follow-up.</li>
-<li>Storage stays canonical: <code>format_set_*</code> continues to strip names so the on-disk / in-memory representation only carries axis entries on the axis itself, not redundantly on every value.</li>
-<li>Test suite ported from dev’s S1 slice: <code>tests/testthat/test-format-api-named-returns.R</code> (35 contract tests covering memory + files + chain + contract + view + round-trip
-<ul><li>as_anndata) and <code>tests/testthat/test-queries-jl-parity.R</code> (134 PASS / 74 SKIP; 6 of the SKIPs are pre-existing parser/evaluator divergences on main awaiting a P1-P5 / B1-B3 port from dev).</li>
-</ul></li>
-</ul></div>
-<div class="section level3">
-<h3 id="carry-over-from-the-previously-numbered-v030-queriesjl-literal-parity-slice--b4-b6--e1-e2-0-2-0">Carry-over from the previously-numbered v0.3.0: queries.jl literal-parity slice — B4-B6 + E1, E2<a class="anchor" aria-label="anchor" href="#carry-over-from-the-previously-numbered-v030-queriesjl-literal-parity-slice--b4-b6--e1-e2-0-2-0"></a></h3>
-<p>Closes the remaining behaviour and evaluator gaps surfaced by a literal port of <code>~/src/DataAxesFormats.jl/test/queries.jl</code>. The related parser-strictness (P1-P5) was already in place on <code>main</code> from earlier slices; this bumps R-side parity to match DAF.jl on every test that does not hit one of the still-deferred IDs (E3-E11, B7-B9, API1, N1) catalogued during the port.</p>
-<div class="section level4">
-<h4 id="evaluator-behaviour-0-2-0">Evaluator behaviour<a class="anchor" aria-label="anchor" href="#evaluator-behaviour-0-2-0"></a></h4>
-<ul><li>
-<strong>B4.</strong> <code>% &lt;Op&gt;</code> element-wise on a numeric scalar applies the op (was: <code>'%' eltwise requires vector or matrix in scope</code>). Numeric R ops handle scalar natively; string scalars still error from base R.</li>
-<li>
-<strong>B5.</strong> Partial / unconsumed queries (e.g. <code>@ cell @ gene</code>) now error with <code>invalid query: &lt;canonical&gt;</code> (was: silent <code>NULL</code>).</li>
-<li>
-<strong>B6.</strong> A second <code>?</code> after a fully-resolved Names result errors <code>'?' is not valid after &lt;kind&gt;</code> (was: silently re-listed axes).</li>
-</ul><p>Plus: <code><a href="../reference/canonical_query.html">canonical_query()</a></code> now accepts a <code>DafrQuery</code> directly (uses the stored canonical string).</p>
-</div>
-<div class="section level4">
-<h4 id="evaluator-additions-0-2-0">Evaluator additions<a class="anchor" aria-label="anchor" href="#evaluator-additions-0-2-0"></a></h4>
-<ul><li>
-<strong>E1.</strong> <code>[ filter ]</code> after <code>@ rows @ cols</code> is now valid; the mask filters the most-recently-entered axis (cols). The matrix lookup honours both <code>row_indices</code> and the new <code>col_indices</code>. Cols-mask reductions hit the existing empty-matrix IfMissing branch.</li>
-<li>
-<strong>E2.</strong> Virtual <code>name</code> property on every axis. <code>[ name = X ]</code>, logical-mask combinators on <code>name</code>, and <code>: name</code> lookups now return the axis-entry vector (<code>format_axis_array(daf, axis)</code>). The dataframe-side <code>name</code> column remains tracked under API1.</li>
-</ul><p>Plus: IfMissing defaults in vector and matrix lookups now route through <code>.coerce_if_missing_default</code> so the fill type matches the type of a real default (e.g. <code>: age || 1</code> returns an integer column, not a character one).</p>
-</div>
-</div>
-</div>
-    <div class="section level2">
-<h2 class="pkg-version" data-toc-text="0.2.1" id="dafr-021">dafr 0.2.1<a class="anchor" aria-label="anchor" href="#dafr-021"></a></h2>
-<div class="section level3">
-<h3 id="r-only-quirks-vs-julia-parity-audit-pass-0-2-1">R-only quirks vs Julia parity (audit pass)<a class="anchor" aria-label="anchor" href="#r-only-quirks-vs-julia-parity-audit-pass-0-2-1"></a></h3>
-<p>Two correctness gaps surfaced by an audit of R-specific footguns that the ported <code>queries.jl</code> test suite does not exercise:</p>
-<ul><li>
-<strong>Mask comparators on factor properties.</strong> <code>[ prop &lt; value ]</code>, <code>[ prop &gt; value ]</code>, etc. on a property stored as a factor (e.g. an h5ad categorical loaded via the <code>categorical</code> encoding) previously returned <code>NA</code> (unordered factor) or compared level codes (ordered factor) — both diverging from <code>DataAxesFormats.jl</code>, which compares the stored string lexically (<code>queries.jl:2261-2400</code>). Mask helpers now coerce factor → character before stashing the comparator-target vector, mirroring the factor branch already in <code>.as_booleans</code> (the <code>ba9baa7</code> precedent for the truthy <code>[ prop ]</code> mask).</li>
-<li>
-<strong><code>&gt;&gt; Mode</code> on character / factor.</strong> <code>Mode</code> previously rejected non-numeric/non-logical inputs even though the Julia operation is documented as supporting strings (<code>operations.jl:1058-1115</code>, <code>supports_strings(::Mode) = true</code>). <code>&gt;&gt; Mode</code> and <code>&gt;| Mode</code> now accept character properties and factors (factor → character at the boundary, matching Julia’s <code>CategoricalVector</code> → <code>Vector{String}</code> normalization at <code>anndata_format.jl:403</code>). The grouped fast-path covers factor inputs via the existing <code>.grouped_mode_character</code> helper.</li>
-</ul><p>Build hygiene: <code>.Rbuildignore</code> excludes <code>AGENTS.md</code> and <code>CLAUDE.md</code> (development-only files) so they no longer surface as a <code>top-level files</code> NOTE under <code>R CMD check</code>.</p>
+<h3 id="build-hygiene-0-2-0">Build hygiene<a class="anchor" aria-label="anchor" href="#build-hygiene-0-2-0"></a></h3>
+<p><code>.Rbuildignore</code> excludes <code>AGENTS.md</code> and <code>CLAUDE.md</code> so they no longer surface as a <code>top-level files</code> NOTE under <code>R CMD check</code>.</p>
 </div>
 </div>
     <div class="section level2">
