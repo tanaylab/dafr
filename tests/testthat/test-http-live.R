@@ -13,6 +13,10 @@ skip_if_no_http_harness <- function() {
     skip_on_cran()
     skip_if_not_installed("processx")
     skip_if_not(nzchar(Sys.which("python")))
+    # http_daf reads `metadata.zip` from the server; on Windows the
+    # local FilesDaf writer doesn't produce one (slice-17 MmapZipStore
+    # is POSIX-only), so the served fixture is incomplete.
+    skip_if_no_mmap_zip()
 }
 
 # Build a populated FilesDaf at `path/served.daf` and return the parent

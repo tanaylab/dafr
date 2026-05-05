@@ -58,6 +58,7 @@ test_that("description(http_daf) shows url", {
     skip_on_cran()
     skip_if_not_installed("processx")
     skip_if_not(nzchar(Sys.which("python")))
+    skip_if_no_mmap_zip()
     root <- withr::local_tempdir("daf-http-desc-")
     files_path <- file.path(root, "served.daf")
     fd <- files_daf(files_path, "w+", name = "served!")
