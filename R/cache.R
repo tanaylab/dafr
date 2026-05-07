@@ -122,11 +122,32 @@ bump_matrix_counter <- function(daf, rows_axis, columns_axis, name) {
 
 # ---- Version stamps (computed from counters) --------------------------------
 
+.is_chain <- function(daf) {
+    S7::S7_inherits(daf, ReadOnlyChainDaf) ||
+        S7::S7_inherits(daf, WriteChainDaf)
+}
+
 axis_stamp <- function(daf, axis) {
+    if (.is_chain(daf)) {
+        return(sum(vapply(.chain_dafs(daf), function(d) axis_stamp(d, axis),
+                          integer(1L))))
+    }
     S7::prop(daf, "axis_version_counter")[[axis]] %||% 0L
 }
 
 vector_stamp <- function(daf, axis, name) {
+    if (.is_chain(daf)) {
+        return(c(
+            axis_stamp(daf, axis),
+            sum(vapply(.chain_dafs(daf),
+                       function(d) {
+                           if (format_has_axis(d, axis)) {
+                               vec <- vector_stamp(d, axis, name)
+                               vec[[length(vec)]]
+                           } else 0L
+                       }, integer(1L)))
+        ))
+    }
     vc <- S7::prop(daf, "vector_version_counter")
     c(
         axis_stamp(daf, axis),
@@ -135,6 +156,20 @@ vector_stamp <- function(daf, axis, name) {
 }
 
 matrix_stamp <- function(daf, rows_axis, columns_axis, name) {
+    if (.is_chain(daf)) {
+        return(c(
+            axis_stamp(daf, rows_axis),
+            axis_stamp(daf, columns_axis),
+            sum(vapply(.chain_dafs(daf),
+                       function(d) {
+                           if (format_has_axis(d, rows_axis) &&
+                               format_has_axis(d, columns_axis)) {
+                               vec <- matrix_stamp(d, rows_axis, columns_axis, name)
+                               vec[[length(vec)]]
+                           } else 0L
+                       }, integer(1L)))
+        ))
+    }
     mc <- S7::prop(daf, "matrix_version_counter")
     c(
         axis_stamp(daf, rows_axis),
@@ -165,6 +200,7 @@ matrix_stamp <- function(daf, rows_axis, columns_axis, name) {
 #' @seealso [vector_version_counter()], [matrix_version_counter()]
 #' @export
 axis_version_counter <- function(daf, axis) {
+    if (.is_chain(daf)) return(axis_stamp(daf, axis))
     S7::prop(daf, "axis_version_counter")[[axis]] %||% 0L
 }
 
@@ -186,6 +222,14 @@ axis_version_counter <- function(daf, axis) {
 #' vector_version_counter(m, "type", "color")                       # 2L
 #' @export
 vector_version_counter <- function(daf, axis, name) {
+    if (.is_chain(daf)) {
+        return(sum(vapply(.chain_dafs(daf),
+                          function(d) {
+                              if (format_has_axis(d, axis)) {
+                                  vector_version_counter(d, axis, name)
+                              } else 0L
+                          }, integer(1L))))
+    }
     key <- paste0(axis, ":", name)
     S7::prop(daf, "vector_version_counter")[[key]] %||% 0L
 }
@@ -211,6 +255,16 @@ vector_version_counter <- function(daf, axis, name) {
 #' matrix_version_counter(m, "gene", "metacell", "fraction") # 2L
 #' @export
 matrix_version_counter <- function(daf, rows_axis, columns_axis, name) {
+    if (.is_chain(daf)) {
+        return(sum(vapply(.chain_dafs(daf),
+                          function(d) {
+                              if (format_has_axis(d, rows_axis) &&
+                                  format_has_axis(d, columns_axis)) {
+                                  matrix_version_counter(d, rows_axis,
+                                                         columns_axis, name)
+                              } else 0L
+                          }, integer(1L))))
+    }
     key <- paste0(rows_axis, ":", columns_axis, ":", name)
     S7::prop(daf, "matrix_version_counter")[[key]] %||% 0L
 }
