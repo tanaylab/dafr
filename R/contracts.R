@@ -665,7 +665,10 @@ S7::method(
     format_relayout_matrix,
     list(ContractDaf, S7::class_character, S7::class_character, S7::class_character)
 ) <- function(daf, rows_axis, columns_axis, name) {
-    .access_matrix(daf, rows_axis, columns_axis, name, is_for_modify = FALSE)
+    # is_for_modify = TRUE: relayout writes a new orientation into storage,
+    # so OptionalInput / RequiredInput entries should reject this op.
+    # Mirrors Julia's modify treatment of relayout_matrix!.
+    .access_matrix(daf, rows_axis, columns_axis, name, is_for_modify = TRUE)
     format_relayout_matrix(S7::prop(daf, "base"), rows_axis, columns_axis, name)
 }
 

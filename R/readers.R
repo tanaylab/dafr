@@ -128,6 +128,14 @@ axis_indices <- function(daf, axis, entries, allow_empty = FALSE,
     .assert_flag(allow_missing, "allow_missing")
     if (!is.character(entries)) stop("`entries` must be a character vector", call. = FALSE)
     if (anyNA(entries)) stop("`entries` must not contain NA", call. = FALSE)
+    # For ContractDaf, axis_indices is a public-level access: mirrors
+    # Julia's Readers.axis_indices which calls access_axis. Without this,
+    # axis_indices on a non-relaxed empty contract would silently succeed
+    # (axis_dict's ContractDaf hook is intentionally a no-op, matching
+    # Julia's commented-out access_axis on axis_dict).
+    if (inherits(daf, "dafr::ContractDaf")) {
+        .access_axis(daf, axis, is_for_modify = FALSE)
+    }
     dict <- axis_dict(daf, axis)
     out <- integer(length(entries))
     for (i in seq_along(entries)) {
@@ -463,6 +471,14 @@ get_matrix <- function(daf, rows_axis, columns_axis, name, default) {
 #' cat(description(example_chain_daf()))
 #' @export
 description <- function(daf) {
+    # ContractDaf is a transparent wrapper for description purposes: emit
+    # the underlying base daf's description so the user sees the storage
+    # type (MemoryDaf / FilesDaf / ...) and the original name. Mirrors
+    # Julia's behavior where description(::ContractDaf) reads through to
+    # the wrapped daf.
+    if (inherits(daf, "dafr::ContractDaf")) {
+        return(description(S7::prop(daf, "base")))
+    }
     lines <- c(
         sprintf("name: %s", S7::prop(daf, "name")),
         format_description_header(daf)
