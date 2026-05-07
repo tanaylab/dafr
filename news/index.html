@@ -48,6 +48,20 @@
     <div class="section level2">
 <h2 class="pkg-version" data-toc-text="0.2.0" id="dafr-020-in-development">dafr 0.2.0 (in development)<a class="anchor" aria-label="anchor" href="#dafr-020-in-development"></a></h2>
 <div class="section level3">
+<h3 id="julia-parity-for-chains-concat-reorder-0-2-0">Julia parity for chains, concat, reorder<a class="anchor" aria-label="anchor" href="#julia-parity-for-chains-concat-reorder-0-2-0"></a></h3>
+<p>A literal port of <code>DataAxesFormats.jl::concat.jl</code>, <code>reorder.jl</code>, and <code>chains.jl</code> test suites surfaced and closed five behavior gaps:</p>
+<ul><li>
+<strong><code>concatenate(..., merge = list("axis|name" = MERGE_COLLECT_AXIS))</code> now honors <code>empty=</code> for missing-source columns.</strong> Previously, when a source lacked the vector being collect-axis-merged, that source’s column in the destination matrix was filled with <code>NA</code> regardless of the user’s <code>empty=</code> map. Now the empty fill is consulted; if neither the source nor <code>empty</code> provides a value, the same “no empty value” error as the per-axis vector path is raised.</li>
+<li>
+<strong><code>concatenate(..., merge = list("rows|cols|name" = MERGE_LAST_VALUE))</code> now actually fires for matrix properties</strong> (rows / cols not in the concat set). Previously a silent no-op — the dispatch reached the 3-part-key case but didn’t write anything. The destination now holds the last source’s matrix.</li>
+<li>
+<strong><code><a href="../reference/reorder_axes.html">reorder_axes()</a></code> now errors on missing axes</strong> (was a silent skip). Aligned with Julia’s <code>reorder_axes!</code> contract.</li>
+<li>
+<strong><code><a href="../reference/reset_reorder_axes.html">reset_reorder_axes()</a></code> now returns <code>invisible(TRUE/FALSE)</code></strong>: TRUE if a pending reorder was rolled back, FALSE if no pending. Mirrors Julia’s Bool return. Existing callers that ignored the return value (most of them) are unaffected.</li>
+<li>
+<strong><code>ReadOnlyChainDaf</code> / <code>WriteChainDaf</code> version counters now propagate from underlying sources.</strong> Previously the chain wrappers had their own private <code>*_version_counter</code> env that never tracked source mutations — <code>vector_version_counter(chain, ...)</code> returned 0 even after a source-side <code>set_vector</code> bumped the source’s counter. More importantly, this broke cache invalidation on the chain: after <code>set_vector(chain, ..., overwrite = TRUE)</code> (which routes the write to the chain’s writer), reads through the chain returned the cached pre-write value instead of the new value. The chain’s stamp / counter functions now sum per-source counters.</li>
+</ul></div>
+<div class="section level3">
 <h3 id="windows-support-0-2-0">Windows support<a class="anchor" aria-label="anchor" href="#windows-support-0-2-0"></a></h3>
 <p><code><a href="../reference/files_daf.html">files_daf()</a></code> now works on Windows. Previously every write failed with <code>MmapZipStore is not supported on Windows</code>. On Windows, dafr skips the optional <code>metadata.zip</code> bundle (only used for serving a FilesDaf over HTTP via <code><a href="../reference/HttpDaf.html">http_daf()</a></code>); local reads, writes, and round-trips are unaffected. <code><a href="../reference/pack_files_daf_metadata.html">pack_files_daf_metadata()</a></code> errors with a clear message, and <code><a href="../reference/zarr_daf.html">zarr_daf()</a></code> rejects <code>.daf.zarr.zip</code> paths there — use the unzipped <code>.daf.zarr</code> directory store instead, or run on Linux/macOS for zip-backed storage.</p>
 </div>
