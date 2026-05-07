@@ -61,16 +61,35 @@ sister file `dev/notes/<date>-<name>-jl-parity-divergences.md`.
 Six slices ordered by **size × isolation × risk**. Each is
 independently shippable on `dev` and shippable to `main` once green.
 
-### Slice A — `read_only.jl` (764 lines, 399 @tests)
+### Slice A — `read_only.jl` — DROPPED on 2026-05-06
 
-The biggest **unported** file. Exercises read-only enforcement across
-every wrapper: `ReadOnlyChainDaf`, `ContractDaf` opened read-only,
-`ViewDaf` opened read-only, plus every leaf storage in read mode.
-A `format_set_*` leak in any one wrapper surfaces here; same for
-mode-discipline gaps in the constructors. Highest expected yield
-because dafr has no parallel test surface today.
+Originally framed as wrapper-mode enforcement (`ReadOnlyChainDaf`,
+`ContractDaf` read-only, `ViewDaf` read-only, leaf storage read mode).
+Reading the file end-to-end disproved that framing: `read_only.jl` is
+purely an **array-primitives** test — `is_read_only_array`,
+`read_only_array`, `copy_array`, and `brief()` formatting strings —
+across `Vector|Matrix × Dense|Sparse × Named|Unnamed × {raw,
+PermutedDimsArray(1,2), PermutedDimsArray(2,1), transpose, adjoint}`.
+It never opens a Daf and never touches a wrapper.
 
-### Slice B — `concat.jl` + `reorder.jl` + `chains.jl` (1511 lines)
+R has no direct counterparts for the primitives this file tests
+(`SparseArrays.ReadOnly` wrapper, `NamedArray` class, `PermutedDimsArray`
+lazy view, distinct `transpose`/`adjoint`, `brief()` summaries). dafr
+exposes none of these by name. A literal port would be ~390 test_that
+blocks each skipping with "R has no SparseArrays.ReadOnly" — close to
+zero yield.
+
+The wrapper-mode behaviors the original framing was reaching for
+(`ReadOnlyChainDaf`, `ContractDaf` read-only, `ViewDaf` read-only) live
+in `chains.jl` (Slice B), `views.jl` / `contracts.jl` (Slice C), and
+storage mode discipline lives in `data.jl` (Slice F). They will get
+their literal ports there.
+
+R-side read-only surface (altrep wrappers around mmap, immutable
+results from `format_get_*`) is already covered by
+`tests/testthat/test-altrep-*.R`.
+
+### Slice B — `concat.jl` + `reorder.jl` + `chains.jl` (1511 lines) — NEXT
 
 Mid-size, semantically related (multi-daf composition). All have
 `test-concat.R` / `test-reorder*.R` / `test-chain*.R` companions

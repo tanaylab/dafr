@@ -139,7 +139,7 @@ concatenate <- function(destination, axis, sources,
     # Merge pass for properties not on any concat axis.
     if (!is.null(merge)) {
         .concat_merge(destination, sources, dataset_names, dataset_axis,
-                      axes, merge, overwrite)
+                      axes, merge, empty, overwrite)
     }
 
     invisible(destination)
@@ -298,7 +298,7 @@ concatenate <- function(destination, axis, sources,
 }
 
 .concat_merge <- function(destination, sources, dataset_names, dataset_axis,
-                          concat_axes, merge, overwrite) {
+                          concat_axes, merge, empty, overwrite) {
     for (prop_key in base::names(merge)) {
         action <- merge[[prop_key]]
         parts <- strsplit(prop_key, "|", fixed = TRUE)[[1L]]
@@ -309,13 +309,17 @@ concatenate <- function(destination, axis, sources,
             if (parts[[1L]] %in% concat_axes) next
             .concat_merge_vector(destination, sources, dataset_names,
                                  dataset_axis, parts[[1L]], parts[[2L]],
-                                 action, overwrite)
+                                 action, empty, overwrite)
         } else if (length(parts) == 3L) {
             if (action == MERGE_COLLECT_AXIS) {
                 stop(sprintf(
                     "can't CollectAxis for a matrix: %s (would create a 3D tensor)",
                     sQuote(prop_key)
                 ), call. = FALSE)
+            }
+            if (action == MERGE_LAST_VALUE) {
+                .concat_merge_matrix(destination, sources, parts[[1L]],
+                                     parts[[2L]], parts[[3L]], overwrite)
             }
         }
     }
@@ -350,7 +354,8 @@ concatenate <- function(destination, axis, sources,
 }
 
 .concat_merge_vector <- function(destination, sources, dataset_names,
-                                 dataset_axis, axis, name, action, overwrite) {
+                                 dataset_axis, axis, name, action,
+                                 empty, overwrite) {
     if (action == MERGE_SKIP) return(invisible())
     if (action == MERGE_LAST_VALUE) {
         for (i in rev(seq_along(sources))) {
@@ -374,18 +379,57 @@ concatenate <- function(destination, axis, sources,
                 sQuote(name), sQuote(axis)
             ), call. = FALSE)
         }
+        # Probe sources to determine the storage type and fill value for
+        # missing sources. Look up the per-property fill once.
+        fill <- if (is.null(empty)) NULL else empty[[paste(axis, name, sep = "|")]]
+        # Pick a prototype value for matrix(prototype, ...) so column types
+        # cohere across present/absent sources.
+        proto <- NA
+        for (s in sources) {
+            if (format_has_vector(s, axis, name)) {
+                v <- format_get_vector(s, axis, name)$value
+                proto <- v[NA_integer_]
+                break
+            }
+        }
+        if (is.na(proto) && !is.null(fill)) proto <- fill[NA_integer_]
         src_len <- format_axis_length(destination, axis)
         n_src <- length(sources)
-        out <- matrix(NA, nrow = src_len, ncol = n_src,
+        out <- matrix(proto, nrow = src_len, ncol = n_src,
                       dimnames = list(format_axis_array(destination, axis)$value,
                                       dataset_names))
         for (i in seq_along(sources)) {
             s <- sources[[i]]
             if (format_has_vector(s, axis, name)) {
                 out[, i] <- format_get_vector(s, axis, name)$value
+            } else if (!is.null(fill)) {
+                out[, i] <- fill
+            } else {
+                stop(sprintf(
+                    "no empty value for the vector: %s of the axis: %s which is missing from the daf data: %s",
+                    sQuote(name), sQuote(axis), S7::prop(s, "name")
+                ), call. = FALSE)
             }
         }
         format_set_matrix(destination, axis, dataset_axis, name, out,
                           overwrite = overwrite)
     }
+}
+
+.concat_merge_matrix <- function(destination, sources, rows_axis, cols_axis,
+                                 name, overwrite) {
+    # MERGE_LAST_VALUE for a matrix property (3-part key) where neither
+    # rows_axis nor cols_axis is in the concat set: pick the last source
+    # holding the matrix and stamp it on the destination.
+    for (i in rev(seq_along(sources))) {
+        s <- sources[[i]]
+        if (format_has_axis(s, rows_axis) && format_has_axis(s, cols_axis) &&
+            format_has_matrix(s, rows_axis, cols_axis, name)) {
+            mat <- format_get_matrix(s, rows_axis, cols_axis, name)$value
+            format_set_matrix(destination, rows_axis, cols_axis, name, mat,
+                              overwrite = overwrite)
+            return(invisible())
+        }
+    }
+    invisible()
 }
