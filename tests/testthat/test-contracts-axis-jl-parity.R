@@ -9,12 +9,10 @@
 #   required    -> RequiredInput
 #   optional    -> OptionalInput
 #   guaranteed  -> CreatedOutput   (R analogue of Julia GuaranteedOutput)
-#   contingent  -> OptionalOutput  (Julia OptionalOutput; dafr's
-#                                   OptionalOutput is NOT enforced as
-#                                   forbidden-on-input - see CA1)
+#   contingent  -> OptionalOutput  (Julia OptionalOutput. CA1 lifted
+#                                   2026-05-08 alongside CS1.)
 #
-# Documented divergences carry skip("R divergence CA-N: <reason>") from
-# dev/notes/2026-05-08-contracts-axis-jl-parity-divergences.md.
+# Divergence note: dev/notes/2026-05-08-contracts-axis-jl-parity-divergences.md.
 
 # ---------------------------------------------------------------------------
 # Helpers
@@ -36,9 +34,6 @@
         if (accessed) {
             stopifnot(axis_length(cd, "cell") == 2L)
             if (!overwrite && .is_julia_output_expect_axis(expectation)) {
-                if (expectation == OptionalOutput) {
-                    skip("R divergence CA1: dafr's OptionalOutput is not enforced as forbidden-on-input. Julia rejects pre-existing OptionalOutput axis in verify_input when overwrite=FALSE; dafr returns silently.")
-                }
                 expect_error(verify_input(cd),
                     regexp = "pre-existing.*axis.*cell")
             } else {
@@ -49,9 +44,6 @@
                 expect_error(fn(cd),
                     regexp = "unused RequiredInput axis.*cell")
             } else if (!overwrite && .is_julia_output_expect_axis(expectation)) {
-                if (expectation == OptionalOutput) {
-                    skip("R divergence CA1: dafr's OptionalOutput is not enforced as forbidden-on-input. Julia rejects pre-existing OptionalOutput axis in verify_input when overwrite=FALSE; dafr returns silently.")
-                }
                 expect_error(verify_input(cd),
                     regexp = "pre-existing.*axis.*cell")
             } else {

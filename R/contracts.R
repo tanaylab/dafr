@@ -605,12 +605,14 @@ S7::method(
 # -- verify_input / verify_output ---------------------------------------
 
 .is_mandatory <- function(expectation, is_for_output) {
-    (is_for_output && expectation == CreatedOutput) ||
+    (is_for_output && expectation %in% c(CreatedOutput, GuaranteedOutput)) ||
         (!is_for_output && expectation == RequiredInput)
 }
 
 .is_forbidden <- function(expectation, is_for_output, overwrite) {
-    !is_for_output && expectation == CreatedOutput && !overwrite
+    !is_for_output &&
+        expectation %in% c(CreatedOutput, GuaranteedOutput, OptionalOutput) &&
+        !overwrite
 }
 
 .direction_name <- function(is_for_output) if (is_for_output) "output" else "input"

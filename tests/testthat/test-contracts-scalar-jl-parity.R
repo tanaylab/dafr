@@ -15,11 +15,11 @@
 #                                   in verify_*. CreatedOutput is the
 #                                   semantic equivalent of Julia's
 #                                   GuaranteedOutput.)
-#   contingent  -> OptionalOutput  (Julia OptionalOutput; dafr's
-#                                   OptionalOutput is NOT enforced as
-#                                   forbidden-on-input - see CS1.)
+#   contingent  -> OptionalOutput  (Julia OptionalOutput. CS1 lifted
+#                                   2026-05-08: .is_forbidden widened
+#                                   to include OptionalOutput.)
 #
-# Documented divergences carry skip("R divergence CS-N: <reason>") from
+# Divergence note (now empty / closed):
 # dev/notes/2026-05-08-contracts-scalar-jl-parity-divergences.md.
 
 # ---------------------------------------------------------------------------
@@ -42,9 +42,6 @@
         if (accessed) {
             stopifnot(get_scalar(cd, "version") == 1L)
             if (!overwrite && .is_julia_output_expect(expectation)) {
-                if (expectation == OptionalOutput) {
-                    skip("R divergence CS1: dafr's OptionalOutput is not enforced as forbidden-on-input. Julia rejects pre-existing OptionalOutput scalar in verify_input when overwrite=FALSE; dafr returns silently.")
-                }
                 expect_error(verify_input(cd),
                     regexp = "pre-existing.*scalar.*version")
             } else {
@@ -55,9 +52,6 @@
                 expect_error(fn(cd),
                     regexp = "unused RequiredInput scalar.*version")
             } else if (!overwrite && .is_julia_output_expect(expectation)) {
-                if (expectation == OptionalOutput) {
-                    skip("R divergence CS1: dafr's OptionalOutput is not enforced as forbidden-on-input. Julia rejects pre-existing OptionalOutput scalar in verify_input when overwrite=FALSE; dafr returns silently.")
-                }
                 expect_error(verify_input(cd),
                     regexp = "pre-existing.*scalar.*version")
             } else {
