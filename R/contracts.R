@@ -496,7 +496,10 @@ S7::method(
 S7::method(
     format_axis_length,
     list(ContractDaf, S7::class_character)
-) <- function(daf, axis) format_axis_length(S7::prop(daf, "base"), axis)
+) <- function(daf, axis) {
+    .access_axis(daf, axis, is_for_modify = FALSE)
+    format_axis_length(S7::prop(daf, "base"), axis)
+}
 
 S7::method(
     format_axis_dict,
