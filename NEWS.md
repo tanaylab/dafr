@@ -1,5 +1,39 @@
 # dafr 0.2.0 (in development)
 
+## Julia parity for chains, concat, reorder
+
+A literal port of `DataAxesFormats.jl::concat.jl`, `reorder.jl`, and
+`chains.jl` test suites surfaced and closed five behavior gaps:
+
+- **`concatenate(..., merge = list("axis|name" = MERGE_COLLECT_AXIS))`
+  now honors `empty=` for missing-source columns.** Previously, when a
+  source lacked the vector being collect-axis-merged, that source's
+  column in the destination matrix was filled with `NA` regardless of
+  the user's `empty=` map. Now the empty fill is consulted; if neither
+  the source nor `empty` provides a value, the same "no empty value"
+  error as the per-axis vector path is raised.
+- **`concatenate(..., merge = list("rows|cols|name" = MERGE_LAST_VALUE))`
+  now actually fires for matrix properties** (rows / cols not in the
+  concat set). Previously a silent no-op — the dispatch reached the
+  3-part-key case but didn't write anything. The destination now holds
+  the last source's matrix.
+- **`reorder_axes()` now errors on missing axes** (was a silent skip).
+  Aligned with Julia's `reorder_axes!` contract.
+- **`reset_reorder_axes()` now returns `invisible(TRUE/FALSE)`**: TRUE
+  if a pending reorder was rolled back, FALSE if no pending. Mirrors
+  Julia's Bool return. Existing callers that ignored the return value
+  (most of them) are unaffected.
+- **`ReadOnlyChainDaf` / `WriteChainDaf` version counters now
+  propagate from underlying sources.** Previously the chain wrappers
+  had their own private `*_version_counter` env that never tracked
+  source mutations — `vector_version_counter(chain, ...)` returned 0
+  even after a source-side `set_vector` bumped the source's counter.
+  More importantly, this broke cache invalidation on the chain: after
+  `set_vector(chain, ..., overwrite = TRUE)` (which routes the write
+  to the chain's writer), reads through the chain returned the
+  cached pre-write value instead of the new value. The chain's
+  stamp / counter functions now sum per-source counters.
+
 ## Windows support
 
 `files_daf()` now works on Windows. Previously every write failed with

@@ -48,14 +48,18 @@ test_that(".build_reorder_plan walks matrices on permuted-axis row+col", {
     expect_identical(plan$planned_matrices[[1L]]$columns_axis, "gene")
 })
 
-test_that(".build_reorder_plan ignores axes that don't exist on the daf", {
+test_that(".build_reorder_plan errors on axes that don't exist on the daf", {
+    # Aligned with Julia's reorder_axes! contract (concat parity slice
+    # successor): missing axes are an error, not a silent skip.
     d <- memory_daf()
     add_axis(d, "cell", c("A", "B"))
-    plan <- dafr:::.build_reorder_plan(d, list(
-        cell = c(2L, 1L),
-        nonexistent = c(1L)
-    ))
-    expect_named(plan$planned_axes, "cell")
+    expect_error(
+        dafr:::.build_reorder_plan(d, list(
+            cell = c(2L, 1L),
+            nonexistent = c(1L)
+        )),
+        regexp = "axis: nonexistent does not exist"
+    )
 })
 
 test_that(".build_reorder_plan handles sparse matrix nnz correctly", {
