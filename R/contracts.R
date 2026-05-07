@@ -286,7 +286,41 @@ contractor <- function(computation, contract, daf,
     }
     data_env <- new.env(parent = emptyenv())
     tensor_index <- new.env(parent = emptyenv())
+    dname <- S7::prop(daf, "name")
     for (rec in S7::prop(contract, "data")) {
+        # Validate that every axis a data record references is declared in
+        # the contract, and that the axis's expectation is compatible with
+        # the data's expectation. Mirrors Julia's `ensure_axis` (DAF.jl
+        # contracts.jl line 478-506).
+        switch(rec$kind,
+            vector = .ensure_contract_axis(axes_env, rec$axis, rec$expectation,
+                sprintf("for the %s vector: %s", rec$expectation, rec$name),
+                computation, dname),
+            matrix = {
+                .ensure_contract_axis(axes_env, rec$rows_axis, rec$expectation,
+                    sprintf("for the rows of the %s matrix: %s\nwith the columns axis: %s",
+                            rec$expectation, rec$name, rec$columns_axis),
+                    computation, dname)
+                .ensure_contract_axis(axes_env, rec$columns_axis, rec$expectation,
+                    sprintf("for the columns of the %s matrix: %s\nwith the rows axis: %s",
+                            rec$expectation, rec$name, rec$rows_axis),
+                    computation, dname)
+            },
+            tensor = {
+                .ensure_contract_axis(axes_env, rec$main_axis, rec$expectation,
+                    sprintf("for the main of the %s tensor: %s\nwith the rows axis: %s\nand the columns axis: %s",
+                            rec$expectation, rec$name, rec$rows_axis, rec$columns_axis),
+                    computation, dname)
+                .ensure_contract_axis(axes_env, rec$rows_axis, rec$expectation,
+                    sprintf("for the rows of the %s tensor: %s\nwith the main axis: %s\nand the columns axis: %s",
+                            rec$expectation, rec$name, rec$main_axis, rec$columns_axis),
+                    computation, dname)
+                .ensure_contract_axis(axes_env, rec$columns_axis, rec$expectation,
+                    sprintf("for the columns of the %s tensor: %s\nwith the main axis: %s\nand the rows axis: %s",
+                            rec$expectation, rec$name, rec$main_axis, rec$rows_axis),
+                    computation, dname)
+            }
+        )
         key <- .data_key(rec)
         data_env[[key]] <- .new_tracker(rec$expectation, rec$type)
         if (identical(rec$kind, "tensor")) {
@@ -319,6 +353,39 @@ contractor <- function(computation, contract, daf,
         data = data_env,
         tensor_index = tensor_index
     )
+}
+
+# -- Construction-time axis-prerequisite check (Julia ensure_axis) ------
+
+.is_compatible_axis_expectation <- function(data_expectation, axis_expectation) {
+    if (data_expectation %in% c(OptionalInput, OptionalOutput)) {
+        return(TRUE)
+    }
+    if (data_expectation == RequiredInput) {
+        return(axis_expectation == RequiredInput)
+    }
+    if (data_expectation %in% c(CreatedOutput, GuaranteedOutput)) {
+        return(axis_expectation %in% c(RequiredInput, CreatedOutput, GuaranteedOutput))
+    }
+    FALSE
+}
+
+.ensure_contract_axis <- function(axes_env, axis, data_expectation,
+                                   what_for, computation, dname) {
+    tracker <- axes_env[[axis]]
+    if (is.null(tracker)) {
+        stop(sprintf(
+            "non-contract axis: %s\n%s\nfor the computation: %s\non the daf data: %s",
+            axis, what_for, computation, dname
+        ), call. = FALSE)
+    }
+    if (!.is_compatible_axis_expectation(data_expectation, tracker$expectation)) {
+        stop(sprintf(
+            "incompatible %s axis: %s\n%s\nfor the computation: %s\non the daf data: %s",
+            tracker$expectation, axis, what_for, computation, dname
+        ), call. = FALSE)
+    }
+    invisible()
 }
 
 # -- Access tracking helpers --------------------------------------------
