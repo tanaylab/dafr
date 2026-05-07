@@ -64,6 +64,6 @@ reorder_axes <- function(daf, ..., crash_counter = NULL) {
 #' reset_reorder_axes(d)  # no-op for memory_daf
 #' @export
 reset_reorder_axes <- function(daf, crash_counter = NULL) {
-    format_reset_reorder(daf, crash_counter = crash_counter)
-    invisible(daf)
+    rolled_back <- format_reset_reorder(daf, crash_counter = crash_counter)
+    invisible(isTRUE(rolled_back))
 }

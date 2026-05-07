@@ -39,7 +39,12 @@
 
     planned_axes <- list()
     for (axis in names(permutations)) {
-        if (!format_has_axis(daf, axis)) next
+        if (!format_has_axis(daf, axis)) {
+            stop(sprintf(
+                "axis: %s does not exist in the daf data: %s",
+                axis, S7::prop(daf, "name")
+            ), call. = FALSE)
+        }
         entries <- format_axis_array(daf, axis)$value
         planned_axes[[axis]] <- .reorder_planned_axis(
             permutations[[axis]], entries

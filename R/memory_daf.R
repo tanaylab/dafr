@@ -479,7 +479,9 @@ S7::method(format_cleanup_reorder, list(MemoryDaf, S7::class_list)) <-
 S7::method(format_reset_reorder, MemoryDaf) <-
     function(daf, crash_counter = NULL) {
         # No-op for memory_daf -- no incomplete reorder state ever exists.
-        invisible()
+        # Returns FALSE (no rollback happened) to mirror Julia's
+        # reset_reorder_axes! Bool contract.
+        invisible(FALSE)
     }
 
 # Upstream Julia Readers.is_leaf(::MemoryDaf) at memory_format.jl:64.
