@@ -220,11 +220,12 @@ ContractDaf <- S7::new_class(
     tolower(env) %in% c("1", "true", "t", "yes", "y")
 }
 
-.new_tracker <- function(expectation, type = NA_character_) {
+.new_tracker <- function(expectation, type = NA_character_, main_axis = NULL) {
     t <- new.env(parent = emptyenv())
     t$expectation <- expectation
     t$type <- type
     t$accessed <- FALSE
+    t$main_axis <- main_axis
     t
 }
 
@@ -322,7 +323,10 @@ contractor <- function(computation, contract, daf,
             }
         )
         key <- .data_key(rec)
-        data_env[[key]] <- .new_tracker(rec$expectation, rec$type)
+        data_env[[key]] <- .new_tracker(
+            rec$expectation, rec$type,
+            main_axis = if (identical(rec$kind, "tensor")) rec$main_axis else NULL
+        )
         if (identical(rec$kind, "tensor")) {
             # Resolve per-entry matrix names NOW (from the base daf's main-axis
             # entries) so that regular format_get_matrix reads can be mapped
@@ -353,6 +357,34 @@ contractor <- function(computation, contract, daf,
         data = data_env,
         tensor_index = tensor_index
     )
+}
+
+# -- Tensor index expansion (Julia expand_axis_tensors) -----------------
+
+.expand_tensor_index_for_axis <- function(cd, axis, entries) {
+    # For each tensor record whose main_axis is `axis`, register one
+    # tensor_index entry per added entry, keyed by (rows_axis, columns_axis,
+    # "<entry>_<name>"). Tensor records that reference `axis` as
+    # rows/columns have a one-shot population at contractor time and
+    # don't need post-hoc updates.
+    data_env <- S7::prop(cd, "data")
+    tidx <- S7::prop(cd, "tensor_index")
+    for (key in ls(data_env, all.names = TRUE)) {
+        if (!startsWith(key, "tensor:")) next
+        parts <- strsplit(key, ":", fixed = TRUE)[[1L]]
+        if (length(parts) != 5L) next
+        main_axis <- parts[[2L]]
+        if (main_axis != axis) next
+        rows_axis <- parts[[3L]]
+        columns_axis <- parts[[4L]]
+        tname <- parts[[5L]]
+        for (entry in entries) {
+            mat_name <- sprintf("%s_%s", entry, tname)
+            idx_key <- .access_key_matrix(rows_axis, columns_axis, mat_name)
+            tidx[[idx_key]] <- key
+        }
+    }
+    invisible()
 }
 
 # -- Construction-time axis-prerequisite check (Julia ensure_axis) ------
@@ -505,6 +537,12 @@ contractor <- function(computation, contract, daf,
         ), call. = FALSE)
     }
     tracker$accessed <- TRUE
+    # Tensor matrices propagate access to the main_axis (Julia's
+    # access_matrix at contracts.jl line 1445-1448): reading any of the
+    # per-entry matrices counts as using the tensor's main axis.
+    if (!is.null(tracker$main_axis)) {
+        .access_axis(cd, tracker$main_axis, is_for_modify = FALSE)
+    }
     invisible()
 }
 
@@ -579,6 +617,13 @@ S7::method(
 ) <- function(daf, axis, entries) {
     .access_axis(daf, axis, is_for_modify = TRUE)
     format_add_axis(S7::prop(daf, "base"), axis, entries)
+    # Mirrors Julia's expand_axis_tensors (contracts.jl line 980): when an
+    # axis is added to a contracted daf, populate the tensor_index for
+    # any tensor record whose main_axis is the axis just added (or whose
+    # rows/columns reference it). Without this, post-contractor add_axis
+    # leaves the tensor_index stale.
+    .expand_tensor_index_for_axis(daf, axis, entries)
+    invisible()
 }
 
 S7::method(
@@ -809,8 +854,12 @@ S7::method(
     dname <- S7::prop(base, "name")
     ra <- rec$rows_axis; ca <- rec$columns_axis; name <- rec$name
     tracker <- S7::prop(cd, "data")[[.data_key(rec)]]
+    # Mirrors has_matrix(): a matrix stored in the flipped orientation is
+    # accessible through the public API via relayout. The contract has
+    # been satisfied if EITHER orientation is present.
     exists_ <- format_has_axis(base, ra) && format_has_axis(base, ca) &&
-        format_has_matrix(base, ra, ca, name)
+        (format_has_matrix(base, ra, ca, name) ||
+         format_has_matrix(base, ca, ra, name))
     if (!exists_) {
         if (.is_mandatory(tracker$expectation, is_for_output)) {
             stop(sprintf(
@@ -826,7 +875,14 @@ S7::method(
             tracker$expectation, name, ra, ca, comp, dname
         ), call. = FALSE)
     }
-    m <- format_get_matrix(base, ra, ca, name)$value
+    # format_get_matrix is orientation-strict; fall back to the flipped
+    # orientation when needed. The type check is the same either way
+    # since the storage element type does not depend on orientation.
+    m <- if (format_has_matrix(base, ra, ca, name)) {
+        format_get_matrix(base, ra, ca, name)$value
+    } else {
+        format_get_matrix(base, ca, ra, name)$value
+    }
     if (!.matrix_type_ok(m, tracker$type)) {
         stop(sprintf(
             "unexpected type: %s\ninstead of type: %s\nfor the %s matrix: %s\nof the rows axis: %s\nand the columns axis: %s\nfor the computation: %s\non the daf data: %s",
@@ -856,7 +912,10 @@ S7::method(
     entries <- format_axis_array(base, main)$value
     for (entry in entries) {
         mat_name <- sprintf("%s_%s", entry, rec$name)
-        has_it <- format_has_matrix(base, ra, ca, mat_name)
+        # Mirrors has_matrix(): the per-entry tensor matrix may be stored
+        # in either orientation.
+        has_it <- format_has_matrix(base, ra, ca, mat_name) ||
+                  format_has_matrix(base, ca, ra, mat_name)
         if (!has_it && .is_mandatory(rec$expectation, is_for_output)) {
             stop(sprintf(
                 "missing %s tensor matrix: %s of the rows axis: %s and the columns axis: %s for the computation: %s on the daf data: %s",
