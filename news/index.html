@@ -7,7 +7,7 @@
 
     <a class="navbar-brand me-2" href="../index.html">dafr</a>
 
-    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">0.2.0</small>
+    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">0.2.1</small>
 
 
     <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbar" aria-controls="navbar" aria-expanded="false" aria-label="Toggle navigation">
@@ -42,9 +42,23 @@
   <main id="main" class="col-md-9"><div class="page-header">
 
       <h1>Changelog</h1>
-      <small>Source: <a href="https://github.com/tanaylab/dafr/blob/v0.2.0/NEWS.md" class="external-link"><code>NEWS.md</code></a></small>
+      <small>Source: <a href="https://github.com/tanaylab/dafr/blob/main/NEWS.md" class="external-link"><code>NEWS.md</code></a></small>
     </div>
 
+    <div class="section level2">
+<h2 class="pkg-version" data-toc-text="0.2.1" id="dafr-021">dafr 0.2.1<a class="anchor" aria-label="anchor" href="#dafr-021"></a></h2>
+<div class="section level3">
+<h3 id="reorder-parity-r2--r4--r5--r6-closed-0-2-1">Reorder parity (R2 + R4 + R5 + R6 closed)<a class="anchor" aria-label="anchor" href="#reorder-parity-r2--r4--r5--r6-closed-0-2-1"></a></h3>
+<ul><li>
+<strong><code><a href="../reference/is_leaf.html">is_leaf()</a></code> accepts S7 class objects</strong> as well as instances, mirroring Julia’s <code>is_leaf(::Type{&lt;:DafReader})</code>. Class-level call returns <code>TRUE</code> for the concrete leaf classes (<code>MemoryDaf</code>, <code>FilesDaf{,ReadOnly}</code>, <code>ZarrDaf{,ReadOnly}</code>, <code>HttpDaf</code>) and <code>FALSE</code> for the abstract <code>DafReader</code> / <code>DafWriter</code> / <code>DafReadOnly</code>.</li>
+<li>
+<strong><code>zarr_daf</code> now supports <code><a href="../reference/reorder_axes.html">reorder_axes()</a></code></strong>. Best-effort in-place reorder via the existing zarr overwrite path. Crash recovery (backup-and-restore) is not yet implemented; a mid-reorder crash leaves the store in an undefined state.</li>
+<li>
+<strong><code>reorder_axes(list(d1, d2), axis = perm)</code> reorders multiple writers in one call</strong> (Julia: <code>reorder_axes!([d1, d2], Dict(...))</code>). Each axis must agree on entry order across every writer that has it (<code>axis: &lt;a&gt; entries differ</code> error otherwise); writers missing the axis silently skip it.</li>
+<li>
+<strong><code>memory_daf</code> reorder is now atomic</strong>. A pre-reorder snapshot is parked on the daf’s internal state; a <code>SimulatedCrash</code> mid-reorder is rolled back by <code><a href="../reference/reset_reorder_axes.html">reset_reorder_axes()</a></code>, which now returns <code>TRUE</code> if a pending reorder was rolled back, <code>FALSE</code> otherwise. Mirrors Julia’s reset_reorder_axes! Bool contract.</li>
+</ul></div>
+</div>
     <div class="section level2">
 <h2 class="pkg-version" data-toc-text="0.2.0" id="dafr-020">dafr 0.2.0<a class="anchor" aria-label="anchor" href="#dafr-020"></a></h2>
 <div class="section level3">
