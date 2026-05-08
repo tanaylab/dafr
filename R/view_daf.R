@@ -564,10 +564,11 @@ viewer <- function(daf, name = NULL, axes = NULL, data = NULL) {
     if (identical(override$query, "=")) {
         return(sprintf("@ %s : %s", override$base_axis, override$name))
     }
-    # Julia parity: a bare `: <name>` (axis-less) query auto-prefixes
-    # with the view's base axis. Mirrors the dataframes.R column-spec
-    # auto-prefix logic.
-    q <- override$query
+    # Julia parity (V5): substitute `__axis__` placeholder with the
+    # slot's base axis, matching DataAxesFormats.jl/src/views.jl
+    # template-axis-self-reference.
+    q <- gsub("__axis__", override$base_axis, override$query, fixed = TRUE)
+    # Auto-prefix bare `:` / `.` queries with the view's base axis.
     trimmed <- trimws(q)
     if (grepl("^[:.]", trimmed) && !grepl("^@", trimmed)) {
         return(sprintf("@ %s %s", override$base_axis, q))
@@ -698,6 +699,16 @@ S7::method(
         .require_vector(daf, axis, name)
     }
     raw <- get_query(daf@base, q_str)
+    # Julia parity: a vector slot whose query produces a matrix is
+    # rejected on access (DataAxesFormats.jl/src/views.jl
+    # `matrix query: ... for the vector: ...`).
+    if (is.matrix(raw) || methods::is(raw, "Matrix")) {
+        stop(sprintf(
+            "matrix query: %s\nfor the vector: %s\nfor the axis: %s\nfor the view: %s\nof the daf data: %s",
+            q_str, name, axis, S7::prop(daf, "name"),
+            S7::prop(daf@base, "name")
+        ), call. = FALSE)
+    }
     idx <- daf@view_axis_indices[[axis]]
     .cache_group_value(raw[idx], MEMORY_DATA)
 }

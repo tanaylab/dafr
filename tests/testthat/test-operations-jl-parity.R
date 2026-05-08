@@ -521,7 +521,19 @@ test_that("operations / reduction / var / matrix", {
 })
 
 test_that("operations / reduction / var_n / negative", {
-    skip("CO3: dafr's VarN signature/semantics may differ from Julia's. Existing dafr operation tests provide alternative coverage.")
+    d <- .ops_fresh_daf()
+    m <- matrix(c(0L, 3L, 1L, 4L, 2L, 5L), nrow = 2L, ncol = 3L,
+                dimnames = list(c("A", "B"), c("X", "Y", "Z")))
+    set_matrix(d, "cell", "gene", "value", m)
+    expect_error(
+        get_query(d, "@ cell @ gene :: value >| VarN eps -1"),
+        regex_string <- paste0(
+            "invalid value: \"-1\".*",
+            "value must be: not negative.*",
+            "for the parameter: eps.*",
+            "for the operation: VarN"
+        )
+    )
 })
 
 test_that("operations / reduction / var_n / vector", {

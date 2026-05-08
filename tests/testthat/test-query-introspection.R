@@ -1,8 +1,10 @@
 test_that("escape_value is a public alias of .escape_value", {
     expect_identical(escape_value("plain"), "plain")
-    expect_identical(escape_value("has space"), "\"has space\"")
-    expect_identical(escape_value("quo\"ted"), "\"quo\\\"ted\"")
-    expect_identical(escape_value("back\\slash"), "\"back\\\\slash\"")
+    # Julia DAF escape_value uses backslash-escape (`\<char>`) for any
+    # non-value-safe character; mirrors DataAxesFormats.jl Tokens.jl.
+    expect_identical(escape_value("has space"), "has\\ space")
+    expect_identical(escape_value("quo\"ted"), "quo\\\"ted")
+    expect_identical(escape_value("back\\slash"), "back\\\\slash")
 })
 
 test_that("unescape_value inverts escape_value", {

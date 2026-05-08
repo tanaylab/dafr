@@ -232,7 +232,19 @@ test_that("views / vector / masked / ()", {
 })
 
 test_that("views / vector / masked / query", {
-    skip("R divergence V5: dafr's query DSL doesn't substitute the `__axis__` placeholder (Julia's view-template axis-self-reference)")
+    d <- memory_daf(name = "memory!")
+    add_axis(d, "cell", c("X", "Y", "Z"))
+    add_axis(d, "gene", c("A", "B"))
+    set_vector(d, "cell", "batch", c("U", "V", "V"))
+    set_matrix(d, "cell", "gene", "UMIs",
+        matrix(c(0, 2, 4, 1, 3, 5), 3, 2,
+               dimnames = list(c("X", "Y", "Z"), c("A", "B"))))
+    view <- viewer(d, name = "view!",
+                   axes = list(list("cell", "@ cell [ batch = V ]")),
+                   data = list(list(c("cell", "total_UMIs"),
+                                    "@ gene @ __axis__ :: UMIs >- Sum")))
+    out <- get_vector(view, "cell", "total_UMIs")
+    expect_equal(unname(as.numeric(out)), c(5, 9))
 })
 
 test_that("views / vector / reduced", {
@@ -252,7 +264,18 @@ test_that("views / vector / reduced", {
 })
 
 test_that("views / vector / matrix", {
-    skip("R divergence V5: dafr's query DSL doesn't substitute the `__axis__` placeholder (the test relies on it to construct an invalid matrix-as-vector view)")
+    d <- memory_daf(name = "memory!")
+    add_axis(d, "cell", c("X", "Y"))
+    add_axis(d, "gene", c("A", "B", "C"))
+    set_matrix(d, "cell", "gene", "UMIs",
+        matrix(c(0, 3, 1, 4, 2, 5), 2, 3,
+               dimnames = list(c("X", "Y"), c("A", "B", "C"))))
+    view <- viewer(d, name = "view!",
+                   axes = list(VIEW_ALL_AXES),
+                   data = list(list(c("cell", "total_umis"),
+                                    "@ __axis__ @ gene :: UMIs")))
+    expect_error(get_vector(view, "cell", "total_umis"),
+        regexp = "matrix query|matrix.*shape|not a vector")
 })
 
 # ---------------------------------------------------------------------------
