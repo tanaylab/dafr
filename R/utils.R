@@ -53,12 +53,17 @@
 }
 
 .validate_vector_value <- function(daf, axis, name, vec) {
-    if (is.null(vec) || !is.atomic(vec)) {
+    is_sparse_vec <- methods::is(vec, "sparseVector")
+    if (is.null(vec) || (!is.atomic(vec) && !is_sparse_vec)) {
         stop(sprintf("vector %s on axis %s must be atomic", sQuote(name), sQuote(axis)),
             call. = FALSE
         )
     }
-    n <- format_axis_length(daf, axis)
+    .require_axis_length(daf, length(vec), sprintf("vector: %s", name), axis)
+    if (is_sparse_vec) {
+        # Matrix::sparseVector has no `names`; pass through after length check.
+        return(vec)
+    }
     if (!is.null(names(vec))) {
         entries <- format_axis_array(daf, axis)$value
         missing <- setdiff(names(vec), entries)
@@ -72,12 +77,9 @@
                 call. = FALSE
             )
         }
-        .require_axis_length(daf, length(vec), sprintf("vector: %s", name), axis)
         # Reorder to axis order; drop names but preserve class (e.g. bit64).
         vec <- vec[entries]
         names(vec) <- NULL
-    } else {
-        .require_axis_length(daf, length(vec), sprintf("vector: %s", name), axis)
     }
     vec
 }
@@ -100,6 +102,14 @@
             "format_get_vector contract violation: value has length %d, axis %s has %d entries",
             length(vec), sQuote(axis), length(entries)
         ), call. = FALSE)
+    }
+    # Matrix::sparseVector (S4) does not support `names<-`. Densify on
+    # readback and attach names there. Storage roundtrip through dafr is
+    # intentionally name-bearing; sparse representation is preserved
+    # internally (see .validate_vector_value / files_daf path) but
+    # surfaced as a named atomic vector to user code.
+    if (methods::is(vec, "sparseVector")) {
+        vec <- as.numeric(vec)
     }
     names(vec) <- entries
     vec

@@ -169,15 +169,34 @@ registered_eltwise <- function() sort(names(.ops_env$eltwise))
             format(eps)
         ), call. = FALSE)
     }
-    log(x + eps, base = base)
+    # CO6: reject non-positive `x + eps`; Julia's Log signals
+    # `value must be: positive`. Sparse Matrices keep zeros implicit, so
+    # only inspect explicit non-zero cells.
+    .x <- if (methods::is(x, "Matrix")) x@x else as.numeric(x)
+    if (length(.x) > 0L && any(.x + eps <= 0, na.rm = TRUE)) {
+        stop(sprintf(
+            "invalid value: \"%s\"\nvalue must be: positive\nfor the operation: Log",
+            format(min(.x))
+        ), call. = FALSE)
+    }
+    .cast_to_type(log(x + eps, base = base), type)
 }
 .op_abs <- function(x, ..., type = NULL) {
     .reject_non_number_type("Abs", type)
-    abs(x)
+    .cast_to_type(abs(x), type)
 }
-.op_exp <- function(x, ...) exp(x)
-.op_sqrt <- function(x, ...) sqrt(x)
-.op_round <- function(x, ..., digits = 0) round(x, digits = digits)
+.op_exp <- function(x, ..., type = NULL) {
+    .reject_non_number_type("Exp", type)
+    .cast_to_type(exp(x), type)
+}
+.op_sqrt <- function(x, ..., type = NULL) {
+    .reject_non_number_type("Sqrt", type)
+    .cast_to_type(sqrt(x), type)
+}
+.op_round <- function(x, ..., digits = 0, type = NULL) {
+    .reject_non_number_type("Round", type)
+    .cast_to_type(round(x, digits = digits), type)
+}
 
 .op_clamp <- function(x, ..., min = NULL, max = NULL, type = NULL) {
     .reject_non_number_type("Clamp", type)
@@ -194,11 +213,11 @@ registered_eltwise <- function() sort(names(.ops_env$eltwise))
         if (min <= 0 && 0 <= max) {
             out <- x
             out@x <- pmin(pmax(out@x, min), max)
-            return(out)
+            return(.cast_to_type(out, type))
         }
         x <- as.matrix(x)
     }
-    pmin(pmax(x, min), max)
+    .cast_to_type(pmin(pmax(x, min), max), type)
 }
 
 .op_convert <- function(x, ..., type) {
@@ -277,6 +296,33 @@ registered_eltwise <- function() sort(names(.ops_env$eltwise))
     "double", "integer", "logical", "integer64"
 )
 .NUMBER_TYPES_FILTERED_NUMERIC <- setdiff(.NUMBER_TYPES, c("String"))
+
+# CO5 parity: honor `type =` on numeric eltwise ops by coercing the
+# result. Matches Julia DAF where `% Op type Float32` returns a
+# Float32-storage result.
+.cast_to_type <- function(value, type) {
+    if (is.null(type) || is.null(value)) return(value)
+    if (methods::is(value, "Matrix")) return(value)  # leave Matrix alone
+    target <- switch(as.character(type)[[1L]],
+        integer = , Int8 = , Int16 = , Int32 = , Int64 = ,
+        UInt8 = , UInt16 = , UInt32 = , UInt64 = "integer",
+        numeric = , double = , Float32 = , Float64 = "double",
+        logical = , Bool = "logical",
+        character = , String = "character",
+        NULL
+    )
+    if (is.null(target)) return(value)
+    if (is.matrix(value)) {
+        dn <- dimnames(value)
+        storage.mode(value) <- target
+        dimnames(value) <- dn
+        return(value)
+    }
+    nm <- names(value)
+    out <- as.vector(value, mode = target)
+    names(out) <- nm
+    out
+}
 
 .reject_non_float_type <- function(op_name, type) {
     if (is.null(type)) return(invisible())
