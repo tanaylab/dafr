@@ -541,4 +541,4 @@ S7::method(format_description_header, HttpDaf) <- function(daf, indent = "",
 }
 
 # Upstream Julia Readers.is_leaf(::HttpDaf) at http_format.jl:185.
-S7::method(is_leaf, HttpDaf) <- function(daf) TRUE
+S7::method(.is_leaf_dispatch, HttpDaf) <- function(daf) TRUE

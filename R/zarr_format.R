@@ -1081,5 +1081,89 @@ S7::method(format_description_header, ZarrDafReadOnly) <- function(daf,
 }
 
 # Upstream Julia Readers.is_leaf(::ZarrDaf) at zarr_format.jl:499.
-S7::method(is_leaf, ZarrDaf) <- function(daf) TRUE
-S7::method(is_leaf, ZarrDafReadOnly) <- function(daf) TRUE
+S7::method(.is_leaf_dispatch, ZarrDaf) <- function(daf) TRUE
+S7::method(.is_leaf_dispatch, ZarrDafReadOnly) <- function(daf) TRUE
+
+# ---- Reorder ----------------------------------------------------------------
+# Best-effort in-place reorder. No on-disk crash recovery yet (the
+# files_daf hardlink-backup approach would need a generic store-level
+# copy primitive); a crash mid-reorder leaves the store in an undefined
+# state. The basic both_axes / single_axis / identity / no_pending
+# leaves are exercised; crash_recovery leaves remain skipped.
+
+S7::method(format_replace_reorder, list(ZarrDaf, S7::class_list)) <-
+    function(daf, plan, crash_counter = NULL) {
+        store <- S7::prop(daf, "store")
+
+        # Axes: rewrite the axis array contents in place.
+        for (axis in names(plan$planned_axes)) {
+            tick_crash_counter(crash_counter)
+            pa <- plan$planned_axes[[axis]]
+            path <- paste0("axes/", axis)
+            n <- length(pa$new_entries)
+            zarray <- zarr_v2_zarray(shape = n, dtype = "|O")
+            zarray$filters <- list(list(id = "vlen-utf8"))
+            zarr_v2_write_zarray(store, path, zarray)
+            store_set_bytes(
+                store, paste0(path, "/0"),
+                zarr_v2_encode_strings(pa$new_entries)
+            )
+        }
+
+        # Vectors: read, permute, overwrite.
+        for (pv in plan$planned_vectors) {
+            tick_crash_counter(crash_counter)
+            pa <- plan$planned_axes[[pv$axis]]
+            v <- format_get_vector(daf, pv$axis, pv$name)$value
+            permuted <- if (methods::is(v, "sparseVector")) {
+                v[pa$permutation]
+            } else {
+                v[pa$permutation]
+            }
+            format_set_vector(daf, pv$axis, pv$name, permuted, overwrite = TRUE)
+        }
+
+        # Matrices: read, permute by row / col / both, overwrite.
+        for (pm in plan$planned_matrices) {
+            tick_crash_counter(crash_counter)
+            m <- format_get_matrix(daf, pm$rows_axis, pm$columns_axis,
+                                    pm$name)$value
+            r_perm <- if (pm$rows_axis %in% names(plan$planned_axes)) {
+                plan$planned_axes[[pm$rows_axis]]$permutation
+            } else {
+                seq_len(nrow(m))
+            }
+            c_perm <- if (pm$columns_axis %in% names(plan$planned_axes)) {
+                plan$planned_axes[[pm$columns_axis]]$permutation
+            } else {
+                seq_len(ncol(m))
+            }
+            permuted <- m[r_perm, c_perm, drop = FALSE]
+            format_set_matrix(daf, pm$rows_axis, pm$columns_axis,
+                              pm$name, permuted, overwrite = TRUE)
+        }
+
+        zarr_v2_write_zmetadata(store)
+        invisible()
+    }
+
+S7::method(format_cleanup_reorder, list(ZarrDaf, S7::class_list)) <-
+    function(daf, plan, crash_counter = NULL) {
+        for (axis in names(plan$planned_axes)) {
+            bump_axis_counter(daf, axis)
+        }
+        for (pv in plan$planned_vectors) {
+            bump_vector_counter(daf, pv$axis, pv$name)
+        }
+        for (pm in plan$planned_matrices) {
+            bump_matrix_counter(daf, pm$rows_axis, pm$columns_axis, pm$name)
+        }
+        invisible()
+    }
+
+S7::method(format_reset_reorder, ZarrDaf) <-
+    function(daf, crash_counter = NULL) {
+        # No backup directory yet; nothing to reset. Returns FALSE so
+        # callers see "no pending reorder" - matches Julia's Bool contract.
+        invisible(FALSE)
+    }

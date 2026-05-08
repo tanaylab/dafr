@@ -1,3 +1,27 @@
+# dafr 0.2.2
+
+## Reorder parity (R2 + R4 + R5 + R6 closed)
+
+- **`is_leaf()` accepts S7 class objects** as well as instances,
+  mirroring Julia's `is_leaf(::Type{<:DafReader})`. Class-level call
+  returns `TRUE` for the concrete leaf classes (`MemoryDaf`,
+  `FilesDaf{,ReadOnly}`, `ZarrDaf{,ReadOnly}`, `HttpDaf`) and
+  `FALSE` for the abstract `DafReader` / `DafWriter` / `DafReadOnly`.
+- **`zarr_daf` now supports `reorder_axes()`**. Best-effort in-place
+  reorder via the existing zarr overwrite path. Crash recovery
+  (backup-and-restore) is not yet implemented; a mid-reorder crash
+  leaves the store in an undefined state.
+- **`reorder_axes(list(d1, d2), axis = perm)` reorders multiple
+  writers in one call** (Julia: `reorder_axes!([d1, d2], Dict(...))`).
+  Each axis must agree on entry order across every writer that has
+  it (`axis: <a> entries differ` error otherwise); writers missing
+  the axis silently skip it.
+- **`memory_daf` reorder is now atomic**. A pre-reorder snapshot is
+  parked on the daf's internal state; a `SimulatedCrash`
+  mid-reorder is rolled back by `reset_reorder_axes()`, which now
+  returns `TRUE` if a pending reorder was rolled back, `FALSE`
+  otherwise. Mirrors Julia's reset_reorder_axes! Bool contract.
+
 # dafr 0.2.0
 
 ## Julia parity (DataAxesFormats.jl 0.2.0)

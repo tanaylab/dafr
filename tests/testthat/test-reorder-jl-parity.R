@@ -145,7 +145,11 @@
 # ---------------------------------------------------------------------------
 
 test_that("reorder / is_leaf / types", {
-    skip("R divergence R2: dafr is_leaf is dispatched on instances only; class-level dispatch (Julia) does not apply")
+    expect_true(is_leaf(MemoryDaf))
+    expect_true(is_leaf(FilesDaf))
+    expect_true(is_leaf(ZarrDaf))
+    expect_false(is_leaf(DafReader))
+    expect_false(is_leaf(DafWriter))
 })
 
 test_that("reorder / is_leaf / memory", {
@@ -282,11 +286,15 @@ test_that("reorder / reorder_axes! / memory / identity", {
 })
 
 test_that("reorder / reorder_axes! / memory / crash_recovery / after_1", {
-    skip("R divergence R6: dafr memory_daf reorder is in-place (not atomic); a simulated mid-reorder crash leaves partial state with no rollback")
+    d <- memory_daf(name = "memory!")
+    .populate_reorder_test_data(d)
+    .test_crash_recovery(d, crash_after = 1L, can_recover = TRUE)
 })
 
 test_that("reorder / reorder_axes! / memory / crash_recovery / after_4", {
-    skip("R divergence R6: dafr memory_daf reorder is in-place (not atomic); a simulated mid-reorder crash leaves partial state with no rollback")
+    d <- memory_daf(name = "memory!")
+    .populate_reorder_test_data(d)
+    .test_crash_recovery(d, crash_after = 4L, can_recover = TRUE)
 })
 
 test_that("reorder / reorder_axes! / memory / crash_recovery / no_pending", {
@@ -365,12 +373,83 @@ test_that("reorder / reorder_axes! / h5df / *", {
 
 # ----- zarr backend -----
 
-test_that("reorder / reorder_axes! / zarr / *", {
-    skip("R divergence R4: dafr's zarr_daf does not implement reorder (no format_replace_reorder method)")
+test_that("reorder / reorder_axes! / zarr / both_axes", {
+    tmp <- tempfile(fileext = ".daf.zarr")
+    on.exit(unlink(tmp, recursive = TRUE), add = TRUE)
+    src <- memory_daf(); .populate_reorder_test_data(src)
+    d <- zarr_daf(tmp, mode = "w", name = "zarr!")
+    copy_all(d, src, relayout = FALSE)
+    reorder_axes(d, cell = c(3L, 1L, 2L), gene = c(4L, 3L, 2L, 1L))
+    .assert_reorder_both_axes(d)
+})
+
+test_that("reorder / reorder_axes! / zarr / single_axis", {
+    tmp <- tempfile(fileext = ".daf.zarr")
+    on.exit(unlink(tmp, recursive = TRUE), add = TRUE)
+    src <- memory_daf(); .populate_reorder_test_data(src)
+    d <- zarr_daf(tmp, mode = "w", name = "zarr!")
+    copy_all(d, src, relayout = FALSE)
+    reorder_axes(d, cell = c(3L, 1L, 2L))
+    .assert_reorder_single_axis(d)
+})
+
+test_that("reorder / reorder_axes! / zarr / identity", {
+    tmp <- tempfile(fileext = ".daf.zarr")
+    on.exit(unlink(tmp, recursive = TRUE), add = TRUE)
+    src <- memory_daf(); .populate_reorder_test_data(src)
+    d <- zarr_daf(tmp, mode = "w", name = "zarr!")
+    copy_all(d, src, relayout = FALSE)
+    reorder_axes(d, cell = c(1L, 2L, 3L))
+    expect_equal(unname(axis_vector(d, "cell")), c("A", "B", "C"))
+    expect_equal(unname(get_vector(d, "cell", "age")), c(10L, 20L, 30L))
+})
+
+test_that("reorder / reorder_axes! / zarr / crash_recovery / no_pending", {
+    tmp <- tempfile(fileext = ".daf.zarr")
+    on.exit(unlink(tmp, recursive = TRUE), add = TRUE)
+    src <- memory_daf(); .populate_reorder_test_data(src)
+    d <- zarr_daf(tmp, mode = "w", name = "zarr!")
+    copy_all(d, src, relayout = FALSE)
+    expect_false(isTRUE(reset_reorder_axes(d)))
+})
+
+test_that("reorder / reorder_axes! / zarr / crash_recovery / mid_reorder", {
+    skip("R4-recovery: zarr_daf reorder is best-effort (no on-disk backup); a mid-reorder crash leaves an undefined state")
 })
 
 # ----- multiple writers -----
 
-test_that("reorder / reorder_axes! / multiple_writers / *", {
-    skip("R divergence R5: dafr's reorder_axes does not accept a list of writers (single-daf only)")
+test_that("reorder / reorder_axes! / multiple_writers / memory_pair", {
+    daf1 <- memory_daf(name = "first!"); .populate_reorder_test_data(daf1)
+    daf2 <- memory_daf(name = "second!"); .populate_reorder_test_data(daf2)
+    reorder_axes(list(daf1, daf2), cell = c(3L, 1L, 2L))
+    expect_equal(unname(axis_vector(daf1, "cell")), c("C", "A", "B"))
+    expect_equal(unname(axis_vector(daf2, "cell")), c("C", "A", "B"))
+    expect_equal(unname(get_vector(daf1, "cell", "age")), c(30L, 10L, 20L))
+    expect_equal(unname(get_vector(daf2, "cell", "age")), c(30L, 10L, 20L))
+})
+
+test_that("reorder / reorder_axes! / multiple_writers / mixed_axes", {
+    daf1 <- memory_daf(name = "first!")
+    daf2 <- memory_daf(name = "second!")
+    add_axis(daf1, "cell", c("A", "B", "C"))
+    set_vector(daf1, "cell", "age", c(10L, 20L, 30L))
+    add_axis(daf2, "gene", c("X", "Y"))
+    set_vector(daf2, "gene", "marker", c(1L, 0L))
+    reorder_axes(list(daf1, daf2), cell = c(3L, 1L, 2L), gene = c(2L, 1L))
+    expect_equal(unname(axis_vector(daf1, "cell")), c("C", "A", "B"))
+    expect_equal(unname(get_vector(daf1, "cell", "age")), c(30L, 10L, 20L))
+    expect_equal(unname(axis_vector(daf2, "gene")), c("Y", "X"))
+    expect_equal(unname(get_vector(daf2, "gene", "marker")), c(0L, 1L))
+})
+
+test_that("reorder / reorder_axes! / multiple_writers / mismatched_entries", {
+    daf1 <- memory_daf(name = "first!")
+    daf2 <- memory_daf(name = "second!")
+    add_axis(daf1, "cell", c("A", "B"))
+    add_axis(daf2, "cell", c("X", "Y"))
+    expect_error(
+        reorder_axes(list(daf1, daf2), cell = c(2L, 1L)),
+        regexp = "axis: cell entries differ"
+    )
 })

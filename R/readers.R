@@ -609,7 +609,7 @@ S7::method(format_description_header, DafReader) <- function(daf, indent = "",
 # Default: wrappers are non-leaf. Per-class methods (in memory_daf.R,
 # files_daf.R, zarr_format.R, http_format.R) override to TRUE for storage
 # formats that own their state directly. Mirrors upstream Readers.is_leaf.
-S7::method(is_leaf, DafReader) <- function(daf) FALSE
+S7::method(.is_leaf_dispatch, DafReader) <- function(daf) FALSE
 
 .format_scalar_literal <- function(v) {
     if (is.character(v)) {

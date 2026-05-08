@@ -199,8 +199,8 @@ S7::method(format_description_header, FilesDafReadOnly) <- function(daf,
 }
 
 # Upstream Julia Readers.is_leaf(::FilesDaf) at files_format.jl:273.
-S7::method(is_leaf, FilesDaf) <- function(daf) TRUE
-S7::method(is_leaf, FilesDafReadOnly) <- function(daf) TRUE
+S7::method(.is_leaf_dispatch, FilesDaf) <- function(daf) TRUE
+S7::method(.is_leaf_dispatch, FilesDafReadOnly) <- function(daf) TRUE
 
 .files_daf_init <- function(path, truncate) {
     if (!dir.exists(path)) {

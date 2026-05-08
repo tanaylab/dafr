@@ -30,9 +30,15 @@
 }
 
 # Walk `daf` and produce a reorder plan for the given `permutations`
-# (named list mapping axis names to integer permutations). Axes that
-# don't exist on `daf` are silently skipped.
-.build_reorder_plan <- function(daf, permutations) {
+# (named list mapping axis names to integer permutations).
+#
+# `shared_axes`, if supplied, is a precomputed map of axis -> planned
+# axis (from `.compute_shared_planned_axes`) used by the multi-writer
+# orchestrator so the entry-permutation list is agreed across writers
+# (mirrors Julia's `compute_planned_axes`). When `shared_axes` is
+# supplied, axes absent from this daf are silently skipped instead of
+# erroring; the single-writer path keeps its strict behaviour.
+.build_reorder_plan <- function(daf, permutations, shared_axes = NULL) {
     if (!is.list(permutations) || is.null(names(permutations))) {
         stop("permutations must be a named list", call. = FALSE)
     }
@@ -40,15 +46,20 @@
     planned_axes <- list()
     for (axis in names(permutations)) {
         if (!format_has_axis(daf, axis)) {
+            if (!is.null(shared_axes)) next
             stop(sprintf(
                 "axis: %s does not exist in the daf data: %s",
                 axis, S7::prop(daf, "name")
             ), call. = FALSE)
         }
-        entries <- format_axis_array(daf, axis)$value
-        planned_axes[[axis]] <- .reorder_planned_axis(
-            permutations[[axis]], entries
-        )
+        if (!is.null(shared_axes) && !is.null(shared_axes[[axis]])) {
+            planned_axes[[axis]] <- shared_axes[[axis]]
+        } else {
+            entries <- format_axis_array(daf, axis)$value
+            planned_axes[[axis]] <- .reorder_planned_axis(
+                permutations[[axis]], entries
+            )
+        }
     }
 
     planned_vectors <- list()
