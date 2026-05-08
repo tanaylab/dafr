@@ -238,14 +238,25 @@ test_that("concat / prefix / prefixes", {
 # ---------------------------------------------------------------------------
 
 test_that("concat / sparse / vector / dense", {
-    # Julia: sparse-input vectors that concat to high density get
-    # densified. dafr's memory_daf doesn't accept Matrix::sparseVector
-    # at all (atomic-only gate in .validate_vector_value); files_daf does.
-    skip("R divergence M5: memory_daf rejects Matrix::sparseVector (atomic-only)")
+    s <- .fresh()
+    set_vector(s$sources[[1L]], "cell", "age",
+               Matrix::sparseVector(c(1, 2), c(1L, 2L), length = 2L))
+    set_vector(s$sources[[2L]], "cell", "age",
+               Matrix::sparseVector(c(3, 4, 5), 1:3, length = 3L))
+    concatenate(s$destination, "cell", s$sources)
+    expect_identical(unname(get_vector(s$destination, "cell", "age")),
+                     c(1, 2, 3, 4, 5))
 })
 
 test_that("concat / sparse / vector / sparse", {
-    skip("R divergence M5: memory_daf rejects Matrix::sparseVector (atomic-only)")
+    s <- .fresh()
+    set_vector(s$sources[[1L]], "cell", "age",
+               Matrix::sparseVector(c(1, 0), 1:2, length = 2L))
+    set_vector(s$sources[[2L]], "cell", "age",
+               Matrix::sparseVector(c(0, 0, 2), 1:3, length = 3L))
+    concatenate(s$destination, "cell", s$sources)
+    out <- get_vector(s$destination, "cell", "age")
+    expect_identical(unname(as.numeric(out)), c(1, 0, 0, 0, 2))
 })
 
 test_that("concat / sparse / vector / !empty", {
