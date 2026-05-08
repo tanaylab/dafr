@@ -423,9 +423,11 @@ S7::method(
 
 S7::method(format_replace_reorder, list(MemoryDaf, S7::class_list)) <-
     function(daf, plan, crash_counter = NULL) {
+        # Snapshot the current state of every axis / vector / matrix
+        # that will be touched, so a SimulatedCrash mid-reorder can
+        # roll back via reset_reorder_axes (R6 parity).
+        .memory_snapshot_for_reorder(daf, plan)
         # In-memory: permute every axis, vector, and matrix in place.
-        # No on-disk crash recovery needed; if R crashes the in-memory
-        # store is gone anyway.
         for (axis in names(plan$planned_axes)) {
             tick_crash_counter(crash_counter)
             pa <- plan$planned_axes[[axis]]
@@ -471,18 +473,80 @@ S7::method(format_replace_reorder, list(MemoryDaf, S7::class_list)) <-
 
 S7::method(format_cleanup_reorder, list(MemoryDaf, S7::class_list)) <-
     function(daf, plan, crash_counter = NULL) {
-        # No-op for memory_daf -- no on-disk state to clean up.
-        # Counters were already bumped in format_replace_reorder.
+        # Successful reorder: clear the snapshot so subsequent calls
+        # to reset_reorder_axes return FALSE.
+        S7::prop(daf, "internal")$reorder_backup <- NULL
         invisible()
     }
 
 S7::method(format_reset_reorder, MemoryDaf) <-
     function(daf, crash_counter = NULL) {
-        # No-op for memory_daf -- no incomplete reorder state ever exists.
-        # Returns FALSE (no rollback happened) to mirror Julia's
-        # reset_reorder_axes! Bool contract.
-        invisible(FALSE)
+        # If a snapshot from a crashed reorder exists, restore it.
+        snap <- S7::prop(daf, "internal")$reorder_backup
+        if (is.null(snap)) {
+            return(invisible(FALSE))
+        }
+        .memory_restore_from_snapshot(daf, snap)
+        S7::prop(daf, "internal")$reorder_backup <- NULL
+        invisible(TRUE)
     }
 
+# Capture the pre-reorder state of every axis, vector, and matrix
+# the plan touches. Stored on `internal$reorder_backup` so a crash
+# mid-reorder leaves enough information for `format_reset_reorder` to
+# roll back. Counters are bumped inside the snapshot too so restored
+# state matches the pre-reorder version stamps.
+.memory_snapshot_for_reorder <- function(daf, plan) {
+    snap <- list(axes = list(), vectors = list(), matrices = list())
+    for (axis in names(plan$planned_axes)) {
+        ax <- .memory_axis(daf, axis)
+        snap$axes[[axis]] <- list(entries = ax$entries, dict = ax$dict)
+    }
+    for (pv in plan$planned_vectors) {
+        env <- .memory_axis_vectors(daf, pv$axis, create = FALSE)
+        snap$vectors[[length(snap$vectors) + 1L]] <- list(
+            axis = pv$axis,
+            name = pv$name,
+            value = get(pv$name, envir = env, inherits = FALSE)
+        )
+    }
+    for (pm in plan$planned_matrices) {
+        env <- .memory_matrix_bucket(daf, pm$rows_axis, pm$columns_axis,
+                                     create = FALSE)
+        snap$matrices[[length(snap$matrices) + 1L]] <- list(
+            rows_axis = pm$rows_axis,
+            columns_axis = pm$columns_axis,
+            name = pm$name,
+            value = get(pm$name, envir = env, inherits = FALSE)
+        )
+    }
+    S7::prop(daf, "internal")$reorder_backup <- snap
+    invisible()
+}
+
+.memory_restore_from_snapshot <- function(daf, snap) {
+    axes_env <- S7::prop(daf, "internal")$axes
+    for (axis in names(snap$axes)) {
+        entry <- snap$axes[[axis]]
+        ax_obj <- get(axis, envir = axes_env, inherits = FALSE)
+        ax_obj$entries <- entry$entries
+        ax_obj$dict    <- entry$dict
+        assign(axis, ax_obj, envir = axes_env)
+        bump_axis_counter(daf, axis)
+    }
+    for (vs in snap$vectors) {
+        env <- .memory_axis_vectors(daf, vs$axis, create = FALSE)
+        assign(vs$name, vs$value, envir = env)
+        bump_vector_counter(daf, vs$axis, vs$name)
+    }
+    for (ms in snap$matrices) {
+        env <- .memory_matrix_bucket(daf, ms$rows_axis, ms$columns_axis,
+                                     create = FALSE)
+        assign(ms$name, ms$value, envir = env)
+        bump_matrix_counter(daf, ms$rows_axis, ms$columns_axis, ms$name)
+    }
+    invisible()
+}
+
 # Upstream Julia Readers.is_leaf(::MemoryDaf) at memory_format.jl:64.
-S7::method(is_leaf, MemoryDaf) <- function(daf) TRUE
+S7::method(.is_leaf_dispatch, MemoryDaf) <- function(daf) TRUE

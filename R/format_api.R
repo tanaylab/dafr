@@ -105,4 +105,24 @@ format_description_header <- S7::new_generic(
 #' @examples
 #' is_leaf(memory_daf())
 #' @export
-is_leaf <- S7::new_generic("is_leaf", "daf")
+.is_leaf_dispatch <- S7::new_generic(".is_leaf_dispatch", "daf")
+
+# Names of concrete leaf daf classes. Abstract classes (DafReader,
+# DafWriter, DafReadOnly) are non-leaf; everything that has a
+# `.is_leaf_dispatch` method on its instance is a leaf.
+.LEAF_DAF_CLASS_NAMES <- c(
+    "MemoryDaf",
+    "FilesDaf", "FilesDafReadOnly",
+    "ZarrDaf", "ZarrDafReadOnly",
+    "HttpDaf"
+)
+
+is_leaf <- function(daf) {
+    # Class-level dispatch (Julia parity: `is_leaf(MemoryDaf)`):
+    # accept an S7 class object directly. A leaf class is any concrete
+    # subclass of DafReader; abstract classes are non-leaf.
+    if (inherits(daf, "S7_class")) {
+        return(attr(daf, "name") %in% .LEAF_DAF_CLASS_NAMES)
+    }
+    .is_leaf_dispatch(daf)
+}
