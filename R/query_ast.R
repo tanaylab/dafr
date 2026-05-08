@@ -120,11 +120,13 @@ escape_value <- function(s) {
         # mirroring Julia DAF's escape_value("") == "''".
         return("''")
     }
-    if (grepl("[\\s\\\\!&*%./:<=>?@\\[\\]^\\|~\"]", s, perl = TRUE)) {
-        paste0("\"", gsub("([\\\\\"])", "\\\\\\1", s, perl = TRUE), "\"")
-    } else {
-        s
-    }
+    # Julia DAF tokens.jl is_value_char: ASCII alnum, '_', '.', '+', '-',
+    # plus any non-ASCII unicode codepoint. Everything else gets a
+    # `\<char>` backslash escape.
+    chars <- strsplit(s, "", fixed = TRUE)[[1L]]
+    safe <- grepl("[0-9A-Za-z_.+\\-]|[^\\x00-\\x7F]", chars, perl = TRUE)
+    out <- ifelse(safe, chars, paste0("\\", chars))
+    paste0(out, collapse = "")
 }
 
 # Kept as a private alias because many internals and tests call
@@ -146,18 +148,20 @@ escape_value <- function(s) {
 #' @export
 unescape_value <- function(s) {
     stopifnot(is.character(s), length(s) == 1L)
-    # Inverse of escape_value("") == "''" — the canonical empty-string token.
+    # Inverse of escape_value("") == "''" - the canonical empty-string token.
     if (identical(s, "''")) {
         return("")
     }
-    if (!startsWith(s, "\"") || !endsWith(s, "\"") || nchar(s) < 2L) {
-        return(s)
+    # Legacy double-quote escape (kept for back-compat with strings that
+    # were escaped before the switch to Julia's `\<char>` convention).
+    if (startsWith(s, "\"") && endsWith(s, "\"") && nchar(s) >= 2L) {
+        inner <- substr(s, 2L, nchar(s) - 1L)
+        return(gsub("\\\\([\\\\\"])", "\\1", inner, perl = TRUE))
     }
-    inner <- substr(s, 2L, nchar(s) - 1L)
-    # Replace \" and \\ sequences left-to-right in a single pass so
-    # that "\\\"" decodes to "\"" rather than the escape of a literal
-    # quote following a backslash. Use a regex with capture group.
-    gsub("\\\\([\\\\\"])", "\\1", inner, perl = TRUE)
+    # Julia DAF: strip a single `\` from each `\<char>` escape.
+    # `(?s)` makes `.` match newline so escape -> unescape round-trips
+    # multi-line values.
+    gsub("(?s)\\\\(.)", "\\1", s, perl = TRUE)
 }
 
 .qop_begin_mask <- function(property, negated = FALSE) {

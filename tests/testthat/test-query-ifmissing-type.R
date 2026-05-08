@@ -33,10 +33,10 @@ test_that("canonical_query preserves `|| value type T`", {
     )
     expect_equal(
         canonical_query(". pi || 3.14 type Float32"),
-        ". pi || \"3.14\" type Float32"
+        ". pi || 3.14 type Float32"
     )
     # Round-trip: parse-then-canonicalise of the quoted form is idempotent.
-    q <- ". pi || \"3.14\" type Float32"
+    q <- ". pi || 3.14 type Float32"
     expect_equal(canonical_query(q), q)
 })
 

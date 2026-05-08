@@ -22,7 +22,7 @@ test_that("AndMask composes after BeginMask via pipe", {
 
 test_that("AndMask quotes property names with spaces", {
     q <- AndMask("cell type")
-    expect_identical(q@canonical, "& \"cell type\"")
+    expect_identical(q@canonical, "& cell\\ type")
     expect_identical(q@ast, parse_query(q@canonical))
 })
 
@@ -47,7 +47,7 @@ test_that("AndNegatedMask composes after BeginMask via pipe", {
 
 test_that("AndNegatedMask quotes property names with spaces", {
     q <- AndNegatedMask("cell type")
-    expect_identical(q@canonical, "& ! \"cell type\"")
+    expect_identical(q@canonical, "& ! cell\\ type")
     expect_identical(q@ast, parse_query(q@canonical))
 })
 
@@ -72,7 +72,7 @@ test_that("OrMask composes after BeginMask via pipe", {
 
 test_that("OrMask quotes property names with spaces", {
     q <- OrMask("cell type")
-    expect_identical(q@canonical, "| \"cell type\"")
+    expect_identical(q@canonical, "| cell\\ type")
     expect_identical(q@ast, parse_query(q@canonical))
 })
 
@@ -97,7 +97,7 @@ test_that("OrNegatedMask composes after BeginMask via pipe", {
 
 test_that("OrNegatedMask quotes property names with spaces", {
     q <- OrNegatedMask("cell type")
-    expect_identical(q@canonical, "| ! \"cell type\"")
+    expect_identical(q@canonical, "| ! cell\\ type")
     expect_identical(q@ast, parse_query(q@canonical))
 })
 
@@ -122,7 +122,7 @@ test_that("XorMask composes after BeginMask via pipe", {
 
 test_that("XorMask quotes property names with spaces", {
     q <- XorMask("cell type")
-    expect_identical(q@canonical, "^ \"cell type\"")
+    expect_identical(q@canonical, "^ cell\\ type")
     expect_identical(q@ast, parse_query(q@canonical))
 })
 
@@ -147,7 +147,7 @@ test_that("XorNegatedMask composes after BeginMask via pipe", {
 
 test_that("XorNegatedMask quotes property names with spaces", {
     q <- XorNegatedMask("cell type")
-    expect_identical(q@canonical, "^ ! \"cell type\"")
+    expect_identical(q@canonical, "^ ! cell\\ type")
     expect_identical(q@ast, parse_query(q@canonical))
 })
 

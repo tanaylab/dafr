@@ -24,11 +24,10 @@
 # ---------------------------------------------------------------------------
 
 test_that("operations / eltwise / abs / string", {
-    # CO7: dafr's Abs silently accepts type=character; Julia rejects
-    # because Abs requires a number type. dafr's looser parameter
-    # validation is a recurring pattern - parameter syntax is parsed
-    # but constraints are enforced only when arithmetic runs.
-    skip("CO7: dafr's Abs silently accepts non-numeric type; Julia rejects")
+    d <- .ops_fresh_daf()
+    set_vector(d, "cell", "value", c(-1.0, 2.0))
+    expect_error(get_query(d, "@ cell : value % Abs type String"),
+        regexp = "value must be: a number type")
 })
 
 test_that("operations / eltwise / abs / scalar", {
@@ -90,9 +89,10 @@ test_that("operations / eltwise / round / matrix", {
 # ---------------------------------------------------------------------------
 
 test_that("operations / eltwise / clamp / !number", {
-    # CO7: dafr coerces non-numeric Clamp parameters silently. Julia
-    # rejects "q" with a parameter validation error.
-    skip("CO7: dafr's Clamp silently coerces non-numeric param values")
+    d <- .ops_fresh_daf()
+    set_vector(d, "cell", "value", c(-1.0, 2.0))
+    expect_error(get_query(d, "@ cell : value % Clamp min q"),
+        regexp = "value must be: a number")
 })
 
 test_that("operations / eltwise / clamp / !max", {
@@ -181,12 +181,17 @@ test_that("operations / eltwise / convert / matrix", {
 # ---------------------------------------------------------------------------
 
 test_that("operations / eltwise / log / !positive", {
-    # CO6: dafr's Log op accepts negative inputs and returns NaN
-    # (mathematically: log of negative is undefined; R's log returns NaN
-    # with warning). Julia rejects with an explicit error. dafr's
-    # behavior matches R's general numeric semantics, not Julia's
-    # validating semantics.
-    skip("CO6: dafr's Log silently returns NaN for negative input; Julia rejects with an error")
+    d <- .ops_fresh_daf()
+    set_scalar(d, "value", 1)
+    expect_error(get_query(d, ". value % Log base 0"),
+        regexp = "value must be: positive")
+})
+
+test_that("operations / eltwise / log / negative-eps", {
+    d <- .ops_fresh_daf()
+    set_scalar(d, "value", 1)
+    expect_error(get_query(d, ". value % Log eps -1"),
+        regexp = "value must be: not negative")
 })
 
 test_that("operations / eltwise / log / scalar", {
@@ -346,20 +351,42 @@ test_that("operations / reduction / most_frequent / vector / string", {
 # operations / eltwise / fraction
 # ---------------------------------------------------------------------------
 
+test_that("operations / eltwise / fraction / integer-type rejected", {
+    d <- .ops_fresh_daf()
+    set_vector(d, "cell", "value", c(1, 3))
+    expect_error(get_query(d, "@ cell : value % Fraction type Int32"),
+        regexp = "value must be: a float type")
+})
+
 test_that("operations / eltwise / fraction / scalar", {
-    skip("CO1: dafr's Fraction op signature/semantics differ from Julia's; param syntax not directly portable. Existing dafr tests cover the operation.")
+    d <- .ops_fresh_daf()
+    set_scalar(d, "value", 1L)
+    expect_error(get_query(d, ". value % Fraction"),
+        regexp = "applying Fraction eltwise operation to a scalar")
 })
 
 test_that("operations / eltwise / fraction / vector / ()", {
-    skip("CO1")
+    d <- .ops_fresh_daf()
+    set_vector(d, "cell", "value", c(1, 3))
+    expect_equal(unname(as.numeric(get_query(d, "@ cell : value % Fraction"))),
+                 c(0.25, 0.75))
 })
 
 test_that("operations / eltwise / fraction / vector / zero", {
-    skip("CO1")
+    d <- .ops_fresh_daf()
+    set_vector(d, "cell", "value", c(0, 0))
+    expect_equal(unname(as.numeric(get_query(d, "@ cell : value % Fraction"))),
+                 c(0, 0))
 })
 
 test_that("operations / eltwise / fraction / matrix", {
-    skip("CO1")
+    d <- .ops_fresh_daf()
+    m <- matrix(c(0, 1, 0, 0, 2, 6), nrow = 2L, ncol = 3L,
+                dimnames = list(c("A", "B"), c("X", "Y", "Z")))
+    set_matrix(d, "cell", "gene", "value", m)
+    res <- get_query(d, "@ cell @ gene :: value % Fraction")
+    expect_equal(as.numeric(unname(as.matrix(res))),
+                 c(0, 1, 0, 0, 0.25, 0.75))
 })
 
 # ---------------------------------------------------------------------------
@@ -367,35 +394,76 @@ test_that("operations / eltwise / fraction / matrix", {
 # ---------------------------------------------------------------------------
 
 test_that("operations / eltwise / significant / !positive", {
-    skip("CO2: dafr's Significant op requires both `low` AND `high` parameters; Julia accepts low-only. Test signature differs.")
+    d <- .ops_fresh_daf()
+    set_vector(d, "cell", "value", c(1.0, 2.0))
+    expect_error(get_query(d, "@ cell : value % Significant high 0"),
+        regexp = "value must be: positive")
 })
 
 test_that("operations / eltwise / significant / negative", {
-    skip("CO2")
+    d <- .ops_fresh_daf()
+    set_vector(d, "cell", "value", c(1.0, 2.0))
+    expect_error(get_query(d, "@ cell : value % Significant high 1 low -1"),
+        regexp = "value must be: not negative")
 })
 
 test_that("operations / eltwise / significant / !low", {
-    skip("CO2")
+    d <- .ops_fresh_daf()
+    set_vector(d, "cell", "value", c(1.0, 2.0))
+    expect_error(get_query(d, "@ cell : value % Significant high 1 low 2"),
+        regexp = "value must be: at most high")
 })
 
 test_that("operations / eltwise / significant / scalar", {
-    skip("CO2")
+    d <- .ops_fresh_daf()
+    set_scalar(d, "value", 1L)
+    expect_error(get_query(d, ". value % Significant high 3"),
+        regexp = "applying Significant eltwise operation to a scalar")
 })
 
 test_that("operations / eltwise / significant / vector / dense", {
-    skip("CO2")
+    d <- .ops_fresh_daf()
+    set_vector(d, "cell", "value", c(1L, 3L))
+    expect_equal(unname(as.integer(get_query(d, "@ cell : value % Significant high 3"))),
+                 c(0L, 3L))
+    expect_equal(unname(as.integer(get_query(d, "@ cell : value % Significant high 3 low 1"))),
+                 c(1L, 3L))
 })
 
 test_that("operations / eltwise / significant / vector / sparse", {
-    skip("CO2")
+    d <- .ops_fresh_daf()
+    sv <- Matrix::sparseVector(c(1, 3), c(1L, 2L), 2L)
+    # dafr accepts dense-only set_vector; sparse path covered via dgCMatrix
+    # in matrix tests. Use dense as the sparse-vector parity stand-in.
+    set_vector(d, "cell", "value", c(1L, 3L))
+    expect_equal(unname(as.integer(get_query(d, "@ cell : value % Significant high 3"))),
+                 c(0L, 3L))
+    expect_equal(unname(as.integer(get_query(d, "@ cell : value % Significant high 3 low 1"))),
+                 c(1L, 3L))
 })
 
 test_that("operations / eltwise / significant / matrix / dense", {
-    skip("CO2")
+    d <- .ops_fresh_daf()
+    m <- matrix(c(1.0, -3.0, 2.0, 1.0, 2.0, 6.0), nrow = 2L, ncol = 3L,
+                dimnames = list(c("A", "B"), c("X", "Y", "Z")))
+    set_matrix(d, "cell", "gene", "value", m)
+    expected <- matrix(c(0, -3, 0, 0, 2, 6), nrow = 2L, ncol = 3L,
+                       dimnames = list(c("A", "B"), c("X", "Y", "Z")))
+    res <- get_query(d, "@ cell @ gene :: value % Significant high 3 low 2")
+    expect_equal(as.numeric(unname(as.matrix(res))),
+                 as.numeric(unname(expected)))
 })
 
 test_that("operations / eltwise / significant / matrix / sparse", {
-    skip("CO2")
+    d <- .ops_fresh_daf()
+    m <- methods::as(matrix(c(1, -3, 2, 1, 2, 6), nrow = 2L, ncol = 3L,
+                            dimnames = list(c("A", "B"), c("X", "Y", "Z"))),
+                     "dgCMatrix")
+    set_matrix(d, "cell", "gene", "value", m)
+    expected <- matrix(c(0, -3, 0, 0, 2, 6), nrow = 2L, ncol = 3L)
+    res <- get_query(d, "@ cell @ gene :: value % Significant high 3 low 2")
+    expect_equal(as.numeric(unname(as.matrix(res))),
+                 as.numeric(unname(expected)))
 })
 
 # ---------------------------------------------------------------------------
@@ -453,7 +521,19 @@ test_that("operations / reduction / var / matrix", {
 })
 
 test_that("operations / reduction / var_n / negative", {
-    skip("CO3: dafr's VarN signature/semantics may differ from Julia's. Existing dafr operation tests provide alternative coverage.")
+    d <- .ops_fresh_daf()
+    m <- matrix(c(0L, 3L, 1L, 4L, 2L, 5L), nrow = 2L, ncol = 3L,
+                dimnames = list(c("A", "B"), c("X", "Y", "Z")))
+    set_matrix(d, "cell", "gene", "value", m)
+    expect_error(
+        get_query(d, "@ cell @ gene :: value >| VarN eps -1"),
+        regex_string <- paste0(
+            "invalid value: \"-1\".*",
+            "value must be: not negative.*",
+            "for the parameter: eps.*",
+            "for the operation: VarN"
+        )
+    )
 })
 
 test_that("operations / reduction / var_n / vector", {
@@ -489,21 +569,43 @@ test_that("operations / reduction / std / matrix", {
 })
 
 test_that("operations / reduction / geomean / negative", {
-    skip("CO4: dafr's GeoMean signature/semantics may differ from Julia's.")
+    d <- .ops_fresh_daf()
+    set_matrix(d, "cell", "gene", "value",
+        matrix(c(1, 1, 1, 1, 1, 1), 2, 3,
+               dimnames = list(c("A", "B"), c("X", "Y", "Z"))))
+    expect_error(get_query(d, "@ cell @ gene :: value >| GeoMean eps -1"),
+        regexp = "value must be: not negative")
 })
 
 test_that("operations / reduction / geomean / vector / !eps", {
-    skip("CO4")
+    d <- .ops_fresh_daf()
+    set_vector(d, "cell", "value", c(1, 4))
+    expect_equal(as.numeric(get_query(d, "@ cell : value >> GeoMean")),
+                 2.0, tolerance = 1e-9)
 })
 
 test_that("operations / reduction / geomean / vector / eps", {
-    skip("CO4")
+    d <- .ops_fresh_daf()
+    set_vector(d, "cell", "value", c(0, 3))
+    expect_equal(as.numeric(get_query(d, "@ cell : value >> GeoMean eps 1")),
+                 1.0, tolerance = 1e-9)
 })
 
 test_that("operations / reduction / geomean / matrix / !eps", {
-    skip("CO4")
+    d <- .ops_fresh_daf()
+    set_matrix(d, "cell", "gene", "value",
+        matrix(c(1.0, 4.0, 2.0, 8.0, 2.0, 2.0), 2, 3,
+               dimnames = list(c("A", "B"), c("X", "Y", "Z"))))
+    res <- as.numeric(unname(get_query(d, "@ cell @ gene :: value >- GeoMean")))
+    expect_equal(res, c(2.0, 4.0, 2.0), tolerance = 1e-9)
 })
 
 test_that("operations / reduction / geomean / matrix / eps", {
-    skip("CO4")
+    d <- .ops_fresh_daf()
+    set_matrix(d, "cell", "gene", "value",
+        matrix(c(0.0, 3.0, 0.0, 7.0, 0.0, 0.0), 2, 3,
+               dimnames = list(c("A", "B"), c("X", "Y", "Z"))))
+    res <- as.numeric(unname(get_query(d, "@ cell @ gene :: value >- GeoMean eps 1")))
+    # Per col: GeoMean(c(0,3) + 1) - 1 = sqrt(4)-1 = 1; sqrt(8)-1; sqrt(1)-1
+    expect_equal(res, c(1.0, sqrt(8) - 1, 0.0), tolerance = 1e-9)
 })

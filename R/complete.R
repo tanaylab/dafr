@@ -32,6 +32,12 @@ complete_chain <- function(base_daf, new_daf, name = NULL,
                            axes = NULL, data = NULL, absolute = FALSE) {
     base_path <- .complete_path(base_daf)
     new_path <- .complete_path(new_daf)
+    if (is.null(base_path)) {
+        stop("base_daf has no filesystem path -- only FilesDaf supported by complete_chain", call. = FALSE)
+    }
+    if (is.null(new_path)) {
+        stop("new_daf has no filesystem path -- only FilesDaf supported by complete_chain", call. = FALSE)
+    }
     stored_path <- if (isTRUE(absolute)) {
         normalizePath(base_path)
     } else {
@@ -71,15 +77,12 @@ complete_chain <- function(base_daf, new_daf, name = NULL,
 }
 
 # Resolve a daf's on-disk path. FilesDaf stores `path` in its internal env.
+# Returns NULL for memory-backed dafs (no on-disk location). Mirrors Julia's
+# complete_path which returns nothing for non-Files dafs.
 .complete_path <- function(daf) {
     internal <- tryCatch(S7::prop(daf, "internal"),
-        error = function(e) stop(
-            "daf has no filesystem path -- only FilesDaf supported by complete_*",
-            call. = FALSE))
-    if (is.null(internal$path)) {
-        stop("daf has no filesystem path -- only FilesDaf supported by complete_*",
-             call. = FALSE)
-    }
+        error = function(e) NULL)
+    if (is.null(internal) || is.null(internal$path)) return(NULL)
     internal$path
 }
 

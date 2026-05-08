@@ -52,7 +52,12 @@ test_that("views / scalar / reduction", {
 })
 
 test_that("views / scalar / vector", {
-    skip("R divergence V7: dafr's view-scalar layer doesn't validate that the resolving query produces a scalar shape; a vector-producing query silently returns the vector via get_scalar")
+    d <- .scalar_setup()
+    expect_error(
+        viewer(d, name = "view!",
+               data = list(list("ages", "@ cell : age"))),
+        regexp = "invalid scalar query|does not produce a scalar"
+    )
 })
 
 test_that("views / scalar / hidden", {
@@ -63,7 +68,13 @@ test_that("views / scalar / hidden", {
 })
 
 test_that("views / scalar / !*", {
-    skip("R divergence V2: dafr's viewer is more permissive on wildcard queries; does not validate that '*' keys must map to '=' or NULL")
+    d <- .scalar_setup()
+    expect_error(
+        viewer(d, name = "view!",
+               axes = list(VIEW_ALL_AXES),
+               data = list(list("*", "version"))),
+        regexp = "invalid wildcard scalar query"
+    )
 })
 
 # ---------------------------------------------------------------------------
@@ -145,11 +156,23 @@ test_that("views / vector / copy", {
 })
 
 test_that("views / vector / !* / axis", {
-    skip("R divergence V2: dafr's viewer is more permissive on wildcard queries; does not validate that '*' keys must map to '=' or NULL")
+    d <- .vector_setup()
+    expect_error(
+        viewer(d, name = "view!",
+               axes = list(VIEW_ALL_AXES),
+               data = list(list(c("cell", "*"), "age"))),
+        regexp = "invalid wildcard vector query"
+    )
 })
 
 test_that("views / vector / !* / property", {
-    skip("R divergence V2: dafr's viewer is more permissive on wildcard queries; does not validate that '*' keys must map to '=' or NULL")
+    d <- .vector_setup()
+    expect_error(
+        viewer(d, name = "view!",
+               axes = list(VIEW_ALL_AXES),
+               data = list(list(c("*", "age"), "@ cell : age"))),
+        regexp = "invalid wildcard vector query"
+    )
 })
 
 test_that("views / vector / missing", {
@@ -179,11 +202,20 @@ test_that("views / vector / hidden", {
 })
 
 test_that("views / vector / hidden / explicit-only", {
-    skip("R divergence V3: dafr's viewer treats data items as additions to a default-all-vectors visibility; Julia treats them as a strict include list. So `data = [(cell,age) => '=']` exposes only that vector in Julia, but exposes all vectors plus that override in dafr.")
+    d <- .vector_setup()
+    view <- viewer(d,
+                   axes = list(VIEW_ALL_AXES),
+                   data = list(list(c("cell", "age"), "=")))
+    expect_setequal(vectors_set(view, "cell"), "age")
 })
 
 test_that("views / vector / renamed", {
-    skip("R divergence V3: see above; in Julia `data = [(cell, day) => ': age']` exposes ONLY the renamed vector; dafr also exposes the base axis's other vectors")
+    d <- .vector_setup()
+    view <- viewer(d,
+                   axes = list(VIEW_ALL_AXES),
+                   data = list(list(c("cell", "day"), ": age")))
+    expect_setequal(vectors_set(view, "cell"), "day")
+    expect_equal(unname(get_vector(view, "cell", "day")), c(1L, 2L, 3L))
 })
 
 test_that("views / vector / masked / ()", {
@@ -200,7 +232,19 @@ test_that("views / vector / masked / ()", {
 })
 
 test_that("views / vector / masked / query", {
-    skip("R divergence V5: dafr's query DSL doesn't substitute the `__axis__` placeholder (Julia's view-template axis-self-reference)")
+    d <- memory_daf(name = "memory!")
+    add_axis(d, "cell", c("X", "Y", "Z"))
+    add_axis(d, "gene", c("A", "B"))
+    set_vector(d, "cell", "batch", c("U", "V", "V"))
+    set_matrix(d, "cell", "gene", "UMIs",
+        matrix(c(0, 2, 4, 1, 3, 5), 3, 2,
+               dimnames = list(c("X", "Y", "Z"), c("A", "B"))))
+    view <- viewer(d, name = "view!",
+                   axes = list(list("cell", "@ cell [ batch = V ]")),
+                   data = list(list(c("cell", "total_UMIs"),
+                                    "@ gene @ __axis__ :: UMIs >- Sum")))
+    out <- get_vector(view, "cell", "total_UMIs")
+    expect_equal(unname(as.numeric(out)), c(5, 9))
 })
 
 test_that("views / vector / reduced", {
@@ -220,7 +264,18 @@ test_that("views / vector / reduced", {
 })
 
 test_that("views / vector / matrix", {
-    skip("R divergence V5: dafr's query DSL doesn't substitute the `__axis__` placeholder (the test relies on it to construct an invalid matrix-as-vector view)")
+    d <- memory_daf(name = "memory!")
+    add_axis(d, "cell", c("X", "Y"))
+    add_axis(d, "gene", c("A", "B", "C"))
+    set_matrix(d, "cell", "gene", "UMIs",
+        matrix(c(0, 3, 1, 4, 2, 5), 2, 3,
+               dimnames = list(c("X", "Y"), c("A", "B", "C"))))
+    view <- viewer(d, name = "view!",
+                   axes = list(VIEW_ALL_AXES),
+                   data = list(list(c("cell", "total_umis"),
+                                    "@ __axis__ @ gene :: UMIs")))
+    expect_error(get_vector(view, "cell", "total_umis"),
+        regexp = "matrix query|matrix.*shape|not a vector")
 })
 
 # ---------------------------------------------------------------------------
@@ -249,19 +304,43 @@ test_that("views / matrix / copy", {
 })
 
 test_that("views / matrix / !* / rows_axis", {
-    skip("R divergence V2: dafr's viewer is more permissive on wildcard queries")
+    d <- .matrix_setup()
+    expect_error(
+        viewer(d, name = "view!",
+               axes = list(VIEW_ALL_AXES),
+               data = list(list(c("*", "gene", "UMIs"), "UMIs"))),
+        regexp = "invalid wildcard matrix query"
+    )
 })
 
 test_that("views / matrix / !* / columns_axis", {
-    skip("R divergence V2: dafr's viewer is more permissive on wildcard queries")
+    d <- .matrix_setup()
+    expect_error(
+        viewer(d, name = "view!",
+               axes = list(VIEW_ALL_AXES),
+               data = list(list(c("cell", "*", "UMIs"), "UMIs"))),
+        regexp = "invalid wildcard matrix query"
+    )
 })
 
 test_that("views / matrix / !* / property", {
-    skip("R divergence V2: dafr's viewer is more permissive on wildcard queries")
+    d <- .matrix_setup()
+    expect_error(
+        viewer(d, name = "view!",
+               axes = list(VIEW_ALL_AXES),
+               data = list(list(c("cell", "gene", "*"), "UMIs"))),
+        regexp = "invalid wildcard matrix query"
+    )
 })
 
 test_that("views / matrix / query", {
-    skip("R divergence V4: query `:: UMIs % Abs` (matrix lookup then eltwise) is rejected by dafr's evaluator with 'eltwise requires scope'; Julia accepts it")
+    d <- .matrix_setup()
+    view <- viewer(d, name = "view!",
+                   axes = list(VIEW_ALL_AXES),
+                   data = list(list(c("cell", "gene", "UMIs"), ":: UMIs % Abs")))
+    expect_setequal(matrices_set(view, "cell", "gene"), "UMIs")
+    expect_equal(unname(as.matrix(get_matrix(view, "cell", "gene", "UMIs"))),
+                 abs(matrix(c(0, 3, 1, 4, 2, 5), nrow = 2L, ncol = 3L)))
 })
 
 test_that("views / matrix / hidden", {
@@ -277,7 +356,11 @@ test_that("views / matrix / hidden", {
 })
 
 test_that("views / matrix / hidden / explicit-only", {
-    skip("R divergence V3: dafr's viewer treats data items as additions to default-all-matrices visibility; Julia treats them as a strict include list")
+    d <- .matrix_setup()
+    view <- viewer(d,
+                   axes = list(VIEW_ALL_AXES),
+                   data = list(list(c("cell", "gene", "UMIs"), "=")))
+    expect_setequal(matrices_set(view, "cell", "gene"), "UMIs")
 })
 
 test_that("views / matrix / masked", {
@@ -320,7 +403,18 @@ test_that("views / requires_relayout / deep", {
 })
 
 test_that("views / requires_relayout / realized", {
-    skip("R divergence V6: query `:: UMIs` (matrix-lookup with no leading axes) is rejected by dafr's parser; Julia accepts it and infers axes from the view's matrix slot")
+    d <- memory_daf(name = "memory!")
+    add_axis(d, "cell", c("A", "B"))
+    add_axis(d, "gene", c("X", "Y", "Z"))
+    set_matrix(d, "gene", "cell", "UMIs",
+        matrix(c(1, 3, 5, 2, 4, 6), 3, 2, byrow = FALSE,
+               dimnames = list(c("X", "Y", "Z"), c("A", "B"))),
+        relayout = FALSE)
+    view <- viewer(d, name = "view!",
+                   axes = list(list("obs", "@ cell"), list("var", "@ gene")),
+                   data = list(list(c("obs", "var", "X"), ":: UMIs")))
+    out <- get_matrix(view, "obs", "var", "X")
+    expect_equal(dim(out), c(2L, 3L))
 })
 
 # ---------------------------------------------------------------------------

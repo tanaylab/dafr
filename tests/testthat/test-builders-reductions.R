@@ -193,13 +193,13 @@ test_that("Quantile(p = 0.5) builds a reduction query with p param", {
     q <- Quantile(p = 0.5)
     # `0.5` contains a `.`, which is a query metacharacter — the
     # canonical escaper double-quotes the value. Round-trip still holds.
-    expect_identical(q@canonical, ">> Quantile p: \"0.5\"")
+    expect_identical(q@canonical, ">> Quantile p: 0.5")
     expect_identical(q@ast, parse_query(q@canonical))
 })
 
 test_that("Quantile(p, type) serialises both params in order", {
     q <- Quantile(p = 0.9, type = "Float64")
-    expect_identical(q@canonical, ">> Quantile type: Float64 p: \"0.9\"")
+    expect_identical(q@canonical, ">> Quantile type: Float64 p: 0.9")
     expect_identical(q@ast, parse_query(q@canonical))
 })
 
@@ -207,7 +207,7 @@ test_that("Quantile composes via pipe", {
     q <- .prior_matrix_query() |> Quantile(p = 0.5)
     expect_identical(
         q@canonical,
-        "@ cell @ gene :: UMIs >> Quantile p: \"0.5\""
+        "@ cell @ gene :: UMIs >> Quantile p: 0.5"
     )
     expect_identical(q@ast, parse_query(q@canonical))
 })
@@ -328,7 +328,7 @@ test_that("GroupBy composes via pipe", {
 
 test_that("GroupBy quotes property names with spaces", {
     q <- GroupBy("cell type")
-    expect_identical(q@canonical, "/ \"cell type\"")
+    expect_identical(q@canonical, "/ cell\\ type")
     expect_identical(q@ast, parse_query(q@canonical))
 })
 
@@ -400,7 +400,7 @@ test_that("ReduceToColumn(Sum()) builds a >| Sum fragment", {
 
 test_that("ReduceToColumn(Quantile(p)) carries the param across", {
     q <- ReduceToColumn(Quantile(p = 0.5))
-    expect_identical(q@canonical, ">| Quantile p: \"0.5\"")
+    expect_identical(q@canonical, ">| Quantile p: 0.5")
     expect_identical(q@ast, parse_query(q@canonical))
 })
 
@@ -428,7 +428,7 @@ test_that("ReduceToRow(Sum()) builds a >- Sum fragment", {
 
 test_that("ReduceToRow(Quantile(p)) carries the param across", {
     q <- ReduceToRow(Quantile(p = 0.9))
-    expect_identical(q@canonical, ">- Quantile p: \"0.9\"")
+    expect_identical(q@canonical, ">- Quantile p: 0.9")
     expect_identical(q@ast, parse_query(q@canonical))
 })
 

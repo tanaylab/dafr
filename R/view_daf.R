@@ -177,7 +177,7 @@ viewer <- function(daf, name = NULL, axes = NULL, data = NULL) {
         view_axes               = view_axes,
         view_axis_renames       = view_renames,
         view_axis_indices       = view_indices,
-        view_scalars            = .resolve_view_scalars(daf, data),
+        view_scalars            = .resolve_view_scalars(daf, data, view_name = name),
         view_vectors            = .resolve_view_vectors(daf, data, view_renames),
         view_matrices           = .resolve_view_matrices(daf, data, view_renames)
     )
@@ -255,7 +255,7 @@ viewer <- function(daf, name = NULL, axes = NULL, data = NULL) {
     out
 }
 
-.resolve_view_scalars <- function(daf, data) {
+.resolve_view_scalars <- function(daf, data, view_name = NULL) {
     all_scalars <- format_scalars_set(daf)
     out <- list()
     if (is.null(data)) {
@@ -267,17 +267,44 @@ viewer <- function(daf, name = NULL, axes = NULL, data = NULL) {
             name <- parsed$key
             query <- parsed$value
             if (identical(name, ALL_SCALARS)) {
+                # Julia parity: wildcard scalar query must be "=" or
+                # nothing (NULL). Any other query string is an error
+                # (DataAxesFormats.jl/src/views.jl `invalid wildcard
+                # scalar query: ...`).
                 if (is.null(query)) {
                     out <- list()
                 } else if (identical(query, "=")) {
                     for (s in all_scalars) out[[s]] <- s
                 } else {
-                    for (s in all_scalars) out[[s]] <- query
+                    stop(sprintf(
+                        "invalid wildcard scalar query: %s\nquery for wildcard must be one of: \"=\", nothing\nfor the view: %s\nof the daf data: %s",
+                        as.character(query), view_name %||% "view!",
+                        S7::prop(daf, "name")
+                    ), call. = FALSE)
                 }
             } else {
                 if (is.null(query)) {
                     out[[name]] <- NULL
+                } else if (identical(query, "=")) {
+                    out[[name]] <- name
                 } else {
+                    # Julia parity (V7): a scalar-view query must
+                    # produce a scalar shape. Validate now via
+                    # query_result_dimensions; reject vector- /
+                    # matrix-producing queries here so get_scalar()
+                    # later doesn't surface a vector silently.
+                    dims <- tryCatch(
+                        query_result_dimensions(query),
+                        error = function(e) -1
+                    )
+                    if (!is.numeric(dims) || dims != 0L) {
+                        stop(sprintf(
+                            "invalid scalar query: %s\nquery does not produce a scalar shape\nfor the scalar property: %s\nfor the view: %s\nof the daf data: %s",
+                            as.character(query), name,
+                            view_name %||% "view!",
+                            S7::prop(daf, "name")
+                        ), call. = FALSE)
+                    }
                     out[[name]] <- query
                 }
             }
@@ -287,22 +314,29 @@ viewer <- function(daf, name = NULL, axes = NULL, data = NULL) {
 }
 
 .resolve_view_vectors <- function(daf, data, renames) {
-    out <- list()
-    # Seed every renamed axis with every base vector visible on its base axis.
-    for (view_axis in names(renames)) {
-        base_axis <- renames[[view_axis]]
-        for (v in format_vectors_set(daf, base_axis)) {
-            out[[paste(view_axis, v, sep = "|")]] <- list(
-                view_axis = view_axis,
-                base_axis = base_axis,
-                name = v,
-                query = "="
-            )
+    # Julia parity (V3): the viewer is a strict include list. We seed
+    # all-base-vectors ONLY when the data list is NULL (defaulted),
+    # matching Julia's "default = expose everything" behaviour while
+    # an explicit `data = list(...)` is treated as include-only.
+    seed_all <- function() {
+        seeded <- list()
+        for (view_axis in names(renames)) {
+            base_axis <- renames[[view_axis]]
+            for (v in format_vectors_set(daf, base_axis)) {
+                seeded[[paste(view_axis, v, sep = "|")]] <- list(
+                    view_axis = view_axis,
+                    base_axis = base_axis,
+                    name = v,
+                    query = "="
+                )
+            }
         }
+        seeded
     }
-    if (is.null(data)) {
-        return(out)
+    if (is.null(data) || length(data) == 0L) {
+        return(seed_all())
     }
+    out <- list()
     for (item in .flatten_view_data(data)) {
         parsed <- .parse_view_item(item)
         if (is.character(parsed$key) && length(parsed$key) == 2L) {
@@ -311,12 +345,52 @@ viewer <- function(daf, name = NULL, axes = NULL, data = NULL) {
             q <- parsed$value
             base_axis <- renames[[a]] %||% a
             if (identical(a, "*") && identical(v, "*")) {
+                # Julia parity: wildcard vector query must be "=" or
+                # nothing. `=` means "expose all base vectors" (now
+                # explicit, since the strict-include policy means we
+                # only seed when the user opts in).
                 if (is.null(q)) {
                     out <- list()
                 } else if (identical(q, "=")) {
-                    # identity — already the default, no-op
+                    out <- seed_all()
                 } else {
-                    for (k in names(out)) out[[k]]$query <- q
+                    stop(sprintf(
+                        "invalid wildcard vector query: %s\nquery for wildcard must be one of: \"=\", nothing\nfor the vector property: *\nfor the vector axis: *\nfor the view: %s\nof the daf data: %s",
+                        as.character(q), "view!",
+                        S7::prop(daf, "name")
+                    ), call. = FALSE)
+                }
+            } else if (identical(v, "*")) {
+                # Wildcard property name on a specific axis: must be "=" or NULL.
+                base_a <- renames[[a]] %||% a
+                if (is.null(q)) {
+                    # Hide all vectors on this axis.
+                    for (k in names(out)) {
+                        if (identical(out[[k]]$view_axis, a)) out[[k]] <- NULL
+                    }
+                } else if (identical(q, "=")) {
+                    # Identity already the default.
+                } else {
+                    stop(sprintf(
+                        "invalid wildcard vector query: %s\nquery for wildcard must be one of: \"=\", nothing\nfor the vector property: *\nfor the vector axis: %s\nfor the view: %s\nof the daf data: %s",
+                        as.character(q), a, "view!",
+                        S7::prop(daf, "name")
+                    ), call. = FALSE)
+                }
+            } else if (identical(a, "*")) {
+                # Wildcard axis with specific property name: must be "=" or NULL.
+                if (is.null(q)) {
+                    for (k in names(out)) {
+                        if (identical(out[[k]]$name, v)) out[[k]] <- NULL
+                    }
+                } else if (identical(q, "=")) {
+                    # Identity already the default for matching props.
+                } else {
+                    stop(sprintf(
+                        "invalid wildcard vector query: %s\nquery for wildcard must be one of: \"=\", nothing\nfor the vector property: %s\nfor the vector axis: *\nfor the view: %s\nof the daf data: %s",
+                        as.character(q), v, "view!",
+                        S7::prop(daf, "name")
+                    ), call. = FALSE)
                 }
             } else {
                 key <- paste(a, v, sep = "|")
@@ -337,26 +411,32 @@ viewer <- function(daf, name = NULL, axes = NULL, data = NULL) {
 }
 
 .resolve_view_matrices <- function(daf, data, renames) {
-    out <- list()
-    for (rv in names(renames)) {
-        rb <- renames[[rv]]
-        for (cv in names(renames)) {
-            cb <- renames[[cv]]
-            for (m in format_matrices_set(daf, rb, cb)) {
-                out[[paste(rv, cv, m, sep = "|")]] <- list(
-                    view_rows = rv,
-                    view_cols = cv,
-                    base_rows = rb,
-                    base_cols = cb,
-                    name = m,
-                    query = "="
-                )
+    # Julia parity (V3): strict include list when explicit `data` is
+    # provided; expose-all only when defaulted.
+    seed_all <- function() {
+        seeded <- list()
+        for (rv in names(renames)) {
+            rb <- renames[[rv]]
+            for (cv in names(renames)) {
+                cb <- renames[[cv]]
+                for (m in format_matrices_set(daf, rb, cb)) {
+                    seeded[[paste(rv, cv, m, sep = "|")]] <- list(
+                        view_rows = rv,
+                        view_cols = cv,
+                        base_rows = rb,
+                        base_cols = cb,
+                        name = m,
+                        query = "="
+                    )
+                }
             }
         }
+        seeded
     }
-    if (is.null(data)) {
-        return(out)
+    if (is.null(data) || length(data) == 0L) {
+        return(seed_all())
     }
+    out <- list()
     for (item in .flatten_view_data(data)) {
         parsed <- .parse_view_item(item)
         if (is.character(parsed$key) && length(parsed$key) == 3L) {
@@ -367,8 +447,49 @@ viewer <- function(daf, name = NULL, axes = NULL, data = NULL) {
             rb <- renames[[rr]] %||% rr
             cb <- renames[[cc]] %||% cc
             if (rr == "*" && cc == "*" && nn == "*") {
-                if (is.null(q)) out <- list()
-                # identity "=" is default; no-op
+                # Julia parity: wildcard matrix query must be "=" or nothing.
+                if (is.null(q)) {
+                    out <- list()
+                } else if (identical(q, "=")) {
+                    out <- seed_all()
+                } else {
+                    stop(sprintf(
+                        "invalid wildcard matrix query: %s\nquery for wildcard must be one of: \"=\", nothing\nfor the matrix property: *\nfor the rows axis: *\nfor the columns axis: *\nfor the view: %s\nof the daf data: %s",
+                        as.character(q), "view!",
+                        S7::prop(daf, "name")
+                    ), call. = FALSE)
+                }
+            } else if (rr == "*" || cc == "*" || nn == "*") {
+                # Partial wildcards: must be "=" or NULL.
+                if (is.null(q) || identical(q, "=")) {
+                    # Apply at runtime via existing matching paths -
+                    # for now, error if not the simple "=" case where
+                    # every wildcard slot keeps the existing setup.
+                    if (identical(q, "=")) {
+                        # Only "=" pass-through is meaningful for partial
+                        # wildcards; keep existing entries as-is.
+                    } else {
+                        # NULL: hide matrices matching this pattern.
+                        for (k in names(out)) {
+                            entry <- out[[k]]
+                            keep <- TRUE
+                            if (rr != "*" && !identical(entry$view_rows, rr)) keep <- TRUE
+                            else if (cc != "*" && !identical(entry$view_cols, cc)) keep <- TRUE
+                            else if (nn != "*" && !identical(entry$name, nn)) keep <- TRUE
+                            else keep <- FALSE
+                            if (!keep) out[[k]] <- NULL
+                        }
+                    }
+                } else {
+                    rrs <- if (rr == "*") "*" else rr
+                    ccs <- if (cc == "*") "*" else cc
+                    nns <- if (nn == "*") "*" else nn
+                    stop(sprintf(
+                        "invalid wildcard matrix query: %s\nquery for wildcard must be one of: \"=\", nothing\nfor the matrix property: %s\nfor the rows axis: %s\nfor the columns axis: %s\nfor the view: %s\nof the daf data: %s",
+                        as.character(q), nns, rrs, ccs, "view!",
+                        S7::prop(daf, "name")
+                    ), call. = FALSE)
+                }
             } else {
                 key <- paste(rr, cc, nn, sep = "|")
                 if (is.null(q)) {
@@ -443,7 +564,16 @@ viewer <- function(daf, name = NULL, axes = NULL, data = NULL) {
     if (identical(override$query, "=")) {
         return(sprintf("@ %s : %s", override$base_axis, override$name))
     }
-    override$query
+    # Julia parity (V5): substitute `__axis__` placeholder with the
+    # slot's base axis, matching DataAxesFormats.jl/src/views.jl
+    # template-axis-self-reference.
+    q <- gsub("__axis__", override$base_axis, override$query, fixed = TRUE)
+    # Auto-prefix bare `:` / `.` queries with the view's base axis.
+    trimmed <- trimws(q)
+    if (grepl("^[:.]", trimmed) && !grepl("^@", trimmed)) {
+        return(sprintf("@ %s %s", override$base_axis, q))
+    }
+    q
 }
 
 .view_query_for_matrix <- function(view, rows_axis, columns_axis, name) {
@@ -458,7 +588,16 @@ viewer <- function(daf, name = NULL, axes = NULL, data = NULL) {
             override$base_rows, override$base_cols, override$name
         ))
     }
-    override$query
+    # Julia parity (V4 / V6): a bare `:: <m> ...` (matrix-lookup with no
+    # leading axes) auto-prefixes the slot's axes. Mirrors the
+    # vector auto-prefix in .view_query_for_vector.
+    q <- override$query
+    trimmed <- trimws(q)
+    if (grepl("^::", trimmed) && !grepl("^@", trimmed)) {
+        return(sprintf("@ %s @ %s %s",
+            override$base_rows, override$base_cols, q))
+    }
+    q
 }
 
 # --- format_* dispatch --------------------------------------------------
@@ -560,6 +699,16 @@ S7::method(
         .require_vector(daf, axis, name)
     }
     raw <- get_query(daf@base, q_str)
+    # Julia parity: a vector slot whose query produces a matrix is
+    # rejected on access (DataAxesFormats.jl/src/views.jl
+    # `matrix query: ... for the vector: ...`).
+    if (is.matrix(raw) || methods::is(raw, "Matrix")) {
+        stop(sprintf(
+            "matrix query: %s\nfor the vector: %s\nfor the axis: %s\nfor the view: %s\nof the daf data: %s",
+            q_str, name, axis, S7::prop(daf, "name"),
+            S7::prop(daf@base, "name")
+        ), call. = FALSE)
+    }
     idx <- daf@view_axis_indices[[axis]]
     .cache_group_value(raw[idx], MEMORY_DATA)
 }

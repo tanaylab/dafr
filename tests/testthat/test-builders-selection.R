@@ -29,8 +29,8 @@ test_that("Axis composes via pipe", {
 
 test_that("Axis with special chars round-trips through escape", {
     q <- Axis("name with spaces")
-    expect_identical(q@canonical, "@ \"name with spaces\"")
-    expect_identical(q@ast, parse_query("@ \"name with spaces\""))
+    expect_identical(q@canonical, "@ name\\ with\\ spaces")
+    expect_identical(q@ast, parse_query("@ name\\ with\\ spaces"))
 })
 
 test_that("Axis rejects non-character name", {
@@ -53,7 +53,7 @@ test_that("BeginMask composes via pipe", {
 
 test_that("BeginMask quotes property names with spaces", {
     q <- BeginMask("cell type")
-    expect_identical(q@canonical, "[ \"cell type\"")
+    expect_identical(q@canonical, "[ cell\\ type")
     expect_identical(q@ast, parse_query(q@canonical))
 })
 
@@ -77,7 +77,7 @@ test_that("BeginNegatedMask composes via pipe", {
 
 test_that("BeginNegatedMask quotes property names with spaces", {
     q <- BeginNegatedMask("cell type")
-    expect_identical(q@canonical, "[ ! \"cell type\"")
+    expect_identical(q@canonical, "[ ! cell\\ type")
     expect_identical(q@ast, parse_query(q@canonical))
 })
 
@@ -126,7 +126,7 @@ test_that("Names rejects positional arguments", {
 
 test_that("IfMissing builds a || <default> query fragment", {
     q <- IfMissing("N/A")
-    expect_identical(q@canonical, "|| \"N/A\"")
+    expect_identical(q@canonical, "|| N\\/A")
     expect_identical(q@ast, parse_query(q@canonical))
 })
 

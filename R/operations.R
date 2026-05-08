@@ -152,13 +152,58 @@ registered_eltwise <- function() sort(names(.ops_env$eltwise))
 .op_min <- function(x, ..., na_rm = FALSE) min(x, na.rm = na_rm)
 .op_count <- function(x, ...) length(x)
 
-.op_log <- function(x, ..., eps = 0, base = exp(1)) log(x + eps, base = base)
-.op_abs <- function(x, ...) abs(x)
-.op_exp <- function(x, ...) exp(x)
-.op_sqrt <- function(x, ...) sqrt(x)
-.op_round <- function(x, ..., digits = 0) round(x, digits = digits)
+.op_log <- function(x, ..., eps = 0, base = exp(1), type = NULL) {
+    .reject_non_float_type("Log", type)
+    .require_numeric_param("Log", "eps", eps)
+    .require_numeric_param("Log", "base", base)
+    eps <- as.numeric(eps); base <- as.numeric(base)
+    if (base <= 0) {
+        stop(sprintf(
+            "invalid value: \"%s\"\nvalue must be: positive\nfor the parameter: base\nfor the operation: Log",
+            format(base)
+        ), call. = FALSE)
+    }
+    if (eps < 0) {
+        stop(sprintf(
+            "invalid value: \"%s\"\nvalue must be: not negative\nfor the parameter: eps\nfor the operation: Log",
+            format(eps)
+        ), call. = FALSE)
+    }
+    # CO6: reject non-positive `x + eps`; Julia's Log signals
+    # `value must be: positive`. Sparse Matrices keep zeros implicit, so
+    # only inspect explicit non-zero cells.
+    .x <- if (methods::is(x, "Matrix")) x@x else as.numeric(x)
+    if (length(.x) > 0L && any(.x + eps <= 0, na.rm = TRUE)) {
+        stop(sprintf(
+            "invalid value: \"%s\"\nvalue must be: positive\nfor the operation: Log",
+            format(min(.x))
+        ), call. = FALSE)
+    }
+    .cast_to_type(log(x + eps, base = base), type)
+}
+.op_abs <- function(x, ..., type = NULL) {
+    .reject_non_number_type("Abs", type)
+    .cast_to_type(abs(x), type)
+}
+.op_exp <- function(x, ..., type = NULL) {
+    .reject_non_number_type("Exp", type)
+    .cast_to_type(exp(x), type)
+}
+.op_sqrt <- function(x, ..., type = NULL) {
+    .reject_non_number_type("Sqrt", type)
+    .cast_to_type(sqrt(x), type)
+}
+.op_round <- function(x, ..., digits = 0, type = NULL) {
+    .reject_non_number_type("Round", type)
+    .cast_to_type(round(x, digits = digits), type)
+}
 
-.op_clamp <- function(x, ..., min = -Inf, max = Inf) {
+.op_clamp <- function(x, ..., min = NULL, max = NULL, type = NULL) {
+    .reject_non_number_type("Clamp", type)
+    .require_numeric_param("Clamp", "min", min)
+    .require_numeric_param("Clamp", "max", max)
+    min <- if (is.null(min)) -Inf else as.numeric(min)
+    max <- if (is.null(max)) Inf else as.numeric(max)
     if (min >= max) {
         stop(sprintf("Clamp: min (%g) must be strictly less than max (%g)", min, max),
             call. = FALSE
@@ -168,11 +213,11 @@ registered_eltwise <- function() sort(names(.ops_env$eltwise))
         if (min <= 0 && 0 <= max) {
             out <- x
             out@x <- pmin(pmax(out@x, min), max)
-            return(out)
+            return(.cast_to_type(out, type))
         }
         x <- as.matrix(x)
     }
-    pmin(pmax(x, min), max)
+    .cast_to_type(pmin(pmax(x, min), max), type)
 }
 
 .op_convert <- function(x, ..., type) {
@@ -233,9 +278,105 @@ registered_eltwise <- function() sort(names(.ops_env$eltwise))
     x
 }
 
-.op_fraction <- function(x, ...) {
+## ---- Param-validation helpers (Julia parity) ------------------------------
+#
+# These mirror the Julia `parse_*_type_value` / `parse_number_value`
+# helpers in DataAxesFormats.jl/src/operations.jl. Error wording follows
+# the Julia template:
+#   invalid value: "<val>"
+#   value must be: <constraint>
+#   for the parameter: <name>
+#   for the operation: <op>
+
+.NUMBER_TYPES <- c(
+    "Bool", "String",
+    "Int8", "Int16", "Int32", "Int64",
+    "UInt8", "UInt16", "UInt32", "UInt64",
+    "Float32", "Float64",
+    "double", "integer", "logical", "integer64"
+)
+.NUMBER_TYPES_FILTERED_NUMERIC <- setdiff(.NUMBER_TYPES, c("String"))
+
+# CO5 parity: honor `type =` on numeric eltwise ops by coercing the
+# result. Matches Julia DAF where `% Op type Float32` returns a
+# Float32-storage result.
+.cast_to_type <- function(value, type) {
+    if (is.null(type) || is.null(value)) return(value)
+    if (methods::is(value, "Matrix")) return(value)  # leave Matrix alone
+    target <- switch(as.character(type)[[1L]],
+        integer = , Int8 = , Int16 = , Int32 = , Int64 = ,
+        UInt8 = , UInt16 = , UInt32 = , UInt64 = "integer",
+        numeric = , double = , Float32 = , Float64 = "double",
+        logical = , Bool = "logical",
+        character = , String = "character",
+        NULL
+    )
+    if (is.null(target)) return(value)
+    if (is.matrix(value)) {
+        dn <- dimnames(value)
+        storage.mode(value) <- target
+        dimnames(value) <- dn
+        return(value)
+    }
+    nm <- names(value)
+    out <- as.vector(value, mode = target)
+    names(out) <- nm
+    out
+}
+
+.reject_non_float_type <- function(op_name, type) {
+    if (is.null(type)) return(invisible())
+    type <- as.character(type)[[1L]]
+    float_types <- c("Float32", "Float64", "double")
+    if (!type %in% float_types) {
+        stop(sprintf(
+            "invalid value: \"%s\"\nvalue must be: a float type\nfor the parameter: type\nfor the operation: %s",
+            type, op_name
+        ), call. = FALSE)
+    }
+    invisible()
+}
+
+.reject_non_number_type <- function(op_name, type) {
+    if (is.null(type)) return(invisible())
+    type <- as.character(type)[[1L]]
+    if (!type %in% .NUMBER_TYPES_FILTERED_NUMERIC) {
+        stop(sprintf(
+            "invalid value: \"%s\"\nvalue must be: a number type\nfor the parameter: type\nfor the operation: %s",
+            type, op_name
+        ), call. = FALSE)
+    }
+    invisible()
+}
+
+.require_numeric_param <- function(op_name, param_name, value) {
+    if (is.null(value)) return(invisible())
+    if (is.numeric(value) && length(value) == 1L) return(invisible())
+    n <- suppressWarnings(as.numeric(value))
+    if (length(value) == 1L && !is.na(n)) return(invisible())
+    stop(sprintf(
+        "invalid value: \"%s\"\nvalue must be: a number\nfor the parameter: %s\nfor the operation: %s",
+        as.character(value)[[1L]], param_name, op_name
+    ), call. = FALSE)
+}
+
+.op_fraction <- function(x, ..., type = NULL) {
+    # Julia parity: only float types are accepted via the `type`
+    # parameter (DataAxesFormats.jl/src/operations.jl Fraction
+    # constructor uses parse_float_type_value).
+    if (!is.null(type)) {
+        type <- as.character(type)[[1L]]
+        float_types <- c("Float32", "Float64", "double")
+        if (!type %in% float_types) {
+            stop(sprintf(
+                "invalid value: \"%s\"\nvalue must be: a float type\nfor the parameter: type\nfor the operation: Fraction",
+                type
+            ), call. = FALSE)
+        }
+    }
     if (is.null(dim(x)) && length(x) == 1L) {
-        stop("Fraction: cannot apply to a scalar", call. = FALSE)
+        stop("applying Fraction eltwise operation to a scalar",
+            call. = FALSE)
     }
     if (methods::is(x, "dgCMatrix")) {
         out <- x
@@ -279,18 +420,40 @@ registered_eltwise <- function() sort(names(.ops_env$eltwise))
     if (missing(high)) {
         stop("Significant: 'high' parameter is required", call. = FALSE)
     }
+    # Julia parity (DataAxesFormats.jl operations.jl Significant):
+    # parameter validation messages use the
+    #   invalid value: "<val>"
+    #   value must be: <constraint>
+    #   for the parameter: <name>
+    #   for the operation: Significant
+    # template.
     if (!is.numeric(high) || length(high) != 1L || high <= 0) {
-        stop(sprintf("Significant: 'high' must be a positive number (got %s)",
+        stop(sprintf(
+            "invalid value: \"%s\"\nvalue must be: positive\nfor the parameter: high\nfor the operation: Significant",
             as.character(high)[1L]
         ), call. = FALSE)
     }
-    if (!is.numeric(low) || length(low) != 1L || low < 0 || low > high) {
-        stop(sprintf("Significant: 'low' must be in [0, high] (got %s; high = %g)",
-            as.character(low)[1L], high
+    if (!is.numeric(low) || length(low) != 1L) {
+        stop(sprintf(
+            "invalid value: \"%s\"\nvalue must be: not negative\nfor the parameter: low\nfor the operation: Significant",
+            as.character(low)[1L]
+        ), call. = FALSE)
+    }
+    if (low < 0) {
+        stop(sprintf(
+            "invalid value: \"%s\"\nvalue must be: not negative\nfor the parameter: low\nfor the operation: Significant",
+            as.character(low)[1L]
+        ), call. = FALSE)
+    }
+    if (low > high) {
+        stop(sprintf(
+            "invalid value: \"%s\"\nvalue must be: at most high (%s)\nfor the parameter: low\nfor the operation: Significant",
+            as.character(low)[1L], format(as.numeric(high))
         ), call. = FALSE)
     }
     if (is.null(dim(x)) && length(x) == 1L) {
-        stop("Significant: cannot apply to a scalar", call. = FALSE)
+        stop("applying Significant eltwise operation to a scalar",
+            call. = FALSE)
     }
     if (methods::is(x, "dgCMatrix")) {
         out <- x
@@ -332,8 +495,15 @@ registered_eltwise <- function() sort(names(.ops_env$eltwise))
     if (is.na(v)) v else sqrt(v)
 }
 
-.assert_non_negative_eps <- function(eps) {
+.assert_non_negative_eps <- function(eps, op_name = NULL) {
     if (!is.numeric(eps) || length(eps) != 1L || is.na(eps) || eps < 0) {
+        if (!is.null(op_name)) {
+            # Julia parity error template.
+            stop(sprintf(
+                "invalid value: \"%s\"\nvalue must be: not negative\nfor the parameter: eps\nfor the operation: %s",
+                as.character(eps)[1L], op_name
+            ), call. = FALSE)
+        }
         stop(sprintf("'eps' must be a non-negative number (got %s)",
             as.character(eps)[1L]
         ), call. = FALSE)
@@ -376,8 +546,9 @@ registered_eltwise <- function() sort(names(.ops_env$eltwise))
     unname(stats::quantile(as.numeric(x), probs = p, na.rm = isTRUE(na_rm)))
 }
 
-.op_geomean <- function(x, ..., eps = 0, na_rm = FALSE) {
-    .assert_non_negative_eps(eps)
+.op_geomean <- function(x, ..., eps = 0, na_rm = FALSE, type = NULL) {
+    .reject_non_float_type("GeoMean", type)
+    .assert_non_negative_eps(eps, "GeoMean")
     x <- as.numeric(x)
     if (isTRUE(na_rm)) x <- x[!is.na(x)]
     if (eps == 0) {

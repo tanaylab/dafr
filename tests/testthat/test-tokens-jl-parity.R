@@ -12,13 +12,46 @@
 # (encode/tokenize internals), since the substantive escape -> unescape
 # round-trip is exercised by dafr's existing internal tests.
 
-# escape leaves
-test_that("tokens / escape / empty",   { skip("CT1: dafr escape convention differs from Julia") })
-test_that("tokens / escape / unicode", { skip("CT1") })
-test_that("tokens / escape / alpha",   { skip("CT1") })
-test_that("tokens / escape / digits",  { skip("CT1") })
-test_that("tokens / escape / allowed", { skip("CT1") })
-test_that("tokens / escape / special", { skip("CT1") })
+# escape leaves: substantive parity is `escape -> unescape` round-trip.
+# dafr uses double-quote escaping for operator-class characters, but
+# the round-trip semantics match Julia.
+test_that("tokens / escape / empty", {
+    expect_identical(escape_value(""), "''")
+    expect_identical(unescape_value("''"), "")
+})
+test_that("tokens / escape / unicode", {
+    for (c in c("א", "ת")) {  # alef, tav
+        expect_identical(unescape_value(escape_value(c)), c)
+    }
+})
+test_that("tokens / escape / alpha", {
+    for (c in c("a", "z", "A", "Z")) {
+        expect_identical(escape_value(c), c)
+        expect_identical(unescape_value(escape_value(c)), c)
+    }
+})
+test_that("tokens / escape / digits", {
+    for (d in c("0", "1", "5", "9")) {
+        expect_identical(escape_value(d), d)
+        expect_identical(unescape_value(escape_value(d)), d)
+    }
+})
+test_that("tokens / escape / allowed", {
+    for (c in c("_", ".", "+", "-")) {
+        expect_identical(escape_value(c), c)
+        expect_identical(unescape_value(escape_value(c)), c)
+    }
+})
+test_that("tokens / escape / special", {
+    expect_identical(escape_value(" "),  "\\ ")
+    expect_identical(escape_value("\\"), "\\\\")
+    expect_identical(escape_value("%"),  "\\%")
+    expect_identical(escape_value(":"),  "\\:")
+    for (c in c(" ", "&", "*", "%", "/", ":", "<", "=", ">", "?", "@",
+                "[", "]", "^", "|", "~", "\"")) {
+        expect_identical(unescape_value(escape_value(c)), c, info = c)
+    }
+})
 
 # encode_expression leaves
 test_that("tokens / encode / unicode", { skip("CT3: dafr does not expose encode_expression / decode_expression") })
@@ -27,12 +60,38 @@ test_that("tokens / encode / digits",  { skip("CT3") })
 test_that("tokens / encode / allowed", { skip("CT3") })
 test_that("tokens / encode / special", { skip("CT3") })
 
-# tokenize leaves
-test_that("tokens / tokenize / empty",      { skip("CT3: dafr does not expose Tokens.tokenize") })
-test_that("tokens / tokenize / single",     { skip("CT3") })
-test_that("tokens / tokenize / multiple",   { skip("CT3") })
-test_that("tokens / tokenize / specials",   { skip("CT3") })
-test_that("tokens / tokenize / unexpected", { skip("CT3") })
+# tokenize leaves: dafr's tokenizer is private (`.tokenize_query`) and
+# uses dafr's fixed query-operator set rather than Julia's pluggable
+# regex. The substantive token-shape parity is exercised here.
+.toks <- function(s) {
+    vapply(dafr:::.tokenize_query(s), function(t) t$value, character(1L))
+}
+
+test_that("tokens / tokenize / empty", {
+    expect_identical(.toks(""), character(0L))
+})
+test_that("tokens / tokenize / single", {
+    expect_identical(.toks("1"), "1")
+    expect_identical(.toks("x"), "x")
+    expect_identical(.toks("''"), "")
+    expect_identical(.toks("\\'\\'"), "''")
+})
+test_that("tokens / tokenize / multiple", {
+    expect_identical(.toks(" 10  foo  0א "),
+                     c("10", "foo", "0א"))
+})
+test_that("tokens / tokenize / specials", {
+    # dafr op regex is greedy: longest match wins.
+    expect_identical(.toks(">>"), ">>")
+    expect_identical(.toks(">>>"), c(">>", ">"))
+    expect_identical(.toks("=@"), "=@")
+})
+test_that("tokens / tokenize / unexpected", {
+    expect_error(
+        .toks("א $ x"),
+        "unexpected character"
+    )
+})
 
 # Round-trip parity assertion: dafr's escape/unescape round-trips.
 test_that("tokens / escape-unescape / roundtrip", {
