@@ -43,5 +43,5 @@ A [DafrQuery](https://tanaylab.github.io/dafr/reference/DafrQuery.md).
 ReduceToColumn(Sum())
 #> <DafrQuery> >| Sum 
 ReduceToColumn(Quantile(p = 0.5))
-#> <DafrQuery> >| Quantile p: "0.5" 
+#> <DafrQuery> >| Quantile p: 0.5 
 ```

@@ -32,7 +32,7 @@ Character scalar suitable for concatenation into a query string.
 escape_value("plain")
 #> [1] "plain"
 escape_value("has space")
-#> [1] "\"has space\""
+#> [1] "has\\ space"
 unescape_value(escape_value("has \"quotes\""))
 #> [1] "has \"quotes\""
 ```

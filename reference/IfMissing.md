@@ -42,7 +42,7 @@ A [DafrQuery](https://tanaylab.github.io/dafr/reference/DafrQuery.md).
 
 ``` r
 IfMissing("N/A")
-#> <DafrQuery> || "N/A" 
+#> <DafrQuery> || N\/A 
 IfMissing(0)
 #> <DafrQuery> || 0 
 IfMissing(0, type = "Int64")

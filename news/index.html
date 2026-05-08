@@ -46,9 +46,48 @@
     </div>
 
     <div class="section level2">
-<h2 class="pkg-version" data-toc-text="0.2.0" id="dafr-020-in-development">dafr 0.2.0 (in development)<a class="anchor" aria-label="anchor" href="#dafr-020-in-development"></a></h2>
+<h2 class="pkg-version" data-toc-text="0.2.0" id="dafr-020">dafr 0.2.0<a class="anchor" aria-label="anchor" href="#dafr-020"></a></h2>
 <div class="section level3">
-<h3 id="julia-parity-for-chains-concat-reorder-0-2-0">Julia parity for chains, concat, reorder<a class="anchor" aria-label="anchor" href="#julia-parity-for-chains-concat-reorder-0-2-0"></a></h3>
+<h3 id="julia-parity-dataaxesformatsjl-0-2-0">Julia parity (DataAxesFormats.jl 0.2.0)<a class="anchor" aria-label="anchor" href="#julia-parity-dataaxesformatsjl-0-2-0"></a></h3>
+<p>This release closes the bulk of the user-facing semantic divergences between dafr and DataAxesFormats.jl <code>main</code>. The R query DSL now mirrors Julia byte-for-byte at the operator level; <code>escape_value</code> / <code>unescape_value</code> use Julia’s <code>\&lt;char&gt;</code> backslash convention.</p>
+<p>Operation parity (CO1-CO7 + CT1/CT3 closed):</p>
+<ul><li>
+<strong><code>% Op type=&lt;T&gt;</code> now coerces the result.</strong> Previously <code>type</code> was silently ignored on the numeric eltwise ops (Abs / Exp / Sqrt / Round / Log / Clamp). Honors <code>integer</code> / <code>numeric</code> / <code>double</code> / <code>Float32</code>/<code>Float64</code> / <code>Int8-64</code> / <code>UInt8-64</code> / <code>Bool</code> / <code>logical</code>.</li>
+<li>
+<strong><code>% Log</code> rejects non-positive <code>x + eps</code></strong> with Julia’s <code>value must be: positive</code> template instead of returning <code>NaN</code>.</li>
+<li>
+<strong><code>% Fraction</code> rejects integer types</strong> (Julia: <code>value must be: a float type</code>) and rejects scalar input with Julia’s <code>applying Fraction eltwise operation to a scalar</code> wording.</li>
+<li>
+<strong><code>% Significant</code> accepts <code>low</code> only</strong> (defaults <code>high = low</code>), matching Julia.</li>
+<li>
+<strong><code>% GeoMean</code> error wording</strong> aligned with Julia’s <code>value must be: not negative / for the parameter: eps / for the operation: GeoMean</code> template.</li>
+<li>
+<strong><code>% Abs</code> / <code>% Clamp</code> reject non-numeric <code>type=</code></strong> with Julia’s <code>value must be: a number type</code> template.</li>
+<li>All eltwise / reduction ops use the same Julia error template: <code>invalid value: "&lt;v&gt;"</code> / <code>value must be: &lt;constraint&gt;</code> / <code>for the parameter: &lt;name&gt;</code> / <code>for the operation: &lt;op&gt;</code>.</li>
+</ul><p>Viewer parity (V2-V7 closed):</p>
+<ul><li>
+<strong>Wildcard <code>*</code> in view contracts validates</strong> that values are <code>=</code> or <code>NULL</code> (Julia: <code>(*, *)</code>, <code>(*, prop)</code>, <code>(axis, *)</code> shapes).</li>
+<li>
+<strong>Scalar-shape validation</strong>: a vector-producing query in a scalar slot now errors instead of silently exposing the vector via <code>get_scalar</code>.</li>
+<li>
+<strong>Strict-include semantics</strong>: passing <code>data = list(...)</code> to <code>view_daf()</code> now exposes only the listed properties; <code>data = NULL</code> retains the original “expose all” behaviour.</li>
+<li>
+<strong><code>__axis__</code> placeholder substitution</strong> in matrix slot queries.</li>
+<li>
+<strong>Vector-slot rejects matrix-shape queries</strong> with Julia’s <code>matrix query: ... / for the vector: ...</code> wording.</li>
+</ul><p>Naming parity:</p>
+<ul><li>Grouped reduction results (<code>-/</code>, <code>|/</code>) now use alphabetical group ordering to match Julia’s <code>factor(..., levels = sort(unique))</code>, not first-appearance order.</li>
+</ul><p>Recovered fixes:</p>
+<ul><li>
+<strong><code><a href="../reference/complete_path.html">complete_path()</a></code> returns <code>NULL</code></strong> for memory-backed dafs and non-FilesDaf chains instead of erroring; mirrors Julia’s <code>complete_path</code> returning <code>nothing</code> for non-Files dafs. <code><a href="../reference/complete_chain.html">complete_chain()</a></code> retains its explicit error since it requires a real on-disk path.</li>
+<li>
+<strong><code>memory_daf</code> accepts <code><a href="https://rdrr.io/pkg/Matrix/man/sparseVector.html" class="external-link">Matrix::sparseVector</a></code></strong>. The atomic-only validator now detects <code>sparseVector</code> via S4 inheritance; readback densifies before name attachment. Storage roundtrip preserves values.</li>
+</ul><p>Test suite (5579 PASS / 0 FAIL / 142 SKIP, vs 5024 PASS / 0 FAIL / 49 SKIP at the start of the parity push):</p>
+<ul><li>23 <code>*-jl-parity.R</code> files mirror DataAxesFormats.jl’s 22 main test files (contracts.jl is split across 7 sub-slices in R for tractable ports).</li>
+<li>The remaining 142 skips are out-of-scope feature gaps documented per-test (<code>R divergence</code> codes), not behavioral divergences: multi-contract <code>@computation</code>, <code>description(deep)</code>, <code>empty_*</code> builders, h5df backend, file-bridge, tensors-in-views, etc.</li>
+</ul></div>
+<div class="section level3">
+<h3 id="earlier-in-julia-parity-for-chains-concat-reorder-0-2-0">Earlier in 0.2.0: Julia parity for chains, concat, reorder<a class="anchor" aria-label="anchor" href="#earlier-in-julia-parity-for-chains-concat-reorder-0-2-0"></a></h3>
 <p>A literal port of <code>DataAxesFormats.jl::concat.jl</code>, <code>reorder.jl</code>, and <code>chains.jl</code> test suites surfaced and closed five behavior gaps:</p>
 <ul><li>
 <strong><code>concatenate(..., merge = list("axis|name" = MERGE_COLLECT_AXIS))</code> now honors <code>empty=</code> for missing-source columns.</strong> Previously, when a source lacked the vector being collect-axis-merged, that source’s column in the destination matrix was filled with <code>NA</code> regardless of the user’s <code>empty=</code> map. Now the empty fill is consulted; if neither the source nor <code>empty</code> provides a value, the same “no empty value” error as the per-axis vector path is raised.</li>
@@ -129,7 +168,7 @@
 </div>
 </div>
     <div class="section level2">
-<h2 class="pkg-version" data-toc-text="0.2.0" id="dafr-020">dafr 0.2.0<a class="anchor" aria-label="anchor" href="#dafr-020"></a></h2>
+<h2 class="pkg-version" data-toc-text="0.2.0" id="dafr-020-1">dafr 0.2.0<a class="anchor" aria-label="anchor" href="#dafr-020-1"></a></h2>
 <div class="section level3">
 <h3 id="reader-api-parity-polish-0-2-0">Reader-API parity polish<a class="anchor" aria-label="anchor" href="#reader-api-parity-polish-0-2-0"></a></h3>
 <ul><li>

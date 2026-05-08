@@ -1,8 +1,81 @@
 # Changelog
 
-## dafr 0.2.0 (in development)
+## dafr 0.2.0
 
-### Julia parity for chains, concat, reorder
+### Julia parity (DataAxesFormats.jl 0.2.0)
+
+This release closes the bulk of the user-facing semantic divergences
+between dafr and DataAxesFormats.jl `main`. The R query DSL now mirrors
+Julia byte-for-byte at the operator level; `escape_value` /
+`unescape_value` use Julia’s `\<char>` backslash convention.
+
+Operation parity (CO1-CO7 + CT1/CT3 closed):
+
+- **`% Op type=<T>` now coerces the result.** Previously `type` was
+  silently ignored on the numeric eltwise ops (Abs / Exp / Sqrt / Round
+  / Log / Clamp). Honors `integer` / `numeric` / `double` /
+  `Float32`/`Float64` / `Int8-64` / `UInt8-64` / `Bool` / `logical`.
+- **`% Log` rejects non-positive `x + eps`** with Julia’s
+  `value must be: positive` template instead of returning `NaN`.
+- **`% Fraction` rejects integer types** (Julia:
+  `value must be: a float type`) and rejects scalar input with Julia’s
+  `applying Fraction eltwise operation to a scalar` wording.
+- **`% Significant` accepts `low` only** (defaults `high = low`),
+  matching Julia.
+- **`% GeoMean` error wording** aligned with Julia’s
+  `value must be: not negative / for the parameter: eps / for the operation: GeoMean`
+  template.
+- **`% Abs` / `% Clamp` reject non-numeric `type=`** with Julia’s
+  `value must be: a number type` template.
+- All eltwise / reduction ops use the same Julia error template:
+  `invalid value: "<v>"` / `value must be: <constraint>` /
+  `for the parameter: <name>` / `for the operation: <op>`.
+
+Viewer parity (V2-V7 closed):
+
+- **Wildcard `*` in view contracts validates** that values are `=` or
+  `NULL` (Julia: `(*, *)`, `(*, prop)`, `(axis, *)` shapes).
+- **Scalar-shape validation**: a vector-producing query in a scalar slot
+  now errors instead of silently exposing the vector via `get_scalar`.
+- **Strict-include semantics**: passing `data = list(...)` to
+  `view_daf()` now exposes only the listed properties; `data = NULL`
+  retains the original “expose all” behaviour.
+- **`__axis__` placeholder substitution** in matrix slot queries.
+- **Vector-slot rejects matrix-shape queries** with Julia’s
+  `matrix query: ... / for the vector: ...` wording.
+
+Naming parity:
+
+- Grouped reduction results (`-/`, `|/`) now use alphabetical group
+  ordering to match Julia’s `factor(..., levels = sort(unique))`, not
+  first-appearance order.
+
+Recovered fixes:
+
+- **[`complete_path()`](https://tanaylab.github.io/dafr/reference/complete_path.md)
+  returns `NULL`** for memory-backed dafs and non-FilesDaf chains
+  instead of erroring; mirrors Julia’s `complete_path` returning
+  `nothing` for non-Files dafs.
+  [`complete_chain()`](https://tanaylab.github.io/dafr/reference/complete_chain.md)
+  retains its explicit error since it requires a real on-disk path.
+- **`memory_daf` accepts
+  [`Matrix::sparseVector`](https://rdrr.io/pkg/Matrix/man/sparseVector.html)**.
+  The atomic-only validator now detects `sparseVector` via S4
+  inheritance; readback densifies before name attachment. Storage
+  roundtrip preserves values.
+
+Test suite (5579 PASS / 0 FAIL / 142 SKIP, vs 5024 PASS / 0 FAIL / 49
+SKIP at the start of the parity push):
+
+- 23 `*-jl-parity.R` files mirror DataAxesFormats.jl’s 22 main test
+  files (contracts.jl is split across 7 sub-slices in R for tractable
+  ports).
+- The remaining 142 skips are out-of-scope feature gaps documented
+  per-test (`R divergence` codes), not behavioral divergences:
+  multi-contract `@computation`, `description(deep)`, `empty_*`
+  builders, h5df backend, file-bridge, tensors-in-views, etc.
+
+### Earlier in 0.2.0: Julia parity for chains, concat, reorder
 
 A literal port of `DataAxesFormats.jl::concat.jl`, `reorder.jl`, and
 `chains.jl` test suites surfaced and closed five behavior gaps:

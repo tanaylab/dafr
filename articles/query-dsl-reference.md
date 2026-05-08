@@ -373,7 +373,7 @@ to reverse it.
 ``` r
 
 escape_value("a | b")
-#> [1] "\"a | b\""
+#> [1] "a\\ \\|\\ b"
 ```
 
 ## Caching

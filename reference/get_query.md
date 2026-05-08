@@ -117,8 +117,8 @@ metacells["@ metacell : type =@ type : color"]
 
 # --- Group-by + chain + reduction (jl:598, 620) --------------------------
 chain["@ cell : donor : age / metacell ?? : type >> Mean"]
-#> MEBEMP-E      MPP memory-B MEBEMP-L 
-#> 63.97674 64.23795 62.30769 63.95238 
+#> MEBEMP-E MEBEMP-L      MPP memory-B 
+#> 63.97674 63.95238 64.23795 62.30769 
 chain[paste(
     "@ cell [ metacell ?? : type != memory-B ] :",
     "donor : age / metacell : type =@ >> Mean || 0"
