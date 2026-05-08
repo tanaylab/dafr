@@ -1908,6 +1908,17 @@ NULL
     params <- .coerce_params(node$params)
     builtin <- attr(fn, ".dafr_builtin")
 
+    # Run param validation by dry-calling the operation on a length-2
+    # vector dummy before any fast paths fire. This routes scalar /
+    # vector / matrix input through the same parameter-validation
+    # gates so `% Log base 0` errors uniformly across input shapes
+    # (the kernel fast paths used to bypass .op_log's checks). The
+    # length-2 input dodges the scalar-input rejection that some ops
+    # (Significant / Fraction) apply.
+    if (length(params) > 0L && !is.null(builtin)) {
+        do.call(fn, c(list(c(1, 2)), params))
+    }
+
     if (isTRUE(dafr_opt("dafr.perf.fast_paths")) && identical(builtin, "Log")) {
         eps <- as.numeric(params$eps %||% 0)
         base <- as.numeric(params$base %||% exp(1))
@@ -2114,10 +2125,19 @@ NULL
 
 .dafr_kernel_threshold <- function() dafr_opt("dafr.kernel_threshold")
 
-# Extract eps parameter for VarN/StdN reductions. Defaults to 0 when omitted,
-# matching the slow-path default in .op_varn / .op_stdn.
-.param_eps <- function(params) {
-    as.numeric(params[["eps"]] %||% 0)
+# Extract eps parameter for VarN/StdN/GeoMean reductions. Defaults to 0
+# when omitted. Validates non-negative (Julia parity: parse_number_value
+# with `not negative` check).
+.param_eps <- function(params, op_name = "VarN") {
+    raw <- params[["eps"]] %||% 0
+    eps <- suppressWarnings(as.numeric(raw))
+    if (is.na(eps) || eps < 0) {
+        stop(sprintf(
+            "invalid value: \"%s\"\nvalue must be: not negative\nfor the parameter: eps\nfor the operation: %s",
+            as.character(raw), op_name
+        ), call. = FALSE)
+    }
+    eps
 }
 
 # Extract 'p' parameter for Quantile reductions. Validates range [0, 1].
@@ -2185,7 +2205,7 @@ NULL
                         sqrt(matrixStats::rowVars(m) * ((nc - 1L) / nc))
                     } else return(NULL),
             VarN  = {
-                eps <- .param_eps(params)
+                eps <- .param_eps(params, "VarN")
                 if (is_dg)
                     kernel_var_csc_cpp(m@x, m@i, m@p, nrow(m), ncol(m),
                                        axis = 0L, variant = "VarN", eps = eps,
@@ -2198,7 +2218,7 @@ NULL
                 } else return(NULL)
             },
             StdN  = {
-                eps <- .param_eps(params)
+                eps <- .param_eps(params, "StdN")
                 if (is_dg)
                     kernel_var_csc_cpp(m@x, m@i, m@p, nrow(m), ncol(m),
                                        axis = 0L, variant = "StdN", eps = eps,
@@ -2211,7 +2231,7 @@ NULL
                 } else return(NULL)
             },
             GeoMean = {
-                eps <- .param_eps(params)
+                eps <- .param_eps(params, "GeoMean")
                 if (is_dg)
                     kernel_geomean_csc_cpp(m@x, m@i, m@p, nrow(m), ncol(m),
                                            axis = 0L, eps = eps,
@@ -2290,7 +2310,7 @@ NULL
                     sqrt(matrixStats::colVars(m) * ((nr - 1L) / nr))
                 } else return(NULL),
         VarN  = {
-            eps <- .param_eps(params)
+            eps <- .param_eps(params, "VarN")
             if (is_dg)
                 kernel_var_csc_cpp(m@x, m@i, m@p, nrow(m), ncol(m),
                                    axis = 1L, variant = "VarN", eps = eps,
@@ -2303,7 +2323,7 @@ NULL
             } else return(NULL)
         },
         StdN  = {
-            eps <- .param_eps(params)
+            eps <- .param_eps(params, "StdN")
             if (is_dg)
                 kernel_var_csc_cpp(m@x, m@i, m@p, nrow(m), ncol(m),
                                    axis = 1L, variant = "StdN", eps = eps,
@@ -2316,7 +2336,7 @@ NULL
             } else return(NULL)
         },
         GeoMean = {
-            eps <- .param_eps(params)
+            eps <- .param_eps(params, "GeoMean")
             if (is_dg)
                 kernel_geomean_csc_cpp(m@x, m@i, m@p, nrow(m), ncol(m),
                                        axis = 1L, eps = eps,
@@ -2510,8 +2530,11 @@ NULL
             axis_levels <- format_axis_array(daf, target_axis)$value
         }
     }
-    # Preserve group first-appearance order via factor levels.
-    gfac <- factor(g, levels = unique(g))
+    # Sort group levels to match Julia DAF behaviour
+    # (DataAxesFormats.jl/src/queries.jl ~3935: result is sorted by
+    # the group value, which is also used as the name in the
+    # NamedArray).
+    gfac <- factor(g, levels = sort(unique(g)))
     gi <- as.integer(gfac)
     ngroups <- nlevels(gfac)
     lvls <- levels(gfac)
@@ -2874,7 +2897,8 @@ NULL
 
     if (is_g2 || is_g3) {
         g <- if (is_g2) state$pending_row_groups else state$pending_col_groups
-        gfac <- factor(g, levels = unique(g))
+        # Julia DAF sorts group levels alphabetically (queries.jl ~3935).
+        gfac <- factor(g, levels = sort(unique(g)))
         gi <- as.integer(gfac)
         ngroups <- nlevels(gfac)
         lvls <- levels(gfac)
@@ -2920,6 +2944,18 @@ NULL
                     state$if_missing_type)
             } else {
                 NA
+            }
+            # Julia parity (T-class): if the reduction output is an
+            # integer type but the IfMissing default is a non-integer
+            # numeric (e.g. 0.5), Julia raises InexactError. Mirror.
+            if (length(unused) > 0L && is.numeric(out) && is.integer(out) &&
+                is.numeric(default) && !is.integer(default)) {
+                if (!isTRUE(all.equal(default, as.integer(default)))) {
+                    stop(sprintf(
+                        "InexactError: cannot convert %s to %s\nfor the IfMissing default of the reduction output",
+                        format(default), "integer"
+                    ), call. = FALSE)
+                }
             }
             full_n <- length(axis_lvls)
             seen_idx <- match(lvls, axis_lvls)
@@ -2980,7 +3016,7 @@ NULL
             # inner$value is ngroups x ncol with rownames = group levels.
             mat <- inner$value
             g <- state$pending_row_groups
-            gfac <- factor(g, levels = unique(g))
+            gfac <- factor(g, levels = sort(unique(g)))
             lvls <- levels(gfac)
             ngroups <- nlevels(gfac)
             # Type-sniff on the first group's row so character/logical/integer
@@ -3003,7 +3039,7 @@ NULL
             by = "cols")
         mat <- inner$value
         g <- state$pending_col_groups
-        gfac <- factor(g, levels = unique(g))
+        gfac <- factor(g, levels = sort(unique(g)))
         lvls <- levels(gfac)
         ngroups <- nlevels(gfac)
         # Type-sniff on the first group's column so character/logical/integer

@@ -47,15 +47,17 @@ test_that("G1 grouped-vector works for all numeric builtins", {
     expect_type(v_mode, "double")
 })
 
-test_that("G1 grouped-vector preserves group-appearance order (factor levels)", {
+test_that("G1 grouped-vector returns groups in alphabetical order (Julia parity)", {
+    # Julia DAF sorts group levels alphabetically (queries.jl ~3935:
+    # `unique_group_values = sort!(unique(group_state.vector_values))`).
+    # dafr matches.
     d <- memory_daf(name = "t")
     add_axis(d, "ax", paste0("e", 1:6))
     set_vector(d, "ax", "x", c(10, 20, 30, 40, 50, 60))
-    # Groups in scramble order so alphabetical != first-appearance
     set_vector(d, "ax", "g", c("z", "z", "a", "a", "m", "m"))
     v <- get_query(d, "@ ax : x / g >| Sum")
-    expect_equal(names(v), c("z", "a", "m"))
-    expect_equal(unname(v), c(30, 70, 110))
+    expect_equal(names(v), c("a", "m", "z"))
+    expect_equal(unname(v), c(70, 110, 30))
 })
 
 test_that("G1 Mode on character vector returns character output", {
@@ -173,12 +175,12 @@ test_that("G3 col-grouped + ReduceToColumn: sparse -> nrow x ngroups", {
     for (op in c("Sum", "Mean", "Min", "Max", "Var", "Std")) {
         out <- get_query(d, sprintf("@ r @ c :: x |/ cg >| %s", op))
         expect_equal(dim(out), c(30L, 4L), info = op)
-        expect_equal(colnames(out), c("x", "y", "z", "w"), info = op)
+        expect_equal(colnames(out), c("w", "x", "y", "z"), info = op)
     }
     # Content check for Sum: column-groupsum of dense matrix.
     out_sum <- get_query(d, "@ r @ c :: x |/ cg >| Sum")
     dense <- as.matrix(m)
-    expected <- t(rowsum(t(dense), col_g))[, c("x", "y", "z", "w")]
+    expected <- t(rowsum(t(dense), col_g))[, c("w", "x", "y", "z")]
     expect_equal(out_sum, expected, tolerance = 1e-9,
         ignore_attr = TRUE)
 })
@@ -241,9 +243,9 @@ test_that("G4b col-grouped + ReduceToColumn: vector[ngroups]", {
     out <- get_query(d, "@ r @ c :: x |/ cg >- Sum")
     expected <- vapply(split(seq_len(20L), col_g),
         function(j) sum(m[, j, drop = FALSE]), numeric(1))
-    expect_equal(unname(out), unname(expected[c("x", "y", "z", "w")]),
+    expect_equal(unname(out), unname(expected[c("w", "x", "y", "z")]),
         tolerance = 1e-9)
-    expect_equal(names(out), c("x", "y", "z", "w"))
+    expect_equal(names(out), c("w", "x", "y", "z"))
 })
 
 test_that("G2 sparse Median and Quantile route through dedicated kernel", {

@@ -331,6 +331,7 @@ query_result_dimensions <- function(query_string) {
             SquareRowIs = ,
             SquareColumnIs = return(1L),
             LookupMatrix = return(2L),
+            ReduceToScalar = return(0L),
             ReduceToColumn = ,
             ReduceToRow = return(1L),
             CountBy = return(2L),
