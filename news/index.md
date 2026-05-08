@@ -1,6 +1,6 @@
 # Changelog
 
-## dafr 0.2.1
+## dafr 0.2.2
 
 ### Reorder parity (R2 + R4 + R5 + R6 closed)
 
