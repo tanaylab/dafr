@@ -1,5 +1,34 @@
 # Changelog
 
+## dafr 0.2.3
+
+### Concat / contracts / reconstruction parity (M1 + M4 + C1 + CR3)
+
+- **`concatenate(merge = list(ALL_SCALARS = ...))`** wildcards now
+  expand against the source properties at concat time. Mirrors Julia’s
+  `[ALL_SCALARS => action]` / `[ALL_VECTORS => action]` /
+  `[ALL_MATRICES => action]`. Explicit non-wildcard keys still override
+  wildcard-expanded entries. The “can’t collect axis for the scalar:”
+  error wording now matches Julia byte-for-byte.
+- **`concatenate(prefixed = list(axis = c(...)))`** is now an override
+  that fires regardless of `prefix[axis]`. The list names cell-axis
+  vectors whose values reference a prefixed axis and thus need the
+  dataset name spliced in. Previously dafr ANDed the per-axis prefix
+  flag with the list, so vectors listed in `prefixed[cell]` were not
+  prefixed when `prefix[cell] == FALSE`.
+- **[`merge_contracts()`](https://tanaylab.github.io/dafr/reference/merge_contracts.md)
+  rejects `integer` vs `character`** (and other cross-lattice mixes)
+  with Julia’s `incompatible type:` error. Previously dafr’s type
+  lattice was a total order (`logical < integer < double < character`)
+  so any pair quietly merged to the narrower type. Now `character` and
+  `integer64` are siblings to the numeric chain - same-chain merges
+  still pick the narrower type, cross-chain merges error.
+- **`reconstruct_axis(..., properties_defaults = list(prop = val))`**
+  merges into a pre-existing axis. Implicit-property values must be a
+  subset of the axis entries; any extra entries get the per-property
+  default value. Mirrors Julia’s
+  `reconstruct_axis!(..., properties_defaults = (; prop = val))`.
+
 ## dafr 0.2.2
 
 ### Reorder parity (R2 + R4 + R5 + R6 closed)

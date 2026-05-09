@@ -7,7 +7,7 @@
 
     <a class="navbar-brand me-2" href="../index.html">dafr</a>
 
-    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">0.2.2</small>
+    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">0.2.3</small>
 
 
     <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbar" aria-controls="navbar" aria-expanded="false" aria-label="Toggle navigation">
@@ -42,9 +42,23 @@
   <main id="main" class="col-md-9"><div class="page-header">
 
       <h1>Changelog</h1>
-      <small>Source: <a href="https://github.com/tanaylab/dafr/blob/v0.2.2/NEWS.md" class="external-link"><code>NEWS.md</code></a></small>
+      <small>Source: <a href="https://github.com/tanaylab/dafr/blob/main/NEWS.md" class="external-link"><code>NEWS.md</code></a></small>
     </div>
 
+    <div class="section level2">
+<h2 class="pkg-version" data-toc-text="0.2.3" id="dafr-023">dafr 0.2.3<a class="anchor" aria-label="anchor" href="#dafr-023"></a></h2>
+<div class="section level3">
+<h3 id="concat--contracts--reconstruction-parity-m1--m4--c1--cr3-0-2-3">Concat / contracts / reconstruction parity (M1 + M4 + C1 + CR3)<a class="anchor" aria-label="anchor" href="#concat--contracts--reconstruction-parity-m1--m4--c1--cr3-0-2-3"></a></h3>
+<ul><li>
+<strong><code>concatenate(merge = list(ALL_SCALARS = ...))</code></strong> wildcards now expand against the source properties at concat time. Mirrors Julia’s <code>[ALL_SCALARS =&gt; action]</code> / <code>[ALL_VECTORS =&gt; action]</code> / <code>[ALL_MATRICES =&gt; action]</code>. Explicit non-wildcard keys still override wildcard-expanded entries. The “can’t collect axis for the scalar:” error wording now matches Julia byte-for-byte.</li>
+<li>
+<strong><code>concatenate(prefixed = list(axis = c(...)))</code></strong> is now an override that fires regardless of <code>prefix[axis]</code>. The list names cell-axis vectors whose values reference a prefixed axis and thus need the dataset name spliced in. Previously dafr ANDed the per-axis prefix flag with the list, so vectors listed in <code>prefixed[cell]</code> were not prefixed when <code>prefix[cell] == FALSE</code>.</li>
+<li>
+<strong><code><a href="../reference/merge_contracts.html">merge_contracts()</a></code> rejects <code>integer</code> vs <code>character</code></strong> (and other cross-lattice mixes) with Julia’s <code>incompatible type:</code> error. Previously dafr’s type lattice was a total order (<code>logical &lt; integer &lt; double &lt; character</code>) so any pair quietly merged to the narrower type. Now <code>character</code> and <code>integer64</code> are siblings to the numeric chain - same-chain merges still pick the narrower type, cross-chain merges error.</li>
+<li>
+<strong><code>reconstruct_axis(..., properties_defaults = list(prop = val))</code></strong> merges into a pre-existing axis. Implicit-property values must be a subset of the axis entries; any extra entries get the per-property default value. Mirrors Julia’s <code>reconstruct_axis!(..., properties_defaults = (; prop = val))</code>.</li>
+</ul></div>
+</div>
     <div class="section level2">
 <h2 class="pkg-version" data-toc-text="0.2.2" id="dafr-022">dafr 0.2.2<a class="anchor" aria-label="anchor" href="#dafr-022"></a></h2>
 <div class="section level3">
