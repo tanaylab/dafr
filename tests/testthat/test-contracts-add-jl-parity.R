@@ -162,14 +162,20 @@ test_that("contracts / add / data / integer-int32", {
 })
 
 test_that("contracts / add / data / incompatible", {
-    # Two types with no width-order relationship -> error.
-    # Julia uses Int64 vs Int32 (no subtype lineage). dafr's analogue
-    # is any pair where one type is outside the width order, e.g.
-    # introducing a fictitious type — except dafr also rejects type
-    # spec at construction. Use integer vs character which ARE in the
-    # width order but never narrow into each other in practice; dafr
-    # actually merges these to "integer" (narrower of the two). The
-    # parity-equivalent "no merge possible" case in R is harder to
-    # express because dafr's width order is total. Skip with C1.
-    skip("R divergence C1: dafr's .merge_types uses a total width order (logical<integer<double<numeric<character) so any two types in that order merge; Julia rejects Int64-vs-Int32 because they're sibling types in the type lattice. No clean R-side equivalent of the 'incompatible siblings' error.")
+    # Julia rejects Int64-vs-Int32 because they're sibling types in
+    # the type lattice. R's analogue: `character` is a sibling to the
+    # numeric chain; merging `character` with `integer` errors with
+    # the same `incompatible type:` message Julia uses.
+    left <- Contract(
+        axes = list(cell = list(RequiredInput, "axis")),
+        data = list(contract_vector("cell", "x", RequiredInput,
+                                    "integer", "x"))
+    )
+    right <- Contract(
+        axes = list(cell = list(RequiredInput, "axis")),
+        data = list(contract_vector("cell", "x", RequiredInput,
+                                    "character", "x"))
+    )
+    expect_error(merge_contracts(left, right),
+                 regexp = "incompatible type: integer.*type: character")
 })

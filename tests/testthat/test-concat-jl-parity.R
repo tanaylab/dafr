@@ -225,12 +225,28 @@ test_that("concat / prefix / names", {
 })
 
 test_that("concat / prefix / prefixes", {
-    # Julia: prefixed = [Set(["metacell", "!metacell"]), Set{String}()]
-    # is an override that fires regardless of prefix[axis]. dafr's gate
-    # `isTRUE(do_prefix) && name %in% vec` requires prefix[axis] == TRUE
-    # for the explicit set to act, so cell-axis properties listed in
-    # prefixed[1] are NOT prefixed when prefix[cell] == FALSE.
-    skip("R divergence M4: dafr prefixed= is gated by per-axis prefix flag, Julia treats it as override")
+    s <- .prefix_setup()
+    concatenate(
+        s$destination, c("cell", "metacell"), s$sources,
+        prefix = c(FALSE, TRUE),
+        prefixed = list(cell = c("metacell", "!metacell"), metacell = character(0L))
+    )
+    expect_equal(unname(axis_vector(s$destination, "cell")),
+                 c("A", "B", "C", "D", "E"))
+    expect_equal(unname(axis_vector(s$destination, "metacell")),
+                 c("source.1!.M1", "source.2!.M1", "source.2!.M2"))
+    expect_equal(unname(axis_vector(s$destination, "dataset")),
+                 c("source.1!", "source.2!"))
+    expect_equal(unname(get_vector(s$destination, "cell", "dataset")),
+                 c("source.1!", "source.1!", "source.2!", "source.2!", "source.2!"))
+    expect_equal(unname(get_vector(s$destination, "metacell", "dataset")),
+                 c("source.1!", "source.2!", "source.2!"))
+    expect_equal(unname(get_vector(s$destination, "cell", "metacell")),
+                 c("source.1!.M1", "source.1!.M1", "source.2!.M1",
+                   "source.2!.M2", "source.2!.M1"))
+    expect_equal(unname(get_vector(s$destination, "cell", "!metacell")),
+                 c("source.1!.M1", "source.1!.M1", "source.2!.M1",
+                   "source.2!.M2", "source.2!.M1"))
 })
 
 # ---------------------------------------------------------------------------
@@ -448,11 +464,22 @@ test_that("concat / merge / scalar / last", {
 })
 
 test_that("concat / merge / scalar / collect", {
-    skip("R divergence M1: dafr concatenate merge does not honor ALL_SCALARS wildcard")
+    s <- .merge_scalar_setup()
+    concatenate(s$destination, "cell", s$sources,
+                merge = setNames(list(MERGE_COLLECT_AXIS), ALL_SCALARS))
+    expect_false(has_scalar(s$destination, "version"))
+    expect_equal(unname(get_vector(s$destination, "dataset", "version")),
+                 c(1L, 2L))
 })
 
 test_that("concat / merge / scalar / !collect", {
-    skip("R divergence M1: dafr concatenate merge does not honor ALL_SCALARS wildcard")
+    s <- .merge_scalar_setup()
+    expect_error(
+        concatenate(s$destination, "cell", s$sources,
+                    dataset_axis = NULL,
+                    merge = setNames(list(MERGE_COLLECT_AXIS), ALL_SCALARS)),
+        regexp = "can't collect axis for the scalar: version"
+    )
 })
 
 # ---------------------------------------------------------------------------

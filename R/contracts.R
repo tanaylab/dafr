@@ -1121,20 +1121,25 @@ verify_output <- function(daf) {
     ), call. = FALSE)
 }
 
-.TYPE_WIDTH_ORDER <- c("logical", "integer", "double", "numeric", "character")
+# Type lattice for contract merge. R's atomic types form one numeric
+# chain (logical -> integer -> double / numeric); `character` and
+# `integer64` are siblings to it (no implicit promotion). Mirrors the
+# Julia type lattice where Float64 + Float32 -> Float32 (narrower) but
+# Int64 + Int32 is rejected because they're sibling subtypes.
+.TYPE_NUMERIC_CHAIN <- c("logical", "integer", "double", "numeric")
 
 .merge_types <- function(key, left, right) {
     if (identical(left, right)) return(left)
-    li <- match(left,  .TYPE_WIDTH_ORDER, nomatch = NA_integer_)
-    ri <- match(right, .TYPE_WIDTH_ORDER, nomatch = NA_integer_)
+    li <- match(left,  .TYPE_NUMERIC_CHAIN, nomatch = NA_integer_)
+    ri <- match(right, .TYPE_NUMERIC_CHAIN, nomatch = NA_integer_)
     if (is.na(li) || is.na(ri)) {
         stop(sprintf(
             "incompatible type: %s\nand type: %s\nfor the contracts data: %s",
             left, right, key
         ), call. = FALSE)
     }
-    # Prefer the narrower type (smaller index).
-    .TYPE_WIDTH_ORDER[[min(li, ri)]]
+    # Within the numeric chain, narrower wins.
+    .TYPE_NUMERIC_CHAIN[[min(li, ri)]]
 }
 
 #' Merge two contracts.

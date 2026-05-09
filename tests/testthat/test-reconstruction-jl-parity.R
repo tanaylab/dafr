@@ -64,5 +64,17 @@ test_that("reconstruction / manual / !entry", {
 })
 
 test_that("reconstruction / manual / default", {
-    skip("R divergence CR3: dafr's reconstruct_axis() does not support a `properties_defaults` parameter. Julia's reconstruct_axis! uses it to fill in unused-entry values for the manual/default case. Adding it requires merging into a pre-existing axis (also disallowed in dafr - see CR4).")
+    d <- .recon_fresh_daf()
+    set_vector(d, "cell", "batch", c("X", "X", "Y", ""))
+    add_axis(d, "batch", c("X", "Y", "Z"))
+    results <- reconstruct_axis(d,
+        existing_axis = "cell", implicit_axis = "batch",
+        properties_defaults = list(age = 4L)
+    )
+    expect_setequal(names(results), "age")
+    expect_identical(unname(as.integer(results[["age"]])), 3L)
+    expect_equal(unname(get_vector(d, "batch", "age")), c(1L, 2L, 4L))
+    desc <- description(d)
+    expect_match(desc, "batch: 3 entries")
+    expect_match(desc, "cell: 4 entries")
 })
