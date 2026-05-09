@@ -222,8 +222,12 @@ concatenate <- function(destination, axis, sources,
         }
         is_prefix_target <- {
             if (!is.null(prefixed)) {
+                # Julia parity (M4): `prefixed` is an override that fires
+                # regardless of `prefix[axis]`. The list names properties
+                # whose values reference a prefixed axis and thus need
+                # the dataset name spliced in.
                 vec <- if (is.list(prefixed)) prefixed[[axis]] else prefixed
-                isTRUE(do_prefix) && name %in% vec
+                !is.null(vec) && name %in% vec
             } else {
                 # Heuristic: prefix if the property name matches (or looks
                 # like a subproperty of) any concat axis that is itself
@@ -299,8 +303,9 @@ concatenate <- function(destination, axis, sources,
 
 .concat_merge <- function(destination, sources, dataset_names, dataset_axis,
                           concat_axes, merge, empty, overwrite) {
-    for (prop_key in base::names(merge)) {
-        action <- merge[[prop_key]]
+    expanded <- .concat_expand_merge_wildcards(sources, concat_axes, merge)
+    for (prop_key in base::names(expanded)) {
+        action <- expanded[[prop_key]]
         parts <- strsplit(prop_key, "|", fixed = TRUE)[[1L]]
         if (length(parts) == 1L) {
             .concat_merge_scalar(destination, sources, dataset_names,
@@ -325,6 +330,67 @@ concatenate <- function(destination, axis, sources,
     }
 }
 
+# Expand `*` wildcards in merge keys (M1 parity with Julia's
+# `ALL_SCALARS / ALL_VECTORS / ALL_MATRICES => action` map). Specific
+# (non-wildcard) keys override wildcard expansions so users can opt
+# out of selected entries.
+.concat_expand_merge_wildcards <- function(sources, concat_axes, merge) {
+    out <- list()
+    explicit <- character(0)
+    # Pass 1: explicit keys win over wildcard expansions.
+    for (key in base::names(merge)) {
+        parts <- strsplit(key, "|", fixed = TRUE)[[1L]]
+        if (!any(parts == "*")) {
+            out[[key]] <- merge[[key]]
+            explicit <- c(explicit, key)
+        }
+    }
+    # Pass 2: expand wildcards against the actual properties present in
+    # the sources, skipping keys already pinned in pass 1.
+    for (key in base::names(merge)) {
+        parts <- strsplit(key, "|", fixed = TRUE)[[1L]]
+        if (!any(parts == "*")) next
+        action <- merge[[key]]
+        if (length(parts) == 1L && parts[[1L]] == "*") {
+            for (src in sources) {
+                for (n in format_scalars_set(src)) {
+                    if (!(n %in% explicit)) out[[n]] <- action
+                }
+            }
+        } else if (length(parts) == 2L) {
+            ax_pat <- parts[[1L]]; nm_pat <- parts[[2L]]
+            for (src in sources) {
+                for (axis in format_axes_set(src)) {
+                    if (axis %in% concat_axes) next
+                    if (ax_pat != "*" && ax_pat != axis) next
+                    for (n in format_vectors_set(src, axis)) {
+                        if (nm_pat != "*" && nm_pat != n) next
+                        k <- paste(axis, n, sep = "|")
+                        if (!(k %in% explicit)) out[[k]] <- action
+                    }
+                }
+            }
+        } else if (length(parts) == 3L) {
+            r_pat <- parts[[1L]]; c_pat <- parts[[2L]]; nm_pat <- parts[[3L]]
+            for (src in sources) {
+                axes <- format_axes_set(src)
+                for (rax in axes) {
+                    if (r_pat != "*" && r_pat != rax) next
+                    for (cax in axes) {
+                        if (c_pat != "*" && c_pat != cax) next
+                        for (n in format_matrices_set(src, rax, cax)) {
+                            if (nm_pat != "*" && nm_pat != n) next
+                            k <- paste(rax, cax, n, sep = "|")
+                            if (!(k %in% explicit)) out[[k]] <- action
+                        }
+                    }
+                }
+            }
+        }
+    }
+    out
+}
+
 .concat_merge_scalar <- function(destination, sources, dataset_names,
                                  dataset_axis, name, action, overwrite) {
     if (action == MERGE_SKIP) return(invisible())
@@ -342,8 +408,8 @@ concatenate <- function(destination, axis, sources,
     if (action == MERGE_COLLECT_AXIS) {
         if (is.null(dataset_axis)) {
             stop(sprintf(
-                "can't collect axis for the scalar: %s because no dataset axis was created",
-                sQuote(name)
+                "can't collect axis for the scalar: %s\nof the daf data sets concatenated into the daf data: %s\nbecause no data set axis was created",
+                name, S7::prop(destination, "name")
             ), call. = FALSE)
         }
         vals <- lapply(sources, function(s)

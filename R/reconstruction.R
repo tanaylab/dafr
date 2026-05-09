@@ -28,6 +28,13 @@ NULL
 #'   properties are considered for migration.
 #' @param skipped_properties Optional character vector: properties to
 #'   exclude from migration (even if consistent).
+#' @param properties_defaults Optional named list: per-property default
+#'   value used to fill unused entries of an existing target axis.
+#'   When supplied, `reconstruct_axis()` will merge into a
+#'   pre-existing axis - the entries listed by the implicit property
+#'   must all be present in the axis, and any extras get the
+#'   per-property default. Mirrors Julia's
+#'   `reconstruct_axis!(..., properties_defaults = (; ...))`.
 #' @return Named list of "value for empty-implicit entries" per migrated
 #'   property.
 #' @export
@@ -42,13 +49,15 @@ reconstruct_axis <- function(daf, existing_axis, implicit_axis,
                              rename_axis = NULL,
                              empty_implicit = NULL,
                              implicit_properties = NULL,
-                             skipped_properties = NULL) {
+                             skipped_properties = NULL,
+                             properties_defaults = NULL) {
     .assert_name(existing_axis, "existing_axis")
     .assert_name(implicit_axis, "implicit_axis")
     if (!is.null(rename_axis)) .assert_name(rename_axis, "rename_axis")
     new_axis <- if (is.null(rename_axis)) implicit_axis else rename_axis
 
-    if (format_has_axis(daf, new_axis)) {
+    axis_already_exists <- format_has_axis(daf, new_axis)
+    if (axis_already_exists && is.null(properties_defaults)) {
         stop(sprintf(
             "axis %s already exists; reconstruct_axis does not support merging into a pre-existing axis",
             sQuote(new_axis)
@@ -68,8 +77,20 @@ reconstruct_axis <- function(daf, existing_axis, implicit_axis,
     }
 
     non_empty <- impl_str[nzchar(impl_str)]
-    unique_vals <- sort(unique(non_empty), method = "radix")
-    format_add_axis(daf, new_axis, unique_vals)
+    if (axis_already_exists) {
+        existing_entries <- format_axis_array(daf, new_axis)$value
+        unused <- setdiff(unique(non_empty), existing_entries)
+        if (length(unused) > 0L) {
+            stop(sprintf(
+                "implicit values not in existing axis: %s\nfor the axis: %s\nfor the implicit property: %s",
+                paste(unused, collapse = ", "), new_axis, implicit_axis
+            ), call. = FALSE)
+        }
+        unique_vals <- existing_entries
+    } else {
+        unique_vals <- sort(unique(non_empty), method = "radix")
+        format_add_axis(daf, new_axis, unique_vals)
+    }
 
     all_vecs <- format_vectors_set(daf, existing_axis)
     all_vecs <- setdiff(all_vecs, implicit_axis)
@@ -112,6 +133,18 @@ reconstruct_axis <- function(daf, existing_axis, implicit_axis,
                 ), call. = FALSE)
             }
             next
+        }
+        # CR3 parity: when reconstructing into a pre-existing axis,
+        # `unique_vals` may include entries not seen via the implicit
+        # property. Fill those unused-entry slots from
+        # `properties_defaults` if a default for `prop` was supplied;
+        # otherwise the property is skipped.
+        prop_default <- if (!is.null(properties_defaults))
+            properties_defaults[[prop]] else NULL
+        unused_keys <- setdiff(unique_vals, names(mapping))
+        if (length(unused_keys) > 0L) {
+            if (is.null(prop_default)) next
+            for (k in unused_keys) mapping[[k]] <- prop_default
         }
         out <- vapply(unique_vals, function(k) mapping[[k]],
                       FUN.VALUE = values[[1L]])
