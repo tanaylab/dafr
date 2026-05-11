@@ -1,6 +1,6 @@
 Package: dafr
 Title: Data in Axes in Formats (DAF) for R
-Version: 0.2.4
+Version: 0.2.5
 Authors@R: c(
     person("Aviezer", "Lifshitz", , "aviezer.lifshitz@weizmann.ac.il",
            role = c("aut", "cre"),
