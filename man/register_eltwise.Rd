@@ -4,7 +4,7 @@
 \alias{register_eltwise}
 \title{Register an eltwise operation.}
 \usage{
-register_eltwise(name, fn, overwrite = FALSE)
+register_eltwise(name, fn, overwrite = FALSE, source = NULL)
 }
 \arguments{
 \item{name}{Op name (character scalar, matches token in query strings).}

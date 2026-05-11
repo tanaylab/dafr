@@ -56,7 +56,7 @@ test_that("register_reduction errors on collision without overwrite", {
     register_reduction("DupTest", function(x, ...) sum(x))
     expect_error(
         register_reduction("DupTest", function(x, ...) mean(x)),
-        "already registered"
+        "conflicting registrations"
     )
 })
 

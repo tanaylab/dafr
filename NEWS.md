@@ -1,3 +1,24 @@
+# dafr 0.2.5
+
+## Query registry parity (CR1 closed)
+
+- **`register_query_operation(kind, name, fn)`** is now exposed as a
+  single user-facing entry point for adding custom eltwise /
+  reduction ops to the dafr query DSL. Mirrors Julia's
+  `register_query_operation()` from `DataAxesFormats.Registry`.
+- **Collision errors** now match Julia's template:
+
+  ```
+  conflicting registrations for the eltwise operation: <name>
+  first in: <file>:<line>
+  second in: <file>:<line>
+  ```
+
+  Previously the error was `<name> already registered; use
+  overwrite = TRUE`. The new wording includes both registration
+  source locations (captured automatically from the caller's
+  srcref, or supplied explicitly via the new `source =` parameter).
+
 # dafr 0.2.4
 
 ## CI: regenerate stale man pages
