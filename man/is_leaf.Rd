@@ -4,12 +4,10 @@
 \alias{is_leaf}
 \title{Is \code{daf} a leaf storage format?}
 \usage{
-is_leaf(daf, ...)
+is_leaf(daf)
 }
 \arguments{
-\item{daf}{A \link{DafReader}.}
-
-\item{...}{Reserved for method-specific extensions.}
+\item{daf}{A \link{DafReader} instance or an S7 class object.}
 }
 \value{
 Logical scalar.
@@ -23,6 +21,12 @@ by \code{\link[=reorder_axes]{reorder_axes()}} to reject non-leaf inputs because
 indices is only meaningful on the underlying storage. Mirrors
 upstream Julia \code{Readers.is_leaf}.
 }
+\details{
+Accepts either a \code{DafReader} instance or an S7 class object (so
+that \code{is_leaf(MemoryDaf)} mirrors Julia's class-level
+\verb{is_leaf(::Type\{MemoryDaf\})}).
+}
 \examples{
 is_leaf(memory_daf())
+is_leaf(MemoryDaf)
 }

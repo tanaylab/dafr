@@ -99,12 +99,27 @@ format_description_header <- S7::new_generic(
 #' indices is only meaningful on the underlying storage. Mirrors
 #' upstream Julia `Readers.is_leaf`.
 #'
-#' @param daf A [DafReader].
-#' @param ... Reserved for method-specific extensions.
+#' Accepts either a `DafReader` instance or an S7 class object (so
+#' that `is_leaf(MemoryDaf)` mirrors Julia's class-level
+#' `is_leaf(::Type{MemoryDaf})`).
+#'
+#' @param daf A [DafReader] instance or an S7 class object.
 #' @return Logical scalar.
 #' @examples
 #' is_leaf(memory_daf())
+#' is_leaf(MemoryDaf)
 #' @export
+is_leaf <- function(daf) {
+    if (inherits(daf, "S7_class")) {
+        return(attr(daf, "name") %in% .LEAF_DAF_CLASS_NAMES)
+    }
+    .is_leaf_dispatch(daf)
+}
+
+# Internal S7 generic for instance dispatch. Per-format methods live
+# in memory_daf.R / files_daf.R / zarr_format.R / http_format.R /
+# readers.R. Wrapped by `is_leaf()` above so that class-level calls
+# (Julia parity) bypass the generic.
 .is_leaf_dispatch <- S7::new_generic(".is_leaf_dispatch", "daf")
 
 # Names of concrete leaf daf classes. Abstract classes (DafReader,
@@ -116,13 +131,3 @@ format_description_header <- S7::new_generic(
     "ZarrDaf", "ZarrDafReadOnly",
     "HttpDaf"
 )
-
-is_leaf <- function(daf) {
-    # Class-level dispatch (Julia parity: `is_leaf(MemoryDaf)`):
-    # accept an S7 class object directly. A leaf class is any concrete
-    # subclass of DafReader; abstract classes are non-leaf.
-    if (inherits(daf, "S7_class")) {
-        return(attr(daf, "name") %in% .LEAF_DAF_CLASS_NAMES)
-    }
-    .is_leaf_dispatch(daf)
-}
