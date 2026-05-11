@@ -22,15 +22,15 @@ set_matrix(d, "cell", "cell", "kin",
            matrix(c(1, 0, 0, 0, 1, 0, 0, 0, 1), 3, 3))
 rm(d); gc()
 #>           used  (Mb) gc trigger  (Mb) max used  (Mb)
-#> Ncells 2509513 134.1    5038044 269.1  3276178 175.0
-#> Vcells 4310632  32.9   10146329  77.5  7110848  54.3
+#> Ncells 2509513 134.1    5038028 269.1  3276210 175.0
+#> Vcells 4310632  32.9   10146329  77.5  7110854  54.3
 
 # Reopen read-only and inspect.
 d <- zarr_daf(path, mode = "r")
 cat(description(d))
-#> name: file27ca13c8222c.daf.zarr
+#> name: file28441665f06b.daf.zarr
 #> type: ZarrDaf
-#> path: /tmp/Rtmpe7Yhxu/file27ca13c8222c.daf.zarr
+#> path: /tmp/RtmpMI4gWR/file28441665f06b.daf.zarr
 #> mode: r
 #> scalars:
 #>   organism: "human"
@@ -71,8 +71,8 @@ add_axis(d, "gene", c("g1", "g2"))
 set_vector(d, "gene", "is_marker", c(TRUE, FALSE))
 rm(d); gc()
 #>           used  (Mb) gc trigger  (Mb) max used  (Mb)
-#> Ncells 2734168 146.1    5038044 269.1  3276178 175.0
-#> Vcells 4685013  35.8   10146329  77.5  7110848  54.3
+#> Ncells 2734168 146.1    5038028 269.1  3276210 175.0
+#> Vcells 4685017  35.8   10146329  77.5  7110854  54.3
 
 # Reopen.
 d <- zarr_daf(zip_path, mode = "r")
