@@ -1,3 +1,19 @@
+# dafr 0.2.4
+
+## CI: regenerate stale man pages
+
+R CMD check on Linux devel / oldrel, Windows, and macOS hit
+`code/documentation mismatches` after the v0.2.2 / v0.2.3 ship. Two
+man pages were out of date with their code:
+
+- `man/is_leaf.Rd` still documented the S7-generic signature
+  `function(daf, ...)`; the R2 refactor in v0.2.2 made `is_leaf()` a
+  plain wrapper `function(daf)`.
+- `man/reconstruct_axis.Rd` was missing the `properties_defaults`
+  parameter added in v0.2.3.
+
+Both regenerated. No behavioural changes.
+
 # dafr 0.2.3
 
 ## Concat / contracts / reconstruction parity (M1 + M4 + C1 + CR3)
