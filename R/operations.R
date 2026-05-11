@@ -4,6 +4,24 @@ NULL
 .ops_env <- new.env(parent = emptyenv())
 .ops_env$reductions <- list()
 .ops_env$eltwise <- list()
+# Track the source location (file:line) where each op was first
+# registered, so conflict errors mirror Julia's
+# `conflicting registrations for the <kind> operation: <name>\n
+#  first in: <file>:<line>\nsecond in: <file>:<line>` template.
+.ops_env$sources_reductions <- list()
+.ops_env$sources_eltwise    <- list()
+
+# Best-effort source-location capture for the calling frame. Returns
+# `file:line` if the call has a srcref, otherwise `"<unknown>:0"`.
+.caller_source <- function(n = 2L) {
+    sref <- tryCatch(attr(sys.call(-n), "srcref"), error = function(e) NULL)
+    if (is.null(sref)) sref <- tryCatch(
+        attr(sys.call(-(n + 1L)), "srcref"), error = function(e) NULL)
+    if (is.null(sref)) return("<unknown>:0")
+    file <- attr(sref, "srcfile")$filename %||% "<unknown>"
+    line <- sref[[1L]]
+    sprintf("%s:%d", file, line)
+}
 
 #' Register a reduction operation.
 #'
@@ -20,20 +38,23 @@ NULL
 #' register_reduction("Median_example", function(x, ...) median(x, ...), overwrite = TRUE)
 #' registered_reductions()
 #' @export
-register_reduction <- function(name, fn, overwrite = FALSE) {
+register_reduction <- function(name, fn, overwrite = FALSE, source = NULL) {
     .assert_name(name, "reduction name")
     if (!is.function(fn)) {
         stop(sprintf("`fn` must be a function (for reduction %s)", sQuote(name)),
             call. = FALSE
         )
     }
+    if (is.null(source)) source <- .caller_source()
     if (!isTRUE(overwrite) && !is.null(.ops_env$reductions[[name]])) {
         stop(sprintf(
-            "reduction operation %s already registered; use overwrite = TRUE",
-            sQuote(name)
+            "conflicting registrations for the reduction operation: %s\nfirst in: %s\nsecond in: %s",
+            name, .ops_env$sources_reductions[[name]] %||% "<unknown>:0",
+            source
         ), call. = FALSE)
     }
     .ops_env$reductions[[name]] <- fn
+    .ops_env$sources_reductions[[name]] <- source
     invisible(NULL)
 }
 
@@ -53,21 +74,62 @@ register_reduction <- function(name, fn, overwrite = FALSE) {
 #'                  overwrite = TRUE)
 #' registered_eltwise()
 #' @export
-register_eltwise <- function(name, fn, overwrite = FALSE) {
+register_eltwise <- function(name, fn, overwrite = FALSE, source = NULL) {
     .assert_name(name, "eltwise name")
     if (!is.function(fn)) {
         stop(sprintf("`fn` must be a function (for eltwise %s)", sQuote(name)),
             call. = FALSE
         )
     }
+    if (is.null(source)) source <- .caller_source()
     if (!isTRUE(overwrite) && !is.null(.ops_env$eltwise[[name]])) {
         stop(sprintf(
-            "eltwise operation %s already registered; use overwrite = TRUE",
-            sQuote(name)
+            "conflicting registrations for the eltwise operation: %s\nfirst in: %s\nsecond in: %s",
+            name, .ops_env$sources_eltwise[[name]] %||% "<unknown>:0",
+            source
         ), call. = FALSE)
     }
     .ops_env$eltwise[[name]] <- fn
+    .ops_env$sources_eltwise[[name]] <- source
     invisible(NULL)
+}
+
+#' Register a query operation (eltwise or reduction).
+#'
+#' Single entry point for adding custom eltwise / reduction operations
+#' to the dafr query DSL at runtime. Mirrors Julia's
+#' `register_query_operation()` from `DataAxesFormats.Registry`.
+#'
+#' @param kind Either `"eltwise"` or `"reduction"`.
+#' @param name Op name; must match `[A-Z][A-Za-z0-9_]*` to be a valid
+#'   query token.
+#' @param fn Function `function(x, ...)` where `x` is a numeric value
+#'   (scalar / vector / matrix) and `...` collects named parameters.
+#' @param overwrite Logical; replace an already-registered op of the
+#'   same kind and name.
+#' @param source Optional `"file:line"` string identifying where the
+#'   registration happened. Used in the conflict error message;
+#'   auto-captured from the caller's srcref if omitted.
+#' @return Invisibly `NULL`.
+#' @examples
+#' register_query_operation("eltwise", "Clamp01",
+#'   function(x, ...) pmin(pmax(x, 0), 1),
+#'   overwrite = TRUE)
+#' @export
+register_query_operation <- function(kind, name, fn,
+                                     overwrite = FALSE,
+                                     source = NULL) {
+    if (!is.character(kind) || length(kind) != 1L ||
+        !(kind %in% c("eltwise", "reduction"))) {
+        stop("kind must be either \"eltwise\" or \"reduction\"",
+             call. = FALSE)
+    }
+    if (is.null(source)) source <- .caller_source()
+    if (kind == "eltwise") {
+        register_eltwise(name, fn, overwrite = overwrite, source = source)
+    } else {
+        register_reduction(name, fn, overwrite = overwrite, source = source)
+    }
 }
 
 #' Retrieve a registered reduction operation by name.

@@ -4,7 +4,7 @@
 \alias{register_reduction}
 \title{Register a reduction operation.}
 \usage{
-register_reduction(name, fn, overwrite = FALSE)
+register_reduction(name, fn, overwrite = FALSE, source = NULL)
 }
 \arguments{
 \item{name}{Op name (character scalar, matches token in query strings).}
