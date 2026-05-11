@@ -7,7 +7,7 @@
 
     <a class="navbar-brand me-2" href="../index.html">dafr</a>
 
-    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">0.2.3</small>
+    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">0.2.4</small>
 
 
     <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbar" aria-controls="navbar" aria-expanded="false" aria-label="Toggle navigation">
@@ -42,9 +42,21 @@
   <main id="main" class="col-md-9"><div class="page-header">
 
       <h1>Changelog</h1>
-      <small>Source: <a href="https://github.com/tanaylab/dafr/blob/v0.2.3/NEWS.md" class="external-link"><code>NEWS.md</code></a></small>
+      <small>Source: <a href="https://github.com/tanaylab/dafr/blob/main/NEWS.md" class="external-link"><code>NEWS.md</code></a></small>
     </div>
 
+    <div class="section level2">
+<h2 class="pkg-version" data-toc-text="0.2.4" id="dafr-024">dafr 0.2.4<a class="anchor" aria-label="anchor" href="#dafr-024"></a></h2>
+<div class="section level3">
+<h3 id="ci-regenerate-stale-man-pages-0-2-4">CI: regenerate stale man pages<a class="anchor" aria-label="anchor" href="#ci-regenerate-stale-man-pages-0-2-4"></a></h3>
+<p>R CMD check on Linux devel / oldrel, Windows, and macOS hit <code>code/documentation mismatches</code> after the v0.2.2 / v0.2.3 ship. Two man pages were out of date with their code:</p>
+<ul><li>
+<code>man/is_leaf.Rd</code> still documented the S7-generic signature <code>function(daf, ...)</code>; the R2 refactor in v0.2.2 made <code><a href="../reference/is_leaf.html">is_leaf()</a></code> a plain wrapper <code>function(daf)</code>.</li>
+<li>
+<code>man/reconstruct_axis.Rd</code> was missing the <code>properties_defaults</code> parameter added in v0.2.3.</li>
+</ul><p>Both regenerated. No behavioural changes.</p>
+</div>
+</div>
     <div class="section level2">
 <h2 class="pkg-version" data-toc-text="0.2.3" id="dafr-023">dafr 0.2.3<a class="anchor" aria-label="anchor" href="#dafr-023"></a></h2>
 <div class="section level3">

@@ -125,26 +125,26 @@ adapter(d,
 )
 #> <dafr::WriteChainDaf>
 #>  @ name                  : chr "base.adapter.adapted"
-#>  @ internal              :<environment: 0x563526490e88> 
-#>  @ cache                 :<environment: 0x5635264911d0> 
-#>  @ axis_version_counter  :<environment: 0x563526459b28> 
-#>  @ vector_version_counter:<environment: 0x56352644ae68> 
-#>  @ matrix_version_counter:<environment: 0x5635264437f0> 
+#>  @ internal              :<environment: 0x5567f2887510> 
+#>  @ cache                 :<environment: 0x5567f2887858> 
+#>  @ axis_version_counter  :<environment: 0x5567f2885510> 
+#>  @ vector_version_counter:<environment: 0x5567f28857e8> 
+#>  @ matrix_version_counter:<environment: 0x5567f2885ac0> 
 #>  @ dafs                  :List of 2
 #>  .. $ : <dafr::ViewDaf>
 #>  ..  ..@ name                  : chr "base.adapter.input"
-#>  ..  ..@ internal              :<environment: 0x56352a83d298> 
-#>  ..  ..@ cache                 :<environment: 0x56352d90e9c8> 
-#>  ..  ..@ axis_version_counter  :<environment: 0x56352d90d4f0> 
-#>  ..  ..@ vector_version_counter:<environment: 0x56352d907ab0> 
-#>  ..  ..@ matrix_version_counter:<environment: 0x56352d907d88> 
+#>  ..  ..@ internal              :<environment: 0x5567f6e116c8> 
+#>  ..  ..@ cache                 :<environment: 0x5567f9d29c80> 
+#>  ..  ..@ axis_version_counter  :<environment: 0x5567f9d23270> 
+#>  ..  ..@ vector_version_counter:<environment: 0x5567f9d23dd0> 
+#>  ..  ..@ matrix_version_counter:<environment: 0x5567f9d20b70> 
 #>  ..  ..@ base                  : <dafr::MemoryDaf>
 #>  .. .. .. @ name                  : chr "base"
-#>  .. .. .. @ internal              :<environment: 0x56352d911a08> 
-#>  .. .. .. @ cache                 :<environment: 0x56352d90e9c8> 
-#>  .. .. .. @ axis_version_counter  :<environment: 0x56352d90d4f0> 
-#>  .. .. .. @ vector_version_counter:<environment: 0x56352d907ab0> 
-#>  .. .. .. @ matrix_version_counter:<environment: 0x56352d907d88> 
+#>  .. .. .. @ internal              :<environment: 0x5567f9d2a898> 
+#>  .. .. .. @ cache                 :<environment: 0x5567f9d29c80> 
+#>  .. .. .. @ axis_version_counter  :<environment: 0x5567f9d23270> 
+#>  .. .. .. @ vector_version_counter:<environment: 0x5567f9d23dd0> 
+#>  .. .. .. @ matrix_version_counter:<environment: 0x5567f9d20b70> 
 #>  ..  ..@ view_axes             :List of 1
 #>  .. .. .. $ obs: chr "@ cell"
 #>  ..  ..@ view_axis_renames     :List of 1
@@ -161,18 +161,18 @@ adapter(d,
 #>  ..  ..@ view_matrices         : list()
 #>  .. $ : <dafr::MemoryDaf>
 #>  ..  ..@ name                  : chr "base.adapter.capture"
-#>  ..  ..@ internal              :<environment: 0x563529eddd50> 
-#>  ..  ..@ cache                 :<environment: 0x563529ecc6f0> 
-#>  ..  ..@ axis_version_counter  :<environment: 0x563529ea9a30> 
-#>  ..  ..@ vector_version_counter:<environment: 0x563529e9e450> 
-#>  ..  ..@ matrix_version_counter:<environment: 0x563529e6dd08> 
+#>  ..  ..@ internal              :<environment: 0x5567f66befd8> 
+#>  ..  ..@ cache                 :<environment: 0x5567f66b3870> 
+#>  ..  ..@ axis_version_counter  :<environment: 0x5567f65a67a0> 
+#>  ..  ..@ vector_version_counter:<environment: 0x5567f658c238> 
+#>  ..  ..@ matrix_version_counter:<environment: 0x5567f6584190> 
 #>  @ writer                : <dafr::MemoryDaf>
 #>  .. @ name                  : chr "base.adapter.capture"
-#>  .. @ internal              :<environment: 0x563529eddd50> 
-#>  .. @ cache                 :<environment: 0x563529ecc6f0> 
-#>  .. @ axis_version_counter  :<environment: 0x563529ea9a30> 
-#>  .. @ vector_version_counter:<environment: 0x563529e9e450> 
-#>  .. @ matrix_version_counter:<environment: 0x563529e6dd08> 
+#>  .. @ internal              :<environment: 0x5567f66befd8> 
+#>  .. @ cache                 :<environment: 0x5567f66b3870> 
+#>  .. @ axis_version_counter  :<environment: 0x5567f65a67a0> 
+#>  .. @ vector_version_counter:<environment: 0x5567f658c238> 
+#>  .. @ matrix_version_counter:<environment: 0x5567f6584190> 
 get_vector(d, "cell", "rank")
 #> c1 c2 c3 
 #>  1  2  3 

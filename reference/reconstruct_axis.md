@@ -15,7 +15,8 @@ reconstruct_axis(
   rename_axis = NULL,
   empty_implicit = NULL,
   implicit_properties = NULL,
-  skipped_properties = NULL
+  skipped_properties = NULL,
+  properties_defaults = NULL
 )
 ```
 
@@ -52,6 +53,15 @@ reconstruct_axis(
 
   Optional character vector: properties to exclude from migration (even
   if consistent).
+
+- properties_defaults:
+
+  Optional named list: per-property default value used to fill unused
+  entries of an existing target axis. When supplied,
+  `reconstruct_axis()` will merge into a pre-existing axis - the entries
+  listed by the implicit property must all be present in the axis, and
+  any extras get the per-property default. Mirrors Julia's
+  `reconstruct_axis!(..., properties_defaults = (; ...))`.
 
 ## Value
 

@@ -13,7 +13,7 @@ uniquely determined by the implicit value, migrate it to the new axis."></head><
 
     <a class="navbar-brand me-2" href="../index.html">dafr</a>
 
-    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">0.2.3</small>
+    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">0.2.4</small>
 
 
     <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbar" aria-controls="navbar" aria-expanded="false" aria-label="Toggle navigation">
@@ -48,7 +48,7 @@ uniquely determined by the implicit value, migrate it to the new axis."></head><
   <main id="main" class="col-md-9"><div class="page-header">
 
       <h1>Promote an implicit property to an explicit axis.</h1>
-      <small class="dont-index">Source: <a href="https://github.com/tanaylab/dafr/blob/v0.2.3/R/reconstruction.R" class="external-link"><code>R/reconstruction.R</code></a></small>
+      <small class="dont-index">Source: <a href="https://github.com/tanaylab/dafr/blob/main/R/reconstruction.R" class="external-link"><code>R/reconstruction.R</code></a></small>
       <div class="d-none name"><code>reconstruct_axis.Rd</code></div>
     </div>
 
@@ -68,7 +68,8 @@ uniquely determined by the implicit value, migrate it to the new axis.</p>
 <span>  rename_axis <span class="op">=</span> <span class="cn">NULL</span>,</span>
 <span>  empty_implicit <span class="op">=</span> <span class="cn">NULL</span>,</span>
 <span>  implicit_properties <span class="op">=</span> <span class="cn">NULL</span>,</span>
-<span>  skipped_properties <span class="op">=</span> <span class="cn">NULL</span></span>
+<span>  skipped_properties <span class="op">=</span> <span class="cn">NULL</span>,</span>
+<span>  properties_defaults <span class="op">=</span> <span class="cn">NULL</span></span>
 <span><span class="op">)</span></span></code></pre></div>
     </div>
 
@@ -106,6 +107,16 @@ properties are considered for migration.</p></dd>
 <dt id="arg-skipped-properties">skipped_properties<a class="anchor" aria-label="anchor" href="#arg-skipped-properties"></a></dt>
 <dd><p>Optional character vector: properties to
 exclude from migration (even if consistent).</p></dd>
+
+
+<dt id="arg-properties-defaults">properties_defaults<a class="anchor" aria-label="anchor" href="#arg-properties-defaults"></a></dt>
+<dd><p>Optional named list: per-property default
+value used to fill unused entries of an existing target axis.
+When supplied, <code>reconstruct_axis()</code> will merge into a
+pre-existing axis - the entries listed by the implicit property
+must all be present in the axis, and any extras get the
+per-property default. Mirrors Julia's
+<code>reconstruct_axis!(..., properties_defaults = (; ...))</code>.</p></dd>
 
 </dl></div>
     <div class="section level2">

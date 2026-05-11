@@ -19,7 +19,7 @@ upstream Julia Readers.is_leaf."></head><body>
 
     <a class="navbar-brand me-2" href="../index.html">dafr</a>
 
-    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">0.2.3</small>
+    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">0.2.4</small>
 
 
     <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbar" aria-controls="navbar" aria-expanded="false" aria-label="Toggle navigation">
@@ -54,7 +54,7 @@ upstream Julia Readers.is_leaf."></head><body>
   <main id="main" class="col-md-9"><div class="page-header">
 
       <h1>Is <code>daf</code> a leaf storage format?</h1>
-      <small class="dont-index">Source: <a href="https://github.com/tanaylab/dafr/blob/v0.2.3/R/format_api.R" class="external-link"><code>R/format_api.R</code></a></small>
+      <small class="dont-index">Source: <a href="https://github.com/tanaylab/dafr/blob/main/R/format_api.R" class="external-link"><code>R/format_api.R</code></a></small>
       <div class="d-none name"><code>is_leaf.Rd</code></div>
     </div>
 
@@ -70,7 +70,7 @@ upstream Julia <code>Readers.is_leaf</code>.</p>
 
     <div class="section level2">
     <h2 id="ref-usage">Usage<a class="anchor" aria-label="anchor" href="#ref-usage"></a></h2>
-    <div class="sourceCode"><pre class="sourceCode r"><code><span><span class="fu">is_leaf</span><span class="op">(</span><span class="va">daf</span>, <span class="va">...</span><span class="op">)</span></span></code></pre></div>
+    <div class="sourceCode"><pre class="sourceCode r"><code><span><span class="fu">is_leaf</span><span class="op">(</span><span class="va">daf</span><span class="op">)</span></span></code></pre></div>
     </div>
 
     <div class="section level2">
@@ -78,21 +78,25 @@ upstream Julia <code>Readers.is_leaf</code>.</p>
 
 
 <dl><dt id="arg-daf">daf<a class="anchor" aria-label="anchor" href="#arg-daf"></a></dt>
-<dd><p>A <a href="DafReader.html">DafReader</a>.</p></dd>
-
-
-<dt id="arg--">...<a class="anchor" aria-label="anchor" href="#arg--"></a></dt>
-<dd><p>Reserved for method-specific extensions.</p></dd>
+<dd><p>A <a href="DafReader.html">DafReader</a> instance or an S7 class object.</p></dd>
 
 </dl></div>
     <div class="section level2">
     <h2 id="value">Value<a class="anchor" aria-label="anchor" href="#value"></a></h2>
     <p>Logical scalar.</p>
     </div>
+    <div class="section level2">
+    <h2 id="details">Details<a class="anchor" aria-label="anchor" href="#details"></a></h2>
+    <p>Accepts either a <code>DafReader</code> instance or an S7 class object (so
+that <code>is_leaf(MemoryDaf)</code> mirrors Julia's class-level
+<code>is_leaf(::Type{MemoryDaf})</code>).</p>
+    </div>
 
     <div class="section level2">
     <h2 id="ref-examples">Examples<a class="anchor" aria-label="anchor" href="#ref-examples"></a></h2>
     <div class="sourceCode"><pre class="sourceCode r"><code><span class="r-in"><span><span class="fu">is_leaf</span><span class="op">(</span><span class="fu"><a href="memory_daf.html">memory_daf</a></span><span class="op">(</span><span class="op">)</span><span class="op">)</span></span></span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> [1] TRUE</span>
+<span class="r-in"><span><span class="fu">is_leaf</span><span class="op">(</span><span class="va">MemoryDaf</span><span class="op">)</span></span></span>
 <span class="r-out co"><span class="r-pr">#&gt;</span> [1] TRUE</span>
 </code></pre></div>
     </div>
