@@ -14,6 +14,10 @@ matrix column and \code{...} collects named parameters.}
 
 \item{overwrite}{Logical scalar; set to \code{TRUE} to replace an already-
 registered operation.}
+
+\item{source}{Optional \code{"file:line"} string identifying where the
+registration happened. Used in the conflict error message;
+auto-captured from the caller's srcref if omitted.}
 }
 \value{
 Invisibly \code{NULL}.

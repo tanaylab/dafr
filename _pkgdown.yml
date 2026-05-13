@@ -222,6 +222,7 @@ reference:
 
   - title: Op registry
     contents:
+      - register_query_operation
       - register_eltwise
       - register_reduction
       - registered_eltwise
