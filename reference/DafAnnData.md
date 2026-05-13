@@ -1,11 +1,5 @@
 # Read-only AnnData-shaped facade over a Daf.
 
-Read-only AnnData-shaped facade over a Daf.
-
-Read-only AnnData-shaped facade over a Daf.
-
-## Details
-
 Exposes a `DafReader` through the property names familiar to `anndata` /
 `scanpy` / `Seurat` users: `X`, `obs`, `var`, `layers`, `uns`,
 `obs_names`, `var_names`, `n_obs`, `n_vars`, `shape`. All bindings are
@@ -80,13 +74,13 @@ directly.
 
 ### Public methods
 
-- [`DafAnnData$new()`](#method-DafAnnData-new)
+- [`DafAnnData$new()`](#method-DafAnnData-initialize)
 
 - [`DafAnnData$clone()`](#method-DafAnnData-clone)
 
 ------------------------------------------------------------------------
 
-### Method `new()`
+### `DafAnnData$new()`
 
 Create a `DafAnnData` facade.
 
@@ -115,7 +109,7 @@ Create a `DafAnnData` facade.
 
 ------------------------------------------------------------------------
 
-### Method `clone()`
+### `DafAnnData$clone()`
 
 The objects of this class are cloneable with this method.
 

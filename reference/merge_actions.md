@@ -15,11 +15,3 @@ MERGE_LAST_VALUE
 
 MERGE_COLLECT_AXIS
 ```
-
-## Format
-
-An object of class `character` of length 1.
-
-An object of class `character` of length 1.
-
-An object of class `character` of length 1.

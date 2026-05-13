@@ -11,10 +11,6 @@ exposes every axis of the base daf unchanged. Equivalent to
 VIEW_ALL_AXES
 ```
 
-## Format
-
-An object of class `list` of length 1.
-
 ## See also
 
 [`viewer()`](https://tanaylab.github.io/dafr/reference/viewer.md),

@@ -189,6 +189,7 @@
 <url><loc>https://tanaylab.github.io/dafr/reference/reconstruct_axis.html</loc></url>
 <url><loc>https://tanaylab.github.io/dafr/reference/register_dafr_handler.html</loc></url>
 <url><loc>https://tanaylab.github.io/dafr/reference/register_eltwise.html</loc></url>
+<url><loc>https://tanaylab.github.io/dafr/reference/register_query_operation.html</loc></url>
 <url><loc>https://tanaylab.github.io/dafr/reference/register_reduction.html</loc></url>
 <url><loc>https://tanaylab.github.io/dafr/reference/registered_eltwise.html</loc></url>
 <url><loc>https://tanaylab.github.io/dafr/reference/registered_reductions.html</loc></url>

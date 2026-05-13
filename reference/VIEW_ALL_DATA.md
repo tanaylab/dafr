@@ -15,10 +15,6 @@ expose every data item from the base daf unchanged.
 VIEW_ALL_DATA
 ```
 
-## Format
-
-An object of class `list` of length 3.
-
 ## See also
 
 [`viewer()`](https://tanaylab.github.io/dafr/reference/viewer.md),

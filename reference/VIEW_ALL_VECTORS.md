@@ -10,10 +10,6 @@ exposes every vector of every axis of the base daf unchanged.
 VIEW_ALL_VECTORS
 ```
 
-## Format
-
-An object of class `list` of length 1.
-
 ## See also
 
 [`viewer()`](https://tanaylab.github.io/dafr/reference/viewer.md),

@@ -7,7 +7,7 @@
 
     <a class="navbar-brand me-2" href="../index.html">dafr</a>
 
-    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">0.2.4</small>
+    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">0.2.6</small>
 
 
     <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbar" aria-controls="navbar" aria-expanded="false" aria-label="Toggle navigation">
@@ -42,9 +42,35 @@
   <main id="main" class="col-md-9"><div class="page-header">
 
       <h1>Changelog</h1>
-      <small>Source: <a href="https://github.com/tanaylab/dafr/blob/v0.2.4/NEWS.md" class="external-link"><code>NEWS.md</code></a></small>
+      <small>Source: <a href="https://github.com/tanaylab/dafr/blob/main/NEWS.md" class="external-link"><code>NEWS.md</code></a></small>
     </div>
 
+    <div class="section level2">
+<h2 class="pkg-version" data-toc-text="0.2.6" id="dafr-026">dafr 0.2.6<a class="anchor" aria-label="anchor" href="#dafr-026"></a></h2>
+<div class="section level3">
+<h3 id="ci-document-source--param--refresh-pkgdown-index-0-2-6">CI: document <code>source =</code> param + refresh pkgdown index<a class="anchor" aria-label="anchor" href="#ci-document-source--param--refresh-pkgdown-index-0-2-6"></a></h3>
+<p>R CMD check <code>--as-cran</code> on all platforms flagged WARNINGs after the v0.2.5 ship; pkgdown also failed the sitrep check:</p>
+<ul><li>
+<code>man/register_eltwise.Rd</code> / <code>man/register_reduction.Rd</code> had the new <code>source = NULL</code> parameter (introduced as the conflict-source capture hook in v0.2.5’s CR1 fix) in <code>\usage{}</code> but no matching <code>\item{source}</code> arg block.</li>
+<li>
+<code>_pkgdown.yml</code> was missing the newly-exported <code><a href="../reference/register_query_operation.html">register_query_operation()</a></code> from the <strong>Op registry</strong> reference section.</li>
+</ul><p>Both regenerated and indexed. All man pages also re-emitted under roxygen 8.0.0 (drops <code>\docType{data}</code> / <code>\format{}</code> / <code>\keyword{datasets}</code> on constant exports; otherwise no behaviour change).</p>
+</div>
+</div>
+    <div class="section level2">
+<h2 class="pkg-version" data-toc-text="0.2.5" id="dafr-025">dafr 0.2.5<a class="anchor" aria-label="anchor" href="#dafr-025"></a></h2>
+<div class="section level3">
+<h3 id="query-registry-parity-cr1-closed-0-2-5">Query registry parity (CR1 closed)<a class="anchor" aria-label="anchor" href="#query-registry-parity-cr1-closed-0-2-5"></a></h3>
+<ul><li><p><strong><code>register_query_operation(kind, name, fn)</code></strong> is now exposed as a single user-facing entry point for adding custom eltwise / reduction ops to the dafr query DSL. Mirrors Julia’s <code><a href="../reference/register_query_operation.html">register_query_operation()</a></code> from <code>DataAxesFormats.Registry</code>.</p></li>
+<li>
+<p><strong>Collision errors</strong> now match Julia’s template:</p>
+<pre><code>conflicting registrations for the eltwise operation: &lt;name&gt;
+first in: &lt;file&gt;:&lt;line&gt;
+second in: &lt;file&gt;:&lt;line&gt;</code></pre>
+<p>Previously the error was <code>&lt;name&gt; already registered; use overwrite = TRUE</code>. The new wording includes both registration source locations (captured automatically from the caller’s srcref, or supplied explicitly via the new <code>source =</code> parameter).</p>
+</li>
+</ul></div>
+</div>
     <div class="section level2">
 <h2 class="pkg-version" data-toc-text="0.2.4" id="dafr-024">dafr 0.2.4<a class="anchor" aria-label="anchor" href="#dafr-024"></a></h2>
 <div class="section level3">
@@ -194,7 +220,7 @@
 <h3 id="get_dataframe-column-spec-0-2-0">
 <code>get_dataframe()</code> column-spec<a class="anchor" aria-label="anchor" href="#get_dataframe-column-spec-0-2-0"></a></h3>
 <p><code><a href="../reference/get_dataframe.html">get_dataframe()</a></code> and <code><a href="../reference/get_dataframe_query.html">get_dataframe_query()</a></code> accept a list mixing positional bare names with <code>name = ":query"</code> pairs:</p>
-<div class="sourceCode" id="cb1"><pre class="downlit sourceCode r">
+<div class="sourceCode" id="cb2"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span><span class="fu"><a href="../reference/get_dataframe.html">get_dataframe</a></span><span class="op">(</span><span class="va">d</span>, <span class="st">"cell"</span>, columns <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/list.html" class="external-link">list</a></span><span class="op">(</span><span class="st">"age"</span>, doublet <span class="op">=</span> <span class="st">":is_doublet"</span><span class="op">)</span><span class="op">)</span></span></code></pre></div>
 <p>Mirrors Julia’s <code>["age", "doublet" =&gt; ":is_doublet"]</code>.</p>
 </div>

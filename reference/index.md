@@ -434,6 +434,8 @@
 
 ## Op registry
 
+- [`register_query_operation()`](https://tanaylab.github.io/dafr/reference/register_query_operation.md)
+  : Register a query operation (eltwise or reduction).
 - [`register_eltwise()`](https://tanaylab.github.io/dafr/reference/register_eltwise.md)
   : Register an eltwise operation.
 - [`register_reduction()`](https://tanaylab.github.io/dafr/reference/register_reduction.md)

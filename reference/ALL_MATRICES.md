@@ -8,10 +8,6 @@ Wildcard for all matrices.
 ALL_MATRICES
 ```
 
-## Format
-
-An object of class `character` of length 3.
-
 ## Examples
 
 ``` r

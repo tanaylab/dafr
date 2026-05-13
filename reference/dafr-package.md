@@ -32,6 +32,9 @@ Useful links:
 
 Authors:
 
+- Aviezer Lifshitz <aviezer.lifshitz@weizmann.ac.il>
+  ([ORCID](https://orcid.org/0000-0002-8458-9507))
+
 - Oren Ben-Kiki <oren@ben-kiki.org>
 
 Other contributors:

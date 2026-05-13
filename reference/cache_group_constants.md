@@ -13,14 +13,6 @@ MAPPED_DATA
 QUERY_DATA
 ```
 
-## Format
-
-An object of class `character` of length 1.
-
-An object of class `character` of length 1.
-
-An object of class `character` of length 1.
-
 ## Value
 
 Character scalar.

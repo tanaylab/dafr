@@ -10,10 +10,6 @@ exposes every matrix of the base daf unchanged.
 VIEW_ALL_MATRICES
 ```
 
-## Format
-
-An object of class `list` of length 1.
-
 ## See also
 
 [`viewer()`](https://tanaylab.github.io/dafr/reference/viewer.md),

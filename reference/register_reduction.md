@@ -8,7 +8,7 @@ and invoked during query evaluation.
 ## Usage
 
 ``` r
-register_reduction(name, fn, overwrite = FALSE)
+register_reduction(name, fn, overwrite = FALSE, source = NULL)
 ```
 
 ## Arguments
@@ -26,6 +26,12 @@ register_reduction(name, fn, overwrite = FALSE)
 
   Logical scalar; set to `TRUE` to replace an already- registered
   operation.
+
+- source:
+
+  Optional `"file:line"` string identifying where the registration
+  happened. Used in the conflict error message; auto-captured from the
+  caller's srcref if omitted.
 
 ## Value
 

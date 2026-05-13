@@ -8,10 +8,6 @@ Wildcard for all scalars.
 ALL_SCALARS
 ```
 
-## Format
-
-An object of class `character` of length 1.
-
 ## Examples
 
 ``` r
