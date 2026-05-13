@@ -33,6 +33,9 @@ NULL
 #'   matrix column and `...` collects named parameters.
 #' @param overwrite Logical scalar; set to `TRUE` to replace an already-
 #'   registered operation.
+#' @param source Optional `"file:line"` string identifying where the
+#'   registration happened. Used in the conflict error message;
+#'   auto-captured from the caller's srcref if omitted.
 #' @return Invisibly `NULL`.
 #' @examples
 #' register_reduction("Median_example", function(x, ...) median(x, ...), overwrite = TRUE)
@@ -68,6 +71,9 @@ register_reduction <- function(name, fn, overwrite = FALSE, source = NULL) {
 #'   matrix (eltwise ops preserve shape) and `...` collects named parameters.
 #' @param overwrite Logical scalar; set to `TRUE` to replace an already-
 #'   registered operation.
+#' @param source Optional `"file:line"` string identifying where the
+#'   registration happened. Used in the conflict error message;
+#'   auto-captured from the caller's srcref if omitted.
 #' @return Invisibly `NULL`.
 #' @examples
 #' register_eltwise("Clamp01", function(x, ...) pmin(pmax(x, 0), 1),

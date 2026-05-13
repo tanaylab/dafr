@@ -22,6 +22,7 @@ Useful links:
 
 Authors:
 \itemize{
+  \item Aviezer Lifshitz \email{aviezer.lifshitz@weizmann.ac.il} (\href{https://orcid.org/0000-0002-8458-9507}{ORCID})
   \item Oren Ben-Kiki \email{oren@ben-kiki.org}
 }
 

@@ -4,11 +4,6 @@
 \alias{DafAnnData}
 \title{Read-only AnnData-shaped facade over a Daf.}
 \description{
-Read-only AnnData-shaped facade over a Daf.
-
-Read-only AnnData-shaped facade over a Daf.
-}
-\details{
 Exposes a \code{DafReader} through the property names familiar to
 \code{anndata} / \code{scanpy} / \code{Seurat} users: \code{X}, \code{obs}, \code{var}, \code{layers},
 \code{uns}, \code{obs_names}, \code{var_names}, \code{n_obs}, \code{n_vars}, \code{shape}. All
@@ -28,89 +23,90 @@ ann$obs_names
 \code{\link[=as_anndata]{as_anndata()}}
 }
 \section{Public fields}{
-\if{html}{\out{<div class="r6-fields">}}
-\describe{
-\item{\code{daf}}{The underlying Daf object.}
+  \if{html}{\out{<div class="r6-fields">}}
+  \describe{
+    \item{\code{daf}}{The underlying Daf object.}
 
-\item{\code{obs_axis}}{Name of the observations axis.}
+    \item{\code{obs_axis}}{Name of the observations axis.}
 
-\item{\code{var_axis}}{Name of the variables axis.}
+    \item{\code{var_axis}}{Name of the variables axis.}
 
-\item{\code{x_name}}{Matrix name for \code{X}.}
-}
-\if{html}{\out{</div>}}
+    \item{\code{x_name}}{Matrix name for \code{X}.}
+  }
+  \if{html}{\out{</div>}}
 }
 \section{Active bindings}{
-\if{html}{\out{<div class="r6-active-bindings">}}
-\describe{
-\item{\code{X}}{The primary matrix (\code{obs_axis} x \code{var_axis}).}
+  \if{html}{\out{<div class="r6-active-bindings">}}
+  \describe{
+    \item{\code{X}}{The primary matrix (\code{obs_axis} x \code{var_axis}).}
 
-\item{\code{obs}}{Data frame of observation vectors.}
+    \item{\code{obs}}{Data frame of observation vectors.}
 
-\item{\code{var}}{Data frame of variable vectors.}
+    \item{\code{var}}{Data frame of variable vectors.}
 
-\item{\code{obs_names}}{Character vector of observation names.}
+    \item{\code{obs_names}}{Character vector of observation names.}
 
-\item{\code{var_names}}{Character vector of variable names.}
+    \item{\code{var_names}}{Character vector of variable names.}
 
-\item{\code{n_obs}}{Number of observations.}
+    \item{\code{n_obs}}{Number of observations.}
 
-\item{\code{n_vars}}{Number of variables.}
+    \item{\code{n_vars}}{Number of variables.}
 
-\item{\code{shape}}{Dimensions \code{c(n_obs, n_vars)}.}
+    \item{\code{shape}}{Dimensions \code{c(n_obs, n_vars)}.}
 
-\item{\code{layers}}{Named list of additional matrices (excluding \code{X}).}
+    \item{\code{layers}}{Named list of additional matrices (excluding \code{X}).}
 
-\item{\code{uns}}{Named list of scalars.}
-}
-\if{html}{\out{</div>}}
+    \item{\code{uns}}{Named list of scalars.}
+  }
+  \if{html}{\out{</div>}}
 }
 \section{Methods}{
 \subsection{Public methods}{
-\itemize{
-\item \href{#method-DafAnnData-new}{\code{DafAnnData$new()}}
-\item \href{#method-DafAnnData-clone}{\code{DafAnnData$clone()}}
-}
+  \itemize{
+    \item \href{#method-DafAnnData-initialize}{\code{DafAnnData$new()}}
+    \item \href{#method-DafAnnData-clone}{\code{DafAnnData$clone()}}
+  }
 }
 \if{html}{\out{<hr>}}
-\if{html}{\out{<a id="method-DafAnnData-new"></a>}}
-\if{latex}{\out{\hypertarget{method-DafAnnData-new}{}}}
-\subsection{Method \code{new()}}{
-Create a \code{DafAnnData} facade.
-\subsection{Usage}{
-\if{html}{\out{<div class="r">}}\preformatted{DafAnnData$new(daf, obs_axis = NULL, var_axis = NULL, x_name = "UMIs")}\if{html}{\out{</div>}}
-}
-
-\subsection{Arguments}{
-\if{html}{\out{<div class="arguments">}}
-\describe{
-\item{\code{daf}}{A \link{DafReader}.}
-
-\item{\code{obs_axis}}{Axis name for observations. Defaults auto-detect:
+\if{html}{\out{<a id="method-DafAnnData-initialize"></a>}}
+\if{latex}{\out{\hypertarget{method-DafAnnData-initialize}{}}}
+\subsection{\code{DafAnnData$new()}}{
+  Create a \code{DafAnnData} facade.
+  \subsection{Usage}{
+    \if{html}{\out{<div class="r">}}
+    \preformatted{DafAnnData$new(daf, obs_axis = NULL, var_axis = NULL, x_name = "UMIs")}
+    \if{html}{\out{</div>}}
+  }
+  \subsection{Arguments}{
+    \if{html}{\out{<div class="arguments">}}
+    \describe{
+      \item{\code{daf}}{A \link{DafReader}.}
+      \item{\code{obs_axis}}{Axis name for observations. Defaults auto-detect:
 \code{"cell"} then \code{"metacell"}.}
+      \item{\code{var_axis}}{Axis name for variables. Defaults to \code{"gene"}.}
+      \item{\code{x_name}}{Matrix name for \code{X}. Default \code{"UMIs"}.}
+    }
+    \if{html}{\out{</div>}}
+  }
+}
 
-\item{\code{var_axis}}{Axis name for variables. Defaults to \code{"gene"}.}
-
-\item{\code{x_name}}{Matrix name for \code{X}. Default \code{"UMIs"}.}
-}
-\if{html}{\out{</div>}}
-}
-}
 \if{html}{\out{<hr>}}
 \if{html}{\out{<a id="method-DafAnnData-clone"></a>}}
 \if{latex}{\out{\hypertarget{method-DafAnnData-clone}{}}}
-\subsection{Method \code{clone()}}{
-The objects of this class are cloneable with this method.
-\subsection{Usage}{
-\if{html}{\out{<div class="r">}}\preformatted{DafAnnData$clone(deep = FALSE)}\if{html}{\out{</div>}}
+\subsection{\code{DafAnnData$clone()}}{
+  The objects of this class are cloneable with this method.
+  \subsection{Usage}{
+    \if{html}{\out{<div class="r">}}
+    \preformatted{DafAnnData$clone(deep = FALSE)}
+    \if{html}{\out{</div>}}
+  }
+  \subsection{Arguments}{
+    \if{html}{\out{<div class="arguments">}}
+    \describe{
+      \item{\code{deep}}{Whether to make a deep clone.}
+    }
+    \if{html}{\out{</div>}}
+  }
 }
 
-\subsection{Arguments}{
-\if{html}{\out{<div class="arguments">}}
-\describe{
-\item{\code{deep}}{Whether to make a deep clone.}
-}
-\if{html}{\out{</div>}}
-}
-}
 }
