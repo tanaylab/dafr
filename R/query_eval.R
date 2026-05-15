@@ -1985,6 +1985,12 @@ NULL
 }
 
 .apply_reduction <- function(node, state, daf) {
+    # integer64 inputs come in as REALSXP-stored bytes; the fast-path kernels
+    # (rowSums, matrixStats, rowsum, stats::quantile, ...) all treat those
+    # bytes as Float64 -> denormal garbage. Demote to plain double here so
+    # every downstream path sees the actual integer values. Julia parity:
+    # DAF.jl reduces over the storage value, never over the bit pattern.
+    state$value <- .demote_int64(state$value)
     if (identical(state$kind, "grouped_vector")) {
         return(.apply_reduction_grouped_vector(node, state, daf))
     }
@@ -2129,6 +2135,26 @@ NULL
 }
 
 .dafr_kernel_threshold <- function() dafr_opt("dafr.kernel_threshold")
+
+# integer64 is stored as REALSXP whose bytes are int64 reinterpreted: any
+# downstream code that treats those bytes as Float64 (rowSums, matrixStats,
+# rowsum, stats::quantile, sum, ...) produces denormal garbage. Demote here
+# at the reduction-dispatcher boundary so kernels see real numeric values.
+# Preserves names / dim / dimnames since bit64::as.double strips them.
+.demote_int64 <- function(x) {
+    if (!inherits(x, "integer64")) return(x)
+    if (is.matrix(x)) {
+        dn <- dimnames(x); d <- dim(x)
+        out <- as.double(x)
+        dim(out) <- d
+        dimnames(out) <- dn
+        return(out)
+    }
+    nms <- names(x)
+    out <- as.double(x)
+    names(out) <- nms
+    out
+}
 
 # Extract eps parameter for VarN/StdN/GeoMean reductions. Defaults to 0
 # when omitted. Validates non-negative (Julia parity: parse_number_value
@@ -2463,6 +2489,7 @@ NULL
 
 # G1 builtin fast-path: compute per-group reduction for a numeric vector.
 .grouped_vector_builtin <- function(x, group, ngroups, label, params) {
+    x <- .demote_int64(x)
     n_in_group <- as.integer(tabulate(group, ngroups))
     if (label %in% c("Sum", "Mean", "Min", "Max", "Var", "Std",
                      "VarN", "StdN", "GeoMean")) {
