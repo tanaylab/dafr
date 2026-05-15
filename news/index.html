@@ -7,7 +7,7 @@
 
     <a class="navbar-brand me-2" href="../index.html">dafr</a>
 
-    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">0.2.6</small>
+    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">0.2.7</small>
 
 
     <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbar" aria-controls="navbar" aria-expanded="false" aria-label="Toggle navigation">
@@ -42,9 +42,33 @@
   <main id="main" class="col-md-9"><div class="page-header">
 
       <h1>Changelog</h1>
-      <small>Source: <a href="https://github.com/tanaylab/dafr/blob/v0.2.6/NEWS.md" class="external-link"><code>NEWS.md</code></a></small>
+      <small>Source: <a href="https://github.com/tanaylab/dafr/blob/main/NEWS.md" class="external-link"><code>NEWS.md</code></a></small>
     </div>
 
+    <div class="section level2">
+<h2 class="pkg-version" data-toc-text="0.2.7" id="dafr-027">dafr 0.2.7<a class="anchor" aria-label="anchor" href="#dafr-027"></a></h2>
+<div class="section level3">
+<h3 id="fix-rowcol-mask-alignment-under-matrix-groupby-0-2-7">Fix: row/col mask alignment under matrix GroupBy<a class="anchor" aria-label="anchor" href="#fix-rowcol-mask-alignment-under-matrix-groupby-0-2-7"></a></h3>
+<p><code>@ axis [ prop = X ] @ other :: M -/ prop &gt;- Op</code> (and the <code>GroupColumnsBy</code> mirror) returned correct values but assigned them to the wrong group label. The mask filtered the matrix axis correctly, but the subsequent <code>GroupRowsBy</code> / <code>GroupColumnsBy</code> then fetched the group-property vector at the FULL axis length and matched it against the masked matrix by position - so the group labels and the matrix rows drifted out of alignment.</p>
+<p>Concrete repro from the regression test:</p>
+<div class="sourceCode" id="cb1"><pre class="downlit sourceCode r">
+<code class="sourceCode R"><span><span class="va">d</span> <span class="op">&lt;-</span> <span class="fu"><a href="../reference/memory_daf.html">memory_daf</a></span><span class="op">(</span>name <span class="op">=</span> <span class="st">"t"</span><span class="op">)</span></span>
+<span><span class="fu"><a href="../reference/add_axis.html">add_axis</a></span><span class="op">(</span><span class="va">d</span>, <span class="st">"metacell"</span>, <span class="fu"><a href="https://rdrr.io/r/base/c.html" class="external-link">c</a></span><span class="op">(</span><span class="st">"M1"</span>,<span class="st">"M2"</span>,<span class="st">"M3"</span>,<span class="st">"M4"</span>,<span class="st">"M5"</span>,<span class="st">"M6"</span><span class="op">)</span><span class="op">)</span></span>
+<span><span class="fu"><a href="../reference/add_axis.html">add_axis</a></span><span class="op">(</span><span class="va">d</span>, <span class="st">"gene"</span>, <span class="fu"><a href="https://rdrr.io/r/base/c.html" class="external-link">c</a></span><span class="op">(</span><span class="st">"G1"</span>,<span class="st">"G2"</span><span class="op">)</span><span class="op">)</span></span>
+<span><span class="fu"><a href="../reference/add_axis.html">add_axis</a></span><span class="op">(</span><span class="va">d</span>, <span class="st">"type"</span>, <span class="fu"><a href="https://rdrr.io/r/base/c.html" class="external-link">c</a></span><span class="op">(</span><span class="st">"A"</span>,<span class="st">"B"</span>,<span class="st">"C"</span><span class="op">)</span><span class="op">)</span></span>
+<span><span class="fu"><a href="../reference/set_vector.html">set_vector</a></span><span class="op">(</span><span class="va">d</span>, <span class="st">"metacell"</span>, <span class="st">"type"</span>, <span class="fu"><a href="https://rdrr.io/r/base/c.html" class="external-link">c</a></span><span class="op">(</span><span class="st">"A"</span>,<span class="st">"A"</span>,<span class="st">"B"</span>,<span class="st">"B"</span>,<span class="st">"C"</span>,<span class="st">"C"</span><span class="op">)</span><span class="op">)</span></span>
+<span><span class="fu"><a href="../reference/set_matrix.html">set_matrix</a></span><span class="op">(</span><span class="va">d</span>, <span class="st">"metacell"</span>, <span class="st">"gene"</span>, <span class="st">"UMIs"</span>, <span class="fu"><a href="https://rdrr.io/r/base/matrix.html" class="external-link">matrix</a></span><span class="op">(</span></span>
+<span>    <span class="fu"><a href="https://rdrr.io/r/base/c.html" class="external-link">c</a></span><span class="op">(</span><span class="fl">11</span>,<span class="fl">12</span>, <span class="fl">21</span>,<span class="fl">22</span>, <span class="fl">31</span>,<span class="fl">32</span>, <span class="fl">41</span>,<span class="fl">42</span>, <span class="fl">51</span>,<span class="fl">52</span>, <span class="fl">61</span>,<span class="fl">62</span><span class="op">)</span>,</span>
+<span>    nrow <span class="op">=</span> <span class="fl">6L</span>, byrow <span class="op">=</span> <span class="cn">TRUE</span>,</span>
+<span>    dimnames <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/list.html" class="external-link">list</a></span><span class="op">(</span><span class="fu"><a href="https://rdrr.io/r/base/c.html" class="external-link">c</a></span><span class="op">(</span><span class="st">"M1"</span>,<span class="st">"M2"</span>,<span class="st">"M3"</span>,<span class="st">"M4"</span>,<span class="st">"M5"</span>,<span class="st">"M6"</span><span class="op">)</span>, <span class="fu"><a href="https://rdrr.io/r/base/c.html" class="external-link">c</a></span><span class="op">(</span><span class="st">"G1"</span>,<span class="st">"G2"</span><span class="op">)</span><span class="op">)</span><span class="op">)</span><span class="op">)</span></span>
+<span></span>
+<span><span class="co"># Pre-fix: returned A=72,74 (which is the M3+M4 sum, mis-labelled).</span></span>
+<span><span class="co"># Post-fix: B=72,74 only.</span></span>
+<span><span class="fu"><a href="../reference/get_query.html">get_query</a></span><span class="op">(</span><span class="va">d</span>, <span class="st">"@ metacell [ type = B ] @ gene :: UMIs -/ type &gt;- Sum"</span><span class="op">)</span></span></code></pre></div>
+<p>Julia parity: <code>MatrixState</code> in <code>DataAxesFormats.jl</code> keeps the per-axis <code>VectorState</code> on the matrix, so masks and groupings are always aligned by axis. The R port was passing matrix state through a plain list that dropped the row/col indices on transition; now the matrix-lookup carries <code>row_indices</code>/<code>col_indices</code> forward and <code>apply_groupby_rows</code> / <code>apply_groupby_columns</code> subset the group vector to match.</p>
+<p>Two regression tests added under <code>test-query-eval-masks.R</code> (E3 row + cols variants).</p>
+</div>
+</div>
     <div class="section level2">
 <h2 class="pkg-version" data-toc-text="0.2.6" id="dafr-026">dafr 0.2.6<a class="anchor" aria-label="anchor" href="#dafr-026"></a></h2>
 <div class="section level3">
@@ -220,7 +244,7 @@ second in: &lt;file&gt;:&lt;line&gt;</code></pre>
 <h3 id="get_dataframe-column-spec-0-2-0">
 <code>get_dataframe()</code> column-spec<a class="anchor" aria-label="anchor" href="#get_dataframe-column-spec-0-2-0"></a></h3>
 <p><code><a href="../reference/get_dataframe.html">get_dataframe()</a></code> and <code><a href="../reference/get_dataframe_query.html">get_dataframe_query()</a></code> accept a list mixing positional bare names with <code>name = ":query"</code> pairs:</p>
-<div class="sourceCode" id="cb2"><pre class="downlit sourceCode r">
+<div class="sourceCode" id="cb3"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span><span class="fu"><a href="../reference/get_dataframe.html">get_dataframe</a></span><span class="op">(</span><span class="va">d</span>, <span class="st">"cell"</span>, columns <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/list.html" class="external-link">list</a></span><span class="op">(</span><span class="st">"age"</span>, doublet <span class="op">=</span> <span class="st">":is_doublet"</span><span class="op">)</span><span class="op">)</span></span></code></pre></div>
 <p>Mirrors Julia’s <code>["age", "doublet" =&gt; ":is_doublet"]</code>.</p>
 </div>
