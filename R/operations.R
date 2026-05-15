@@ -597,7 +597,15 @@ registered_eltwise <- function() sort(names(.ops_env$eltwise))
 }
 
 .op_median <- function(x, ..., na_rm = FALSE) {
-    stats::median(as.numeric(x), na.rm = isTRUE(na_rm))
+    v <- as.numeric(x)
+    # Julia DAF.jl median([..., NaN, ...]) returns NaN. R's stats::median
+    # coerces NaN to NA and returns NA. Preserve NaN by short-circuiting
+    # before stats::median (only when na_rm is FALSE - na_rm = TRUE drops
+    # both NA and NaN, matching Julia's no-NaN behaviour).
+    if (!isTRUE(na_rm) && length(v) > 0L && anyNA(v) && any(is.nan(v))) {
+        return(NaN)
+    }
+    stats::median(v, na.rm = isTRUE(na_rm))
 }
 
 .op_quantile <- function(x, ..., p, na_rm = FALSE) {
