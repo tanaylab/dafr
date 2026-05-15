@@ -1428,13 +1428,14 @@ NULL
         # bool vector along the same axis. (Julia compare_vector phrase.)
         vec <- state$value
         .validate_comparator(node, vec, "vector")
+        rhs <- .coerce_cmp(node$value, vec)
         test <- switch(node$op,
-            IsLess         = vec <  .coerce_cmp(node$value, vec),
-            IsLessEqual    = vec <= .coerce_cmp(node$value, vec),
-            IsEqual        = vec == .coerce_cmp(node$value, vec),
-            IsNotEqual     = vec != .coerce_cmp(node$value, vec),
-            IsGreater      = vec >  .coerce_cmp(node$value, vec),
-            IsGreaterEqual = vec >= .coerce_cmp(node$value, vec),
+            IsLess         = ,
+            IsLessEqual    = ,
+            IsGreater      = ,
+            IsGreaterEqual = .cmp_ordering(vec, rhs, node$op),
+            IsEqual        = vec == rhs,
+            IsNotEqual     = vec != rhs,
             IsMatch        = grepl(node$pattern, as.character(vec), perl = TRUE),
             IsNotMatch     = !grepl(node$pattern, as.character(vec), perl = TRUE)
         )
@@ -1446,13 +1447,14 @@ NULL
         # returning a bool vector along the axis. Mirrors Julia's compare on
         # the axis-name vector.
         vec <- state$value
+        rhs <- .coerce_cmp(node$value, vec)
         test <- switch(node$op,
-            IsLess         = vec <  .coerce_cmp(node$value, vec),
-            IsLessEqual    = vec <= .coerce_cmp(node$value, vec),
-            IsEqual        = vec == .coerce_cmp(node$value, vec),
-            IsNotEqual     = vec != .coerce_cmp(node$value, vec),
-            IsGreater      = vec >  .coerce_cmp(node$value, vec),
-            IsGreaterEqual = vec >= .coerce_cmp(node$value, vec),
+            IsLess         = ,
+            IsLessEqual    = ,
+            IsGreater      = ,
+            IsGreaterEqual = .cmp_ordering(vec, rhs, node$op),
+            IsEqual        = vec == rhs,
+            IsNotEqual     = vec != rhs,
             IsMatch        = grepl(node$pattern, as.character(vec), perl = TRUE),
             IsNotMatch     = !grepl(node$pattern, as.character(vec), perl = TRUE)
         )
@@ -1468,12 +1470,12 @@ NULL
         .validate_comparator(node, m, "matrix")
         rhs <- .coerce_cmp(node$value, m)
         test <- switch(node$op,
-            IsLess         = m <  rhs,
-            IsLessEqual    = m <= rhs,
+            IsLess         = ,
+            IsLessEqual    = ,
+            IsGreater      = ,
+            IsGreaterEqual = .cmp_ordering(m, rhs, node$op),
             IsEqual        = m == rhs,
             IsNotEqual     = m != rhs,
-            IsGreater      = m >  rhs,
-            IsGreaterEqual = m >= rhs,
             IsMatch        = matrix(
                 grepl(node$pattern, as.character(m), perl = TRUE),
                 nrow = nrow(m), ncol = ncol(m),
@@ -1493,12 +1495,12 @@ NULL
         v <- state$value
         rhs <- .coerce_cmp(node$value, v)
         test <- switch(node$op,
-            IsLess         = v <  rhs,
-            IsLessEqual    = v <= rhs,
+            IsLess         = ,
+            IsLessEqual    = ,
+            IsGreater      = ,
+            IsGreaterEqual = .cmp_ordering(v, rhs, node$op),
             IsEqual        = v == rhs,
             IsNotEqual     = v != rhs,
-            IsGreater      = v >  rhs,
-            IsGreaterEqual = v >= rhs,
             IsMatch        = grepl(node$pattern, as.character(v), perl = TRUE),
             IsNotMatch     = !grepl(node$pattern, as.character(v), perl = TRUE)
         )
@@ -1510,13 +1512,14 @@ NULL
     }
     vec <- state$pending_vec
     .validate_comparator(node, vec, "vector")
+    rhs <- .coerce_cmp(node$value, vec)
     test <- switch(node$op,
-        IsLess         = vec < .coerce_cmp(node$value, vec),
-        IsLessEqual    = vec <= .coerce_cmp(node$value, vec),
-        IsEqual        = vec == .coerce_cmp(node$value, vec),
-        IsNotEqual     = vec != .coerce_cmp(node$value, vec),
-        IsGreater      = vec > .coerce_cmp(node$value, vec),
-        IsGreaterEqual = vec >= .coerce_cmp(node$value, vec),
+        IsLess         = ,
+        IsLessEqual    = ,
+        IsGreater      = ,
+        IsGreaterEqual = .cmp_ordering(vec, rhs, node$op),
+        IsEqual        = vec == rhs,
+        IsNotEqual     = vec != rhs,
         IsMatch        = grepl(node$pattern, as.character(vec), perl = TRUE),
         IsNotMatch     = !grepl(node$pattern, as.character(vec), perl = TRUE)
     )
@@ -1535,6 +1538,31 @@ NULL
     }
     state$pending_mask <- test
     state
+}
+
+# Bytewise ordering compare to match Julia DAF.jl (which uses bytewise on
+# Vector{String}). R's `<` / `<=` / `>` / `>=` honour LC_COLLATE for
+# character vectors, so under the default en_US.UTF-8 locale "Z" > "b"
+# (dictionary order) while Julia returns "Z" < "b" (bytewise: 0x5A < 0x62).
+# Force C-locale for the duration of the compare so character comparisons
+# fall back to byte order. Numeric / logical comparisons are locale-free
+# so the helper only swaps when at least one side is character.
+# (==, != are bytewise even under en_US so they don't need this helper.)
+.cmp_ordering <- function(x, y, op) {
+    if (is.character(x) || is.character(y)) {
+        old <- Sys.getlocale("LC_COLLATE")
+        if (!identical(old, "C")) {
+            Sys.setlocale("LC_COLLATE", "C")
+            on.exit(Sys.setlocale("LC_COLLATE", old), add = TRUE)
+        }
+    }
+    switch(op,
+        IsLess         = x <  y,
+        IsLessEqual    = x <= y,
+        IsGreater      = x >  y,
+        IsGreaterEqual = x >= y,
+        stop(sprintf("internal: .cmp_ordering bad op %s", op), call. = FALSE)
+    )
 }
 
 .coerce_cmp <- function(value_string, ref_vec) {
