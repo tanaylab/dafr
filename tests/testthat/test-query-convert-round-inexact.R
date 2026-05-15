@@ -105,3 +105,13 @@ test_that("Abs type UInt8 on .5 values silently rounds nothing (just abs+cast)",
     expect_error(get_query(d, "@ cell : score % Abs type UInt8"),
         "InexactError: UInt8\\(0\\.5\\)")
 })
+
+test_that("% Round (no type) on NaN raises InexactError (Julia parity)", {
+    # Julia % Round defaults to Int64 when no explicit type, and
+    # InexactError fires on NaN since NaN -> Int is undefined.
+    d <- memory_daf()
+    add_axis(d, "cell", c("A", "B", "C"))
+    set_vector(d, "cell", "x", c(1.0, NaN, 3.0))
+    expect_error(get_query(d, "@ cell : x % Round"),
+        "InexactError")
+})

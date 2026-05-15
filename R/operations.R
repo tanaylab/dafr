@@ -264,6 +264,17 @@ registered_eltwise <- function() sort(names(.ops_env$eltwise))
 }
 .op_round <- function(x, ..., digits = 0, type = NULL) {
     .reject_non_number_type("Round", type)
+    # Julia parity: when no `type` is given, % Round defaults to Int64
+    # (queries.jl uses int_type_for(eltype(x))). Casts trigger the same
+    # InexactError check on NaN / Inf / non-integer-after-round (which
+    # can't happen for digits == 0 but matters for non-zero digits and
+    # for NaN propagation). Integer / integer64 inputs short-circuit
+    # since round on an integer is the identity.
+    if (is.null(type) && (is.numeric(x) || methods::is(x, "Matrix"))
+        && !inherits(x, "integer64")
+        && !is.integer(if (methods::is(x, "Matrix")) x@x else x)) {
+        type <- "Int64"
+    }
     .cast_to_type(round(x, digits = digits), type)
 }
 
