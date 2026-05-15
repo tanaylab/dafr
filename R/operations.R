@@ -291,30 +291,52 @@ registered_eltwise <- function() sort(names(.ops_env$eltwise))
 
 .op_convert <- function(x, ..., type) {
     if (missing(type)) {
-        stop("Convert: 'type' parameter is required (one of 'double', 'integer', 'logical', 'integer64'; Julia aliases 'Float32'/'Float64'/'Int32'/'Int64'/'Bool' also accepted)",
+        stop("Convert: 'type' parameter is required (one of 'double', 'integer', 'logical', 'integer64'; Julia aliases 'Float32'/'Float64'/'Int*'/'UInt*'/'Bool' also accepted)",
             call. = FALSE
         )
     }
-    # Normalize Julia type names to R-native canonical form.
+    # Normalize Julia type names to R-native canonical form. Int*/UInt*
+    # narrower than 64 bits land on R's integer (32-bit); Int64/UInt64
+    # land on bit64::integer64. Range / inexact checking happens after
+    # type resolution so the error message reports the Julia type name.
+    julia_int_to_r <- c(
+        Int8   = "integer",  Int16  = "integer",  Int32  = "integer",
+        UInt8  = "integer",  UInt16 = "integer",  UInt32 = "integer",
+        Int64  = "integer64", UInt64 = "integer64"
+    )
     julia_aliases <- c(
         Float32 = "double",
         Float64 = "double",
-        Int32 = "integer",
-        Int64 = "integer64",
+        julia_int_to_r,
         Bool = "logical"
     )
+    julia_type <- NULL
     if (is.character(type) && length(type) == 1L && type %in% names(julia_aliases)) {
+        julia_type <- type
         type <- unname(julia_aliases[type])
     }
     valid_types <- c("double", "integer", "logical", "integer64")
     if (!is.character(type) || length(type) != 1L || !type %in% valid_types) {
         stop(sprintf(
-            "Convert: 'type' must be one of 'double', 'integer', 'logical', 'integer64' (or Julia aliases 'Float32'/'Float64'/'Int32'/'Int64'/'Bool'); got %s",
+            "Convert: 'type' must be one of 'double', 'integer', 'logical', 'integer64' (or Julia aliases 'Float32'/'Float64'/'Int*'/'UInt*'/'Bool'); got %s",
             sQuote(as.character(type)[1L])
         ), call. = FALSE)
     }
+    # Julia InexactError: integer targets reject fractional / out-of-range
+    # values. Apply the check using the Julia type name when one was given
+    # so the error message reads `InexactError: UInt8(-1)`, otherwise fall
+    # back to the canonical R integer range when type == "integer".
+    if (type %in% c("integer", "integer64")) {
+        check_name <- julia_type %||% if (type == "integer64") "Int64" else "integer"
+        if (!is.null(.INT_TYPE_RANGES[[check_name]])) {
+            .check_inexact_int(x, check_name)
+        }
+    }
+    if (type == "logical") {
+        .check_inexact_bool(x, julia_type %||% "Bool")
+    }
     # integer64 path: densify sparse input (no sparse integer64 class exists).
-    # Preserve dim/dimnames — bit64::as.integer64 strips them on matrix input.
+    # Preserve dim/dimnames -- bit64::as.integer64 strips them on matrix input.
     if (type == "integer64") {
         if (methods::is(x, "dgCMatrix")) {
             x <- as.matrix(x)
@@ -330,10 +352,6 @@ registered_eltwise <- function() sort(names(.ops_env$eltwise))
     if (methods::is(x, "dgCMatrix")) {
         if (type == "double") return(x)
         if (type == "integer") {
-            if (length(x@x) > 0L && any(x@x != floor(x@x))) {
-                stop("Convert: non-integer value in integer coercion",
-                    call. = FALSE)
-            }
             x@x <- as.double(as.integer(x@x))
             return(x)
         }
@@ -366,13 +384,65 @@ registered_eltwise <- function() sort(names(.ops_env$eltwise))
 )
 .NUMBER_TYPES_FILTERED_NUMERIC <- setdiff(.NUMBER_TYPES, c("String"))
 
+# Julia InexactError ranges for integer-typed targets. Values outside
+# the range, or values with a non-zero fractional part, must raise.
+# Int64 / UInt64 limits are stored as doubles (precision loss past 2^53)
+# but the check is conservative: any finite value past these bounds is
+# clearly out of range.
+.INT_TYPE_RANGES <- list(
+    Int8   = c(-128, 127),
+    Int16  = c(-32768, 32767),
+    Int32  = c(-2147483648, 2147483647),
+    Int64  = c(-2^63, 2^63 - 1),
+    UInt8  = c(0, 255),
+    UInt16 = c(0, 65535),
+    UInt32 = c(0, 4294967295),
+    UInt64 = c(0, 2^64 - 1),
+    integer = c(-2147483648, 2147483647)
+)
+
+.check_inexact_bool <- function(value, type_name) {
+    if (methods::is(value, "Matrix")) value <- value@x
+    if (length(value) == 0L) return(invisible())
+    if (is.logical(value)) return(invisible())
+    v <- suppressWarnings(as.double(value))
+    bad <- is.finite(v) & v != 0 & v != 1
+    if (any(bad, na.rm = TRUE)) {
+        which_bad <- which(bad)[1L]
+        stop(sprintf("InexactError: %s(%s)",
+            type_name, format(v[which_bad])
+        ), call. = FALSE)
+    }
+    invisible()
+}
+
+# Julia parity: raise InexactError for any value that can't be losslessly
+# represented in the target integer type. Mimics InexactError(T(v)).
+.check_inexact_int <- function(value, type_name) {
+    bounds <- .INT_TYPE_RANGES[[type_name]]
+    if (is.null(bounds)) return(invisible())
+    if (methods::is(value, "Matrix")) value <- value@x
+    if (length(value) == 0L) return(invisible())
+    v <- suppressWarnings(as.double(value))
+    bad <- !is.finite(v) | (v < bounds[1L]) | (v > bounds[2L]) |
+        (v != floor(v))
+    if (any(bad, na.rm = TRUE)) {
+        which_bad <- which(bad)[1L]
+        stop(sprintf("InexactError: %s(%s)",
+            type_name, format(v[which_bad])
+        ), call. = FALSE)
+    }
+    invisible()
+}
+
 # CO5 parity: honor `type =` on numeric eltwise ops by coercing the
 # result. Matches Julia DAF where `% Op type Float32` returns a
 # Float32-storage result.
 .cast_to_type <- function(value, type) {
     if (is.null(type) || is.null(value)) return(value)
     if (methods::is(value, "Matrix")) return(value)  # leave Matrix alone
-    target <- switch(as.character(type)[[1L]],
+    type_name <- as.character(type)[[1L]]
+    target <- switch(type_name,
         integer = , Int8 = , Int16 = , Int32 = , Int64 = ,
         UInt8 = , UInt16 = , UInt32 = , UInt64 = "integer",
         numeric = , double = , Float32 = , Float64 = "double",
@@ -381,6 +451,17 @@ registered_eltwise <- function() sort(names(.ops_env$eltwise))
         NULL
     )
     if (is.null(target)) return(value)
+    # Range / inexact check for any integer target (Julia parity:
+    # % Round type Int8 / type UInt32 etc. raises InexactError when a
+    # value is fractional, infinite, or outside the target's range).
+    if (target == "integer" && !is.null(.INT_TYPE_RANGES[[type_name]])) {
+        .check_inexact_int(value, type_name)
+    }
+    # Bool target: only 0 / 1 / NA accepted (Julia parity:
+    # Bool(0.5) -> InexactError).
+    if (target == "logical" && (type_name %in% c("Bool", "logical"))) {
+        .check_inexact_bool(value, type_name)
+    }
     if (is.matrix(value)) {
         dn <- dimnames(value)
         storage.mode(value) <- target

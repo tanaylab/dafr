@@ -1961,9 +1961,11 @@ NULL
     # gates so `% Log base 0` errors uniformly across input shapes
     # (the kernel fast paths used to bypass .op_log's checks). The
     # length-2 input dodges the scalar-input rejection that some ops
-    # (Significant / Fraction) apply.
+    # (Significant / Fraction) apply. c(1, 1) satisfies every value
+    # range check used by ops with a `type =` parameter: 1 is positive
+    # (Log), within every Int/UInt range, and is a valid Bool entry.
     if (length(params) > 0L && !is.null(builtin)) {
-        do.call(fn, c(list(c(1, 2)), params))
+        do.call(fn, c(list(c(1, 1)), params))
     }
 
     if (isTRUE(dafr_opt("dafr.perf.fast_paths")) && identical(builtin, "Log")) {

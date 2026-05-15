@@ -11,13 +11,21 @@ test_that("Convert sparse->integer errors on non-integer values", {
     expect_error(dafr:::.op_convert(m, type = "integer"), "integer")
 })
 
-test_that("Convert sparse->logical preserves sparsity", {
+test_that("Convert sparse->logical preserves sparsity (0/1 values)", {
+    # Julia parity: Bool target only accepts 0/1 (was: any non-zero ->
+    # TRUE).
     m <- Matrix::sparseMatrix(i = c(1L, 2L, 3L), j = c(1L, 2L, 3L),
-        x = c(5, 0, -2), dims = c(3L, 3L))
+        x = c(1, 0, 1), dims = c(3L, 3L))
     out <- dafr:::.op_convert(m, type = "logical")
     expect_s4_class(out, "dgCMatrix")
-    # After drop0, only entries that were originally nonzero remain
-    expect_true(all(out@x %in% c(1)))  # zeros dropped by drop0
+    # After drop0, only entries that were originally nonzero remain.
+    expect_true(all(out@x %in% c(1)))
+})
+
+test_that("Convert sparse->logical errors on non-{0,1} (Julia InexactError)", {
+    m <- Matrix::sparseMatrix(i = 1L, j = 1L, x = 5, dims = c(2L, 2L))
+    expect_error(dafr:::.op_convert(m, type = "logical"),
+        "InexactError: Bool\\(5\\)")
 })
 
 test_that("Convert sparse->double is a no-op", {
