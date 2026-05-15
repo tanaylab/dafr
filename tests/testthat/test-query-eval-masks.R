@@ -104,6 +104,63 @@ test_that("E1: cols-axis mask flowing into >| / >- reductions", {
     )
 })
 
+# E3 (regression): row mask + GroupRowsBy must align the group vector with
+# the masked rows. Pre-fix, `[ type = X ] -/ type >- Sum` returned correct
+# values but assigned them to the wrong type label (the group vector was
+# fetched at the full axis length while the matrix had been mask-narrowed).
+
+test_that("E3: row mask + GroupRowsBy aligns group vector with masked rows", {
+    d <- memory_daf(name = "t")
+    add_axis(d, "metacell", c("M1", "M2", "M3", "M4", "M5", "M6"))
+    add_axis(d, "gene", c("G1", "G2"))
+    add_axis(d, "type", c("A", "B", "C"))
+    set_vector(d, "metacell", "type", c("A", "A", "B", "B", "C", "C"))
+    m <- matrix(
+        c(11, 12, 21, 22, 31, 32, 41, 42, 51, 52, 61, 62),
+        nrow = 6L, byrow = TRUE,
+        dimnames = list(c("M1", "M2", "M3", "M4", "M5", "M6"), c("G1", "G2"))
+    )
+    set_matrix(d, "metacell", "gene", "UMIs", m)
+
+    # Sanity: no mask returns all three type sums.
+    full <- get_query(d, "@ metacell @ gene :: UMIs -/ type >- Sum")
+    expect_equal(unname(full["A", ]), c(32, 34))
+    expect_equal(unname(full["B", ]), c(72, 74))
+    expect_equal(unname(full["C", ]), c(112, 114))
+
+    # Mask single type: result must be labelled with that type, with the
+    # correct values (M3+M4 sum for B).
+    only_b <- get_query(d, "@ metacell [ type = B ] @ gene :: UMIs -/ type >- Sum")
+    expect_true("B" %in% rownames(only_b))
+    expect_equal(unname(only_b["B", ]), c(72, 74))
+
+    only_c <- get_query(d, "@ metacell [ type = C ] @ gene :: UMIs -/ type >- Sum")
+    expect_equal(unname(only_c["C", ]), c(112, 114))
+
+    # Mask alternation: A | C should yield exactly those two groups, each
+    # with the correct sum.
+    or_ac <- get_query(d, "@ metacell [ type = A | type = C ] @ gene :: UMIs -/ type >- Sum")
+    expect_setequal(rownames(or_ac), c("A", "C"))
+    expect_equal(unname(or_ac["A", ]), c(32, 34))
+    expect_equal(unname(or_ac["C", ]), c(112, 114))
+})
+
+test_that("E3: column mask + GroupColumnsBy aligns group vector with masked cols", {
+    d <- memory_daf(name = "t")
+    add_axis(d, "metacell", c("M1", "M2"))
+    add_axis(d, "gene", c("G1", "G2", "G3"))
+    add_axis(d, "module", c("X", "Y"))
+    set_vector(d, "gene", "module", c("X", "Y", "X"))
+    m <- matrix(c(1, 2, 3, 4, 5, 6), nrow = 2L, byrow = TRUE,
+                dimnames = list(c("M1", "M2"), c("G1", "G2", "G3")))
+    set_matrix(d, "metacell", "gene", "UMIs", m)
+
+    only_y <- get_query(d, "@ metacell @ gene [ module = Y ] :: UMIs |/ module >| Sum")
+    expect_true("Y" %in% colnames(only_y))
+    # G2 is the only Y gene; per-metacell Y sum = G2 column.
+    expect_equal(unname(only_y[, "Y"]), c(2, 5))
+})
+
 # E2: virtual `name` property — both as a mask comparator and as a `: name`
 # lookup — returns the axis-entry vector.
 

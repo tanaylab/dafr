@@ -624,10 +624,15 @@ NULL
         m <- m[, col_indices, drop = FALSE]
     }
     dimnames(m) <- list(out_rownames, out_colnames)
+    # Carry the mask indices forward so a downstream `-/ prop` (GroupRowsBy)
+    # or `|/ prop` (GroupColumnsBy) can subset the group vector to align
+    # with the masked matrix rows/cols.
     list(
         kind = "matrix",
         value = m,
         rows_axis = rows, cols_axis = cols,
+        row_indices = row_indices,
+        col_indices = col_indices,
         matrix_property = node$name
     )
 }
@@ -3379,6 +3384,13 @@ NULL
         return(state)
     }
     grp <- format_get_vector(daf, state$rows_axis, node$property)$value
+    # Align the group vector with any row mask applied earlier (`[ ... ]`
+    # before `::`). Without this the full-axis group vector gets matched
+    # against the smaller masked matrix and the reduction silently assigns
+    # values to the wrong group label.
+    if (!is.null(state$row_indices)) {
+        grp <- grp[state$row_indices]
+    }
     state$pending_row_groups <- grp
     state$pending_row_groups_property <- node$property
     state$kind <- "grouped_matrix_rows"
@@ -3397,6 +3409,11 @@ NULL
         return(state)
     }
     grp <- format_get_vector(daf, state$cols_axis, node$property)$value
+    # Same rationale as .apply_groupby_rows: subset by any cols mask so the
+    # group vector aligns with the masked matrix's columns.
+    if (!is.null(state$col_indices)) {
+        grp <- grp[state$col_indices]
+    }
     state$pending_col_groups <- grp
     state$pending_col_groups_property <- node$property
     state$kind <- "grouped_matrix_cols"

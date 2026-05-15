@@ -1,3 +1,44 @@
+# dafr 0.2.7
+
+## Fix: row/col mask alignment under matrix GroupBy
+
+`@ axis [ prop = X ] @ other :: M -/ prop >- Op` (and the
+`GroupColumnsBy` mirror) returned correct values but assigned them
+to the wrong group label. The mask filtered the matrix axis
+correctly, but the subsequent `GroupRowsBy` / `GroupColumnsBy` then
+fetched the group-property vector at the FULL axis length and
+matched it against the masked matrix by position - so the group
+labels and the matrix rows drifted out of alignment.
+
+Concrete repro from the regression test:
+
+```r
+d <- memory_daf(name = "t")
+add_axis(d, "metacell", c("M1","M2","M3","M4","M5","M6"))
+add_axis(d, "gene", c("G1","G2"))
+add_axis(d, "type", c("A","B","C"))
+set_vector(d, "metacell", "type", c("A","A","B","B","C","C"))
+set_matrix(d, "metacell", "gene", "UMIs", matrix(
+    c(11,12, 21,22, 31,32, 41,42, 51,52, 61,62),
+    nrow = 6L, byrow = TRUE,
+    dimnames = list(c("M1","M2","M3","M4","M5","M6"), c("G1","G2"))))
+
+# Pre-fix: returned A=72,74 (which is the M3+M4 sum, mis-labelled).
+# Post-fix: B=72,74 only.
+get_query(d, "@ metacell [ type = B ] @ gene :: UMIs -/ type >- Sum")
+```
+
+Julia parity: `MatrixState` in `DataAxesFormats.jl` keeps the
+per-axis `VectorState` on the matrix, so masks and groupings are
+always aligned by axis. The R port was passing matrix state through
+a plain list that dropped the row/col indices on transition; now
+the matrix-lookup carries `row_indices`/`col_indices` forward and
+`apply_groupby_rows` / `apply_groupby_columns` subset the group
+vector to match.
+
+Two regression tests added under `test-query-eval-masks.R` (E3 row
++ cols variants).
+
 # dafr 0.2.6
 
 ## CI: document `source =` param + refresh pkgdown index
