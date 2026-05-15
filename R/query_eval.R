@@ -1909,6 +1909,11 @@ NULL
         stop("'%' eltwise requires scalar, vector, or matrix in scope",
             call. = FALSE)
     }
+    # See .apply_reduction: integer64 inputs come in as REALSXP-stored bytes,
+    # and the cast_to_type / storage.mode <- target path corrupts them
+    # (% Round type Int8 -> all zeros, % Convert type Float32 -> denormals).
+    # Demote to plain double so kernels and cast see the real values.
+    state$value <- .demote_int64(state$value)
     fn <- get_eltwise(node$name)
     params <- .coerce_params(node$params)
     builtin <- attr(fn, ".dafr_builtin")
