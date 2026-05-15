@@ -224,7 +224,8 @@ registered_eltwise <- function() sort(names(.ops_env$eltwise))
     .reject_non_float_type("Log", type)
     .require_numeric_param("Log", "eps", eps)
     .require_numeric_param("Log", "base", base)
-    eps <- as.numeric(eps); base <- as.numeric(base)
+    eps  <- as.numeric(.resolve_named_numeric(eps))
+    base <- as.numeric(.resolve_named_numeric(base))
     if (base <= 0) {
         stop(sprintf(
             "invalid value: \"%s\"\nvalue must be: positive\nfor the parameter: base\nfor the operation: Log",
@@ -417,9 +418,27 @@ registered_eltwise <- function() sort(names(.ops_env$eltwise))
     invisible()
 }
 
+# Julia DAF.jl accepts named constants in numeric operation parameters
+# (`Log base e`, `Log base pi`, etc.). Map them to their R numeric value
+# so downstream as.numeric() / arithmetic sees a real number.
+.NAMED_NUMERIC_CONSTANTS <- list(e = exp(1), pi = pi)
+
+.resolve_named_numeric <- function(value) {
+    if (is.character(value) && length(value) == 1L) {
+        v <- .NAMED_NUMERIC_CONSTANTS[[value]]
+        if (!is.null(v)) return(v)
+    }
+    value
+}
+
 .require_numeric_param <- function(op_name, param_name, value) {
     if (is.null(value)) return(invisible())
     if (is.numeric(value) && length(value) == 1L) return(invisible())
+    # Julia parity: accept named constants like "e", "pi" as numeric.
+    if (is.character(value) && length(value) == 1L &&
+        !is.null(.NAMED_NUMERIC_CONSTANTS[[value]])) {
+        return(invisible())
+    }
     n <- suppressWarnings(as.numeric(value))
     if (length(value) == 1L && !is.na(n)) return(invisible())
     stop(sprintf(

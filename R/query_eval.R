@@ -62,8 +62,8 @@ NULL
     fn <- get_eltwise(log_node$name)
     if (!identical(attr(fn, ".dafr_builtin"), "Log")) return(NULL)
     params <- .coerce_params(log_node$params)
-    eps <- params$eps %||% 0
-    base <- params$base %||% exp(1)
+    eps  <- .resolve_named_numeric(params$eps  %||% 0)
+    base <- .resolve_named_numeric(params$base %||% exp(1))
     threshold <- as.integer(dafr_opt("dafr.omp_threshold"))
     axis <- if (identical(red_node$op, "ReduceToColumn")) 0L else 1L
     reducer <- red_node$reduction
@@ -342,9 +342,15 @@ NULL
         }
         return(value)
     }
+    # Julia parity: named constants (pi, e, true, false) are recognised in
+    # IfMissing defaults even when a target type is specified. For Float
+    # targets we coerce the resolved double / boolean to double; for Bool
+    # we expect true/false literals (which already resolve to logical).
+    const <- .resolve_if_missing_constant(value)
     switch(type,
         String  = as.character(value),
         Bool    = {
+            if (is.logical(const)) return(const)
             v <- as.character(value)
             if (v %in% c("0", "false", "FALSE")) FALSE
             else if (v %in% c("1", "true", "TRUE")) TRUE
@@ -353,7 +359,10 @@ NULL
         Int8 = , Int16 = , Int32 = ,
         UInt8 = , UInt16 = , UInt32 = ,
         Int64 = , UInt64 = .strict_int_coerce(value, type),
-        Float32 = , Float64 = as.double(value),
+        Float32 = , Float64 = {
+            if (is.numeric(const)) return(as.double(const))
+            as.double(value)
+        },
         stop(sprintf(
             "IfMissing: unknown type %s (expected one of Bool, Int8/16/32/64, UInt8/16/32/64, Float32/64, String)",
             sQuote(type)
@@ -1958,8 +1967,8 @@ NULL
     }
 
     if (isTRUE(dafr_opt("dafr.perf.fast_paths")) && identical(builtin, "Log")) {
-        eps <- as.numeric(params$eps %||% 0)
-        base <- as.numeric(params$base %||% exp(1))
+        eps  <- as.numeric(.resolve_named_numeric(params$eps  %||% 0))
+        base <- as.numeric(.resolve_named_numeric(params$base %||% exp(1)))
 
         # Fast path 1: sparsity-preserving Log on dgCMatrix. log1p(0) == 0,
         # so eps == 1 with default base (e) is the only Log parameterisation
