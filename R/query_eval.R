@@ -47,6 +47,16 @@ NULL
     if (identical(state$kind, "pending_count")) {
         state <- .finalize_pending_count(state, daf)
     }
+    # Julia parity: `?? <value>` without a following lookup chain has no
+    # operation to substitute the final_value into. DAF.jl errors at
+    # evaluation with `invalid operation(s) ... ?? a ▲`. Detect the
+    # un-consumed final_value here and reject.
+    if (isTRUE(state$if_not_present) && !is.null(state$if_not_value)) {
+        stop(sprintf(
+            "invalid operation(s)\nin the query: %s\n`?? %s` requires a following lookup chain (`: prop` / `:: prop`) to substitute into",
+            .canonicalise_ast(ast), state$if_not_value
+        ), call. = FALSE)
+    }
     # Julia parity: a partial / unconsumed query (e.g. `@ cell @ gene` with no
     # lookup, or just `.`) leaves state in a non-terminal kind. Reject rather
     # than returning NULL, mirroring DAF.jl's `invalid query: ...` error.
