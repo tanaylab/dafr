@@ -378,6 +378,16 @@ parse_query <- function(query_string) {
             type <- tokens[[j]]$value
             j <- j + 1L
         }
+        # Julia parity: when an explicit type is given, validate the
+        # default at parse time even if the surrounding lookup ends up
+        # finding the property (so the IfMissing branch is never taken).
+        # Julia's parse_query reports `invalid value "<v>" / must be a
+        # valid <T> / for parameter value / for operation ||`. dafr
+        # used to defer this to evaluation, so `. intver || 1.5 Int32`
+        # succeeded by silently ignoring the broken default.
+        if (!is.null(type)) {
+            .validate_if_missing_default(default, type)
+        }
         list(node = .qop_if_missing(default, type = type), next_index = j)
     } else {
         list(node = .qop_if_missing(NULL), next_index = i + 1L)

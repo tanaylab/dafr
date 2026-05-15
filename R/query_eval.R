@@ -320,8 +320,51 @@ NULL
     )
 }
 
+# Parse-time validation of an IfMissing default with explicit type. Used
+# from .parse_if_missing in query_parse.R so that `. intver || 1.5 Int32`
+# raises during parse even when `intver` exists and the default would
+# never actually be needed (Julia DAF.jl parses-and-validates eagerly).
+.validate_if_missing_default <- function(value, type) {
+    # Numeric / boolean named constants are universally accepted.
+    if (!is.null(.resolve_if_missing_constant(value))) return(invisible())
+    if (type == "String") return(invisible())
+    if (type == "Bool") {
+        v <- as.character(value)
+        if (!(v %in% c("0", "false", "FALSE", "1", "true", "TRUE"))) {
+            stop(sprintf(
+                "invalid value: %s\nvalue must be: a valid %s\nfor the parameter: value\nfor the operation: ||",
+                sQuote(value), type
+            ), call. = FALSE)
+        }
+        return(invisible())
+    }
+    if (type %in% c("Int8", "Int16", "Int32", "Int64",
+                    "UInt8", "UInt16", "UInt32", "UInt64")) {
+        s <- as.character(value)
+        if (!grepl("^-?[0-9]+$", s)) {
+            stop(sprintf(
+                "invalid value: %s\nvalue must be: a valid %s\nfor the parameter: value\nfor the operation: ||",
+                sQuote(s), type
+            ), call. = FALSE)
+        }
+        return(invisible())
+    }
+    if (type %in% c("Float32", "Float64")) {
+        suppressWarnings(d <- as.double(as.character(value)))
+        if (is.na(d)) {
+            stop(sprintf(
+                "invalid value: %s\nvalue must be: a valid %s\nfor the parameter: value\nfor the operation: ||",
+                sQuote(value), type
+            ), call. = FALSE)
+        }
+        return(invisible())
+    }
+    # Unknown type names fall through to coerce-time error template
+    invisible()
+}
+
 # Strict integer coercion: reject strings that aren't a valid integer
-# literal (Julia parity — `|| 1.0 Int32` errors on parse-vs-coerce
+# literal (Julia parity - `|| 1.0 Int32` errors on parse-vs-coerce
 # mismatch even though `parse_query` accepts the string).
 .strict_int_coerce <- function(value, type) {
     s <- as.character(value)
