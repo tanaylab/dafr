@@ -2233,6 +2233,20 @@ NULL
 
 .dafr_kernel_threshold <- function() dafr_opt("dafr.kernel_threshold")
 
+# Julia DAF.jl labels grouped-by-Bool result entries with lowercase
+# "true" / "false" (string(true) in Julia). R's as.character(TRUE) is
+# "TRUE", so the same query produced "FALSE" / "TRUE" labels. Convert
+# logical group vectors to lowercase character before factor() so
+# downstream labels (NamedArray names, dimnames) match Julia byte for
+# byte.
+.lc_bool_labels <- function(g) {
+    if (is.logical(g)) {
+        return(ifelse(is.na(g), NA_character_,
+            ifelse(g, "true", "false")))
+    }
+    g
+}
+
 # integer64 is stored as REALSXP whose bytes are int64 reinterpreted: any
 # downstream code that treats those bytes as Float64 (rowSums, matrixStats,
 # rowsum, stats::quantile, sum, ...) produces denormal garbage. Demote here
@@ -2663,7 +2677,8 @@ NULL
     # (DataAxesFormats.jl/src/queries.jl ~3935: result is sorted by
     # the group value, which is also used as the name in the
     # NamedArray).
-    gfac <- factor(g, levels = sort(unique(g)))
+    g_labels <- .lc_bool_labels(g)
+    gfac <- factor(g_labels, levels = sort(unique(g_labels)))
     gi <- as.integer(gfac)
     ngroups <- nlevels(gfac)
     lvls <- levels(gfac)
@@ -3026,6 +3041,7 @@ NULL
 
     if (is_g2 || is_g3) {
         g <- if (is_g2) state$pending_row_groups else state$pending_col_groups
+        g <- .lc_bool_labels(g)
         # Julia DAF sorts group levels alphabetically (queries.jl ~3935).
         gfac <- factor(g, levels = sort(unique(g)))
         gi <- as.integer(gfac)
@@ -3144,7 +3160,7 @@ NULL
                 daf, by = inner_by)
             # inner$value is ngroups x ncol with rownames = group levels.
             mat <- inner$value
-            g <- state$pending_row_groups
+            g <- .lc_bool_labels(state$pending_row_groups)
             gfac <- factor(g, levels = sort(unique(g)))
             lvls <- levels(gfac)
             ngroups <- nlevels(gfac)
@@ -3167,7 +3183,7 @@ NULL
         inner <- .apply_reduction_grouped_matrix(inner_node, state, daf,
             by = "cols")
         mat <- inner$value
-        g <- state$pending_col_groups
+        g <- .lc_bool_labels(state$pending_col_groups)
         gfac <- factor(g, levels = sort(unique(g)))
         lvls <- levels(gfac)
         ngroups <- nlevels(gfac)
@@ -3681,8 +3697,8 @@ NULL
 # end of evaluation if the count-by wasn't followed by something that
 # materialises it (e.g. a reduction on the resulting matrix).
 .finalize_pending_count <- function(state, daf) {
-    a <- state$a_per_cell
-    b <- state$b_per_cell
+    a <- .lc_bool_labels(state$a_per_cell)
+    b <- .lc_bool_labels(state$b_per_cell)
     # If `=@` was applied to the count's b-side AND b_pivot_axis names a real
     # axis, expand the cross-tab to include every axis entry — even those
     # with zero co-occurrences. (Julia parity — queries.jl > matrix > count
