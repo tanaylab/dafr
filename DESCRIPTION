@@ -72,6 +72,7 @@ Collate:
     'query_ast.R'
     'query_parse.R'
     'operations.R'
+    'op_dispatch.R'
     'query_eval.R'
     'queries.R'
     'view_daf.R'

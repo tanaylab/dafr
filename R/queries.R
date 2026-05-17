@@ -127,6 +127,22 @@ get_query <- function(daf, query_string) {
         stop(sprintf("invalid query: %s", canonical), call. = FALSE)
     }
 
+    # Julia parity: `@ axis [ mask ] : ?` and `@ rows @ cols [ mask ] :: ?`
+    # are rejected with "invalid operation(s)" - a names query (`?`) on a
+    # mask-narrowed axis doesn't make sense (`?` asks for the axis's
+    # property names, which doesn't depend on the mask). R was treating
+    # them as `: prop` chains targeting the literal property name "?".
+    names_idx <- which(ops == "Names")
+    if (length(names_idx) == 1L && names_idx > 1L) {
+        # The token before Names tells us what scope `?` is on. If there
+        # is a BeginMask earlier in the AST (and no closing terminal
+        # between), reject.
+        prefix_ops <- ops[seq_len(names_idx - 1L)]
+        if (any(prefix_ops %in% c("BeginMask", "BeginNegatedMask"))) {
+            stop(sprintf("invalid query: %s", canonical), call. = FALSE)
+        }
+    }
+
     invisible(NULL)
 }
 
