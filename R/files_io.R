@@ -162,7 +162,12 @@
             value = jsonlite::unbox(value)
         )
     }
-    cat(jsonlite::toJSON(obj, auto_unbox = FALSE), "\n", file = path, sep = "")
+    # digits = 17 is the minimum needed to round-trip Float64 without
+    # precision loss. jsonlite's default of 4 was truncating high-
+    # precision scalars (e.g. pi to 3.1416). String/Bool branches are
+    # unaffected; the explicit Int64 branch above writes its own JSON.
+    cat(jsonlite::toJSON(obj, auto_unbox = FALSE, digits = 17),
+        "\n", file = path, sep = "")
 }
 
 # Fast-path regex for fixed scalar schemas dafr emits:
@@ -199,7 +204,15 @@
     m <- regmatches(raw, regexec(.SCALAR_STR_RE, raw, perl = TRUE))[[1L]]
     if (length(m) == 3L) {
         t <- .dtype_canonical(m[[2L]])
-        if (t == "String") return(m[[3L]])
+        if (t == "String") {
+            # readChar(..., useBytes = TRUE) above leaves the string with
+            # Encoding "bytes"/"unknown". dafr files are UTF-8 by spec; tag
+            # explicitly so downstream `Encoding()` / `serialize()` agree
+            # with the memory backend.
+            s <- m[[3L]]
+            Encoding(s) <- "UTF-8"
+            return(s)
+        }
         # Non-string type with quoted value — fall through
     }
     # Fallback: full JSON parse
@@ -267,8 +280,13 @@
             endian = "little"
         ),
         Int64 = {
-            raw64 <- readBin(con, what = "integer", n = n, size = 8L, endian = "little")
-            bit64::as.integer64(raw64)
+            # R's `readBin(what="integer", size=8L)` truncates each value
+            # to its low 32 bits because base R has no native 8-byte int.
+            # Read 8-byte doubles and bit-alias into integer64 (same bit
+            # storage as bit64::as.integer64).
+            raw_dbl <- readBin(con, what = "double", n = n, size = 8L, endian = "little")
+            oldClass(raw_dbl) <- "integer64"
+            raw_dbl
         },
         UInt8 = readBin(con,
             what = "integer", n = n, size = 1L, signed = FALSE,
@@ -283,8 +301,10 @@
             endian = "little"
         ),
         UInt64 = {
-            raw64 <- readBin(con, what = "integer", n = n, size = 8L, endian = "little")
-            bit64::as.integer64(raw64)
+            # Same low-32-bits truncation as Int64; bit-alias via double.
+            raw_dbl <- readBin(con, what = "double", n = n, size = 8L, endian = "little")
+            oldClass(raw_dbl) <- "integer64"
+            raw_dbl
         },
         Float32 = readBin(con, what = "double", n = n, size = 4L, endian = "little"),
         Float64 = readBin(con, what = "double", n = n, size = 8L, endian = "little"),
@@ -308,7 +328,9 @@
     nnz <- if (is.logical(vec)) {
         sum(vec, na.rm = TRUE)
     } else {
-        sum(vec != 0, na.rm = TRUE)
+        # NaN is a real Float64 value (not zero); preserve it through the
+        # sparsify decision and the sparse write below.
+        sum(is.nan(vec) | (vec != 0), na.rm = TRUE)
     }
     sparse_bytes <- nnz * (.dtype_size(eltype) + .dtype_size(indtype))
     dense_bytes <- n * .dtype_size(eltype)

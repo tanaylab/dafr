@@ -104,6 +104,11 @@ set_vector <- function(daf, axis, name, vec, overwrite = FALSE) {
     .assert_name(name, "name")
     .assert_flag(overwrite, "overwrite")
     .require_not_reserved(daf, axis, name)
+    # Centralised validation + named-subset reorder so every backend gets
+    # the same axis-ordered, un-named vec. ZarrDaf previously bypassed
+    # this and stored named vectors in input order (Round 7 finding F).
+    .require_axis(daf, sprintf("for the vector: %s", name), axis)
+    vec <- .validate_vector_value(daf, axis, name, vec)
     format_set_vector(daf, axis, name, vec, overwrite)
     invisible(daf)
 }
