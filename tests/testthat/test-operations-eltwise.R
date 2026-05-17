@@ -60,8 +60,11 @@ test_that("Convert requires type parameter", {
 
 test_that("Convert rejects unknown type names", {
     fn <- get_eltwise("Convert")
-    expect_error(fn(c(1, 2, 3), type = "float64"), "type.*double.*integer.*logical")
+    # Julia parity: lowercase aliases (`float64`, `int32`, etc.) are accepted
+    # alongside their cased forms. Unknown names still error.
+    expect_equal(fn(c(1, 2, 3), type = "float64"), c(1, 2, 3))
     expect_error(fn(c(1, 2, 3), type = "string"), "type")
+    expect_error(fn(c(1, 2, 3), type = "Decimal"), "type")
 })
 
 test_that("Convert preserves sparsity for target 'double'", {

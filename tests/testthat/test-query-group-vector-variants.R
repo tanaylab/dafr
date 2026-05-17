@@ -48,17 +48,17 @@ local({
     test_that("group-by with square @| key (column-of-square)", {
         d <- setup()
         out <- get_query(d, "@ cell : score / distance @| C >> Sum")
-        # Julia: ["0" => 5.0, "1" => 1.0]
-        expect_equal(out[["0"]], 5)
-        expect_equal(out[["1"]], 1)
+        # Julia: ["0.0" => 5.0, "1.0" => 1.0]
+        expect_equal(out[["0.0"]], 5)
+        expect_equal(out[["1.0"]], 1)
     })
 
     test_that("group-by with square @- key (row-of-square)", {
         d <- setup()
         out <- get_query(d, "@ cell : score / distance @- A >> Sum")
-        # Julia: ["0" => 0.0, "1" => 6.0]
-        expect_equal(out[["0"]], 0)
-        expect_equal(out[["1"]], 6)
+        # Julia: ["0.0" => 0.0, "1.0" => 6.0]
+        expect_equal(out[["0.0"]], 0)
+        expect_equal(out[["1.0"]], 6)
     })
 
     test_that("group-by with =@ axis and || default fills unused entries", {
