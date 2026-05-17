@@ -1,0 +1,440 @@
+# Adversarial queries for parity testing.
+# One per line. Lines starting with # are comments.
+
+# --- Baseline sanity (should be parity, included as control) ---
+. version
+. title
+@ cell : age
+@ cell : age >> Sum
+@ cell @ gene :: UMIs
+@ cell @ gene :: UMIs >> Sum
+
+# --- Eltwise % parameter / type edge cases ---
+@ cell : score % Abs
+@ cell : score % Abs type Float32
+@ cell : score % Abs type UInt8
+@ cell : score % Clamp low 0 high 2
+@ cell : age % Log base 2
+@ cell : age % Log base 10 eps 0.5
+@ cell : age % Log base e eps 0.0
+@ cell : age % Log base e eps -1.0
+@ cell : age % Significant high 25 low 5
+@ cell : score % Convert type Int32
+@ cell : score % Convert type Bool
+@ cell : score % Fraction
+@ cell : age % Round type Int8
+@ cell : with_nan % Round
+
+# --- Reduction edge cases ---
+@ cell : score >> Sum
+@ cell : score >> Sum type Float32
+@ cell : age >> Mean type Float32
+@ cell : age >> Var
+@ cell : age >> VarN
+@ cell : age >> Std
+@ cell : age >> StdN
+@ cell : score >> Quantile p 0.5
+@ cell : score >> Quantile p 0.0
+@ cell : score >> Quantile p 1.0
+@ cell : type >> Mode
+@ cell : with_nan >> Sum
+@ cell : with_nan >> Mean
+@ cell : with_nan >> Max
+@ cell : with_nan >> Min
+@ cell : with_nan >> Median
+
+# --- IfMissing typing edge cases ---
+. missing_scalar || 42
+. missing_scalar || 42 Int32
+. missing_scalar || 1.5
+. missing_scalar || 1.5 String
+. missing_scalar || true
+. missing_scalar || pi
+. missing_scalar || e
+. missing_scalar || ''
+@ cell : missing_prop || 0
+@ cell : missing_prop || 0.0
+@ cell : missing_prop || ''
+
+# --- Empty axis / empty mask ---
+@ empty_axis : ?
+@ cell [ neg_age > 100 ]
+@ cell [ neg_age > 100 ] : age
+@ cell [ neg_age > 100 ] : age >> Sum
+@ cell [ neg_age > 100 ] : age >> Sum || 0
+@ cell [ neg_age > 100 ] : age >> Sum || 0.0
+
+# --- Mask logic precedence ---
+@ cell [ is_low & is_doublet ]
+@ cell [ is_low | is_doublet ]
+@ cell [ is_low ^ is_doublet ]
+@ cell [ ! is_low & is_doublet ]
+@ cell [ is_low & ! is_doublet ]
+@ cell [ is_low | ! is_doublet ]
+@ cell [ ! is_low ^ is_doublet ]
+@ cell [ is_low & is_doublet | is_low ]
+@ cell [ ! is_low & ! is_doublet ]
+
+# --- Comparison masks ---
+@ cell [ age > 20 ]
+@ cell [ age >= 20 ]
+@ cell [ age = 20 ]
+@ cell [ age != 20 ]
+@ cell [ score < 0 ]
+@ cell [ type = U ]
+@ cell [ type != U ]
+@ cell [ type ~ ^U ]
+@ cell [ type !~ ^U ]
+@ cell [ label = '' ]
+@ cell [ label = a b ]
+@ cell [ label = y\\z ]
+
+# --- Group-by edge cases ---
+@ cell : age / type >> Sum
+@ cell : age / type >> Mean
+@ cell : age / batch >> Sum
+@ cell : score / type >> Sum
+@ cell : score / type =@ >> Sum
+@ cell : score / type =@ >> Sum || 0.0
+@ cell : score / batch =@ >> Sum
+@ cell : age / is_doublet >> Sum
+@ cell : age / is_low >> Sum
+
+# --- Lookup chains ---
+@ cell : type : color
+@ cell : type =@ : color
+@ cell : batch : donor
+@ cell : type ?? : color
+
+# --- Matrix slicing & reductions ---
+@ cell : score @ cell = A
+@ cell @ gene :: UMIs @ gene = g1
+@ cell @ gene :: UMIs @ cell = A
+@ cell @ gene :: UMIs >> Sum type Float64
+@ cell @ gene :: UMIs >- Sum
+@ cell @ gene :: UMIs >| Sum
+@ cell @ gene :: UMIs >- Mean
+@ cell @ gene :: UMIs %> Sum
+
+# --- Square matrix row/col pick ---
+@ cell : score / distance @- A >> Sum
+@ cell : score / distance @| A >> Sum
+@ cell @ cell :: distance @- A
+@ cell @ cell :: distance @| A
+
+# --- CountBy / cross-tabulation ---
+@ cell : type * batch
+@ cell : type * batch =@
+@ cell : type =@ * batch =@
+
+# --- Names queries ---
+. ?
+@ ?
+@ cell : ?
+@ cell @ gene :: ?
+
+# --- Whitespace / comments inside query strings ---
+@ cell # this is a comment
+ : age
+@ cell : age
+# leading comment line
+. version
+
+# --- Edge: escaped value chars (Julia-style backslash) ---
+@ cell [ label = a\ b ]
+@ cell : missing_prop || 'unknown thing'
+@ cell : missing_prop || a\ b
+
+# --- Edge: numeric strings + type coercion ---
+@ cell : age % Log base 2.0
+@ cell : age >> Sum type Float32
+@ cell : score >> Sum type Int32
+
+# --- Boolean masks combined with reductions ---
+@ cell [ is_doublet ] : age >> Sum
+@ cell [ ! is_doublet ] : age >> Sum
+@ cell [ is_doublet ] : score >> Mean
+@ cell [ is_doublet ] : score >> Mean || 0.0
+
+# --- Eltwise on matrix ---
+@ cell @ gene :: UMIs % Log base 2 eps 1
+@ cell @ gene :: UMIs % Abs
+@ cell @ gene :: UMIs % Clamp low 1 high 5
+@ cell @ gene :: UMIs % Convert type Float32
+
+# --- Reduction along matrix axes with type ---
+@ cell @ gene :: UMIs >- Sum type Int32
+@ cell @ gene :: UMIs >| Sum type Int32
+
+# --- Matrix slice as mask (E3 - known open) ---
+@ cell [ UMIs @ gene = g1 > 2 ]
+@ cell [ UMIs @ gene = g1 > 2 ] : age
+
+# --- Regex with escaped brackets (E10 - known open) ---
+@ cell [ label ~ ^\[a-z\] ]
+
+# --- Strict parser cases ---
+@ cell : age % Log base 2 base 10
+@ cell : age % Unknownop
+@ cell : age >> Unknownreduce
+@ cell : age % Log nonexistent_param 1
+. version || 1.0 NotAType
+@ cell : missing_prop || x Float32
+# Round 2 - targeted adversarial queries to expand coverage of the bugs found.
+
+# --- integer64 path: more reductions, more operations ---
+@ cell : age >> Min
+@ cell : age >> Max
+@ cell : age >> Median
+@ cell : age >> Quantile p 0.25
+@ cell : age >> Var
+@ cell : age >> Std
+@ cell : age >> GeoMean
+@ cell : age >> Mode
+
+# --- integer64 path: eltwise + reduce combos ---
+@ cell : age % Abs >> Sum
+@ cell : age % Abs / type >> Sum
+@ cell : age % Log base 2 / type >> Mean
+@ cell : age % Convert type Float32 / type >> Sum
+@ cell : age % Convert type integer / type >> Sum
+
+# --- mixed: float vector through same paths (should match) ---
+@ cell : score % Abs / type >> Sum
+@ cell : score % Log base 2 eps 1 / type >> Mean
+
+# --- groupby with =@ axis broadcast ---
+@ cell : age / type =@ >> Sum
+@ cell : age / type =@ >> Sum || 0
+@ cell : score / type =@ >> Sum || 0.0
+
+# --- matrix reductions with integer source ---
+@ cell @ gene :: UMIs >- Sum
+@ cell @ gene :: UMIs >| Sum
+@ cell @ gene :: UMIs >- Mean
+@ cell @ gene :: UMIs >| Mean
+@ cell @ gene :: UMIs >- Max
+@ cell @ gene :: UMIs >- Min
+@ cell @ gene :: UMIs >- Median
+@ cell @ gene :: UMIs >- Quantile p 0.5
+
+# --- matrix groupby + reduction ---
+@ cell @ gene :: UMIs -/ type >- Sum
+@ cell @ gene :: UMIs -/ type >- Mean
+@ cell @ gene :: UMIs |/ marker >| Sum
+@ cell @ gene :: UMIs |/ marker >| Mean
+
+# --- regex without escaping (Julia strict, R permissive?) ---
+@ cell [ type ~ U ]
+@ cell [ type ~ \^U ]
+@ cell [ type ~ \^\(U\|V\) ]
+@ cell [ batch ~ b ]
+@ cell [ label ~ a ]
+
+# --- IfMissing with typed defaults using named constants ---
+. missing_scalar || pi Float32
+. missing_scalar || e Float32
+. missing_scalar || true Bool
+. missing_scalar || false
+@ cell : missing_prop || pi
+@ cell : missing_prop || e
+
+# --- Comparisons on numbers stored as strings ---
+@ cell [ batch > b1 ]
+@ cell [ label < b ]
+@ cell [ label >= '' ]
+
+# --- Empty-axis with reductions ---
+@ empty_axis : ?
+@ cell [ ! is_doublet & ! is_low ] : age >> Sum
+@ cell [ neg_age > 100 ] : score >> Mean
+@ cell [ neg_age > 100 ] : score >> Mean || 0.0
+@ cell [ neg_age > 100 ] : score >> Count
+
+# --- Trailing/leading whitespace, internal extra whitespace ---
+  @ cell : age >> Sum
+@ cell : age   >>    Sum
+@ cell:age>>Sum
+@   cell  :  age  >>  Sum
+
+# --- Comments inside queries ---
+@ cell # mask comment
+ [ is_doublet ] : age >> Sum
+@ cell : age # eltwise after this
+  % Abs # eltwise param
+  type Float32
+
+# --- Boolean stored as Bool: chain with Sum/Mean ---
+@ cell : is_doublet >> Sum
+@ cell : is_doublet >> Mean
+@ cell : is_doublet >> Max
+@ cell : is_doublet >> Count
+@ cell : is_doublet / type >> Sum
+@ cell : is_doublet / type >> Mean
+
+# --- String operations and grouping ---
+@ cell : type >> Mode
+@ cell : type / batch >> Mode
+@ cell : label / type >> Mode
+
+# --- Mode with ties (deterministic across langs?) ---
+# Add additional vectors for tie testing
+@ cell : type
+
+# --- IfNot (??) chains ---
+@ cell : type ?? : color
+@ cell : type ?? a
+@ cell : type ?? unknown
+@ cell : batch ?? : donor
+
+# --- IfMissing on reductions of empty vectors ---
+@ cell [ age > 100 ] : score >> Sum
+@ cell [ age > 100 ] : score >> Sum || 0
+@ cell [ age > 100 ] : score >> Sum || 0.0
+@ cell [ age > 100 ] : score >> Mean || 0
+@ cell [ age > 100 ] : score >> Median || 0
+@ cell [ age > 100 ] : score >> Std || 0
+
+# --- AND/OR/XOR mask edge cases ---
+@ cell [ is_doublet & ! is_doublet ]
+@ cell [ is_doublet | ! is_doublet ]
+@ cell [ is_doublet ^ is_doublet ]
+@ cell [ is_low ^ ! is_low ]
+
+# --- Numeric comparison precision: NaN ordering ---
+@ cell [ with_nan > 0 ]
+@ cell [ with_nan < 100 ]
+@ cell [ with_nan = with_nan ]
+@ cell [ with_nan != with_nan ]
+
+# --- Type-mismatched comparisons ---
+@ cell [ age = ten ]
+@ cell [ type = 0 ]
+
+# --- Long chain stress ---
+@ cell [ age > 5 ] [ ! is_doublet ] : score % Abs % Log base 2 eps 1 >> Sum
+
+# --- Special chars in property values ---
+@ cell [ label = a b ]
+@ cell [ label = 'a b' ]
+@ cell : label >> Mode
+# Round 3 - probe additional locale, type, and corner cases
+
+# --- More string-comparison locale victims (R en_US.UTF-8 vs Julia bytewise) ---
+@ cell [ label < Z ]
+@ cell [ label > Z ]
+@ cell [ label <= Z ]
+@ cell [ label >= Z ]
+@ cell [ type < V ]
+@ cell [ type > V ]
+@ cell [ batch < b2 ]
+@ cell [ batch > b2 ]
+@ cell [ batch <= b2 ]
+@ cell [ batch >= b2 ]
+
+# --- Equality with mixed case (locale typically still bytewise for == but verify) ---
+@ cell [ label = Z ]
+@ cell [ label = z ]
+@ cell [ label != Z ]
+
+# --- More Bool reductions and groupby on Bool ---
+@ cell : is_doublet >> Sum type Int32
+@ cell : is_doublet >> Mean type Float32
+@ cell : is_doublet / type =@ >> Sum
+@ cell : is_doublet / type =@ >> Sum || 0
+
+# --- Pi/e named constants with explicit type variations ---
+. missing_scalar || pi Float64
+. missing_scalar || pi Int64
+. missing_scalar || e Float32
+@ cell : missing_prop || pi Float32
+@ cell : missing_prop || e Float64
+@ cell : missing_prop || pi
+@ cell : missing_prop || e
+
+# --- Mode tie-breaking determinism ---
+@ cell : type / batch =@ >> Mode
+@ cell : batch / type =@ >> Mode
+
+# --- Quantile parameter edge ---
+@ cell : score >> Quantile p 0.99
+@ cell : score >> Quantile
+@ cell : age >> Quantile p 0.5
+@ cell : age >> Quantile p 0.25
+@ cell : age >> Quantile p 0.99
+
+# --- Empty mask + Count (should be 0 in both) ---
+@ cell [ ! is_low & is_low ] : age >> Count
+@ cell [ ! is_low & is_low ] : age >> Sum || 0
+@ cell [ ! is_low & is_low ] : age >> Mean || 0
+
+# --- Eltwise Significant ---
+@ cell : age % Significant high 100 low 25
+@ cell : age % Significant high 100
+@ cell : score % Significant high 2 low 1
+
+# --- Clamp param order / fallback ---
+@ cell : age % Clamp low 15 high 35
+@ cell : age % Clamp high 35 low 15
+@ cell : age % Clamp low 0 high 100
+@ cell : score % Clamp low -0.5 high 2.5
+
+# --- Reduction-of-empty with IfMissing type chain ---
+@ cell [ age > 100 ] : age >> Sum || 0
+@ cell [ age > 100 ] : age >> Sum || 0.0
+@ cell [ age > 100 ] : age >> Mean
+@ cell [ age > 100 ] : age >> Var
+@ cell [ age > 100 ] : age >> Var || 0.0
+@ cell [ age > 100 ] : age >> Var || 0
+@ cell [ age > 100 ] : age >> Min || 0
+@ cell [ age > 100 ] : age >> Max || 99
+
+# --- Convert / Round across all int types Julia supports ---
+@ cell : score % Convert type Int8
+@ cell : score % Convert type Int16
+@ cell : score % Convert type UInt32
+@ cell : age % Convert type UInt8
+@ cell : score % Round type UInt32
+@ cell : score % Round type Int64
+
+# --- Eltwise on matrix (with int) ---
+@ cell @ gene :: UMIs % Round type Int8
+@ cell @ gene :: UMIs % Convert type Float32
+@ cell @ gene :: UMIs % Log base 2 eps 1 type Float64
+@ cell @ gene :: UMIs % Significant high 5 low 1
+
+# --- Counting / mode / matrix reductions on int matrices ---
+@ cell @ gene :: UMIs >- Mode
+@ cell @ gene :: UMIs >| Mode
+@ cell @ gene :: UMIs >- Var
+@ cell @ gene :: UMIs >| StdN
+@ cell @ gene :: UMIs >| GeoMean
+
+# --- Mask uses bool from a numerical comparison on UMIs ---
+@ cell [ age = 30 ] @ gene :: UMIs
+@ gene [ is_lateral ] : marker
+@ cell [ is_doublet ] @ gene :: UMIs >- Sum
+
+# --- Multiple grouping levels stacked ---
+@ cell : is_doublet / type =@ >> Mean || 0
+@ cell : age / is_doublet >> Var
+@ cell : age / batch >> Median
+@ cell : age / batch =@ >> Median
+@ cell : score / type =@ >> StdN
+@ cell : score / type =@ >> StdN || 0.0
+
+# --- Unicode in property names / values ---
+. missing_scalar || héllo
+. missing_scalar || héllo String
+
+# --- Numeric strings as values ---
+. version || 1
+. version || 1.0
+. version || -1
+. version || +1
+. version || 1e10
+. version || 1E10
+. version || .5
+. version || 5.
+. intver || 1.5 Int32
+. intver || 0.5

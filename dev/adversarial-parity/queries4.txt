@@ -1,0 +1,343 @@
+# Round 4 - adversarial probes for previously-unexplored corners.
+# Run only this file via run_julia.jl / run_r.R after switching QFILE.
+
+# ============================================================
+# A. NaN propagation through every reduction
+# ============================================================
+@ cell : with_nan >> Var
+@ cell : with_nan >> Std
+@ cell : with_nan >> VarN
+@ cell : with_nan >> StdN
+@ cell : with_nan >> Quantile p 0.5
+@ cell : with_nan >> Quantile p 0.25
+@ cell : with_nan >> Quantile p 0.99
+@ cell : with_nan >> GeoMean
+@ cell : with_nan >> Mode
+@ cell : with_nan >> Count
+@ cell : with_nan / type >> Sum
+@ cell : with_nan / type >> Mean
+@ cell : with_nan / type >> Var
+@ cell : with_nan / type >> Quantile p 0.5
+@ cell : with_nan / type >> Mode
+@ cell : with_nan / type =@ >> Sum
+@ cell : with_nan / type =@ >> Sum || 0.0
+
+# All-NaN vector
+@ cell : all_nan >> Sum
+@ cell : all_nan >> Mean
+@ cell : all_nan >> Min
+@ cell : all_nan >> Max
+@ cell : all_nan >> Var
+@ cell : all_nan >> Std
+@ cell : all_nan >> Median
+@ cell : all_nan >> Quantile p 0.5
+@ cell : all_nan >> Mode
+@ cell : all_nan >> GeoMean
+@ cell : all_nan / type >> Sum
+@ cell : all_nan / type >> Mean
+
+# Inf / -Inf / mixed
+@ cell : infs >> Sum
+@ cell : infs >> Mean
+@ cell : infs >> Min
+@ cell : infs >> Max
+@ cell : infs >> Var
+@ cell : infs >> Std
+@ cell : infs >> Median
+@ cell : infs >> Quantile p 0.5
+@ cell : infs >> Mode
+@ cell : infs >> GeoMean
+@ cell : infs % Abs >> Sum
+@ cell : infs % Log base 2
+
+# ============================================================
+# B. Type-cast overflow / range on Sum/Mean/Count
+# ============================================================
+@ cell : age >> Sum type Int8
+@ cell : age >> Sum type UInt8
+@ cell : age >> Sum type Int16
+@ cell : age >> Sum type UInt16
+@ cell : age >> Sum type Bool
+@ cell : age >> Mean type Int8
+@ cell : age >> Mean type Int32
+@ cell : age >> Count type Int8
+@ cell : age >> Count type Float32
+@ cell : age >> Count type Bool
+@ cell : score >> Sum type Int32
+@ cell : score >> Sum type Int8
+@ cell : score >> Sum type Bool
+
+# ============================================================
+# C. IfMissing typed with Inf / NaN / large literals
+# ============================================================
+. missing_scalar || Inf
+. missing_scalar || -Inf
+. missing_scalar || NaN
+. missing_scalar || Inf Float32
+. missing_scalar || -Inf Float64
+. missing_scalar || NaN Float32
+. missing_scalar || NaN Float64
+. missing_scalar || nan
+. missing_scalar || inf
+. missing_scalar || infinity
+. missing_scalar || 1e308
+. missing_scalar || 1e309
+. missing_scalar || -1e308
+. missing_scalar || 0
+. missing_scalar || -0
+. missing_scalar || -0.0
+@ cell : missing_prop || Inf
+@ cell : missing_prop || -Inf
+@ cell : missing_prop || NaN
+
+# ============================================================
+# D. % Log / GeoMean on negatives, zeros, NaN
+# ============================================================
+@ cell : neg_age % Log base 2
+@ cell : neg_age % Log base 2 eps 10
+@ cell : neg_age % Log base 2 eps 0.0
+@ cell : neg_age >> GeoMean
+@ cell : neg_age / type >> GeoMean
+@ cell : score % Log base 2
+@ cell : score % Log base 2 eps 0.0
+@ cell : all_zero % Log base 2
+@ cell : all_zero % Log base 2 eps 0.001
+@ cell : all_zero >> GeoMean
+@ cell : all_zero >> Mean
+@ cell : all_zero >> Var
+@ cell : all_zero >> Std
+@ cell : all_neg % Log base 2 eps 10
+@ cell : all_neg >> GeoMean
+@ cell : all_neg >> Var
+@ cell : all_neg >> Std
+@ cell : all_neg % Fraction
+
+# ============================================================
+# E. % Fraction edges
+# ============================================================
+@ cell : neg_age % Fraction
+@ cell : score % Fraction
+@ cell : age % Fraction
+@ cell : is_doublet % Fraction
+@ cell : with_nan % Fraction
+@ cell : all_zero % Fraction
+@ cell : all_nan % Fraction
+
+# ============================================================
+# F. String Min / Max / Count reductions
+# ============================================================
+@ cell : type >> Min
+@ cell : type >> Max
+@ cell : type >> Count
+@ cell : label >> Min
+@ cell : label >> Max
+@ cell : label >> Count
+@ cell : batch >> Min
+@ cell : batch >> Max
+@ cell : type / batch =@ >> Min
+@ cell : type / batch =@ >> Max
+
+# ============================================================
+# G. % Significant edge cases
+# ============================================================
+@ cell : score % Significant high 0
+@ cell : score % Significant high -1
+@ cell : score % Significant high 0 low 0
+@ cell : age % Significant high 0
+@ cell : score % Significant high 1 low 10
+@ cell : score % Significant high -1 low -2
+@ cell : score % Significant low 1
+@ cell : neg_age % Significant high 5
+@ cell : score % Significant high 1.5 low 0.5
+
+# ============================================================
+# H. % Clamp invalid bounds
+# ============================================================
+@ cell : score % Clamp low 5 high 1
+@ cell : score % Clamp low NaN high 1
+@ cell : score % Clamp high NaN
+@ cell : score % Clamp low Inf high -Inf
+@ cell : score % Clamp
+@ cell : score % Clamp low 0
+@ cell : score % Clamp high 0
+
+# ============================================================
+# I. Quantile p boundary / outside [0,1]
+# ============================================================
+@ cell : score >> Quantile p -0.1
+@ cell : score >> Quantile p 1.1
+@ cell : score >> Quantile p 2
+@ cell : score >> Quantile p 0
+@ cell : score >> Quantile p 1
+@ cell : age >> Quantile p 0
+@ cell : age >> Quantile p 1
+@ cell : age >> Quantile p 0.5 type Float32
+
+# ============================================================
+# J. Round special inputs
+# ============================================================
+@ cell : with_nan % Round
+@ cell : with_nan % Round type Int32
+@ cell : score % Round type UInt8
+@ cell : score % Round
+@ cell : infs % Round
+@ cell : infs % Round type Int32
+
+# ============================================================
+# K. Scalar arithmetic (does Julia allow op on scalar lookup?)
+# ============================================================
+. version % Abs
+. version % Log base 2
+. intver % Round
+. intver >> Sum
+
+# ============================================================
+# L. Whitespace variations in tokens
+# ============================================================
+@ cell : age>>Sum
+@ cell : age %Abs
+@ cell : age %Log base 2
+@ cell : age % Log base 2.0e1
+@ cell : age % Log base 2 e+0
+@ cell : age %  Log  base  2
+@ cell : score  >>  Quantile  p  0.5
+
+# ============================================================
+# M. Float32 vs Float64 precision drift
+# ============================================================
+@ cell @ gene :: frac >- Sum
+@ cell @ gene :: frac >| Sum
+@ cell @ gene :: frac >- Mean
+@ cell @ gene :: frac >> Mean
+@ cell @ gene :: frac >- GeoMean
+@ cell @ gene :: frac >- Std
+@ cell @ gene :: frac >- StdN
+@ cell @ gene :: frac >- VarN
+@ cell @ gene :: frac >- Quantile p 0.5
+@ cell @ gene :: frac >| GeoMean
+@ cell : f32_score >> Sum
+@ cell : f32_score >> Mean
+@ cell : f32_score >> Var
+@ cell : f32_score >> Std
+@ cell : f32_score >> GeoMean
+
+# ============================================================
+# N. Mode + tie-breaking determinism (smallest? first? Julia rule)
+# ============================================================
+@ cell : ties_int >> Mode
+@ cell : ties_int / type >> Mode
+@ cell : ties_int / type =@ >> Mode
+@ cell : is_doublet >> Mode
+@ cell : is_low >> Mode
+
+# ============================================================
+# O. Multi-eltwise chains
+# ============================================================
+@ cell : age % Abs % Log base 2 eps 1
+@ cell : age % Log base 2 eps 1 % Round
+@ cell : score % Abs % Log base 2 eps 0.1 % Round type Int32
+@ cell : score % Abs % Clamp low 0 high 1 % Round
+@ cell : score % Abs % Abs
+@ cell : score % Round % Round
+@ cell : age % Convert type Float64 % Log base 2
+
+# ============================================================
+# P. Empty groups via filter + =@ broadcast
+# ============================================================
+@ cell : subtype / type =@ >> Mode
+@ cell [ subtype = U ] : age / subtype =@ >> Sum
+@ cell [ type != W ] : age / type =@ >> Sum
+@ cell [ type != W ] : age / type =@ >> Sum || 0
+@ cell [ type != W ] : age / type =@ >> Sum || -1.0
+@ cell [ type != W ] : age / type =@ >> Mean || 0.0
+@ cell [ type != W ] : age / type =@ >> Var
+@ cell [ type != W ] : age / type =@ >> GeoMean
+@ cell [ type != W ] : age / type =@ >> Median
+
+# ============================================================
+# Q. Reductions on smaller / mixed int types (parity through promotions)
+# ============================================================
+@ cell : i8_age >> Sum
+@ cell : i8_age >> Sum type Int8
+@ cell : i8_age >> Mean
+@ cell : i8_age % Abs / type >> Sum
+@ cell : i16_age >> Sum
+@ cell : i16_age >> Sum type Int16
+@ cell : i16_age >> Mean
+@ cell : i16_age % Convert type Float32
+@ cell : u32_count >> Sum
+@ cell : u32_count >> Mean
+@ cell : u32_count % Round
+@ cell : u32_count / type >> Sum
+@ cell : u32_count % Convert type Int8
+
+# ============================================================
+# R. Argmax / Argmin (might not be supported - error parity test)
+# ============================================================
+@ cell : age >> Argmax
+@ cell : age >> Argmin
+@ cell @ gene :: UMIs >- Argmax
+@ cell @ gene :: UMIs >| Argmin
+
+# ============================================================
+# S. Sparse-vs-dense matrix reductions
+# ============================================================
+@ cell @ gene :: sparse_umis
+@ cell @ gene :: sparse_umis >- Sum
+@ cell @ gene :: sparse_umis >| Sum
+@ cell @ gene :: sparse_umis >- Mean
+@ cell @ gene :: sparse_umis >| Mean
+@ cell @ gene :: sparse_umis >- Var
+@ cell @ gene :: sparse_umis >- StdN
+@ cell @ gene :: sparse_umis >- GeoMean
+@ cell @ gene :: sparse_umis >- Mode
+@ cell @ gene :: sparse_umis >- Median
+@ cell @ gene :: sparse_umis % Log base 2 eps 1
+@ cell @ gene :: sparse_umis % Fraction
+
+# ============================================================
+# T. Reductions on empty mask with || default of unusual type
+# ============================================================
+@ cell [ age > 100 ] : age >> Sum || true
+@ cell [ age > 100 ] : age >> Sum || NaN
+@ cell [ age > 100 ] : age >> Sum || Inf
+@ cell [ age > 100 ] : age >> Sum || -Inf
+@ cell [ age > 100 ] : age >> Mean || NaN
+@ cell [ age > 100 ] : age >> Mean || Inf
+
+# ============================================================
+# U. Type tokens variations (case)
+# ============================================================
+@ cell : age % Convert type float64
+@ cell : age % Convert type float32
+@ cell : age % Convert type int32
+@ cell : age % Convert type bool
+@ cell : age % Round type int32
+@ cell : age % Round type int8
+
+# ============================================================
+# V. Names attribute and ordering of grouped outputs
+# ============================================================
+@ cell : age / batch >> Sum
+@ cell : age / type >> Sum
+@ cell : age / is_doublet >> Sum
+@ cell : age / is_low >> Sum
+
+# ============================================================
+# W. Per-axis lookup with missing-target propagation
+# ============================================================
+@ cell : type : color
+@ cell : type ?? : color
+@ cell : type ?? unknown : color
+@ cell : type =@ : color
+
+# ============================================================
+# X. Boolean -> mask interactions and arithmetic
+# ============================================================
+@ cell [ is_doublet ] : is_low >> Sum
+@ cell [ is_doublet ] : is_low >> Mean
+@ cell : is_doublet % Convert type Float32 >> Mean
+@ cell : is_doublet % Abs
+@ cell : is_doublet % Round
+@ cell : is_doublet % Log base 2 eps 1
+@ cell : is_doublet % Fraction

@@ -1,0 +1,120 @@
+# Round 3 - probe additional locale, type, and corner cases
+
+# --- More string-comparison locale victims (R en_US.UTF-8 vs Julia bytewise) ---
+@ cell [ label < Z ]
+@ cell [ label > Z ]
+@ cell [ label <= Z ]
+@ cell [ label >= Z ]
+@ cell [ type < V ]
+@ cell [ type > V ]
+@ cell [ batch < b2 ]
+@ cell [ batch > b2 ]
+@ cell [ batch <= b2 ]
+@ cell [ batch >= b2 ]
+
+# --- Equality with mixed case (locale typically still bytewise for == but verify) ---
+@ cell [ label = Z ]
+@ cell [ label = z ]
+@ cell [ label != Z ]
+
+# --- More Bool reductions and groupby on Bool ---
+@ cell : is_doublet >> Sum type Int32
+@ cell : is_doublet >> Mean type Float32
+@ cell : is_doublet / type =@ >> Sum
+@ cell : is_doublet / type =@ >> Sum || 0
+
+# --- Pi/e named constants with explicit type variations ---
+. missing_scalar || pi Float64
+. missing_scalar || pi Int64
+. missing_scalar || e Float32
+@ cell : missing_prop || pi Float32
+@ cell : missing_prop || e Float64
+@ cell : missing_prop || pi
+@ cell : missing_prop || e
+
+# --- Mode tie-breaking determinism ---
+@ cell : type / batch =@ >> Mode
+@ cell : batch / type =@ >> Mode
+
+# --- Quantile parameter edge ---
+@ cell : score >> Quantile p 0.99
+@ cell : score >> Quantile
+@ cell : age >> Quantile p 0.5
+@ cell : age >> Quantile p 0.25
+@ cell : age >> Quantile p 0.99
+
+# --- Empty mask + Count (should be 0 in both) ---
+@ cell [ ! is_low & is_low ] : age >> Count
+@ cell [ ! is_low & is_low ] : age >> Sum || 0
+@ cell [ ! is_low & is_low ] : age >> Mean || 0
+
+# --- Eltwise Significant ---
+@ cell : age % Significant high 100 low 25
+@ cell : age % Significant high 100
+@ cell : score % Significant high 2 low 1
+
+# --- Clamp param order / fallback ---
+@ cell : age % Clamp low 15 high 35
+@ cell : age % Clamp high 35 low 15
+@ cell : age % Clamp low 0 high 100
+@ cell : score % Clamp low -0.5 high 2.5
+
+# --- Reduction-of-empty with IfMissing type chain ---
+@ cell [ age > 100 ] : age >> Sum || 0
+@ cell [ age > 100 ] : age >> Sum || 0.0
+@ cell [ age > 100 ] : age >> Mean
+@ cell [ age > 100 ] : age >> Var
+@ cell [ age > 100 ] : age >> Var || 0.0
+@ cell [ age > 100 ] : age >> Var || 0
+@ cell [ age > 100 ] : age >> Min || 0
+@ cell [ age > 100 ] : age >> Max || 99
+
+# --- Convert / Round across all int types Julia supports ---
+@ cell : score % Convert type Int8
+@ cell : score % Convert type Int16
+@ cell : score % Convert type UInt32
+@ cell : age % Convert type UInt8
+@ cell : score % Round type UInt32
+@ cell : score % Round type Int64
+
+# --- Eltwise on matrix (with int) ---
+@ cell @ gene :: UMIs % Round type Int8
+@ cell @ gene :: UMIs % Convert type Float32
+@ cell @ gene :: UMIs % Log base 2 eps 1 type Float64
+@ cell @ gene :: UMIs % Significant high 5 low 1
+
+# --- Counting / mode / matrix reductions on int matrices ---
+@ cell @ gene :: UMIs >- Mode
+@ cell @ gene :: UMIs >| Mode
+@ cell @ gene :: UMIs >- Var
+@ cell @ gene :: UMIs >| StdN
+@ cell @ gene :: UMIs >| GeoMean
+
+# --- Mask uses bool from a numerical comparison on UMIs ---
+@ cell [ age = 30 ] @ gene :: UMIs
+@ gene [ is_lateral ] : marker
+@ cell [ is_doublet ] @ gene :: UMIs >- Sum
+
+# --- Multiple grouping levels stacked ---
+@ cell : is_doublet / type =@ >> Mean || 0
+@ cell : age / is_doublet >> Var
+@ cell : age / batch >> Median
+@ cell : age / batch =@ >> Median
+@ cell : score / type =@ >> StdN
+@ cell : score / type =@ >> StdN || 0.0
+
+# --- Unicode in property names / values ---
+. missing_scalar || héllo
+. missing_scalar || héllo String
+
+# --- Numeric strings as values ---
+. version || 1
+. version || 1.0
+. version || -1
+. version || +1
+. version || 1e10
+. version || 1E10
+. version || .5
+. version || 5.
+. intver || 1.5 Int32
+. intver || 0.5

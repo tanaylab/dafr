@@ -1,0 +1,312 @@
+{"idx":5,"query":". version","status":"ok","result":{"kind":"scalar","type":"numeric","value":1}}
+{"idx":6,"query":". title","status":"ok","result":{"kind":"scalar","type":"character","value":"adversarial"}}
+{"idx":7,"query":"@ cell : age","status":"ok","result":{"kind":"vector","type":"numeric","length":5,"names":["A","B","C","D","E"],"values":[10,20,30,40,50]}}
+{"idx":8,"query":"@ cell : age >> Sum","status":"ok","result":{"kind":"scalar","type":"numeric","value":150}}
+{"idx":9,"query":"@ cell @ gene :: UMIs","status":"ok","result":{"kind":"matrix","type":"matrix/array","dim":[5,3],"rownames":["A","B","C","D","E"],"colnames":["g1","g2","g3"],"values":[[1,2,3],[4,5,6],[7,8,9],[0,1,2],[3,4,5]]}}
+{"idx":10,"query":"@ cell @ gene :: UMIs >> Sum","status":"ok","result":{"kind":"scalar","type":"integer","value":60}}
+{"idx":13,"query":"@ cell : score % Abs","status":"ok","result":{"kind":"vector","type":"numeric","length":5,"names":["A","B","C","D","E"],"values":[0.5,1.5,2.5,1,3.5]}}
+{"idx":14,"query":"@ cell : score % Abs type Float32","status":"ok","result":{"kind":"vector","type":"numeric","length":5,"names":["A","B","C","D","E"],"values":[0.5,1.5,2.5,1,3.5]}}
+{"idx":15,"query":"@ cell : score % Abs type UInt8","status":"error","error":"InexactError: UInt8(0.5)","error_type":"simpleError"}
+{"idx":16,"query":"@ cell : score % Clamp low 0 high 2","status":"error","error":"the parameter: low\ndoes not exist for the operation: Clamp","error_type":"simpleError"}
+{"idx":17,"query":"@ cell : age % Log base 2","status":"ok","result":{"kind":"vector","type":"numeric","length":5,"names":["A","B","C","D","E"],"values":[3.321928094887362,4.321928094887363,4.906890595608519,5.321928094887363,5.643856189774724]}}
+{"idx":18,"query":"@ cell : age % Log base 10 eps 0.5","status":"ok","result":{"kind":"vector","type":"numeric","length":5,"names":["A","B","C","D","E"],"values":[1.021189299069938,1.311753861055754,1.484299839346786,1.607455023214668,1.703291378118661]}}
+{"idx":19,"query":"@ cell : age % Log base e eps 0.0","status":"ok","result":{"kind":"vector","type":"numeric","length":5,"names":["A","B","C","D","E"],"values":[2.302585092994046,2.995732273553991,3.401197381662155,3.688879454113936,3.912023005428146]}}
+{"idx":20,"query":"@ cell : age % Log base e eps -1.0","status":"error","error":"invalid value: \"-1\"\nvalue must be: not negative\nfor the parameter: eps\nfor the operation: Log","error_type":"simpleError"}
+{"idx":21,"query":"@ cell : age % Significant high 25 low 5","status":"ok","result":{"kind":"vector","type":"numeric","length":5,"names":["A","B","C","D","E"],"values":[10,20,30,40,50]}}
+{"idx":22,"query":"@ cell : score % Convert type Int32","status":"error","error":"InexactError: Int32(0.5)","error_type":"simpleError"}
+{"idx":23,"query":"@ cell : score % Convert type Bool","status":"error","error":"InexactError: Bool(0.5)","error_type":"simpleError"}
+{"idx":24,"query":"@ cell : score % Fraction","status":"ok","result":{"kind":"vector","type":"numeric","length":5,"names":["A","B","C","D","E"],"values":[0.07142857142857142,0.2142857142857143,0.3571428571428572,-0.1428571428571428,0.5]}}
+{"idx":25,"query":"@ cell : age % Round type Int8","status":"ok","result":{"kind":"vector","type":"integer","length":5,"names":["A","B","C","D","E"],"values":[10,20,30,40,50]}}
+{"idx":26,"query":"@ cell : with_nan % Round","status":"error","error":"InexactError: Int64(NaN)","error_type":"simpleError"}
+{"idx":29,"query":"@ cell : score >> Sum","status":"ok","result":{"kind":"scalar","type":"numeric","value":7}}
+{"idx":30,"query":"@ cell : score >> Sum type Float32","status":"ok","result":{"kind":"scalar","type":"numeric","value":7}}
+{"idx":31,"query":"@ cell : age >> Mean type Float32","status":"ok","result":{"kind":"scalar","type":"numeric","value":30}}
+{"idx":32,"query":"@ cell : age >> Var","status":"ok","result":{"kind":"scalar","type":"numeric","value":200}}
+{"idx":33,"query":"@ cell : age >> VarN","status":"ok","result":{"kind":"scalar","type":"numeric","value":6.666666666666667}}
+{"idx":34,"query":"@ cell : age >> Std","status":"ok","result":{"kind":"scalar","type":"numeric","value":14.142135623730951}}
+{"idx":35,"query":"@ cell : age >> StdN","status":"ok","result":{"kind":"scalar","type":"numeric","value":0.4714045207910317}}
+{"idx":36,"query":"@ cell : score >> Quantile p 0.5","status":"ok","result":{"kind":"scalar","type":"numeric","value":1.5}}
+{"idx":37,"query":"@ cell : score >> Quantile p 0.0","status":"ok","result":{"kind":"scalar","type":"numeric","value":-1}}
+{"idx":38,"query":"@ cell : score >> Quantile p 1.0","status":"ok","result":{"kind":"scalar","type":"numeric","value":3.5}}
+{"idx":39,"query":"@ cell : type >> Mode","status":"ok","result":{"kind":"scalar","type":"character","value":"U"}}
+{"idx":40,"query":"@ cell : with_nan >> Sum","status":"ok","result":{"kind":"scalar","type":"numeric","value":"NaN"}}
+{"idx":41,"query":"@ cell : with_nan >> Mean","status":"ok","result":{"kind":"scalar","type":"numeric","value":"NaN"}}
+{"idx":42,"query":"@ cell : with_nan >> Max","status":"ok","result":{"kind":"scalar","type":"numeric","value":"NaN"}}
+{"idx":43,"query":"@ cell : with_nan >> Min","status":"ok","result":{"kind":"scalar","type":"numeric","value":"NaN"}}
+{"idx":44,"query":"@ cell : with_nan >> Median","status":"ok","result":{"kind":"scalar","type":"numeric","value":"NaN"}}
+{"idx":47,"query":". missing_scalar || 42","status":"ok","result":{"kind":"scalar","type":"integer","value":42}}
+{"idx":48,"query":". missing_scalar || 42 Int32","status":"ok","result":{"kind":"scalar","type":"integer","value":42}}
+{"idx":49,"query":". missing_scalar || 1.5","status":"ok","result":{"kind":"scalar","type":"numeric","value":1.5}}
+{"idx":50,"query":". missing_scalar || 1.5 String","status":"ok","result":{"kind":"scalar","type":"character","value":"1.5"}}
+{"idx":51,"query":". missing_scalar || true","status":"ok","result":{"kind":"scalar","type":"logical","value":true}}
+{"idx":52,"query":". missing_scalar || pi","status":"ok","result":{"kind":"scalar","type":"numeric","value":3.141592653589793}}
+{"idx":53,"query":". missing_scalar || e","status":"ok","result":{"kind":"scalar","type":"numeric","value":2.718281828459045}}
+{"idx":54,"query":". missing_scalar || ''","status":"ok","result":{"kind":"scalar","type":"character","value":""}}
+{"idx":55,"query":"@ cell : missing_prop || 0","status":"ok","result":{"kind":"vector","type":"integer","length":5,"names":["A","B","C","D","E"],"values":[0,0,0,0,0]}}
+{"idx":56,"query":"@ cell : missing_prop || 0.0","status":"ok","result":{"kind":"vector","type":"numeric","length":5,"names":["A","B","C","D","E"],"values":[0,0,0,0,0]}}
+{"idx":57,"query":"@ cell : missing_prop || ''","status":"ok","result":{"kind":"vector","type":"character","length":5,"names":["A","B","C","D","E"],"values":["","","","",""]}}
+{"idx":60,"query":"@ empty_axis : ?","status":"ok","result":{"kind":"vector","type":"character","length":0,"names":"NA","values":[]}}
+{"idx":61,"query":"@ cell [ neg_age > 100 ]","status":"ok","result":{"kind":"vector","type":"character","length":0,"names":[],"values":[]}}
+{"idx":62,"query":"@ cell [ neg_age > 100 ] : age","status":"ok","result":{"kind":"vector","type":"numeric","length":0,"names":[],"values":[]}}
+{"idx":63,"query":"@ cell [ neg_age > 100 ] : age >> Sum","status":"error","error":"no IfMissing value specified for reducing an empty vector","error_type":"simpleError"}
+{"idx":64,"query":"@ cell [ neg_age > 100 ] : age >> Sum || 0","status":"ok","result":{"kind":"scalar","type":"integer","value":0}}
+{"idx":65,"query":"@ cell [ neg_age > 100 ] : age >> Sum || 0.0","status":"ok","result":{"kind":"scalar","type":"numeric","value":0}}
+{"idx":68,"query":"@ cell [ is_low & is_doublet ]","status":"ok","result":{"kind":"vector","type":"character","length":1,"names":"A","values":["A"]}}
+{"idx":69,"query":"@ cell [ is_low | is_doublet ]","status":"ok","result":{"kind":"vector","type":"character","length":4,"names":["A","B","C","E"],"values":["A","B","C","E"]}}
+{"idx":70,"query":"@ cell [ is_low ^ is_doublet ]","status":"ok","result":{"kind":"vector","type":"character","length":3,"names":["B","C","E"],"values":["B","C","E"]}}
+{"idx":71,"query":"@ cell [ ! is_low & is_doublet ]","status":"ok","result":{"kind":"vector","type":"character","length":2,"names":["C","E"],"values":["C","E"]}}
+{"idx":72,"query":"@ cell [ is_low & ! is_doublet ]","status":"ok","result":{"kind":"vector","type":"character","length":1,"names":"B","values":["B"]}}
+{"idx":73,"query":"@ cell [ is_low | ! is_doublet ]","status":"ok","result":{"kind":"vector","type":"character","length":3,"names":["A","B","D"],"values":["A","B","D"]}}
+{"idx":74,"query":"@ cell [ ! is_low ^ is_doublet ]","status":"ok","result":{"kind":"vector","type":"character","length":2,"names":["A","D"],"values":["A","D"]}}
+{"idx":75,"query":"@ cell [ is_low & is_doublet | is_low ]","status":"ok","result":{"kind":"vector","type":"character","length":2,"names":["A","B"],"values":["A","B"]}}
+{"idx":76,"query":"@ cell [ ! is_low & ! is_doublet ]","status":"ok","result":{"kind":"vector","type":"character","length":1,"names":"D","values":["D"]}}
+{"idx":79,"query":"@ cell [ age > 20 ]","status":"ok","result":{"kind":"vector","type":"character","length":3,"names":["C","D","E"],"values":["C","D","E"]}}
+{"idx":80,"query":"@ cell [ age >= 20 ]","status":"ok","result":{"kind":"vector","type":"character","length":4,"names":["B","C","D","E"],"values":["B","C","D","E"]}}
+{"idx":81,"query":"@ cell [ age = 20 ]","status":"ok","result":{"kind":"vector","type":"character","length":1,"names":"B","values":["B"]}}
+{"idx":82,"query":"@ cell [ age != 20 ]","status":"ok","result":{"kind":"vector","type":"character","length":4,"names":["A","C","D","E"],"values":["A","C","D","E"]}}
+{"idx":83,"query":"@ cell [ score < 0 ]","status":"ok","result":{"kind":"vector","type":"character","length":1,"names":"D","values":["D"]}}
+{"idx":84,"query":"@ cell [ type = U ]","status":"ok","result":{"kind":"vector","type":"character","length":2,"names":["A","C"],"values":["A","C"]}}
+{"idx":85,"query":"@ cell [ type != U ]","status":"ok","result":{"kind":"vector","type":"character","length":3,"names":["B","D","E"],"values":["B","D","E"]}}
+{"idx":86,"query":"@ cell [ type ~ ^U ]","status":"ok","result":{"kind":"vector","type":"character","length":2,"names":["A","C"],"values":["A","C"]}}
+{"idx":87,"query":"@ cell [ type !~ ^U ]","status":"ok","result":{"kind":"vector","type":"character","length":3,"names":["B","D","E"],"values":["B","D","E"]}}
+{"idx":88,"query":"@ cell [ label = '' ]","status":"ok","result":{"kind":"vector","type":"character","length":1,"names":"A","values":["A"]}}
+{"idx":89,"query":"@ cell [ label = a b ]","status":"error","error":"expected operator, got value ‘b’ at position 20 in query ‘@ cell [ label = a b ]’","error_type":"simpleError"}
+{"idx":90,"query":"@ cell [ label = y\\\\z ]","status":"ok","result":{"kind":"vector","type":"character","length":1,"names":"C","values":["C"]}}
+{"idx":93,"query":"@ cell : age / type >> Sum","status":"ok","result":{"kind":"vector","type":"numeric","length":3,"names":["U","V","W"],"values":[40,70,40]}}
+{"idx":94,"query":"@ cell : age / type >> Mean","status":"ok","result":{"kind":"vector","type":"numeric","length":3,"names":["U","V","W"],"values":[20,35,40]}}
+{"idx":95,"query":"@ cell : age / batch >> Sum","status":"ok","result":{"kind":"vector","type":"numeric","length":3,"names":["b1","b2","b3"],"values":[40,70,40]}}
+{"idx":96,"query":"@ cell : score / type >> Sum","status":"ok","result":{"kind":"vector","type":"numeric","length":3,"names":["U","V","W"],"values":[3,5,-1]}}
+{"idx":97,"query":"@ cell : score / type =@ >> Sum","status":"ok","result":{"kind":"vector","type":"numeric","length":3,"names":["U","V","W"],"values":[3,5,-1]}}
+{"idx":98,"query":"@ cell : score / type =@ >> Sum || 0.0","status":"ok","result":{"kind":"vector","type":"numeric","length":3,"names":["U","V","W"],"values":[3,5,-1]}}
+{"idx":99,"query":"@ cell : score / batch =@ >> Sum","status":"ok","result":{"kind":"vector","type":"numeric","length":3,"names":["b1","b2","b3"],"values":[3,5,-1]}}
+{"idx":100,"query":"@ cell : age / is_doublet >> Sum","status":"ok","result":{"kind":"vector","type":"numeric","length":2,"names":["false","true"],"values":[60,90]}}
+{"idx":101,"query":"@ cell : age / is_low >> Sum","status":"ok","result":{"kind":"vector","type":"numeric","length":2,"names":["false","true"],"values":[120,30]}}
+{"idx":104,"query":"@ cell : type : color","status":"ok","result":{"kind":"vector","type":"character","length":5,"names":["A","B","C","D","E"],"values":["red","green","red","blue","green"]}}
+{"idx":105,"query":"@ cell : type =@ : color","status":"ok","result":{"kind":"vector","type":"character","length":5,"names":["A","B","C","D","E"],"values":["red","green","red","blue","green"]}}
+{"idx":106,"query":"@ cell : batch : donor","status":"ok","result":{"kind":"vector","type":"character","length":5,"names":["A","B","C","D","E"],"values":["dA","dB","dA","dC","dB"]}}
+{"idx":107,"query":"@ cell : type ?? : color","status":"ok","result":{"kind":"vector","type":"character","length":5,"names":["A","B","C","D","E"],"values":["red","green","red","blue","green"]}}
+{"idx":110,"query":"@ cell : score @ cell = A","status":"ok","result":{"kind":"scalar","type":"numeric","value":0.5}}
+{"idx":111,"query":"@ cell @ gene :: UMIs @ gene = g1","status":"ok","result":{"kind":"vector","type":"integer","length":5,"names":["A","B","C","D","E"],"values":[1,4,7,0,3]}}
+{"idx":112,"query":"@ cell @ gene :: UMIs @ cell = A","status":"ok","result":{"kind":"vector","type":"integer","length":3,"names":["g1","g2","g3"],"values":[1,2,3]}}
+{"idx":113,"query":"@ cell @ gene :: UMIs >> Sum type Float64","status":"ok","result":{"kind":"scalar","type":"numeric","value":60}}
+{"idx":114,"query":"@ cell @ gene :: UMIs >- Sum","status":"ok","result":{"kind":"vector","type":"numeric","length":3,"names":["g1","g2","g3"],"values":[15,20,25]}}
+{"idx":115,"query":"@ cell @ gene :: UMIs >| Sum","status":"ok","result":{"kind":"vector","type":"numeric","length":5,"names":["A","B","C","D","E"],"values":[6,15,24,3,12]}}
+{"idx":116,"query":"@ cell @ gene :: UMIs >- Mean","status":"ok","result":{"kind":"vector","type":"numeric","length":3,"names":["g1","g2","g3"],"values":[3,4,5]}}
+{"idx":117,"query":"@ cell @ gene :: UMIs %> Sum","status":"error","error":"expected eltwise op name after '%' at position 23 in query ‘@ cell @ gene :: UMIs %> Sum’","error_type":"simpleError"}
+{"idx":120,"query":"@ cell : score / distance @- A >> Sum","status":"ok","result":{"kind":"vector","type":"numeric","length":5,"names":["0","1","2","3","4"],"values":[0.5,1.5,2.5,-1,3.5]}}
+{"idx":121,"query":"@ cell : score / distance @| A >> Sum","status":"ok","result":{"kind":"vector","type":"numeric","length":5,"names":["0","1","2","3","4"],"values":[0.5,1.5,2.5,-1,3.5]}}
+{"idx":122,"query":"@ cell @ cell :: distance @- A","status":"ok","result":{"kind":"vector","type":"numeric","length":5,"names":["A","B","C","D","E"],"values":[0,1,2,3,4]}}
+{"idx":123,"query":"@ cell @ cell :: distance @| A","status":"ok","result":{"kind":"vector","type":"numeric","length":5,"names":["A","B","C","D","E"],"values":[0,1,2,3,4]}}
+{"idx":126,"query":"@ cell : type * batch","status":"ok","result":{"kind":"matrix","type":"table","dim":[3,3],"rownames":["U","V","W"],"colnames":["b1","b2","b3"],"values":[[2,0,0],[0,2,0],[0,0,1]]}}
+{"idx":127,"query":"@ cell : type * batch =@","status":"ok","result":{"kind":"matrix","type":"table","dim":[3,3],"rownames":["U","V","W"],"colnames":["b1","b2","b3"],"values":[[2,0,0],[0,2,0],[0,0,1]]}}
+{"idx":128,"query":"@ cell : type =@ * batch =@","status":"ok","result":{"kind":"matrix","type":"table","dim":[3,3],"rownames":["U","V","W"],"colnames":["b1","b2","b3"],"values":[[2,0,0],[0,2,0],[0,0,1]]}}
+{"idx":131,"query":". ?","status":"ok","result":{"kind":"vector","type":"character","length":4,"names":"NA","values":["flag","intver","title","version"]}}
+{"idx":132,"query":"@ ?","status":"ok","result":{"kind":"vector","type":"character","length":5,"names":"NA","values":["batch","cell","empty_axis","gene","type"]}}
+{"idx":133,"query":"@ cell : ?","status":"ok","result":{"kind":"vector","type":"character","length":19,"names":"NA","values":["age","all_nan","all_neg","all_zero","batch","f32_score","i16_age","i8_age","infs","is_doublet","is_low","label","neg_age","score","subtype","ties_int","type","u32_count","with_nan"]}}
+{"idx":134,"query":"@ cell @ gene :: ?","status":"ok","result":{"kind":"vector","type":"character","length":3,"names":"NA","values":["UMIs","frac","sparse_umis"]}}
+{"idx":137,"query":"@ cell # this is a comment","status":"ok","result":{"kind":"vector","type":"character","length":5,"names":["A","B","C","D","E"],"values":["A","B","C","D","E"]}}
+{"idx":138,"query":": age","status":"error","error":"invalid query: : age","error_type":"simpleError"}
+{"idx":139,"query":"@ cell : age","status":"ok","result":{"kind":"vector","type":"numeric","length":5,"names":["A","B","C","D","E"],"values":[10,20,30,40,50]}}
+{"idx":141,"query":". version","status":"ok","result":{"kind":"scalar","type":"numeric","value":1}}
+{"idx":144,"query":"@ cell [ label = a\\ b ]","status":"ok","result":{"kind":"vector","type":"character","length":1,"names":"D","values":["D"]}}
+{"idx":145,"query":"@ cell : missing_prop || 'unknown thing'","status":"error","error":"unexpected character ‘'’ at position 26 in query ‘@ cell : missing_prop || 'unknown thing'’","error_type":"simpleError"}
+{"idx":146,"query":"@ cell : missing_prop || a\\ b","status":"ok","result":{"kind":"vector","type":"character","length":5,"names":["A","B","C","D","E"],"values":["a b","a b","a b","a b","a b"]}}
+{"idx":149,"query":"@ cell : age % Log base 2.0","status":"ok","result":{"kind":"vector","type":"numeric","length":5,"names":["A","B","C","D","E"],"values":[3.321928094887362,4.321928094887363,4.906890595608519,5.321928094887363,5.643856189774724]}}
+{"idx":150,"query":"@ cell : age >> Sum type Float32","status":"ok","result":{"kind":"scalar","type":"numeric","value":150}}
+{"idx":151,"query":"@ cell : score >> Sum type Int32","status":"ok","result":{"kind":"scalar","type":"integer","value":7}}
+{"idx":154,"query":"@ cell [ is_doublet ] : age >> Sum","status":"ok","result":{"kind":"scalar","type":"numeric","value":90}}
+{"idx":155,"query":"@ cell [ ! is_doublet ] : age >> Sum","status":"ok","result":{"kind":"scalar","type":"numeric","value":60}}
+{"idx":156,"query":"@ cell [ is_doublet ] : score >> Mean","status":"ok","result":{"kind":"scalar","type":"numeric","value":2.166666666666667}}
+{"idx":157,"query":"@ cell [ is_doublet ] : score >> Mean || 0.0","status":"ok","result":{"kind":"scalar","type":"numeric","value":2.166666666666667}}
+{"idx":160,"query":"@ cell @ gene :: UMIs % Log base 2 eps 1","status":"ok","result":{"kind":"matrix","type":"matrix/array","dim":[5,3],"rownames":["A","B","C","D","E"],"colnames":["g1","g2","g3"],"values":[[1,1.584962500721156,2],[2.321928094887362,2.584962500721156,2.807354922057604],[3,3.169925001442312,3.321928094887362],[0,1,1.584962500721156],[2,2.321928094887362,2.584962500721156]]}}
+{"idx":161,"query":"@ cell @ gene :: UMIs % Abs","status":"ok","result":{"kind":"matrix","type":"matrix/array","dim":[5,3],"rownames":["A","B","C","D","E"],"colnames":["g1","g2","g3"],"values":[[1,2,3],[4,5,6],[7,8,9],[0,1,2],[3,4,5]]}}
+{"idx":162,"query":"@ cell @ gene :: UMIs % Clamp low 1 high 5","status":"error","error":"the parameter: low\ndoes not exist for the operation: Clamp","error_type":"simpleError"}
+{"idx":163,"query":"@ cell @ gene :: UMIs % Convert type Float32","status":"ok","result":{"kind":"matrix","type":"matrix/array","dim":[5,3],"rownames":["A","B","C","D","E"],"colnames":["g1","g2","g3"],"values":[[1,2,3],[4,5,6],[7,8,9],[0,1,2],[3,4,5]]}}
+{"idx":166,"query":"@ cell @ gene :: UMIs >- Sum type Int32","status":"ok","result":{"kind":"vector","type":"numeric","length":3,"names":["g1","g2","g3"],"values":[15,20,25]}}
+{"idx":167,"query":"@ cell @ gene :: UMIs >| Sum type Int32","status":"ok","result":{"kind":"vector","type":"numeric","length":5,"names":["A","B","C","D","E"],"values":[6,15,24,3,12]}}
+{"idx":170,"query":"@ cell [ UMIs @ gene = g1 > 2 ]","status":"ok","result":{"kind":"vector","type":"character","length":3,"names":["B","C","E"],"values":["B","C","E"]}}
+{"idx":171,"query":"@ cell [ UMIs @ gene = g1 > 2 ] : age","status":"ok","result":{"kind":"vector","type":"numeric","length":3,"names":["B","C","E"],"values":[20,30,50]}}
+{"idx":174,"query":"@ cell [ label ~ ^\\[a-z\\] ]","status":"ok","result":{"kind":"vector","type":"character","length":3,"names":["B","C","D"],"values":["B","C","D"]}}
+{"idx":177,"query":"@ cell : age % Log base 2 base 10","status":"error","error":"repeated parameter: base for the operation: Log","error_type":"simpleError"}
+{"idx":178,"query":"@ cell : age % Unknownop","status":"error","error":"unknown eltwise operation: Unknownop","error_type":"simpleError"}
+{"idx":179,"query":"@ cell : age >> Unknownreduce","status":"error","error":"unknown reduction operation: Unknownreduce","error_type":"simpleError"}
+{"idx":180,"query":"@ cell : age % Log nonexistent_param 1","status":"error","error":"the parameter: nonexistent_param\ndoes not exist for the operation: Log","error_type":"simpleError"}
+{"idx":181,"query":". version || 1.0 NotAType","status":"error","error":"expected operator, got value ‘NotAType’ at position 18 in query ‘. version || 1.0 NotAType’","error_type":"simpleError"}
+{"idx":182,"query":"@ cell : missing_prop || x Float32","status":"error","error":"invalid value: ‘x’\nvalue must be: a valid Float32\nfor the parameter: value\nfor the operation: ||","error_type":"simpleError"}
+{"idx":186,"query":"@ cell : age >> Min","status":"ok","result":{"kind":"scalar","type":"numeric","value":10}}
+{"idx":187,"query":"@ cell : age >> Max","status":"ok","result":{"kind":"scalar","type":"numeric","value":50}}
+{"idx":188,"query":"@ cell : age >> Median","status":"ok","result":{"kind":"scalar","type":"numeric","value":30}}
+{"idx":189,"query":"@ cell : age >> Quantile p 0.25","status":"ok","result":{"kind":"scalar","type":"numeric","value":20}}
+{"idx":190,"query":"@ cell : age >> Var","status":"ok","result":{"kind":"scalar","type":"numeric","value":200}}
+{"idx":191,"query":"@ cell : age >> Std","status":"ok","result":{"kind":"scalar","type":"numeric","value":14.142135623730951}}
+{"idx":192,"query":"@ cell : age >> GeoMean","status":"ok","result":{"kind":"scalar","type":"numeric","value":26.051710846973513}}
+{"idx":193,"query":"@ cell : age >> Mode","status":"ok","result":{"kind":"scalar","type":"numeric","value":10}}
+{"idx":196,"query":"@ cell : age % Abs >> Sum","status":"ok","result":{"kind":"scalar","type":"numeric","value":150}}
+{"idx":197,"query":"@ cell : age % Abs / type >> Sum","status":"ok","result":{"kind":"vector","type":"numeric","length":3,"names":["U","V","W"],"values":[40,70,40]}}
+{"idx":198,"query":"@ cell : age % Log base 2 / type >> Mean","status":"ok","result":{"kind":"vector","type":"numeric","length":3,"names":["U","V","W"],"values":[4.114409345247941,4.982892142331043,5.321928094887363]}}
+{"idx":199,"query":"@ cell : age % Convert type Float32 / type >> Sum","status":"ok","result":{"kind":"vector","type":"numeric","length":3,"names":["U","V","W"],"values":[40,70,40]}}
+{"idx":200,"query":"@ cell : age % Convert type integer / type >> Sum","status":"ok","result":{"kind":"vector","type":"numeric","length":3,"names":["U","V","W"],"values":[40,70,40]}}
+{"idx":203,"query":"@ cell : score % Abs / type >> Sum","status":"ok","result":{"kind":"vector","type":"numeric","length":3,"names":["U","V","W"],"values":[3,5,1]}}
+{"idx":204,"query":"@ cell : score % Log base 2 eps 1 / type >> Mean","status":"ok","result":{"kind":"vector","type":"numeric","length":3,"names":["U","V","W"],"values":[1.19615871138938,1.745926548164837,"-Inf"]}}
+{"idx":207,"query":"@ cell : age / type =@ >> Sum","status":"ok","result":{"kind":"vector","type":"numeric","length":3,"names":["U","V","W"],"values":[40,70,40]}}
+{"idx":208,"query":"@ cell : age / type =@ >> Sum || 0","status":"ok","result":{"kind":"vector","type":"numeric","length":3,"names":["U","V","W"],"values":[40,70,40]}}
+{"idx":209,"query":"@ cell : score / type =@ >> Sum || 0.0","status":"ok","result":{"kind":"vector","type":"numeric","length":3,"names":["U","V","W"],"values":[3,5,-1]}}
+{"idx":212,"query":"@ cell @ gene :: UMIs >- Sum","status":"ok","result":{"kind":"vector","type":"numeric","length":3,"names":["g1","g2","g3"],"values":[15,20,25]}}
+{"idx":213,"query":"@ cell @ gene :: UMIs >| Sum","status":"ok","result":{"kind":"vector","type":"numeric","length":5,"names":["A","B","C","D","E"],"values":[6,15,24,3,12]}}
+{"idx":214,"query":"@ cell @ gene :: UMIs >- Mean","status":"ok","result":{"kind":"vector","type":"numeric","length":3,"names":["g1","g2","g3"],"values":[3,4,5]}}
+{"idx":215,"query":"@ cell @ gene :: UMIs >| Mean","status":"ok","result":{"kind":"vector","type":"numeric","length":5,"names":["A","B","C","D","E"],"values":[2,5,8,1,4]}}
+{"idx":216,"query":"@ cell @ gene :: UMIs >- Max","status":"ok","result":{"kind":"vector","type":"numeric","length":3,"names":["g1","g2","g3"],"values":[7,8,9]}}
+{"idx":217,"query":"@ cell @ gene :: UMIs >- Min","status":"ok","result":{"kind":"vector","type":"numeric","length":3,"names":["g1","g2","g3"],"values":[0,1,2]}}
+{"idx":218,"query":"@ cell @ gene :: UMIs >- Median","status":"ok","result":{"kind":"vector","type":"numeric","length":3,"names":["g1","g2","g3"],"values":[3,4,5]}}
+{"idx":219,"query":"@ cell @ gene :: UMIs >- Quantile p 0.5","status":"ok","result":{"kind":"vector","type":"numeric","length":3,"names":["g1","g2","g3"],"values":[3,4,5]}}
+{"idx":222,"query":"@ cell @ gene :: UMIs -/ type >- Sum","status":"ok","result":{"kind":"matrix","type":"matrix/array","dim":[3,3],"rownames":["U","V","W"],"colnames":["g1","g2","g3"],"values":[[8,10,12],[7,9,11],[0,1,2]]}}
+{"idx":223,"query":"@ cell @ gene :: UMIs -/ type >- Mean","status":"ok","result":{"kind":"matrix","type":"matrix/array","dim":[3,3],"rownames":["U","V","W"],"colnames":["g1","g2","g3"],"values":[[4,5,6],[3.5,4.5,5.5],[0,1,2]]}}
+{"idx":224,"query":"@ cell @ gene :: UMIs |/ marker >| Sum","status":"ok","result":{"kind":"matrix","type":"matrix/array","dim":[5,2],"rownames":["A","B","C","D","E"],"colnames":["hi","lo"],"values":[[2,4],[5,10],[8,16],[1,2],[4,8]]}}
+{"idx":225,"query":"@ cell @ gene :: UMIs |/ marker >| Mean","status":"ok","result":{"kind":"matrix","type":"matrix/array","dim":[5,2],"rownames":["A","B","C","D","E"],"colnames":["hi","lo"],"values":[[2,2],[5,5],[8,8],[1,1],[4,4]]}}
+{"idx":228,"query":"@ cell [ type ~ U ]","status":"ok","result":{"kind":"vector","type":"character","length":2,"names":["A","C"],"values":["A","C"]}}
+{"idx":229,"query":"@ cell [ type ~ \\^U ]","status":"ok","result":{"kind":"vector","type":"character","length":2,"names":["A","C"],"values":["A","C"]}}
+{"idx":230,"query":"@ cell [ type ~ \\^\\(U\\|V\\) ]","status":"ok","result":{"kind":"vector","type":"character","length":4,"names":["A","B","C","E"],"values":["A","B","C","E"]}}
+{"idx":231,"query":"@ cell [ batch ~ b ]","status":"ok","result":{"kind":"vector","type":"character","length":5,"names":["A","B","C","D","E"],"values":["A","B","C","D","E"]}}
+{"idx":232,"query":"@ cell [ label ~ a ]","status":"ok","result":{"kind":"vector","type":"character","length":1,"names":"D","values":["D"]}}
+{"idx":235,"query":". missing_scalar || pi Float32","status":"ok","result":{"kind":"scalar","type":"numeric","value":3.141592653589793}}
+{"idx":236,"query":". missing_scalar || e Float32","status":"ok","result":{"kind":"scalar","type":"numeric","value":2.718281828459045}}
+{"idx":237,"query":". missing_scalar || true Bool","status":"ok","result":{"kind":"scalar","type":"logical","value":true}}
+{"idx":238,"query":". missing_scalar || false","status":"ok","result":{"kind":"scalar","type":"logical","value":false}}
+{"idx":239,"query":"@ cell : missing_prop || pi","status":"ok","result":{"kind":"vector","type":"numeric","length":5,"names":["A","B","C","D","E"],"values":[3.141592653589793,3.141592653589793,3.141592653589793,3.141592653589793,3.141592653589793]}}
+{"idx":240,"query":"@ cell : missing_prop || e","status":"ok","result":{"kind":"vector","type":"numeric","length":5,"names":["A","B","C","D","E"],"values":[2.718281828459045,2.718281828459045,2.718281828459045,2.718281828459045,2.718281828459045]}}
+{"idx":243,"query":"@ cell [ batch > b1 ]","status":"ok","result":{"kind":"vector","type":"character","length":3,"names":["B","D","E"],"values":["B","D","E"]}}
+{"idx":244,"query":"@ cell [ label < b ]","status":"ok","result":{"kind":"vector","type":"character","length":3,"names":["A","D","E"],"values":["A","D","E"]}}
+{"idx":245,"query":"@ cell [ label >= '' ]","status":"ok","result":{"kind":"vector","type":"character","length":5,"names":["A","B","C","D","E"],"values":["A","B","C","D","E"]}}
+{"idx":248,"query":"@ empty_axis : ?","status":"ok","result":{"kind":"vector","type":"character","length":0,"names":"NA","values":[]}}
+{"idx":249,"query":"@ cell [ ! is_doublet & ! is_low ] : age >> Sum","status":"ok","result":{"kind":"scalar","type":"numeric","value":40}}
+{"idx":250,"query":"@ cell [ neg_age > 100 ] : score >> Mean","status":"error","error":"no IfMissing value specified for reducing an empty vector","error_type":"simpleError"}
+{"idx":251,"query":"@ cell [ neg_age > 100 ] : score >> Mean || 0.0","status":"ok","result":{"kind":"scalar","type":"numeric","value":0}}
+{"idx":252,"query":"@ cell [ neg_age > 100 ] : score >> Count","status":"error","error":"no IfMissing value specified for reducing an empty vector","error_type":"simpleError"}
+{"idx":255,"query":"@ cell : age >> Sum","status":"ok","result":{"kind":"scalar","type":"numeric","value":150}}
+{"idx":256,"query":"@ cell : age   >>    Sum","status":"ok","result":{"kind":"scalar","type":"numeric","value":150}}
+{"idx":257,"query":"@ cell:age>>Sum","status":"ok","result":{"kind":"scalar","type":"numeric","value":150}}
+{"idx":258,"query":"@   cell  :  age  >>  Sum","status":"ok","result":{"kind":"scalar","type":"numeric","value":150}}
+{"idx":261,"query":"@ cell # mask comment","status":"ok","result":{"kind":"vector","type":"character","length":5,"names":["A","B","C","D","E"],"values":["A","B","C","D","E"]}}
+{"idx":262,"query":"[ is_doublet ] : age >> Sum","status":"error","error":"'[' mask requires an axis in scope","error_type":"simpleError"}
+{"idx":263,"query":"@ cell : age # eltwise after this","status":"ok","result":{"kind":"vector","type":"numeric","length":5,"names":["A","B","C","D","E"],"values":[10,20,30,40,50]}}
+{"idx":264,"query":"% Abs # eltwise param","status":"error","error":"'%' eltwise requires scalar, vector, or matrix in scope","error_type":"simpleError"}
+{"idx":265,"query":"type Float32","status":"error","error":"expected operator, got value ‘type’ at position 1 in query ‘type Float32’","error_type":"simpleError"}
+{"idx":268,"query":"@ cell : is_doublet >> Sum","status":"ok","result":{"kind":"scalar","type":"integer","value":3}}
+{"idx":269,"query":"@ cell : is_doublet >> Mean","status":"ok","result":{"kind":"scalar","type":"numeric","value":0.6}}
+{"idx":270,"query":"@ cell : is_doublet >> Max","status":"ok","result":{"kind":"scalar","type":"integer","value":1}}
+{"idx":271,"query":"@ cell : is_doublet >> Count","status":"ok","result":{"kind":"scalar","type":"integer","value":5}}
+{"idx":272,"query":"@ cell : is_doublet / type >> Sum","status":"ok","result":{"kind":"vector","type":"integer","length":3,"names":["U","V","W"],"values":[2,1,0]}}
+{"idx":273,"query":"@ cell : is_doublet / type >> Mean","status":"ok","result":{"kind":"vector","type":"numeric","length":3,"names":["U","V","W"],"values":[1,0.5,0]}}
+{"idx":276,"query":"@ cell : type >> Mode","status":"ok","result":{"kind":"scalar","type":"character","value":"U"}}
+{"idx":277,"query":"@ cell : type / batch >> Mode","status":"ok","result":{"kind":"vector","type":"character","length":3,"names":["b1","b2","b3"],"values":["U","V","W"]}}
+{"idx":278,"query":"@ cell : label / type >> Mode","status":"ok","result":{"kind":"vector","type":"character","length":3,"names":["U","V","W"],"values":["","x","a b"]}}
+{"idx":282,"query":"@ cell : type","status":"ok","result":{"kind":"vector","type":"character","length":5,"names":["A","B","C","D","E"],"values":["U","V","U","W","V"]}}
+{"idx":285,"query":"@ cell : type ?? : color","status":"ok","result":{"kind":"vector","type":"character","length":5,"names":["A","B","C","D","E"],"values":["red","green","red","blue","green"]}}
+{"idx":286,"query":"@ cell : type ?? a","status":"error","error":"invalid operation(s)\nin the query: @ cell : type ?? a\n`?? a` requires a following lookup chain (`: prop` / `:: prop`) to substitute into","error_type":"simpleError"}
+{"idx":287,"query":"@ cell : type ?? unknown","status":"error","error":"invalid operation(s)\nin the query: @ cell : type ?? unknown\n`?? unknown` requires a following lookup chain (`: prop` / `:: prop`) to substitute into","error_type":"simpleError"}
+{"idx":288,"query":"@ cell : batch ?? : donor","status":"ok","result":{"kind":"vector","type":"character","length":5,"names":["A","B","C","D","E"],"values":["dA","dB","dA","dC","dB"]}}
+{"idx":291,"query":"@ cell [ age > 100 ] : score >> Sum","status":"error","error":"no IfMissing value specified for reducing an empty vector","error_type":"simpleError"}
+{"idx":292,"query":"@ cell [ age > 100 ] : score >> Sum || 0","status":"ok","result":{"kind":"scalar","type":"integer","value":0}}
+{"idx":293,"query":"@ cell [ age > 100 ] : score >> Sum || 0.0","status":"ok","result":{"kind":"scalar","type":"numeric","value":0}}
+{"idx":294,"query":"@ cell [ age > 100 ] : score >> Mean || 0","status":"ok","result":{"kind":"scalar","type":"integer","value":0}}
+{"idx":295,"query":"@ cell [ age > 100 ] : score >> Median || 0","status":"ok","result":{"kind":"scalar","type":"integer","value":0}}
+{"idx":296,"query":"@ cell [ age > 100 ] : score >> Std || 0","status":"ok","result":{"kind":"scalar","type":"integer","value":0}}
+{"idx":299,"query":"@ cell [ is_doublet & ! is_doublet ]","status":"ok","result":{"kind":"vector","type":"character","length":0,"names":[],"values":[]}}
+{"idx":300,"query":"@ cell [ is_doublet | ! is_doublet ]","status":"ok","result":{"kind":"vector","type":"character","length":5,"names":["A","B","C","D","E"],"values":["A","B","C","D","E"]}}
+{"idx":301,"query":"@ cell [ is_doublet ^ is_doublet ]","status":"ok","result":{"kind":"vector","type":"character","length":0,"names":[],"values":[]}}
+{"idx":302,"query":"@ cell [ is_low ^ ! is_low ]","status":"ok","result":{"kind":"vector","type":"character","length":5,"names":["A","B","C","D","E"],"values":["A","B","C","D","E"]}}
+{"idx":305,"query":"@ cell [ with_nan > 0 ]","status":"ok","result":{"kind":"vector","type":"character","length":3,"names":["A","C","E"],"values":["A","C","E"]}}
+{"idx":306,"query":"@ cell [ with_nan < 100 ]","status":"ok","result":{"kind":"vector","type":"character","length":3,"names":["A","C","E"],"values":["A","C","E"]}}
+{"idx":307,"query":"@ cell [ with_nan = with_nan ]","status":"error","error":"error parsing number comparison value: with_nan for comparison with a vector of type: Float64","error_type":"simpleError"}
+{"idx":308,"query":"@ cell [ with_nan != with_nan ]","status":"error","error":"error parsing number comparison value: with_nan for comparison with a vector of type: Float64","error_type":"simpleError"}
+{"idx":311,"query":"@ cell [ age = ten ]","status":"error","error":"error parsing number comparison value: ten for comparison with a vector of type: Int64","error_type":"simpleError"}
+{"idx":312,"query":"@ cell [ type = 0 ]","status":"ok","result":{"kind":"vector","type":"character","length":0,"names":[],"values":[]}}
+{"idx":315,"query":"@ cell [ age > 5 ] [ ! is_doublet ] : score % Abs % Log base 2 eps 1 >> Sum","status":"ok","result":{"kind":"scalar","type":"numeric","value":2.321928094887363}}
+{"idx":318,"query":"@ cell [ label = a b ]","status":"error","error":"expected operator, got value ‘b’ at position 20 in query ‘@ cell [ label = a b ]’","error_type":"simpleError"}
+{"idx":319,"query":"@ cell [ label = 'a b' ]","status":"error","error":"unexpected character ‘'’ at position 18 in query ‘@ cell [ label = 'a b' ]’","error_type":"simpleError"}
+{"idx":320,"query":"@ cell : label >> Mode","status":"ok","result":{"kind":"scalar","type":"character","value":""}}
+{"idx":324,"query":"@ cell [ label < Z ]","status":"ok","result":{"kind":"vector","type":"character","length":1,"names":"A","values":["A"]}}
+{"idx":325,"query":"@ cell [ label > Z ]","status":"ok","result":{"kind":"vector","type":"character","length":3,"names":["B","C","D"],"values":["B","C","D"]}}
+{"idx":326,"query":"@ cell [ label <= Z ]","status":"ok","result":{"kind":"vector","type":"character","length":2,"names":["A","E"],"values":["A","E"]}}
+{"idx":327,"query":"@ cell [ label >= Z ]","status":"ok","result":{"kind":"vector","type":"character","length":4,"names":["B","C","D","E"],"values":["B","C","D","E"]}}
+{"idx":328,"query":"@ cell [ type < V ]","status":"ok","result":{"kind":"vector","type":"character","length":2,"names":["A","C"],"values":["A","C"]}}
+{"idx":329,"query":"@ cell [ type > V ]","status":"ok","result":{"kind":"vector","type":"character","length":1,"names":"D","values":["D"]}}
+{"idx":330,"query":"@ cell [ batch < b2 ]","status":"ok","result":{"kind":"vector","type":"character","length":2,"names":["A","C"],"values":["A","C"]}}
+{"idx":331,"query":"@ cell [ batch > b2 ]","status":"ok","result":{"kind":"vector","type":"character","length":1,"names":"D","values":["D"]}}
+{"idx":332,"query":"@ cell [ batch <= b2 ]","status":"ok","result":{"kind":"vector","type":"character","length":4,"names":["A","B","C","E"],"values":["A","B","C","E"]}}
+{"idx":333,"query":"@ cell [ batch >= b2 ]","status":"ok","result":{"kind":"vector","type":"character","length":3,"names":["B","D","E"],"values":["B","D","E"]}}
+{"idx":336,"query":"@ cell [ label = Z ]","status":"ok","result":{"kind":"vector","type":"character","length":1,"names":"E","values":["E"]}}
+{"idx":337,"query":"@ cell [ label = z ]","status":"ok","result":{"kind":"vector","type":"character","length":0,"names":[],"values":[]}}
+{"idx":338,"query":"@ cell [ label != Z ]","status":"ok","result":{"kind":"vector","type":"character","length":4,"names":["A","B","C","D"],"values":["A","B","C","D"]}}
+{"idx":341,"query":"@ cell : is_doublet >> Sum type Int32","status":"ok","result":{"kind":"scalar","type":"integer","value":3}}
+{"idx":342,"query":"@ cell : is_doublet >> Mean type Float32","status":"ok","result":{"kind":"scalar","type":"numeric","value":0.6}}
+{"idx":343,"query":"@ cell : is_doublet / type =@ >> Sum","status":"ok","result":{"kind":"vector","type":"numeric","length":3,"names":["U","V","W"],"values":[2,1,0]}}
+{"idx":344,"query":"@ cell : is_doublet / type =@ >> Sum || 0","status":"ok","result":{"kind":"vector","type":"numeric","length":3,"names":["U","V","W"],"values":[2,1,0]}}
+{"idx":347,"query":". missing_scalar || pi Float64","status":"ok","result":{"kind":"scalar","type":"numeric","value":3.141592653589793}}
+{"idx":348,"query":". missing_scalar || pi Int64","status":"error","error":"invalid value: ‘pi’\nvalue must be: a valid Int64\nfor the parameter: value\nfor the operation: ||","error_type":"simpleError"}
+{"idx":349,"query":". missing_scalar || e Float32","status":"ok","result":{"kind":"scalar","type":"numeric","value":2.718281828459045}}
+{"idx":350,"query":"@ cell : missing_prop || pi Float32","status":"ok","result":{"kind":"vector","type":"numeric","length":5,"names":["A","B","C","D","E"],"values":[3.141592653589793,3.141592653589793,3.141592653589793,3.141592653589793,3.141592653589793]}}
+{"idx":351,"query":"@ cell : missing_prop || e Float64","status":"ok","result":{"kind":"vector","type":"numeric","length":5,"names":["A","B","C","D","E"],"values":[2.718281828459045,2.718281828459045,2.718281828459045,2.718281828459045,2.718281828459045]}}
+{"idx":352,"query":"@ cell : missing_prop || pi","status":"ok","result":{"kind":"vector","type":"numeric","length":5,"names":["A","B","C","D","E"],"values":[3.141592653589793,3.141592653589793,3.141592653589793,3.141592653589793,3.141592653589793]}}
+{"idx":353,"query":"@ cell : missing_prop || e","status":"ok","result":{"kind":"vector","type":"numeric","length":5,"names":["A","B","C","D","E"],"values":[2.718281828459045,2.718281828459045,2.718281828459045,2.718281828459045,2.718281828459045]}}
+{"idx":356,"query":"@ cell : type / batch =@ >> Mode","status":"ok","result":{"kind":"vector","type":"character","length":3,"names":["b1","b2","b3"],"values":["U","V","W"]}}
+{"idx":357,"query":"@ cell : batch / type =@ >> Mode","status":"ok","result":{"kind":"vector","type":"character","length":3,"names":["U","V","W"],"values":["b1","b2","b3"]}}
+{"idx":360,"query":"@ cell : score >> Quantile p 0.99","status":"ok","result":{"kind":"scalar","type":"numeric","value":3.46}}
+{"idx":361,"query":"@ cell : score >> Quantile","status":"error","error":"missing required parameter: p","error_type":"simpleError"}
+{"idx":362,"query":"@ cell : age >> Quantile p 0.5","status":"ok","result":{"kind":"scalar","type":"numeric","value":30}}
+{"idx":363,"query":"@ cell : age >> Quantile p 0.25","status":"ok","result":{"kind":"scalar","type":"numeric","value":20}}
+{"idx":364,"query":"@ cell : age >> Quantile p 0.99","status":"ok","result":{"kind":"scalar","type":"numeric","value":49.600000000000001}}
+{"idx":367,"query":"@ cell [ ! is_low & is_low ] : age >> Count","status":"error","error":"no IfMissing value specified for reducing an empty vector","error_type":"simpleError"}
+{"idx":368,"query":"@ cell [ ! is_low & is_low ] : age >> Sum || 0","status":"ok","result":{"kind":"scalar","type":"integer","value":0}}
+{"idx":369,"query":"@ cell [ ! is_low & is_low ] : age >> Mean || 0","status":"ok","result":{"kind":"scalar","type":"integer","value":0}}
+{"idx":372,"query":"@ cell : age % Significant high 100 low 25","status":"ok","result":{"kind":"vector","type":"numeric","length":5,"names":["A","B","C","D","E"],"values":[0,0,0,0,0]}}
+{"idx":373,"query":"@ cell : age % Significant high 100","status":"ok","result":{"kind":"vector","type":"numeric","length":5,"names":["A","B","C","D","E"],"values":[0,0,0,0,0]}}
+{"idx":374,"query":"@ cell : score % Significant high 2 low 1","status":"ok","result":{"kind":"vector","type":"numeric","length":5,"names":["A","B","C","D","E"],"values":[0,1.5,2.5,-1,3.5]}}
+{"idx":377,"query":"@ cell : age % Clamp low 15 high 35","status":"error","error":"the parameter: low\ndoes not exist for the operation: Clamp","error_type":"simpleError"}
+{"idx":378,"query":"@ cell : age % Clamp high 35 low 15","status":"error","error":"the parameter: high\ndoes not exist for the operation: Clamp","error_type":"simpleError"}
+{"idx":379,"query":"@ cell : age % Clamp low 0 high 100","status":"error","error":"the parameter: low\ndoes not exist for the operation: Clamp","error_type":"simpleError"}
+{"idx":380,"query":"@ cell : score % Clamp low -0.5 high 2.5","status":"error","error":"the parameter: low\ndoes not exist for the operation: Clamp","error_type":"simpleError"}
+{"idx":383,"query":"@ cell [ age > 100 ] : age >> Sum || 0","status":"ok","result":{"kind":"scalar","type":"integer","value":0}}
+{"idx":384,"query":"@ cell [ age > 100 ] : age >> Sum || 0.0","status":"ok","result":{"kind":"scalar","type":"numeric","value":0}}
+{"idx":385,"query":"@ cell [ age > 100 ] : age >> Mean","status":"error","error":"no IfMissing value specified for reducing an empty vector","error_type":"simpleError"}
+{"idx":386,"query":"@ cell [ age > 100 ] : age >> Var","status":"error","error":"no IfMissing value specified for reducing an empty vector","error_type":"simpleError"}
+{"idx":387,"query":"@ cell [ age > 100 ] : age >> Var || 0.0","status":"ok","result":{"kind":"scalar","type":"numeric","value":0}}
+{"idx":388,"query":"@ cell [ age > 100 ] : age >> Var || 0","status":"ok","result":{"kind":"scalar","type":"integer","value":0}}
+{"idx":389,"query":"@ cell [ age > 100 ] : age >> Min || 0","status":"ok","result":{"kind":"scalar","type":"integer","value":0}}
+{"idx":390,"query":"@ cell [ age > 100 ] : age >> Max || 99","status":"ok","result":{"kind":"scalar","type":"integer","value":99}}
+{"idx":393,"query":"@ cell : score % Convert type Int8","status":"error","error":"InexactError: Int8(0.5)","error_type":"simpleError"}
+{"idx":394,"query":"@ cell : score % Convert type Int16","status":"error","error":"InexactError: Int16(0.5)","error_type":"simpleError"}
+{"idx":395,"query":"@ cell : score % Convert type UInt32","status":"error","error":"InexactError: UInt32(0.5)","error_type":"simpleError"}
+{"idx":396,"query":"@ cell : age % Convert type UInt8","status":"ok","result":{"kind":"vector","type":"integer","length":5,"names":["A","B","C","D","E"],"values":[10,20,30,40,50]}}
+{"idx":397,"query":"@ cell : score % Round type UInt32","status":"error","error":"InexactError: UInt32(-1)","error_type":"simpleError"}
+{"idx":398,"query":"@ cell : score % Round type Int64","status":"ok","result":{"kind":"vector","type":"integer","length":5,"names":["A","B","C","D","E"],"values":[0,2,2,-1,4]}}
+{"idx":401,"query":"@ cell @ gene :: UMIs % Round type Int8","status":"ok","result":{"kind":"matrix","type":"matrix/array","dim":[5,3],"rownames":["A","B","C","D","E"],"colnames":["g1","g2","g3"],"values":[[1,2,3],[4,5,6],[7,8,9],[0,1,2],[3,4,5]]}}
+{"idx":402,"query":"@ cell @ gene :: UMIs % Convert type Float32","status":"ok","result":{"kind":"matrix","type":"matrix/array","dim":[5,3],"rownames":["A","B","C","D","E"],"colnames":["g1","g2","g3"],"values":[[1,2,3],[4,5,6],[7,8,9],[0,1,2],[3,4,5]]}}
+{"idx":403,"query":"@ cell @ gene :: UMIs % Log base 2 eps 1 type Float64","status":"ok","result":{"kind":"matrix","type":"matrix/array","dim":[5,3],"rownames":["A","B","C","D","E"],"colnames":["g1","g2","g3"],"values":[[1,1.584962500721156,2],[2.321928094887362,2.584962500721156,2.807354922057604],[3,3.169925001442312,3.321928094887362],[0,1,1.584962500721156],[2,2.321928094887362,2.584962500721156]]}}
+{"idx":404,"query":"@ cell @ gene :: UMIs % Significant high 5 low 1","status":"ok","result":{"kind":"matrix","type":"matrix/array","dim":[5,3],"rownames":["A","B","C","D","E"],"colnames":["g1","g2","g3"],"values":[[1,2,3],[4,5,6],[7,8,9],[0,1,2],[3,4,5]]}}
+{"idx":407,"query":"@ cell @ gene :: UMIs >- Mode","status":"ok","result":{"kind":"vector","type":"numeric","length":3,"names":["g1","g2","g3"],"values":[1,2,3]}}
+{"idx":408,"query":"@ cell @ gene :: UMIs >| Mode","status":"ok","result":{"kind":"vector","type":"numeric","length":5,"names":["A","B","C","D","E"],"values":[1,4,7,0,3]}}
+{"idx":409,"query":"@ cell @ gene :: UMIs >- Var","status":"ok","result":{"kind":"vector","type":"numeric","length":3,"names":["g1","g2","g3"],"values":[6,6,6]}}
+{"idx":410,"query":"@ cell @ gene :: UMIs >| StdN","status":"ok","result":{"kind":"vector","type":"numeric","length":5,"names":["A","B","C","D","E"],"values":[0.408248290463863,0.1632993161855452,0.1020620726159658,0.816496580927726,0.2041241452319315]}}
+{"idx":411,"query":"@ cell @ gene :: UMIs >| GeoMean","status":"ok","result":{"kind":"vector","type":"numeric","length":5,"names":["A","B","C","D","E"],"values":[1.81712059283214,4.93242414866094,7.958114415792782,0,3.914867641168863]}}
+{"idx":414,"query":"@ cell [ age = 30 ] @ gene :: UMIs","status":"ok","result":{"kind":"matrix","type":"matrix/array","dim":[1,3],"rownames":"C","colnames":["g1","g2","g3"],"values":[[7,8,9]]}}
+{"idx":415,"query":"@ gene [ is_lateral ] : marker","status":"ok","result":{"kind":"vector","type":"character","length":1,"names":"g1","values":["lo"]}}
+{"idx":416,"query":"@ cell [ is_doublet ] @ gene :: UMIs >- Sum","status":"ok","result":{"kind":"vector","type":"numeric","length":3,"names":["g1","g2","g3"],"values":[11,14,17]}}
+{"idx":419,"query":"@ cell : is_doublet / type =@ >> Mean || 0","status":"ok","result":{"kind":"vector","type":"numeric","length":3,"names":["U","V","W"],"values":[1,0.5,0]}}
+{"idx":420,"query":"@ cell : age / is_doublet >> Var","status":"ok","result":{"kind":"vector","type":"numeric","length":2,"names":["false","true"],"values":[100,266.66666666666674]}}
+{"idx":421,"query":"@ cell : age / batch >> Median","status":"ok","result":{"kind":"vector","type":"numeric","length":3,"names":["b1","b2","b3"],"values":[20,35,40]}}
+{"idx":422,"query":"@ cell : age / batch =@ >> Median","status":"ok","result":{"kind":"vector","type":"numeric","length":3,"names":["b1","b2","b3"],"values":[20,35,40]}}
+{"idx":423,"query":"@ cell : score / type =@ >> StdN","status":"ok","result":{"kind":"vector","type":"numeric","length":3,"names":["U","V","W"],"values":[0.6666666666666666,0.4,-0]}}
+{"idx":424,"query":"@ cell : score / type =@ >> StdN || 0.0","status":"ok","result":{"kind":"vector","type":"numeric","length":3,"names":["U","V","W"],"values":[0.6666666666666666,0.4,-0]}}
+{"idx":427,"query":". missing_scalar || héllo","status":"error","error":"unexpected character ‘é’ at position 22 in query ‘. missing_scalar || héllo’","error_type":"simpleError"}
+{"idx":428,"query":". missing_scalar || héllo String","status":"error","error":"unexpected character ‘é’ at position 22 in query ‘. missing_scalar || héllo String’","error_type":"simpleError"}
+{"idx":431,"query":". version || 1","status":"ok","result":{"kind":"scalar","type":"numeric","value":1}}
+{"idx":432,"query":". version || 1.0","status":"ok","result":{"kind":"scalar","type":"numeric","value":1}}
+{"idx":433,"query":". version || -1","status":"ok","result":{"kind":"scalar","type":"numeric","value":1}}
+{"idx":434,"query":". version || +1","status":"ok","result":{"kind":"scalar","type":"numeric","value":1}}
+{"idx":435,"query":". version || 1e10","status":"ok","result":{"kind":"scalar","type":"numeric","value":1}}
+{"idx":436,"query":". version || 1E10","status":"ok","result":{"kind":"scalar","type":"numeric","value":1}}
+{"idx":437,"query":". version || .5","status":"error","error":"missing scalar: 5\nin the daf data: fixture.daf","error_type":"simpleError"}
+{"idx":438,"query":". version || 5.","status":"ok","result":{"kind":"scalar","type":"numeric","value":1}}
+{"idx":439,"query":". intver || 1.5 Int32","status":"error","error":"invalid value: ‘1.5’\nvalue must be: a valid Int32\nfor the parameter: value\nfor the operation: ||","error_type":"simpleError"}
+{"idx":440,"query":". intver || 0.5","status":"ok","result":{"kind":"scalar","type":"integer","value":7}}

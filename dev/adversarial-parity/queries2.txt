@@ -1,0 +1,138 @@
+# Round 2 - targeted adversarial queries to expand coverage of the bugs found.
+
+# --- integer64 path: more reductions, more operations ---
+@ cell : age >> Min
+@ cell : age >> Max
+@ cell : age >> Median
+@ cell : age >> Quantile p 0.25
+@ cell : age >> Var
+@ cell : age >> Std
+@ cell : age >> GeoMean
+@ cell : age >> Mode
+
+# --- integer64 path: eltwise + reduce combos ---
+@ cell : age % Abs >> Sum
+@ cell : age % Abs / type >> Sum
+@ cell : age % Log base 2 / type >> Mean
+@ cell : age % Convert type Float32 / type >> Sum
+@ cell : age % Convert type integer / type >> Sum
+
+# --- mixed: float vector through same paths (should match) ---
+@ cell : score % Abs / type >> Sum
+@ cell : score % Log base 2 eps 1 / type >> Mean
+
+# --- groupby with =@ axis broadcast ---
+@ cell : age / type =@ >> Sum
+@ cell : age / type =@ >> Sum || 0
+@ cell : score / type =@ >> Sum || 0.0
+
+# --- matrix reductions with integer source ---
+@ cell @ gene :: UMIs >- Sum
+@ cell @ gene :: UMIs >| Sum
+@ cell @ gene :: UMIs >- Mean
+@ cell @ gene :: UMIs >| Mean
+@ cell @ gene :: UMIs >- Max
+@ cell @ gene :: UMIs >- Min
+@ cell @ gene :: UMIs >- Median
+@ cell @ gene :: UMIs >- Quantile p 0.5
+
+# --- matrix groupby + reduction ---
+@ cell @ gene :: UMIs -/ type >- Sum
+@ cell @ gene :: UMIs -/ type >- Mean
+@ cell @ gene :: UMIs |/ marker >| Sum
+@ cell @ gene :: UMIs |/ marker >| Mean
+
+# --- regex without escaping (Julia strict, R permissive?) ---
+@ cell [ type ~ U ]
+@ cell [ type ~ \^U ]
+@ cell [ type ~ \^\(U\|V\) ]
+@ cell [ batch ~ b ]
+@ cell [ label ~ a ]
+
+# --- IfMissing with typed defaults using named constants ---
+. missing_scalar || pi Float32
+. missing_scalar || e Float32
+. missing_scalar || true Bool
+. missing_scalar || false
+@ cell : missing_prop || pi
+@ cell : missing_prop || e
+
+# --- Comparisons on numbers stored as strings ---
+@ cell [ batch > b1 ]
+@ cell [ label < b ]
+@ cell [ label >= '' ]
+
+# --- Empty-axis with reductions ---
+@ empty_axis : ?
+@ cell [ ! is_doublet & ! is_low ] : age >> Sum
+@ cell [ neg_age > 100 ] : score >> Mean
+@ cell [ neg_age > 100 ] : score >> Mean || 0.0
+@ cell [ neg_age > 100 ] : score >> Count
+
+# --- Trailing/leading whitespace, internal extra whitespace ---
+  @ cell : age >> Sum
+@ cell : age   >>    Sum
+@ cell:age>>Sum
+@   cell  :  age  >>  Sum
+
+# --- Comments inside queries ---
+@ cell # mask comment
+ [ is_doublet ] : age >> Sum
+@ cell : age # eltwise after this
+  % Abs # eltwise param
+  type Float32
+
+# --- Boolean stored as Bool: chain with Sum/Mean ---
+@ cell : is_doublet >> Sum
+@ cell : is_doublet >> Mean
+@ cell : is_doublet >> Max
+@ cell : is_doublet >> Count
+@ cell : is_doublet / type >> Sum
+@ cell : is_doublet / type >> Mean
+
+# --- String operations and grouping ---
+@ cell : type >> Mode
+@ cell : type / batch >> Mode
+@ cell : label / type >> Mode
+
+# --- Mode with ties (deterministic across langs?) ---
+# Add additional vectors for tie testing
+@ cell : type
+
+# --- IfNot (??) chains ---
+@ cell : type ?? : color
+@ cell : type ?? a
+@ cell : type ?? unknown
+@ cell : batch ?? : donor
+
+# --- IfMissing on reductions of empty vectors ---
+@ cell [ age > 100 ] : score >> Sum
+@ cell [ age > 100 ] : score >> Sum || 0
+@ cell [ age > 100 ] : score >> Sum || 0.0
+@ cell [ age > 100 ] : score >> Mean || 0
+@ cell [ age > 100 ] : score >> Median || 0
+@ cell [ age > 100 ] : score >> Std || 0
+
+# --- AND/OR/XOR mask edge cases ---
+@ cell [ is_doublet & ! is_doublet ]
+@ cell [ is_doublet | ! is_doublet ]
+@ cell [ is_doublet ^ is_doublet ]
+@ cell [ is_low ^ ! is_low ]
+
+# --- Numeric comparison precision: NaN ordering ---
+@ cell [ with_nan > 0 ]
+@ cell [ with_nan < 100 ]
+@ cell [ with_nan = with_nan ]
+@ cell [ with_nan != with_nan ]
+
+# --- Type-mismatched comparisons ---
+@ cell [ age = ten ]
+@ cell [ type = 0 ]
+
+# --- Long chain stress ---
+@ cell [ age > 5 ] [ ! is_doublet ] : score % Abs % Log base 2 eps 1 >> Sum
+
+# --- Special chars in property values ---
+@ cell [ label = a b ]
+@ cell [ label = 'a b' ]
+@ cell : label >> Mode
