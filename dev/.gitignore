@@ -5,3 +5,6 @@
 *.rds
 .Rhistory
 .RData
+
+# Scratch space for dev/backend-parity round-trip runners
+backend-parity/.scratch/
