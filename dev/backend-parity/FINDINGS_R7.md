@@ -163,11 +163,14 @@ Tracking these as "future round" candidates:
 - **AltRep + mmap interactions** (deferred per NEXT_AUDIT.md).
 - **H5adAsDaf / HttpDaf** backends - not in the Round-7 fixture
   matrix.
-- **Sparse-matrix dropped-zero structural divergence.** Day-3
-  caught the value/dtype/shape parts; the i,p,x triple structure
-  was checked by hash equality but no test deliberately writes a
-  matrix with explicit-zero entries followed by `drop0`-vs-not
-  variants.
+- **Sparse-matrix dropped-zero structural divergence.** Day-5
+  follow-up extended the fixture with `sparse_with_explicit_zero`
+  (built via `sparseMatrix(i, j, x)` with one `x == 0`) and
+  `sparse_dropped_zero` (its `drop0()` twin). Both pairs round-
+  trip with the original `(i, p, x)` triples preserved on all
+  three backends and across all six `copy_all` pairs - no silent
+  `drop0` normalisation. Regression guards in
+  `tests/testthat/test-backend-parity-r7.R`.
 - **Concat / chain_writer / view_daf round-trips** were in the
   audit's "in scope" list but only `copy_all` was exercised.
 - **`set_*` immediately followed by `get_*` (cache correctness)**

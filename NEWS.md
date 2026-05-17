@@ -1,3 +1,52 @@
+# dafr 0.2.8 (in development)
+
+## Fix: cross-backend write/read parity (Round 7)
+
+Six bugs surfaced by the new `dev/backend-parity/` audit harness,
+which round-trips an 82-item fixture through Memory/Files/Zarr
+write -> reopen -> read and every (src, dst) `copy_all` pair.
+Before fixes: 11/246 (single-backend) and 35/567 (cross-backend)
+diverged. After: 0/246 and 0/567.
+
+- **NaN scalars are now accepted.** `set_scalar(d, "x", NaN)`
+  previously raised `value may not be NA` because
+  `.assert_scalar_value` used `is.na(value)`, which returns
+  `TRUE` for `NaN`. `NaN` is a valid `Float64` per Julia DAF;
+  only true `NA` is rejected now.
+- **Float64 scalars round-trip at full precision on FilesDaf.**
+  `set_scalar(d, "pi_val", pi)` used to read back as `3.1416`
+  because `jsonlite::toJSON` defaulted to `digits = 4`. The
+  scalar writer now passes `digits = 17`.
+- **`Int64` / `UInt64` dense vectors round-trip across the full
+  64-bit range on FilesDaf.** The reader's
+  `readBin(what = "integer", size = 8L)` silently truncated each
+  value to its low 32 bits (base R has no 8-byte integer type),
+  so values whose low 32 bits were zero (`2^32`, `2^62`,
+  `-2^62`, ...) all came back as `0`. The reader now reads
+  8-byte doubles and bit-aliases them into `integer64`.
+- **All-NaN Float64 vectors preserve NaN on FilesDaf.** The
+  auto-sparsifier counted NaN as zero (`sum(vec != 0,
+  na.rm = TRUE)` drops NaN), so an all-NaN vector was written
+  as an empty sparse vector and read back as all-zero. NaN is
+  now counted as nonzero on the sparsify decision and kept in
+  the sparse representation.
+- **ZarrDaf reorders named-subset vectors to axis order.**
+  `set_vector(d, "cell", "x", c(C = 3, A = 1, B = 2))` against
+  ZarrDaf previously stored values in input order; against
+  Memory and Files it stored in axis order. `.validate_vector_value`
+  (which performs the reorder) is now called in the user-facing
+  `set_vector` dispatcher so every backend - current and future -
+  receives an axis-ordered, un-named vec.
+- **FilesDaf scalar strings declare `Encoding() == "UTF-8"`.**
+  The regex fast-path in `.read_scalar_json` returned bytes-only
+  strings tagged `"unknown"`. The byte content was always
+  correct (`identical()` returned `TRUE`), but
+  `serialize()`-based comparisons distinguished the tag.
+
+Regression tests live in `tests/testthat/test-backend-parity-r7.R`
+(one focused case per bug class). The audit harness, fixture,
+findings doc, and diff tool live in `dev/backend-parity/`.
+
 # dafr 0.2.7
 
 ## Fix: row/col mask alignment under matrix GroupBy

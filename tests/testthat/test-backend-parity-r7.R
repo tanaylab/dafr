@@ -77,6 +77,54 @@ test_that("set_vector with named subset is stored in axis order on ZarrDaf", {
     expect_equal(names(out), c("A", "B", "C", "D", "E"))
 })
 
+# ---- Sparse drop0 / explicit-zero preservation (Round-7 follow-up) ----
+test_that("sparse matrices preserve (i, p, x) structure (no silent drop0)", {
+    # Matrix with an explicit zero stored in @x.
+    mat <- Matrix::sparseMatrix(
+        i    = c(1L, 1L, 3L, 5L),
+        j    = c(1L, 2L, 2L, 3L),
+        x    = c(5.0, 0.0, 7.0, 9.0),
+        dims = c(5L, 3L)
+    )
+    expect_equal(mat@x, c(5, 0, 7, 9))  # sanity: input keeps the zero
+
+    p <- tempfile(fileext = ".daf")
+    on.exit(unlink(p, recursive = TRUE), add = TRUE)
+    d <- files_daf(p, mode = "w")
+    add_axis(d, "cell", sprintf("c%d", 1:5))
+    add_axis(d, "gene", sprintf("g%d", 1:3))
+    set_matrix(d, "cell", "gene", "m", mat)
+    rm(d)
+
+    r <- files_daf(p, mode = "r")
+    out <- as(get_matrix(r, "cell", "gene", "m"), "CsparseMatrix")
+    expect_equal(out@i, mat@i)
+    expect_equal(out@p, mat@p)
+    expect_equal(out@x, mat@x)   # explicit zero must survive
+})
+
+test_that("copy_all does not silently drop0 sparse matrices", {
+    src <- memory_daf("src")
+    add_axis(src, "cell", sprintf("c%d", 1:5))
+    add_axis(src, "gene", sprintf("g%d", 1:3))
+    mat <- Matrix::sparseMatrix(
+        i    = c(1L, 1L, 3L, 5L),
+        j    = c(1L, 2L, 2L, 3L),
+        x    = c(5.0, 0.0, 7.0, 9.0),
+        dims = c(5L, 3L)
+    )
+    set_matrix(src, "cell", "gene", "m", mat)
+
+    p <- tempfile(fileext = ".daf.zarr")
+    on.exit(unlink(p, recursive = TRUE), add = TRUE)
+    dst <- zarr_daf(p, mode = "w")
+    copy_all(dst, src, relayout = FALSE)
+    rm(dst)
+    r <- zarr_daf(p, mode = "r")
+    out <- as(get_matrix(r, "cell", "gene", "m"), "CsparseMatrix")
+    expect_equal(out@x, mat@x)   # explicit zero survives copy_all
+})
+
 # ---- Bug B/harness: FilesDaf scalar strings come back UTF-8 tagged ----
 test_that("FilesDaf scalar strings preserve UTF-8 encoding tag", {
     p <- tempfile(fileext = ".daf")

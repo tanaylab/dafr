@@ -153,6 +153,12 @@ fixture_manifest <- function() {
        storage = "sparse", notes = "sparse all-zero (drop0)")
     mx("cell", "gene", "alternating_sparse", "Float64", 5L, 3L,
        storage = "sparse", notes = "checkerboard sparse")
+    mx("cell", "gene", "sparse_with_explicit_zero", "Float64", 5L, 3L,
+       storage = "sparse",
+       notes = "sparseMatrix with an explicit-zero @x entry (drop0 test)")
+    mx("cell", "gene", "sparse_dropped_zero", "Float64", 5L, 3L,
+       storage = "sparse",
+       notes = "same content via drop0 - structural twin of the above")
     mx("cell", "gene", "frac_with_nan", "Float64", 5L, 3L,
        storage = "dense", notes = "dense with NaN cells")
 
@@ -325,6 +331,19 @@ build_fixture <- function(daf) {
         if ((i + j) %% 2L == 0L) .alt_mat[i, j] <- i + 10 * j
     set_matrix(daf, "cell", "gene", "alternating_sparse",
                as(.alt_mat, "CsparseMatrix"))
+    # Built directly from (i, j, x) with an explicit zero - sparseMatrix
+    # keeps it in @x; useful to verify backends do not silently drop0
+    # (or do so consistently across formats).
+    .with_explicit <- sparseMatrix(
+        i    = c(1L, 1L, 3L, 5L),
+        j    = c(1L, 2L, 2L, 3L),
+        x    = c(5.0, 0.0, 7.0, 9.0),
+        dims = c(5L, 3L)
+    )
+    set_matrix(daf, "cell", "gene", "sparse_with_explicit_zero",
+               .with_explicit)
+    set_matrix(daf, "cell", "gene", "sparse_dropped_zero",
+               drop0(.with_explicit))
     set_matrix(daf, "cell", "gene", "frac_with_nan",
                matrix(c(0.1, NaN, 0.7, 0.0, 0.3,
                         NaN, 0.5, 0.8, NaN, 0.4,
