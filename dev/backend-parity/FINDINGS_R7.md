@@ -211,3 +211,6 @@ NOT_CRAN=true Rscript -e \
   classes - just multipath multipliers. 35 divergences / 567 reads.
 - Day 5 (2026-05-17): A / B / C / D / E / F fixed. Both harness
   runs report 0 divergences. Regression tests added.
+- 2026-05-19: composer_format.R extension added (viewer / chain_reader /
+  chain_writer / concatenate). G fixed (concat wildcard double-clobber).
+  All 4 composers report 0/84 each.

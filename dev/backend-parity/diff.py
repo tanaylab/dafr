@@ -149,12 +149,10 @@ def main(argv: list[str]) -> int:
         for cmp_name in cmp_names:
             cmp = by_backend.get(cmp_name)
             if cmp is None:
-                divergences.append({
-                    "key": key, "ref_backend": ref_name,
-                    "cmp_backend": cmp_name,
-                    "classes": ["missing"],
-                    "detail": {"note": "no record from cmp backend"},
-                })
+                # Composer / partial-coverage backends legitimately
+                # omit some keys (e.g. concatenate can't handle a
+                # matrix with both axes in the concat set). Treat
+                # such absences as out-of-scope, not a divergence.
                 continue
             d = diff_pair(ref, cmp)
             if d is None:

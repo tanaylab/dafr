@@ -77,6 +77,44 @@ test_that("set_vector with named subset is stored in axis order on ZarrDaf", {
     expect_equal(names(out), c("A", "B", "C", "D", "E"))
 })
 
+# ---- Concatenate: matrix wildcard skips concat-axis matrices ----
+test_that("concatenate '*|*|*'=MERGE_LAST_VALUE does not clobber stitched matrices", {
+    # Two sources with a cell-x-empty-axis matrix (5 cells split 2/3,
+    # cols axis is empty). Wildcard merge previously expanded to this
+    # key and then .concat_merge_matrix tried to MERGE_LAST_VALUE the
+    # 3 x 0 from src_b into a destination that expects 5 x 0.
+    a <- memory_daf("a")
+    add_axis(a, "cell", c("c1", "c2"))
+    add_axis(a, "gene", c("g1", "g2", "g3"))
+    add_axis(a, "empty_axis", character(0))
+    set_matrix(a, "cell", "empty_axis", "ec",
+               matrix(integer(0), nrow = 2L, ncol = 0L))
+    set_matrix(a, "cell", "gene", "u",
+               matrix(seq_len(6L), nrow = 2L, ncol = 3L))
+
+    b <- memory_daf("b")
+    add_axis(b, "cell", c("c3", "c4", "c5"))
+    add_axis(b, "gene", c("g1", "g2", "g3"))
+    add_axis(b, "empty_axis", character(0))
+    set_matrix(b, "cell", "empty_axis", "ec",
+               matrix(integer(0), nrow = 3L, ncol = 0L))
+    set_matrix(b, "cell", "gene", "u",
+               matrix(7:15, nrow = 3L, ncol = 3L))
+
+    dst <- memory_daf("dst")
+    expect_no_error(concatenate(
+        dst, "cell", list(a, b),
+        dataset_axis = NULL, prefix = FALSE,
+        merge = list("*|*|*" = MERGE_LAST_VALUE)
+    ))
+    # cell-x-empty-axis stitched to 5 x 0 (not picked from src_b 3 x 0).
+    ec <- get_matrix(dst, "cell", "empty_axis", "ec")
+    expect_equal(dim(ec), c(5L, 0L))
+    # cell-x-gene stitched to 5 x 3.
+    u <- get_matrix(dst, "cell", "gene", "u")
+    expect_equal(dim(u), c(5L, 3L))
+})
+
 # ---- Sparse drop0 / explicit-zero preservation (Round-7 follow-up) ----
 test_that("sparse matrices preserve (i, p, x) structure (no silent drop0)", {
     # Matrix with an explicit zero stored in @x.
