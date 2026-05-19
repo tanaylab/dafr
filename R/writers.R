@@ -166,6 +166,13 @@ set_matrix <- function(daf, rows_axis, columns_axis, name, mat,
     .assert_name(name, "name")
     .assert_flag(overwrite, "overwrite")
     .assert_flag(relayout, "relayout")
+    # Centralised dimname validation: reject matrices whose row/col names
+    # don't match the axis entries (Julia parity, data.jl
+    # `set_matrix > named > !rows|!columns > name`). Drops names so
+    # backends receive an axis-aligned, un-named matrix.
+    .require_axis(daf, sprintf("for the rows of the matrix: %s", name), rows_axis)
+    .require_axis(daf, sprintf("for the columns of the matrix: %s", name), columns_axis)
+    mat <- .validate_matrix_value(daf, rows_axis, columns_axis, name, mat)
     format_set_matrix(daf, rows_axis, columns_axis, name, mat, overwrite)
     if (relayout && rows_axis != columns_axis) {
         format_relayout_matrix(daf, rows_axis, columns_axis, name)

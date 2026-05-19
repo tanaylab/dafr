@@ -368,6 +368,30 @@ S7::method(
             sQuote(name), d[[1L]], d[[2L]], nr, nc
         ), call. = FALSE)
     }
+    # If dimnames are supplied, validate them against the axis entries
+    # (Julia parity, data.jl `set_matrix > named > !rows|!columns > name`).
+    # Mismatched names indicate a caller mistake; silently dropping
+    # them (the pre-Round-7-followup behaviour) lets typos through.
+    rn <- if (is_sparse) mat@Dimnames[[1L]] else rownames(mat)
+    cn <- if (is_sparse) mat@Dimnames[[2L]] else colnames(mat)
+    if (!is.null(rn)) {
+        entries <- format_axis_array(daf, rows_axis)$value
+        if (length(rn) != length(entries) || !setequal(rn, entries)) {
+            stop(sprintf(
+                "row names of the: matrix\nmismatch the entry names of the axis: %s\nin the daf data: %s",
+                rows_axis, S7::prop(daf, "name")
+            ), call. = FALSE)
+        }
+    }
+    if (!is.null(cn)) {
+        entries <- format_axis_array(daf, columns_axis)$value
+        if (length(cn) != length(entries) || !setequal(cn, entries)) {
+            stop(sprintf(
+                "column names of the: matrix\nmismatch the entry names of the axis: %s\nin the daf data: %s",
+                columns_axis, S7::prop(daf, "name")
+            ), call. = FALSE)
+        }
+    }
     if (is_dense) {
         dimnames(mat) <- NULL
     } else {

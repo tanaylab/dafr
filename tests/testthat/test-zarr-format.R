@@ -391,9 +391,12 @@ test_that("ZarrDaf set_matrix rejects shape mismatch", {
     d <- .fresh_zarr_daf()
     add_axis(d, "cell", c("A", "B", "C"))
     add_axis(d, "gene", c("X", "Y"))
+    # Error now comes from the centralised .validate_matrix_value
+    # (Round-7 follow-up G7). Format is `matrix 'M' has dim 2 x 2
+    # (expected 3 x 2)`.
     expect_error(
         set_matrix(d, "cell", "gene", "M", matrix(c(1, 2, 3, 4), nrow = 2)),
-        "dim.*require"
+        "dim.*require|has dim.*expected"
     )
 })
 

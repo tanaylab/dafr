@@ -113,6 +113,18 @@ test_that("Abs / Exp / Sqrt / Round behave as expected", {
     expect_equal(get_eltwise("Abs")(c(-1, 2, -3)), c(1, 2, 3))
     expect_equal(get_eltwise("Exp")(c(0, 1)), c(1, exp(1)))
     expect_equal(get_eltwise("Sqrt")(c(0, 4, 9)), c(0, 2, 3))
+    # Round with default `type` casts to Int64 per Julia parity. digits=0
+    # on values that round to integers casts cleanly.
     expect_equal(get_eltwise("Round")(c(1.4, 1.5, 1.6)), c(1, 2, 2))
-    expect_equal(get_eltwise("Round")(c(1.44, 1.55), digits = 1), c(1.4, 1.6))
+    # digits=1 produces fractional results; the default Int64 cast then
+    # raises InexactError, matching Julia's `int_type_for(eltype(x))`.
+    expect_error(
+        get_eltwise("Round")(c(1.44, 1.55), digits = 1),
+        "InexactError"
+    )
+    # Float64-typed Round keeps the fractional result.
+    expect_equal(
+        get_eltwise("Round")(c(1.44, 1.55), digits = 1, type = "Float64"),
+        c(1.4, 1.6)
+    )
 })

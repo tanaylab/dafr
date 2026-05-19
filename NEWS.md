@@ -1,3 +1,43 @@
+# dafr 0.2.8.1
+
+## CI: fix stale `Round` test expectation (`test-operations-registry.R:117`)
+
+`Round(c(1.44, 1.55), digits = 1)` returns `c(1.4, 1.6)` as `Float64`,
+which the default `Int64` cast (Julia parity, Round 5/6) then rejects
+with `InexactError`. The test was written before that parity fix and
+still expected the float result. Updated to `expect_error("InexactError")`
+plus a `type = "Float64"` assertion that keeps the fractional-result
+coverage. Resolves the CI break introduced by v0.2.8.
+
+## Fix: `set_matrix` rejects matrices with mismatched dimnames (Round-7 G7)
+
+`set_matrix(d, "cell", "gene", "UMIs", m)` with a `dimnames`-bearing
+matrix `m` previously discarded `rownames(m)` / `colnames(m)`
+silently and overwrote them with the axis entries on readback. A
+caller passing typo'd dimnames (e.g. `c("X","Y","Z")` against axis
+`c("A","B","C")`) saw no error.
+
+Now `set_matrix` validates dimnames against axis entries and raises
+when they mismatch:
+
+- `row names of the: matrix mismatch the entry names of the axis: <a>`
+- `column names of the: matrix mismatch the entry names of the axis: <a>`
+
+Mirrors Julia `data.jl > set_matrix > named > !rows|!columns > name`.
+
+## Tests: port `copies.jl > matrix > sparse > {superset, disjoint}` grid (Round-7 G8)
+
+12 new regression tests covering the sparse-matrix copy edge cases
+Julia exercises:
+
+- superset rows / cols with `()` (raises), `empty = NULL` (raises),
+  `empty = -1` (fills with -1), `empty = 0` (fills with zero).
+- disjoint rows / cols with `()`, `empty = NULL`, `empty = -1` (all
+  raise `disjoint entries...`).
+
+dafr's `copy_matrix` already matched Julia semantically; these guards
+lock the behaviour in. See `tests/testthat/test-copies-sparse-grid.R`.
+
 # dafr 0.2.8
 
 ## Query DSL: Julia parity sweep (Round 5 + Round 6)
