@@ -163,6 +163,53 @@ test_that("copy_all does not silently drop0 sparse matrices", {
     expect_equal(out@x, mat@x)   # explicit zero survives copy_all
 })
 
+# ---- G7: set_matrix rejects mismatched dimnames (Julia parity) ----
+# Julia data.jl `set_matrix > named > !rows|!columns > name`: a named
+# matrix whose row/column names don't match the axis entries must
+# raise rather than silently overwrite the names from the axis.
+test_that("set_matrix raises on mismatched rownames", {
+    d <- memory_daf()
+    add_axis(d, "cell", c("A", "B", "C"))
+    add_axis(d, "gene", c("g1", "g2", "g3", "g4"))
+    bad <- matrix(seq_len(12L), nrow = 3L, ncol = 4L,
+                  dimnames = list(c("X", "Y", "Z"),
+                                  c("g1", "g2", "g3", "g4")))
+    expect_error(
+        set_matrix(d, "cell", "gene", "UMIs", bad),
+        "row names of the: matrix.*mismatch the entry names of the axis: cell"
+    )
+})
+
+test_that("set_matrix raises on mismatched colnames", {
+    d <- memory_daf()
+    add_axis(d, "cell", c("A", "B", "C"))
+    add_axis(d, "gene", c("g1", "g2", "g3", "g4"))
+    bad <- matrix(seq_len(12L), nrow = 3L, ncol = 4L,
+                  dimnames = list(c("A", "B", "C"),
+                                  c("X", "Y", "Z", "W")))
+    expect_error(
+        set_matrix(d, "cell", "gene", "UMIs", bad),
+        "column names of the: matrix.*mismatch the entry names of the axis: gene"
+    )
+})
+
+test_that("set_matrix accepts a matrix with correct dimnames", {
+    d <- memory_daf()
+    add_axis(d, "cell", c("A", "B", "C"))
+    add_axis(d, "gene", c("g1", "g2"))
+    good <- matrix(1:6, nrow = 3L, ncol = 2L,
+                   dimnames = list(c("A", "B", "C"), c("g1", "g2")))
+    expect_no_error(set_matrix(d, "cell", "gene", "UMIs", good))
+})
+
+test_that("set_matrix accepts a matrix with no dimnames", {
+    d <- memory_daf()
+    add_axis(d, "cell", c("A", "B", "C"))
+    add_axis(d, "gene", c("g1", "g2"))
+    plain <- matrix(1:6, nrow = 3L, ncol = 2L)
+    expect_no_error(set_matrix(d, "cell", "gene", "UMIs", plain))
+})
+
 # ---- Bug B/harness: FilesDaf scalar strings come back UTF-8 tagged ----
 test_that("FilesDaf scalar strings preserve UTF-8 encoding tag", {
     p <- tempfile(fileext = ".daf")
