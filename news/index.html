@@ -7,7 +7,7 @@
 
     <a class="navbar-brand me-2" href="../index.html">dafr</a>
 
-    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">0.2.8</small>
+    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">0.2.8.1</small>
 
 
     <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbar" aria-controls="navbar" aria-expanded="false" aria-label="Toggle navigation">
@@ -42,9 +42,31 @@
   <main id="main" class="col-md-9"><div class="page-header">
 
       <h1>Changelog</h1>
-      <small>Source: <a href="https://github.com/tanaylab/dafr/blob/v0.2.8/NEWS.md" class="external-link"><code>NEWS.md</code></a></small>
+      <small>Source: <a href="https://github.com/tanaylab/dafr/blob/main/NEWS.md" class="external-link"><code>NEWS.md</code></a></small>
     </div>
 
+    <div class="section level2">
+<h2 class="pkg-version" data-toc-text="0.2.8.1" id="dafr-0281">dafr 0.2.8.1<a class="anchor" aria-label="anchor" href="#dafr-0281"></a></h2>
+<div class="section level3">
+<h3 id="ci-fix-stale-round-test-expectation-test-operations-registryr117-0-2-8-1">CI: fix stale <code>Round</code> test expectation (<code>test-operations-registry.R:117</code>)<a class="anchor" aria-label="anchor" href="#ci-fix-stale-round-test-expectation-test-operations-registryr117-0-2-8-1"></a></h3>
+<p><code>Round(c(1.44, 1.55), digits = 1)</code> returns <code>c(1.4, 1.6)</code> as <code>Float64</code>, which the default <code>Int64</code> cast (Julia parity, Round 5/6) then rejects with <code>InexactError</code>. The test was written before that parity fix and still expected the float result. Updated to <code>expect_error("InexactError")</code> plus a <code>type = "Float64"</code> assertion that keeps the fractional-result coverage. Resolves the CI break introduced by v0.2.8.</p>
+</div>
+<div class="section level3">
+<h3 id="fix-set_matrix-rejects-matrices-with-mismatched-dimnames-round-g7-0-2-8-1">Fix: <code>set_matrix</code> rejects matrices with mismatched dimnames (Round-7 G7)<a class="anchor" aria-label="anchor" href="#fix-set_matrix-rejects-matrices-with-mismatched-dimnames-round-g7-0-2-8-1"></a></h3>
+<p><code>set_matrix(d, "cell", "gene", "UMIs", m)</code> with a <code>dimnames</code>-bearing matrix <code>m</code> previously discarded <code>rownames(m)</code> / <code>colnames(m)</code> silently and overwrote them with the axis entries on readback. A caller passing typo’d dimnames (e.g. <code>c("X","Y","Z")</code> against axis <code>c("A","B","C")</code>) saw no error.</p>
+<p>Now <code>set_matrix</code> validates dimnames against axis entries and raises when they mismatch:</p>
+<ul><li><code>row names of the: matrix mismatch the entry names of the axis: &lt;a&gt;</code></li>
+<li><code>column names of the: matrix mismatch the entry names of the axis: &lt;a&gt;</code></li>
+</ul><p>Mirrors Julia <code>data.jl &gt; set_matrix &gt; named &gt; !rows|!columns &gt; name</code>.</p>
+</div>
+<div class="section level3">
+<h3 id="tests-port-copiesjl--matrix--sparse--superset-disjoint-grid-round-g8-0-2-8-1">Tests: port <code>copies.jl &gt; matrix &gt; sparse &gt; {superset, disjoint}</code> grid (Round-7 G8)<a class="anchor" aria-label="anchor" href="#tests-port-copiesjl--matrix--sparse--superset-disjoint-grid-round-g8-0-2-8-1"></a></h3>
+<p>12 new regression tests covering the sparse-matrix copy edge cases Julia exercises:</p>
+<ul><li>superset rows / cols with <code>()</code> (raises), <code>empty = NULL</code> (raises), <code>empty = -1</code> (fills with -1), <code>empty = 0</code> (fills with zero).</li>
+<li>disjoint rows / cols with <code>()</code>, <code>empty = NULL</code>, <code>empty = -1</code> (all raise <code>disjoint entries...</code>).</li>
+</ul><p>dafr’s <code>copy_matrix</code> already matched Julia semantically; these guards lock the behaviour in. See <code>tests/testthat/test-copies-sparse-grid.R</code>.</p>
+</div>
+</div>
     <div class="section level2">
 <h2 class="pkg-version" data-toc-text="0.2.8" id="dafr-028">dafr 0.2.8<a class="anchor" aria-label="anchor" href="#dafr-028"></a></h2>
 <div class="section level3">
