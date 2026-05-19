@@ -229,7 +229,8 @@ S7::method(
         nz <- which(nzchar(vec))
         .files_write_vector_sparse_string(vdir, name, nz, vec[nz], indtype)
     } else {
-        nz <- if (is.logical(vec)) which(vec) else which(vec != 0)
+        nz <- if (is.logical(vec)) which(vec)
+              else which(is.nan(vec) | vec != 0)
         .files_write_vector_sparse_numeric(vdir, name, nz, vec[nz], eltype, indtype)
     }
     .metadata_zip_append(root, paste0("vectors/", axis, "/", name, ".json"))

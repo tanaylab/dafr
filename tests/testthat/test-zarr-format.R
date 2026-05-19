@@ -204,8 +204,12 @@ test_that("ZarrDaf vectors_set returns sorted names", {
 test_that("ZarrDaf set_vector rejects length mismatch", {
     d <- .fresh_zarr_daf()
     add_axis(d, "cell", c("A", "B", "C"))
+    # The error now comes from the centralised .validate_vector_value
+    # in set_vector (Round-7 Bug F fix). The message format is
+    # `the length: 2 of the vector: x is different from the length: 3
+    # of the axis: cell`.
     expect_error(set_vector(d, "cell", "x", c(1, 2)),
-                 "length 2.*length 3")
+                 "length:? 2.*length:? 3")
 })
 
 test_that("ZarrDaf set_vector overwrite=FALSE errors on existing", {

@@ -47,10 +47,24 @@ NULL
     if (identical(state$kind, "pending_count")) {
         state <- .finalize_pending_count(state, daf)
     }
+    # Julia parity: `?? <value>` without a following lookup chain has no
+    # operation to substitute the final_value into. DAF.jl errors at
+    # evaluation with `invalid operation(s) ... ?? a ▲`. Detect the
+    # un-consumed final_value here and reject.
+    if (isTRUE(state$if_not_present) && !is.null(state$if_not_value)) {
+        stop(sprintf(
+            "invalid operation(s)\nin the query: %s\n`?? %s` requires a following lookup chain (`: prop` / `:: prop`) to substitute into",
+            .canonicalise_ast(ast), state$if_not_value
+        ), call. = FALSE)
+    }
     # Julia parity: a partial / unconsumed query (e.g. `@ cell @ gene` with no
     # lookup, or just `.`) leaves state in a non-terminal kind. Reject rather
     # than returning NULL, mirroring DAF.jl's `invalid query: ...` error.
-    if (!state$kind %in% c("scalar", "vector", "matrix", "names", "axis")) {
+    # `vector_axis` is the transient state left by a trailing `=@` after a
+    # lookup chain (`: type =@ : color =@`). Julia accepts and returns the
+    # vector; we treat the trailing `=@` as a terminal annotation.
+    if (!state$kind %in% c("scalar", "vector", "matrix", "names", "axis",
+                           "vector_axis")) {
         stop(sprintf("invalid query: %s", .canonicalise_ast(ast)),
             call. = FALSE
         )
@@ -62,8 +76,8 @@ NULL
     fn <- get_eltwise(log_node$name)
     if (!identical(attr(fn, ".dafr_builtin"), "Log")) return(NULL)
     params <- .coerce_params(log_node$params)
-    eps <- params$eps %||% 0
-    base <- params$base %||% exp(1)
+    eps  <- .resolve_named_numeric(params$eps  %||% 0)
+    base <- .resolve_named_numeric(params$base %||% exp(1))
     threshold <- as.integer(dafr_opt("dafr.omp_threshold"))
     axis <- if (identical(red_node$op, "ReduceToColumn")) 0L else 1L
     reducer <- red_node$reduction
@@ -299,22 +313,180 @@ NULL
 # Recognise Julia-style named constants in IfMissing defaults. Returns
 # NULL if `value` is not a recognised constant, otherwise the resolved R
 # value (with implicit type — Float64 for pi/e, Bool for true/false).
+# NaN/Inf/-Inf/Infinity are recognised case-insensitively (Julia parity:
+# guess_typed_value() falls through to parse(Float64, ...), which accepts
+# "nan", "inf", "Infinity", etc.).
 .resolve_if_missing_constant <- function(value) {
     if (!is.character(value) || length(value) != 1L) return(NULL)
-    switch(value,
+    lit <- switch(value,
         pi    = pi,
         e     = exp(1),
         true  = TRUE,
         false = FALSE,
         NULL
     )
+    if (!is.null(lit)) return(lit)
+    lo <- tolower(value)
+    switch(lo,
+        nan       = NaN,
+        inf       = Inf,
+        infinity  = Inf,
+        `-inf`    = -Inf,
+        `+inf`    = Inf,
+        `-infinity` = -Inf,
+        `+infinity` = Inf,
+        NULL
+    )
+}
+
+# Wrapper for .canonicalize_julia_type that handles NULL and unknown
+# names by returning the input unchanged. Used by the IfMissing
+# parse/coerce pipeline so a single normalisation pass at the top of
+# each entry-point absorbs all the lowercase-alias special cases
+# (Julia parity: DTYPE_BY_NAME maps both cased and lowercase forms).
+.canonicalize_julia_type_or_self <- function(type) {
+    if (is.null(type)) return(NULL)
+    .canonicalize_julia_type(type)
+}
+
+# Parse-time validation of an IfMissing default with explicit type. Used
+# from .parse_if_missing in query_parse.R so that `. intver || 1.5 Int32`
+# raises during parse even when `intver` exists and the default would
+# never actually be needed (Julia DAF.jl parses-and-validates eagerly).
+.validate_if_missing_default <- function(value, type) {
+    # Julia parity (operations.jl DTYPE_BY_NAME): accept lowercase
+    # aliases (`int32`, `float64`, `bool`) anywhere a cased name is
+    # expected. Normalise once at the top so the rest of the validator
+    # only deals with cased names.
+    type <- .canonicalize_julia_type_or_self(type)
+    if (type == "String") return(invisible())
+    # Numeric / boolean named constants. Float types accept them
+    # unconditionally; Bool accepts true/false; integer types must
+    # type-check the constant's resolved value against the int range
+    # (Julia rejects `|| e UInt16` because UInt16(e) = InexactError,
+    # and `|| -Inf Int64` because Inf isn't an integer).
+    const <- .resolve_if_missing_constant(value)
+    if (!is.null(const)) {
+        if (type %in% c("Float32", "Float64")) return(invisible())
+        if (type == "Bool") {
+            if (is.logical(const)) return(invisible())
+            stop(sprintf(
+                "invalid value: %s\nvalue must be: a valid %s\nfor the parameter: value\nfor the operation: ||",
+                sQuote(value), type
+            ), call. = FALSE)
+        }
+        if (type %in% c("Int8", "Int16", "Int32", "Int64",
+                        "UInt8", "UInt16", "UInt32", "UInt64")) {
+            # Reject non-integer-valued constants (e, pi, NaN, Inf) for
+            # integer targets. Mirrors Julia's parse_int_value behaviour.
+            if (!is.numeric(const) || !is.finite(const) ||
+                const != trunc(const)) {
+                stop(sprintf(
+                    "invalid value: %s\nvalue must be: a valid %s\nfor the parameter: value\nfor the operation: ||",
+                    sQuote(value), type
+                ), call. = FALSE)
+            }
+            return(invisible())
+        }
+        return(invisible())
+    }
+    if (type == "Bool") {
+        v <- as.character(value)
+        if (!(v %in% c("0", "false", "FALSE", "1", "true", "TRUE"))) {
+            stop(sprintf(
+                "invalid value: %s\nvalue must be: a valid %s\nfor the parameter: value\nfor the operation: ||",
+                sQuote(value), type
+            ), call. = FALSE)
+        }
+        return(invisible())
+    }
+    if (type %in% c("Int8", "Int16", "Int32", "Int64",
+                    "UInt8", "UInt16", "UInt32", "UInt64")) {
+        s <- as.character(value)
+        # Julia parity: accept `0x...` / `0b...` integer literals for
+        # typed integer defaults. parse(IntT, "0xff", base = 16) works
+        # in Julia; we route through strtoi.
+        if (grepl("^0x[0-9a-fA-F]+$", s)) {
+            big <- bit64::as.integer64(
+                strtoi(sub("^0x", "", s), base = 16L)
+            )
+            s <- as.character(big)
+        } else if (grepl("^0b[01]+$", s)) {
+            big <- bit64::as.integer64(
+                strtoi(sub("^0b", "", s), base = 2L)
+            )
+            s <- as.character(big)
+        } else if (!grepl("^-?[0-9]+$", s)) {
+            stop(sprintf(
+                "invalid value: %s\nvalue must be: a valid %s\nfor the parameter: value\nfor the operation: ||",
+                sQuote(s), type
+            ), call. = FALSE)
+        }
+        # Julia parity: parse_int_value(T, s) is range-checked at parse
+        # time, regardless of whether the default is consumed. So
+        # `|| 256 UInt8`, `|| -1 UInt32`, `|| 128 Int8`, `|| 4294967296
+        # Int32` all error eagerly.
+        bounds <- .INT_TYPE_RANGES[[type]]
+        if (!is.null(bounds) && !type %in% c("Int64", "UInt64")) {
+            big <- bit64::as.integer64(s)
+            lo  <- bit64::as.integer64(bounds[1L])
+            hi  <- bit64::as.integer64(bounds[2L])
+            if (big < lo || big > hi) {
+                stop(sprintf(
+                    "invalid value: %s\nvalue must be: a valid %s\nfor the parameter: value\nfor the operation: ||",
+                    sQuote(s), type
+                ), call. = FALSE)
+            }
+        }
+        # Int64 / UInt64: bounds = 2^63 are not exactly representable in
+        # Float64, so converting them via bit64::as.integer64 loses
+        # precision. Range-check via string-length / sign heuristics
+        # instead. Julia's parse_int_value validates against the exact
+        # integer range; we approximate by accepting digit strings whose
+        # magnitude fits, and rejecting negatives for UInt64.
+        if (type == "UInt64" && substr(s, 1L, 1L) == "-") {
+            stop(sprintf(
+                "invalid value: %s\nvalue must be: a valid %s\nfor the parameter: value\nfor the operation: ||",
+                sQuote(s), type
+            ), call. = FALSE)
+        }
+        return(invisible())
+    }
+    if (type %in% c("Float32", "Float64")) {
+        suppressWarnings(d <- as.double(as.character(value)))
+        if (is.na(d)) {
+            stop(sprintf(
+                "invalid value: %s\nvalue must be: a valid %s\nfor the parameter: value\nfor the operation: ||",
+                sQuote(value), type
+            ), call. = FALSE)
+        }
+        return(invisible())
+    }
+    # Unknown type names fall through to coerce-time error template
+    invisible()
 }
 
 # Strict integer coercion: reject strings that aren't a valid integer
-# literal (Julia parity — `|| 1.0 Int32` errors on parse-vs-coerce
+# literal (Julia parity - `|| 1.0 Int32` errors on parse-vs-coerce
 # mismatch even though `parse_query` accepts the string).
 .strict_int_coerce <- function(value, type) {
     s <- as.character(value)
+    # Julia parity: hex (`0x..`) / binary (`0b..`) literals coerce to
+    # the requested int type via `parse(IntT, s, base = 16/2)`.
+    if (grepl("^0x[0-9a-fA-F]+$", s)) {
+        d <- strtoi(sub("^0x", "", s), base = 16L)
+        return(
+            if (type %in% c("Int64", "UInt64")) bit64::as.integer64(d)
+            else as.integer(d)
+        )
+    }
+    if (grepl("^0b[01]+$", s)) {
+        d <- strtoi(sub("^0b", "", s), base = 2L)
+        return(
+            if (type %in% c("Int64", "UInt64")) bit64::as.integer64(d)
+            else as.integer(d)
+        )
+    }
     if (!grepl("^-?[0-9]+$", s)) {
         stop(sprintf(
             "invalid value: %s value must be: a valid %s for the parameter: value for the operation: ||",
@@ -330,11 +502,30 @@ NULL
 # "1.5") when no explicit type is given (Julia parity — values are
 # typed at parse time based on their literal form).
 .coerce_if_missing_default <- function(value, type) {
+    type <- .canonicalize_julia_type_or_self(type)
     if (is.null(type)) {
         const <- .resolve_if_missing_constant(value)
         if (!is.null(const)) return(const)
         if (is.character(value) && length(value) == 1L) {
-            if (grepl("^-?[0-9]+$", value)) return(as.integer(value))
+            # Julia parity: bare `0x...` / `0b...` integer literals parse
+            # via `parse(Int, s, base=16/2)`. R's `as.integer` doesn't
+            # accept these, so handle them explicitly first.
+            if (grepl("^0x[0-9a-fA-F]+$", value)) {
+                return(strtoi(sub("^0x", "", value), base = 16L))
+            }
+            if (grepl("^0b[01]+$", value)) {
+                return(strtoi(sub("^0b", "", value), base = 2L))
+            }
+            if (grepl("^-?[0-9]+$", value)) {
+                # Julia parity: bare integer literals are Int (≈ Int64 on
+                # 64-bit). If the value fits in R's 32-bit integer, return
+                # that; otherwise promote to bit64::integer64 so big
+                # literals (e.g. `|| 4294967296`) survive instead of going
+                # to NA via 32-bit overflow.
+                i32 <- suppressWarnings(as.integer(value))
+                if (!is.na(i32)) return(i32)
+                return(bit64::as.integer64(value))
+            }
             if (grepl("^-?[0-9]+\\.[0-9]*([eE][+-]?[0-9]+)?$", value) ||
                 grepl("^-?[0-9]+[eE][+-]?[0-9]+$", value)) {
                 return(as.double(value))
@@ -342,9 +533,15 @@ NULL
         }
         return(value)
     }
+    # Julia parity: named constants (pi, e, true, false) are recognised in
+    # IfMissing defaults even when a target type is specified. For Float
+    # targets we coerce the resolved double / boolean to double; for Bool
+    # we expect true/false literals (which already resolve to logical).
+    const <- .resolve_if_missing_constant(value)
     switch(type,
         String  = as.character(value),
         Bool    = {
+            if (is.logical(const)) return(const)
             v <- as.character(value)
             if (v %in% c("0", "false", "FALSE")) FALSE
             else if (v %in% c("1", "true", "TRUE")) TRUE
@@ -353,7 +550,10 @@ NULL
         Int8 = , Int16 = , Int32 = ,
         UInt8 = , UInt16 = , UInt32 = ,
         Int64 = , UInt64 = .strict_int_coerce(value, type),
-        Float32 = , Float64 = as.double(value),
+        Float32 = , Float64 = {
+            if (is.numeric(const)) return(as.double(const))
+            as.double(value)
+        },
         stop(sprintf(
             "IfMissing: unknown type %s (expected one of Bool, Int8/16/32/64, UInt8/16/32/64, Float32/64, String)",
             sQuote(type)
@@ -692,6 +892,34 @@ NULL
         stop("'=@' requires a vector in scope", call. = FALSE)
     }
     target_axis <- node$axis_name # NULL for bare, character scalar for explicit
+    # Julia parity (queries.jl axis_vector): a top-level `=@` (immediately
+    # after the first `: prop`, before any chained lookup) requires the
+    # prop to name an axis - `@ cell : age =@` errors `missing axis: age`.
+    # After a chained lookup (`: type =@ : color =@`) Julia accepts the
+    # trailing `=@` as a no-op annotation even when the result vector's
+    # property doesn't name an axis. pending_final_mask is set only by
+    # `.apply_chained_lookup_vector`, so its presence distinguishes the
+    # two cases.
+    if (is.null(state$pending_final_mask)) {
+        resolved_axis <- target_axis %||% state$property
+        # Julia parity (ensure_vector_is_axis): a property named
+        # `<axis>.<suffix>` falls back to `<axis>` if the suffixed name
+        # isn't itself an axis. `type.manual =@` is valid when `type`
+        # is an axis.
+        if (!is.null(resolved_axis) && !format_has_axis(daf, resolved_axis) &&
+            grepl("\\.", resolved_axis)) {
+            base <- sub("\\.[^.]+$", "", resolved_axis)
+            if (nzchar(base) && format_has_axis(daf, base)) {
+                resolved_axis <- base
+            }
+        }
+        if (is.null(resolved_axis) || !format_has_axis(daf, resolved_axis)) {
+            stop(sprintf(
+                "missing axis: %s\nfor: axis_vector",
+                (target_axis %||% state$property) %||% "<unspecified>"
+            ), call. = FALSE)
+        }
+    }
     state$chain_target_axis <- target_axis
     state$kind <- "vector_axis"
     state
@@ -1272,10 +1500,35 @@ NULL
             sQuote(node$property), sQuote(mask_axis)
         ), call. = FALSE)
     }
+    # Julia parity: error eagerly when the property doesn't exist as a
+    # vector AND doesn't appear in any matrix on this axis. Without this
+    # guard, R defers to the matrix-mask path but the next AST node is a
+    # comparator (not `@ axis = entry`), and the eval surfaces a
+    # misleading "comparator outside of mask" error. Julia's
+    # lookup_axis_mask raises `missing vector: <name>` up front.
+    if (!.matrix_with_name_on_axis(daf, mask_axis, node$property)) {
+        stop(sprintf("missing vector: %s", node$property), call. = FALSE)
+    }
     state$kind <- "mask_matrix_pending_axis"
     state$matrix_property <- node$property
     state$pending_mask_negated <- negated
     state
+}
+
+# Returns TRUE iff at least one matrix on the given axis carries
+# `prop_name` (either as rows or columns axis). Used to decide whether
+# a BeginMask whose property isn't a vector might still be a valid
+# matrix-mask path.
+.matrix_with_name_on_axis <- function(daf, axis, prop_name) {
+    for (other in format_axes_set(daf)) {
+        if (format_has_matrix(daf, axis, other, prop_name)) {
+            return(TRUE)
+        }
+        if (format_has_matrix(daf, other, axis, prop_name)) {
+            return(TRUE)
+        }
+    }
+    FALSE
 }
 
 .apply_end_mask <- function(node, state, daf) {
@@ -1428,13 +1681,15 @@ NULL
         # bool vector along the same axis. (Julia compare_vector phrase.)
         vec <- state$value
         .validate_comparator(node, vec, "vector")
+        rhs <- .coerce_cmp(node$value, vec)
+        vec <- .promote_int64_for_fractional_cmp(vec, rhs)
         test <- switch(node$op,
-            IsLess         = vec <  .coerce_cmp(node$value, vec),
-            IsLessEqual    = vec <= .coerce_cmp(node$value, vec),
-            IsEqual        = vec == .coerce_cmp(node$value, vec),
-            IsNotEqual     = vec != .coerce_cmp(node$value, vec),
-            IsGreater      = vec >  .coerce_cmp(node$value, vec),
-            IsGreaterEqual = vec >= .coerce_cmp(node$value, vec),
+            IsLess         = ,
+            IsLessEqual    = ,
+            IsGreater      = ,
+            IsGreaterEqual = .cmp_ordering(vec, rhs, node$op),
+            IsEqual        = .nan_aware_eq(vec, rhs),
+            IsNotEqual     = .nan_aware_neq(vec, rhs),
             IsMatch        = grepl(node$pattern, as.character(vec), perl = TRUE),
             IsNotMatch     = !grepl(node$pattern, as.character(vec), perl = TRUE)
         )
@@ -1446,13 +1701,14 @@ NULL
         # returning a bool vector along the axis. Mirrors Julia's compare on
         # the axis-name vector.
         vec <- state$value
+        rhs <- .coerce_cmp(node$value, vec)
         test <- switch(node$op,
-            IsLess         = vec <  .coerce_cmp(node$value, vec),
-            IsLessEqual    = vec <= .coerce_cmp(node$value, vec),
-            IsEqual        = vec == .coerce_cmp(node$value, vec),
-            IsNotEqual     = vec != .coerce_cmp(node$value, vec),
-            IsGreater      = vec >  .coerce_cmp(node$value, vec),
-            IsGreaterEqual = vec >= .coerce_cmp(node$value, vec),
+            IsLess         = ,
+            IsLessEqual    = ,
+            IsGreater      = ,
+            IsGreaterEqual = .cmp_ordering(vec, rhs, node$op),
+            IsEqual        = vec == rhs,
+            IsNotEqual     = vec != rhs,
             IsMatch        = grepl(node$pattern, as.character(vec), perl = TRUE),
             IsNotMatch     = !grepl(node$pattern, as.character(vec), perl = TRUE)
         )
@@ -1467,13 +1723,14 @@ NULL
         m <- state$value
         .validate_comparator(node, m, "matrix")
         rhs <- .coerce_cmp(node$value, m)
+        m <- .promote_int64_for_fractional_cmp(m, rhs)
         test <- switch(node$op,
-            IsLess         = m <  rhs,
-            IsLessEqual    = m <= rhs,
+            IsLess         = ,
+            IsLessEqual    = ,
+            IsGreater      = ,
+            IsGreaterEqual = .cmp_ordering(m, rhs, node$op),
             IsEqual        = m == rhs,
             IsNotEqual     = m != rhs,
-            IsGreater      = m >  rhs,
-            IsGreaterEqual = m >= rhs,
             IsMatch        = matrix(
                 grepl(node$pattern, as.character(m), perl = TRUE),
                 nrow = nrow(m), ncol = ncol(m),
@@ -1493,12 +1750,12 @@ NULL
         v <- state$value
         rhs <- .coerce_cmp(node$value, v)
         test <- switch(node$op,
-            IsLess         = v <  rhs,
-            IsLessEqual    = v <= rhs,
+            IsLess         = ,
+            IsLessEqual    = ,
+            IsGreater      = ,
+            IsGreaterEqual = .cmp_ordering(v, rhs, node$op),
             IsEqual        = v == rhs,
             IsNotEqual     = v != rhs,
-            IsGreater      = v >  rhs,
-            IsGreaterEqual = v >= rhs,
             IsMatch        = grepl(node$pattern, as.character(v), perl = TRUE),
             IsNotMatch     = !grepl(node$pattern, as.character(v), perl = TRUE)
         )
@@ -1510,13 +1767,15 @@ NULL
     }
     vec <- state$pending_vec
     .validate_comparator(node, vec, "vector")
+    rhs <- .coerce_cmp(node$value, vec)
+    vec <- .promote_int64_for_fractional_cmp(vec, rhs)
     test <- switch(node$op,
-        IsLess         = vec < .coerce_cmp(node$value, vec),
-        IsLessEqual    = vec <= .coerce_cmp(node$value, vec),
-        IsEqual        = vec == .coerce_cmp(node$value, vec),
-        IsNotEqual     = vec != .coerce_cmp(node$value, vec),
-        IsGreater      = vec > .coerce_cmp(node$value, vec),
-        IsGreaterEqual = vec >= .coerce_cmp(node$value, vec),
+        IsLess         = ,
+        IsLessEqual    = ,
+        IsGreater      = ,
+        IsGreaterEqual = .cmp_ordering(vec, rhs, node$op),
+        IsEqual        = .nan_aware_eq(vec, rhs),
+        IsNotEqual     = .nan_aware_neq(vec, rhs),
         IsMatch        = grepl(node$pattern, as.character(vec), perl = TRUE),
         IsNotMatch     = !grepl(node$pattern, as.character(vec), perl = TRUE)
     )
@@ -1537,10 +1796,89 @@ NULL
     state
 }
 
+# Bytewise ordering compare to match Julia DAF.jl (which uses bytewise on
+# Vector{String}). R's `<` / `<=` / `>` / `>=` honour LC_COLLATE for
+# character vectors, so under the default en_US.UTF-8 locale "Z" > "b"
+# (dictionary order) while Julia returns "Z" < "b" (bytewise: 0x5A < 0x62).
+# Force C-locale for the duration of the compare so character comparisons
+# fall back to byte order. Numeric / logical comparisons are locale-free
+# so the helper only swaps when at least one side is character.
+# (==, != are bytewise even under en_US so they don't need this helper.)
+.cmp_ordering <- function(x, y, op) {
+    if (is.character(x) || is.character(y)) {
+        old <- Sys.getlocale("LC_COLLATE")
+        if (!identical(old, "C")) {
+            Sys.setlocale("LC_COLLATE", "C")
+            on.exit(Sys.setlocale("LC_COLLATE", old), add = TRUE)
+        }
+    }
+    switch(op,
+        IsLess         = x <  y,
+        IsLessEqual    = x <= y,
+        IsGreater      = x >  y,
+        IsGreaterEqual = x >= y,
+        stop(sprintf("internal: .cmp_ordering bad op %s", op), call. = FALSE)
+    )
+}
+
+# Julia parity (IEEE 754 semantics): NaN compares unequal to *everything*
+# including itself. R's `==` / `!=` return NA when either side is NaN,
+# which the downstream `keep <- !is.na(mask) & mask` filter collapses to
+# FALSE - correct for IsEqual (NaN == x is false in Julia), wrong for
+# IsNotEqual (NaN != x is true in Julia). These helpers restore the
+# IEEE/Julia semantic at the comparator site.
+.nan_aware_eq <- function(vec, rhs) {
+    out <- vec == rhs
+    if (is.numeric(vec)) out[is.nan(vec)] <- FALSE
+    if (is.numeric(rhs) && length(rhs) == 1L && is.nan(rhs)) {
+        out[] <- FALSE
+    }
+    out
+}
+.nan_aware_neq <- function(vec, rhs) {
+    out <- vec != rhs
+    if (is.numeric(vec)) out[is.nan(vec)] <- TRUE
+    if (is.numeric(rhs) && length(rhs) == 1L && is.nan(rhs)) {
+        out[] <- TRUE
+    }
+    out
+}
+
+# Promote an integer64 in-scope vector to double when the comparison
+# RHS has a fractional part. bit64::`==` etc. silently *truncate* a
+# fractional RHS (`int64_vec == 20.5` matches the 20 cell), which
+# diverges from Julia's float-promoted comparison: Int64(20) == 20.5
+# is `false`, so `age = 20.5` returns no matches in Julia. Promoting
+# the vector to double for fractional comparisons keeps parity without
+# changing whole-number behaviour (where bit64 already matches exactly).
+.promote_int64_for_fractional_cmp <- function(vec, rhs) {
+    if (!inherits(vec, "integer64")) return(vec)
+    if (!is.numeric(rhs)) return(vec)
+    if (any(is.finite(rhs) & rhs != trunc(rhs))) {
+        nms <- names(vec)
+        vec <- as.double(vec)
+        names(vec) <- nms
+    }
+    vec
+}
+
 .coerce_cmp <- function(value_string, ref_vec) {
     if (is.numeric(ref_vec)) {
         as.numeric(value_string)
     } else if (is.logical(ref_vec)) {
+        # Julia parity (queries.jl parse_number_comparison_value for Bool):
+        # Julia parses the RHS as a Bool via parse(Bool, s), which accepts
+        # exactly "0" and "1" (and lower-case "true"/"false" via the Bool
+        # parse method on Julia >= 1.10). It rejects "True"/"TRUE"/etc.
+        # Keep the strict subset Julia accepts so divergent tokens still
+        # error in both languages (e.g. `is_doublet = TRUE`).
+        s <- as.character(value_string)
+        if (length(s) == 1L && !is.na(s)) {
+            if (s == "0") return(FALSE)
+            if (s == "1") return(TRUE)
+            if (s == "true") return(TRUE)
+            if (s == "false") return(FALSE)
+        }
         as.logical(value_string)
     } else {
         as.character(value_string)
@@ -1555,9 +1893,14 @@ NULL
     op <- node$op
     if (op %in% c("IsMatch", "IsNotMatch")) {
         if (!is.character(value) && !is.factor(value)) {
+            # Julia parity (queries.jl > compare > regex): error wording
+            # is just `unsupported <kind> element type: <T>` (no `for
+            # the comparison operation: ...` suffix - Julia ends after
+            # the type name). Aligning the format collapses dozens of
+            # both_error_mismatch buckets to both_error_aligned.
             stop(sprintf(
-                "unsupported %s element type: %s for the comparison operation: %s",
-                kind, .julia_type_name(value), op
+                "unsupported %s element type: %s",
+                kind, .julia_type_name(value)
             ), call. = FALSE)
         }
         # PCRE compile failures surface as warnings from grepl(); promote them.
@@ -1580,12 +1923,22 @@ NULL
     } else if (op %in% c("IsLess", "IsLessEqual", "IsEqual", "IsNotEqual",
                           "IsGreater", "IsGreaterEqual")) {
         if (is.numeric(value) || is.logical(value)) {
-            n <- suppressWarnings(as.numeric(node$value))
-            if (is.na(n) && !is.na(node$value) && nzchar(node$value)) {
-                stop(sprintf(
-                    "error parsing number comparison value: %s for comparison with a %s of type: %s",
-                    node$value, kind, .julia_type_name(value)
-                ), call. = FALSE)
+            # Julia parity (queries.jl parse_number_comparison_value):
+            # accept "NaN", "Inf", "-Inf", "Infinity" (case-insensitive)
+            # as legitimate float values; only reject genuinely
+            # unparseable tokens (e.g. `with_nan = ten`).
+            sv <- node$value
+            lo <- if (is.character(sv) && length(sv) == 1L) tolower(sv) else ""
+            is_special <- lo %in% c("nan", "inf", "-inf", "+inf",
+                                    "infinity", "-infinity", "+infinity")
+            if (!is_special) {
+                n <- suppressWarnings(as.numeric(sv))
+                if (is.na(n) && !is.na(sv) && nzchar(sv)) {
+                    stop(sprintf(
+                        "error parsing number comparison value: %s for comparison with a %s of type: %s",
+                        sv, kind, .julia_type_name(value)
+                    ), call. = FALSE)
+                }
             }
         }
     }
@@ -1909,24 +2262,49 @@ NULL
         stop("'%' eltwise requires scalar, vector, or matrix in scope",
             call. = FALSE)
     }
+    # See .apply_reduction: integer64 inputs come in as REALSXP-stored bytes,
+    # and the cast_to_type / storage.mode <- target path corrupts them
+    # (% Round type Int8 -> all zeros, % Convert type Float32 -> denormals).
+    # Demote to plain double so kernels and cast see the real values.
+    state$value <- .demote_int64(state$value)
     fn <- get_eltwise(node$name)
     params <- .coerce_params(node$params)
     builtin <- attr(fn, ".dafr_builtin")
 
-    # Run param validation by dry-calling the operation on a length-2
-    # vector dummy before any fast paths fire. This routes scalar /
-    # vector / matrix input through the same parameter-validation
-    # gates so `% Log base 0` errors uniformly across input shapes
-    # (the kernel fast paths used to bypass .op_log's checks). The
-    # length-2 input dodges the scalar-input rejection that some ops
-    # (Significant / Fraction) apply.
+    # Central front-door validation. Covers input-type rejection (String
+    # vs numeric eltwise), `type =` parameter validation (float vs number
+    # vs none vs required:number per op), and unknown-named-param
+    # detection (`the parameter: <X> does not exist for the operation:
+    # <Y>`). Runs before the dry-call so type/input errors surface in
+    # the central form first.
+    .validate_op_invocation(builtin, "eltwise", state$value, params)
+
+    # Dry-call the op fn on a length-2 dummy input to fire any
+    # value-range / numeric-param checks the op carries (e.g.
+    # `% Log base 0` -> "value must be: positive"). Skips the
+    # input-type guard handled centrally above. c(1, 1) is a safe
+    # dummy that passes every Int/UInt/Bool/Float range check.
     if (length(params) > 0L && !is.null(builtin)) {
-        do.call(fn, c(list(c(1, 2)), params))
+        do.call(fn, c(list(c(1, 1)), params))
     }
 
     if (isTRUE(dafr_opt("dafr.perf.fast_paths")) && identical(builtin, "Log")) {
-        eps <- as.numeric(params$eps %||% 0)
-        base <- as.numeric(params$base %||% exp(1))
+        eps  <- as.numeric(.resolve_named_numeric(params$eps  %||% 0))
+        base <- as.numeric(.resolve_named_numeric(params$base %||% exp(1)))
+
+        # Julia parity: log of a negative value raises DomainError; log(0)
+        # returns -Inf without error. Reject only strictly-negative input
+        # before the C++ kernel which silently produces NaN otherwise.
+        log_input <- if (methods::is(state$value, "Matrix")) state$value@x
+                     else if (is.numeric(state$value)) as.numeric(state$value)
+                     else NULL
+        if (!is.null(log_input) && length(log_input) > 0L &&
+            any(log_input + eps < 0, na.rm = TRUE)) {
+            stop(sprintf(
+                "DomainError with %s:\nlog was called with a negative real argument",
+                format(min(log_input[!is.na(log_input)]))
+            ), call. = FALSE)
+        }
 
         # Fast path 1: sparsity-preserving Log on dgCMatrix. log1p(0) == 0,
         # so eps == 1 with default base (e) is the only Log parameterisation
@@ -1985,6 +2363,12 @@ NULL
 }
 
 .apply_reduction <- function(node, state, daf) {
+    # integer64 inputs come in as REALSXP-stored bytes; the fast-path kernels
+    # (rowSums, matrixStats, rowsum, stats::quantile, ...) all treat those
+    # bytes as Float64 -> denormal garbage. Demote to plain double here so
+    # every downstream path sees the actual integer values. Julia parity:
+    # DAF.jl reduces over the storage value, never over the bit pattern.
+    state$value <- .demote_int64(state$value)
     if (identical(state$kind, "grouped_vector")) {
         return(.apply_reduction_grouped_vector(node, state, daf))
     }
@@ -2009,19 +2393,14 @@ NULL
     # raise (Julia parity — queries.jl > matrix > reduction > empty/!empty).
     empty_result <- .matrix_reduction_empty(node, state, daf)
     if (!is.null(empty_result)) return(empty_result)
-    # Julia parity: numeric reductions on a character matrix raise a
-    # `non-numeric / character` error rather than letting R's downstream
-    # `'x' must be numeric` from base sum/mean leak through. Mode and
-    # Count are excluded — they handle character inputs natively.
-    if (is.character(state$value) &&
-        !node$reduction %in% c("Mode", "Count")) {
-        stop(sprintf(
-            "non-numeric input: cannot apply %s reduction to a character matrix",
-            node$reduction
-        ), call. = FALSE)
-    }
     fn <- get_reduction(node$reduction)
     params <- .coerce_params(node$params)
+    # Central front-door validation for matrix reductions: input type,
+    # `type =` param, and unknown-named-param detection. Replaces the
+    # ad-hoc `is.character(state$value) && ...` guard and the per-op
+    # .reject_non_float_type / .reject_unknown_param calls. Catches
+    # `>- Mean type Int32`, `>| Min type X`, `>- Mode type X`, etc.
+    .validate_op_invocation(node$reduction, "reduction", state$value, params)
 
     # Fast path: built-in reduction -> vectorised primitive. Falls through to
     # NULL for unhandled built-ins (e.g. Count) or non-sparse/dense matrices.
@@ -2031,6 +2410,24 @@ NULL
     }
 
     .apply_reduction_slow(node, state, fn, params, daf)
+}
+
+# Mirrors the vector-op validators: dispatch to .reject_non_float_type,
+# .reject_non_number_type, or .reject_unknown_param based on which
+# reduction was named. Used by the matrix-reduction front door so the
+# matrix fast paths (rowSums/kernel_var_csc/...) get the same type-param
+# validation that the vector ops do natively.
+.validate_matrix_reduction_type <- function(op_name, type) {
+    if (is.null(type)) return(invisible())
+    if (op_name %in% c("Mean", "Median", "Var", "Std", "VarN", "StdN",
+                       "GeoMean", "Quantile")) {
+        .reject_non_float_type(op_name, type)
+    } else if (op_name %in% c("Sum", "Count")) {
+        .reject_non_number_type(op_name, type)
+    } else if (op_name %in% c("Min", "Max", "Mode")) {
+        .reject_unknown_param(op_name, "type", type)
+    }
+    invisible()
 }
 
 # `>>` ReductionOperation reducing a plain vector or matrix to one scalar.
@@ -2109,6 +2506,10 @@ NULL
             src_kind
         ), call. = FALSE)
     )
+    # Central front-door validation: input type, `type =` param, and
+    # unknown named params. Replaces the inline character-input guard
+    # and any leftover per-op .reject_* dispatches.
+    .validate_op_invocation(node$reduction, "reduction", v, params)
     if (length(v) == 0L) {
         if (!is.null(state$if_missing)) {
             return(list(
@@ -2130,13 +2531,84 @@ NULL
 
 .dafr_kernel_threshold <- function() dafr_opt("dafr.kernel_threshold")
 
+# Julia DAF.jl labels grouped-by-Bool result entries with lowercase
+# "true" / "false" (string(true) in Julia). R's as.character(TRUE) is
+# "TRUE", so the same query produced "FALSE" / "TRUE" labels. Convert
+# logical group vectors to lowercase character before factor() so
+# downstream labels (NamedArray names, dimnames) match Julia byte for
+# byte.
+.lc_bool_labels <- function(g) {
+    if (is.logical(g)) {
+        return(ifelse(is.na(g), NA_character_,
+            ifelse(g, "true", "false")))
+    }
+    # Julia parity: float group labels stringify via Julia's `string(x)`,
+    # which keeps a trailing `.0` for whole-numbered Float64
+    # (`string(-1.0) == "-1.0"`). R's `as.character(-1)` drops the `.0`,
+    # so `/ score >> Sum` showed `-1` instead of `-1.0` in result names.
+    if (is.numeric(g) && !is.integer(g) && !inherits(g, "integer64")) {
+        return(.julia_float_label(g))
+    }
+    g
+}
+
+# Format a Float64 vector with Julia's `string()` semantics: a whole
+# number keeps a trailing ".0", everything else uses the natural
+# representation. Used for group-by labels so reduction-result names
+# match Julia byte for byte.
+.julia_float_label <- function(x) {
+    out <- character(length(x))
+    finite <- is.finite(x)
+    if (any(finite)) {
+        v <- x[finite]
+        whole <- v == trunc(v)
+        if (any(whole)) {
+            out[finite][whole] <- paste0(formatC(v[whole], format = "d"), ".0")
+        }
+        if (any(!whole)) {
+            out[finite][!whole] <- as.character(v[!whole])
+        }
+    }
+    out[is.nan(x)] <- "NaN"
+    out[is.infinite(x) & x > 0] <- "Inf"
+    out[is.infinite(x) & x < 0] <- "-Inf"
+    out[is.na(x) & !is.nan(x)] <- NA_character_
+    out
+}
+
+# integer64 is stored as REALSXP whose bytes are int64 reinterpreted: any
+# downstream code that treats those bytes as Float64 (rowSums, matrixStats,
+# rowsum, stats::quantile, sum, ...) produces denormal garbage. Demote here
+# at the reduction-dispatcher boundary so kernels see real numeric values.
+# Preserves names / dim / dimnames since bit64::as.double strips them.
+.demote_int64 <- function(x) {
+    if (!inherits(x, "integer64")) return(x)
+    if (is.matrix(x)) {
+        dn <- dimnames(x); d <- dim(x)
+        out <- as.double(x)
+        dim(out) <- d
+        dimnames(out) <- dn
+        return(out)
+    }
+    nms <- names(x)
+    out <- as.double(x)
+    names(out) <- nms
+    out
+}
+
 # Extract eps parameter for VarN/StdN/GeoMean reductions. Defaults to 0
 # when omitted. Validates non-negative (Julia parity: parse_number_value
 # with `not negative` check).
 .param_eps <- function(params, op_name = "VarN") {
     raw <- params[["eps"]] %||% 0
+    # Julia parity: accept named constants (`e`, `pi`) and NaN/Inf the
+    # same way Log/Significant/Clamp do. Resolve via
+    # .resolve_named_numeric, then run the not-negative check (NaN
+    # passes; -1 / -Inf fail).
+    raw <- .resolve_named_numeric(raw)
     eps <- suppressWarnings(as.numeric(raw))
-    if (is.na(eps) || eps < 0) {
+    if (length(eps) != 1L ||
+        (!is.nan(eps) && (is.na(eps) || isTRUE(eps < 0)))) {
         stop(sprintf(
             "invalid value: \"%s\"\nvalue must be: not negative\nfor the parameter: eps\nfor the operation: %s",
             as.character(raw), op_name
@@ -2275,9 +2747,15 @@ NULL
             else return(NULL),
             return(NULL)
         )
+        # Julia parity: apply the `type` cast on the reduction result
+        # so `>- Sum type Int8` actually returns an Int8 (and raises
+        # InexactError on a fractional Float32 column-sum).
+        type <- params[["type"]]
+        out_vals <- if (!is.null(type)) .cast_to_type(as.numeric(vals), type)
+                    else as.numeric(vals)
         return(list(
             kind = "vector", axis = state$rows_axis,
-            value = setNames(as.numeric(vals), row_names)
+            value = setNames(out_vals, row_names)
         ))
     }
     # ReduceToRow: column-wise reduction
@@ -2380,9 +2858,12 @@ NULL
         else return(NULL),
         return(NULL)
     )
+    type <- params[["type"]]
+    out_vals <- if (!is.null(type)) .cast_to_type(as.numeric(vals), type)
+                else as.numeric(vals)
     list(
         kind = "vector", axis = state$cols_axis,
-        value = setNames(as.numeric(vals), col_names)
+        value = setNames(out_vals, col_names)
     )
 }
 
@@ -2463,6 +2944,7 @@ NULL
 
 # G1 builtin fast-path: compute per-group reduction for a numeric vector.
 .grouped_vector_builtin <- function(x, group, ngroups, label, params) {
+    x <- .demote_int64(x)
     n_in_group <- as.integer(tabulate(group, ngroups))
     if (label %in% c("Sum", "Mean", "Min", "Max", "Var", "Std",
                      "VarN", "StdN", "GeoMean")) {
@@ -2494,6 +2976,14 @@ NULL
                 sqrt(v) / (means + eps)
             },
             GeoMean = {
+                # Julia parity: DomainError on negative input before computing
+                # log(); log(0) is permitted (yields -Inf).
+                if (length(x) > 0L && any(x + eps < 0, na.rm = TRUE)) {
+                    stop(sprintf(
+                        "DomainError with %s:\nlog was called with a negative real argument",
+                        format(min(x[!is.na(x)]))
+                    ), call. = FALSE)
+                }
                 if (eps == 0) {
                     log_sum <- as.numeric(rowsum(log(x), group))
                     exp(log_sum / n_in_group)
@@ -2520,6 +3010,16 @@ NULL
     params <- .coerce_params(node$params)
     x <- state$value
     g <- state$pending_groups
+    # Central front-door validation: input type, `type =` param, unknown
+    # named params. Replaces the inline character-input guard and the
+    # legacy .validate_matrix_reduction_type call. Catches `/ groupprop
+    # >> Mean type Int32` and friends in one place.
+    .validate_op_invocation(node$reduction, "reduction", x, params)
+    # NaN grouping requires IfMissing per Julia parity. Hoisting in
+    # .eval_query puts IfMissing into state BEFORE the reduction node
+    # is dispatched here, so state$if_missing reflects any `... || N`
+    # tail on the reduction.
+    .check_nan_groups_or_fill(g, state$if_missing)
     # If `=@` was applied to the chained group labels (grouped_as_axis set
     # to a real axis name), the result should expose every entry of the
     # target axis - including groups with no members, which the IfMissing
@@ -2531,15 +3031,24 @@ NULL
         if (is.character(state$grouped_as_axis)) {
             target_axis <- state$grouped_as_axis
         }
-        if (!is.null(target_axis) && format_has_axis(daf, target_axis)) {
-            axis_levels <- format_axis_array(daf, target_axis)$value
+        # Julia parity (queries.jl: axis_vector(daf, property_axis_name)):
+        # `=@` requires the target to be an axis - bare `=@` derives it from
+        # the grouping property's source axis, named `=@ X` forces axis `X`.
+        # If no axis with that name exists, error like Julia DAF does.
+        if (is.null(target_axis) || !format_has_axis(daf, target_axis)) {
+            stop(sprintf(
+                "missing axis: %s\nfor: axis_vector",
+                target_axis %||% "<unspecified>"
+            ), call. = FALSE)
         }
+        axis_levels <- format_axis_array(daf, target_axis)$value
     }
     # Sort group levels to match Julia DAF behaviour
     # (DataAxesFormats.jl/src/queries.jl ~3935: result is sorted by
     # the group value, which is also used as the name in the
     # NamedArray).
-    gfac <- factor(g, levels = sort(unique(g)))
+    g_labels <- .lc_bool_labels(g)
+    gfac <- factor(g_labels, levels = sort(unique(g_labels)))
     gi <- as.integer(gfac)
     ngroups <- nlevels(gfac)
     lvls <- levels(gfac)
@@ -2548,10 +3057,31 @@ NULL
 
     # Helper: take a length-ngroups result vector, expand to the full target
     # axis (when grouped_as_axis was set), and substitute the IfMissing
-    # default for any entries that are missing/NA/NaN. If `=@` was used
+    # default for axis entries that have no group members. If `=@` was used
     # but some axis entries have no group members AND no default was given,
     # raise (Julia parity — queries.jl > vector > group > vector > missing).
+    # NaN values produced by the reduction itself (e.g. Sum of a group whose
+    # data contains NaN) are NOT replaced - Julia propagates such NaN.
     finalize_vals <- function(vals, names_seen) {
+        # Julia parity: a NaN-named bucket is an "unused entry" and
+        # gets the IfMissing default instead of the actual reduction
+        # value. (Cells with NaN grouping value have no meaningful
+        # bucket; Julia treats the bucket as missing-by-construction.)
+        # Only applies when IfMissing is present; without it,
+        # .apply_reduction_grouped_vector already raised at the entry.
+        if (!is.null(state$if_missing) && length(names_seen) > 0L) {
+            nan_idx <- which(names_seen == "NaN")
+            if (length(nan_idx) > 0L) {
+                if (is.numeric(vals)) {
+                    vals[nan_idx] <- as.numeric(state$if_missing)
+                } else if (is.logical(vals)) {
+                    vals[nan_idx] <- as.logical(state$if_missing)
+                } else if (is.character(vals)) {
+                    vals[nan_idx] <- as.character(state$if_missing)
+                }
+            }
+        }
+        missing_idx <- integer(0L)
         if (!is.null(axis_levels)) {
             unused <- setdiff(axis_levels, names_seen)
             if (length(unused) > 0L && is.null(state$if_missing)) {
@@ -2565,19 +3095,17 @@ NULL
             mode(full) <- mode(vals)
             idx_in_full <- match(names_seen, axis_levels)
             full[idx_in_full] <- vals
+            missing_idx <- setdiff(seq_along(axis_levels), idx_in_full)
             vals <- full
             names_seen <- axis_levels
         }
-        if (!is.null(state$if_missing)) {
-            nan_mask <- is.na(vals) | (is.numeric(vals) & is.nan(vals))
-            if (any(nan_mask)) {
-                if (is.numeric(vals)) {
-                    vals[nan_mask] <- as.numeric(state$if_missing)
-                } else if (is.logical(vals)) {
-                    vals[nan_mask] <- as.logical(state$if_missing)
-                } else if (is.character(vals)) {
-                    vals[nan_mask] <- as.character(state$if_missing)
-                }
+        if (!is.null(state$if_missing) && length(missing_idx) > 0L) {
+            if (is.numeric(vals)) {
+                vals[missing_idx] <- as.numeric(state$if_missing)
+            } else if (is.logical(vals)) {
+                vals[missing_idx] <- as.logical(state$if_missing)
+            } else if (is.character(vals)) {
+                vals[missing_idx] <- as.character(state$if_missing)
             }
         }
         list(value = vals, names = names_seen)
@@ -2893,6 +3421,7 @@ NULL
     fn <- get_reduction(node$reduction)
     params <- .coerce_params(node$params)
     m <- state$value
+    .validate_op_invocation(node$reduction, "reduction", m, params)
     label <- .reduction_builtin_label(fn)
 
     is_g2 <- identical(by, "rows") && identical(node$op, "ReduceToRow")
@@ -2902,6 +3431,7 @@ NULL
 
     if (is_g2 || is_g3) {
         g <- if (is_g2) state$pending_row_groups else state$pending_col_groups
+        g <- .lc_bool_labels(g)
         # Julia DAF sorts group levels alphabetically (queries.jl ~3935).
         gfac <- factor(g, levels = sort(unique(g)))
         gi <- as.integer(gfac)
@@ -3020,7 +3550,7 @@ NULL
                 daf, by = inner_by)
             # inner$value is ngroups x ncol with rownames = group levels.
             mat <- inner$value
-            g <- state$pending_row_groups
+            g <- .lc_bool_labels(state$pending_row_groups)
             gfac <- factor(g, levels = sort(unique(g)))
             lvls <- levels(gfac)
             ngroups <- nlevels(gfac)
@@ -3043,7 +3573,7 @@ NULL
         inner <- .apply_reduction_grouped_matrix(inner_node, state, daf,
             by = "cols")
         mat <- inner$value
-        g <- state$pending_col_groups
+        g <- .lc_bool_labels(state$pending_col_groups)
         gfac <- factor(g, levels = sort(unique(g)))
         lvls <- levels(gfac)
         ngroups <- nlevels(gfac)
@@ -3065,10 +3595,14 @@ NULL
 }
 
 .coerce_params <- function(params) {
-    # try numeric coercion for each value; fall back to string
+    # try numeric coercion for each value; fall back to string. NaN
+    # parses successfully but `is.na(NaN)` is TRUE in R, so we have to
+    # peek at `is.nan` to keep `% Log base NaN` / `% Significant high
+    # NaN` typed as numeric rather than falling back to the literal
+    # string (which then trips the "value must be: a number" check).
     lapply(params, function(v) {
         n <- suppressWarnings(as.numeric(v))
-        if (!is.na(n)) n else v
+        if (!is.na(n) || isTRUE(is.nan(n))) n else v
     })
 }
 .apply_groupby <- function(node, state, daf) {
@@ -3363,6 +3897,7 @@ NULL
     if (!is.null(state$indices)) {
         grp <- grp[state$indices]
     }
+    .reject_nan_group_labels(grp, state$if_missing)
     state$pending_groups <- grp
     # The property name doubles as the target-axis name when a chained
     # lookup follows (Julia axis_of_property). Stored so a later `: prop`
@@ -3370,6 +3905,38 @@ NULL
     state$pending_groups_axis <- node$property
     state$kind <- "grouped_vector"
     state
+}
+
+# Julia parity: when a grouping property is float-typed and contains
+# NaN, Julia raises an "unused entry: NaN of the axis: nothing" error
+# because NaN can't sit on any discrete axis. R must do the same, or
+# `/ with_nan >> Sum` silently buckets NaN-valued cells together.
+.reject_nan_group_labels <- function(grp, if_missing = NULL) {
+    # No-op stub: NaN-group rejection moved to the reduction-finalize
+    # path so it can take state$if_missing into account when IfMissing
+    # is supplied AFTER the group-by (`... / with_nan >> Sum || 0`).
+    # Kept as a function for ABI stability in case any in-tree caller
+    # still references it.
+    invisible()
+}
+
+# Called at reduction time to enforce Julia's NaN-group semantics:
+# when the grouping vector contains NaN and there's no IfMissing
+# default, raise the same error Julia does. When IfMissing IS set,
+# Julia returns one bucket per unique group label (including a NaN
+# label whose value is the IfMissing default).
+.check_nan_groups_or_fill <- function(grp, if_missing) {
+    if (is.null(grp)) return(invisible())
+    if (!is.numeric(grp) || inherits(grp, "integer64")) return(invisible())
+    if (!any(is.nan(grp))) return(invisible())
+    if (is.null(if_missing)) {
+        stop(
+            "no IfMissing value specified for the unused entry: NaN\n",
+            "of the axis: nothing",
+            call. = FALSE
+        )
+    }
+    invisible()
 }
 
 .apply_groupby_rows <- function(node, state, daf) {
@@ -3391,6 +3958,7 @@ NULL
     if (!is.null(state$row_indices)) {
         grp <- grp[state$row_indices]
     }
+    .reject_nan_group_labels(grp, state$if_missing)
     state$pending_row_groups <- grp
     state$pending_row_groups_property <- node$property
     state$kind <- "grouped_matrix_rows"
@@ -3414,6 +3982,7 @@ NULL
     if (!is.null(state$col_indices)) {
         grp <- grp[state$col_indices]
     }
+    .reject_nan_group_labels(grp, state$if_missing)
     state$pending_col_groups <- grp
     state$pending_col_groups_property <- node$property
     state$kind <- "grouped_matrix_cols"
@@ -3513,6 +4082,13 @@ NULL
     }
     a <- state$value
     b <- format_get_vector(daf, state$axis, node$property)$value
+    # When a mask is active, only the masked subset of `a` is in scope;
+    # subset `b` with the same indices so the cross-tab pairs each kept
+    # entry's a-value with its b-value. Without this, b would be the full
+    # axis vector and `table(a, b)` would error on length mismatch.
+    if (!is.null(state$indices)) {
+        b <- b[state$indices]
+    }
     # Defer matrix materialisation so a subsequent `: prop` can pivot the
     # b column through its property's axis (matching Julia's
     # lookup_vector_by_vector + compute_count_matrix sequence).
@@ -3557,8 +4133,8 @@ NULL
 # end of evaluation if the count-by wasn't followed by something that
 # materialises it (e.g. a reduction on the resulting matrix).
 .finalize_pending_count <- function(state, daf) {
-    a <- state$a_per_cell
-    b <- state$b_per_cell
+    a <- .lc_bool_labels(state$a_per_cell)
+    b <- .lc_bool_labels(state$b_per_cell)
     # If `=@` was applied to the count's b-side AND b_pivot_axis names a real
     # axis, expand the cross-tab to include every axis entry — even those
     # with zero co-occurrences. (Julia parity — queries.jl > matrix > count

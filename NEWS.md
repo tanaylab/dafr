@@ -1,3 +1,115 @@
+# dafr 0.2.8
+
+## Query DSL: Julia parity sweep (Round 5 + Round 6)
+
+200 adversarial probes (Round 5) and a 1000-query grammar fuzzer
+(Round 6) surfaced a long tail of silent wrong-answer cases, type
+contracts that diverged from `DataAxesFormats.jl`, and error
+messages that had drifted out of alignment. Major user-visible
+changes:
+
+- **Centralised op-invocation validator.** The per-op `.reject_*`
+  dispatches scattered across five eltwise / reduction /
+  grouped-reduction handlers are replaced by `.OP_META` +
+  `.validate_op_invocation` in `R/op_dispatch.R`. The same type-tag
+  rejection now fires at parse time before any axis / property
+  lookup, mirroring Julia.
+- **`integer64` is demoted in eltwise and reduction dispatch** so
+  Float64-only kernels see the expected type instead of bit-aliased
+  doubles.
+- **`Median` preserves `NaN`** like Julia rather than promoting to
+  `NA`.
+- **Mask comparators on strings are bytewise** so `"é" < "f"`
+  agrees with Julia's lexicographic order.
+- **`Significant high/low`, `Round digits`, `Convert` to `Bool` on
+  non-{0,1}, `Float32` sum to `Int32`, ...** now raise
+  `InexactError` instead of returning silently-wrong values.
+  `Convert` and `Round` accept the full set of dtype aliases
+  (`Int8/16/32/64`, `UInt8/16/32/64`, `Float32/64`, `Bool` plus the
+  lowercase R-style aliases).
+- **`IfMissing` default is validated at parse time.** Typed
+  defaults must be in-range for the declared eltype; hex / binary
+  literals and the named constants `pi` / `e` are accepted.
+- **Latin-1 / Unicode value tokens** raise the same
+  `unexpected character` error as Julia instead of parsing
+  through with a corrupted token.
+- **Bare `??` without a lookup chain** raises
+  `invalid operation` rather than returning a tautology.
+- **GroupBy on `Bool` keys** uses lowercase `"true"` / `"false"`
+  for bucket labels.
+- **`NaN` group key with `IfMissing`** fills the NaN bucket with
+  the user default instead of dropping it.
+- **`BeginMask`** eager-rejects properties that are not matrix
+  names so the error surfaces before the (more expensive) lookup
+  path.
+- **Matrix-reduction fast paths** honour the `type =` parameter
+  via `.cast_to_type`; previously the type cast was silently
+  dropped on the fast path.
+- **`% Clamp` low/high** is rejected at parse time. (Julia exposes
+  this via `min` / `max`; `Clamp` is not a DAF operation.)
+- **Error-message alignment with Julia.** Collapses roughly 300
+  cosmetic divergence buckets in the parity fuzzer; common cases:
+    - `the parameter: X does not exist for the operation: Y`
+    - `missing required parameter: X` (Significant / Convert /
+      Quantile)
+    - `expected: value` (was `expected value after comparator
+      at ...`)
+    - Comparator-on-non-string drops the `for the comparison
+      operation: X` suffix.
+
+The Round-5 / Round-6 adversarial harness lives in
+`dev/adversarial-parity/` (R + Julia runners, Python diff tool,
+1100-query corpus, `FINDINGS.md` with per-bug provenance). About
+55 regression tests added across `tests/testthat/test-query-*` and
+`tests/testthat/test-operations-*`.
+
+## Fix: cross-backend write/read parity (Round 7)
+
+Six bugs surfaced by the new `dev/backend-parity/` audit harness,
+which round-trips an 82-item fixture through Memory/Files/Zarr
+write -> reopen -> read and every (src, dst) `copy_all` pair.
+Before fixes: 11/246 (single-backend) and 35/567 (cross-backend)
+diverged. After: 0/246 and 0/567.
+
+- **NaN scalars are now accepted.** `set_scalar(d, "x", NaN)`
+  previously raised `value may not be NA` because
+  `.assert_scalar_value` used `is.na(value)`, which returns
+  `TRUE` for `NaN`. `NaN` is a valid `Float64` per Julia DAF;
+  only true `NA` is rejected now.
+- **Float64 scalars round-trip at full precision on FilesDaf.**
+  `set_scalar(d, "pi_val", pi)` used to read back as `3.1416`
+  because `jsonlite::toJSON` defaulted to `digits = 4`. The
+  scalar writer now passes `digits = 17`.
+- **`Int64` / `UInt64` dense vectors round-trip across the full
+  64-bit range on FilesDaf.** The reader's
+  `readBin(what = "integer", size = 8L)` silently truncated each
+  value to its low 32 bits (base R has no 8-byte integer type),
+  so values whose low 32 bits were zero (`2^32`, `2^62`,
+  `-2^62`, ...) all came back as `0`. The reader now reads
+  8-byte doubles and bit-aliases them into `integer64`.
+- **All-NaN Float64 vectors preserve NaN on FilesDaf.** The
+  auto-sparsifier counted NaN as zero (`sum(vec != 0,
+  na.rm = TRUE)` drops NaN), so an all-NaN vector was written
+  as an empty sparse vector and read back as all-zero. NaN is
+  now counted as nonzero on the sparsify decision and kept in
+  the sparse representation.
+- **ZarrDaf reorders named-subset vectors to axis order.**
+  `set_vector(d, "cell", "x", c(C = 3, A = 1, B = 2))` against
+  ZarrDaf previously stored values in input order; against
+  Memory and Files it stored in axis order. `.validate_vector_value`
+  (which performs the reorder) is now called in the user-facing
+  `set_vector` dispatcher so every backend - current and future -
+  receives an axis-ordered, un-named vec.
+- **FilesDaf scalar strings declare `Encoding() == "UTF-8"`.**
+  The regex fast-path in `.read_scalar_json` returned bytes-only
+  strings tagged `"unknown"`. The byte content was always
+  correct (`identical()` returned `TRUE`), but
+  `serialize()`-based comparisons distinguished the tag.
+
+Regression tests live in `tests/testthat/test-backend-parity-r7.R`
+(one focused case per bug class). The audit harness, fixture,
+findings doc, and diff tool live in `dev/backend-parity/`.
+
 # dafr 0.2.7
 
 ## Fix: row/col mask alignment under matrix GroupBy

@@ -90,9 +90,15 @@ NULL
     }
     # Unquoted value: any run of value-safe characters (matching Julia's
     # is_value_char in tokens.jl - letters, digits, '_', '.', '+', '-', plus
-    # any non-ASCII Unicode), with `\X` consuming the next character
-    # literally so axis-entry names containing otherwise-special characters
-    # can be embedded inline (e.g. `gene = AL627309\.1`).
+    # Unicode characters with codepoint > 0xFF), with `\X` consuming the
+    # next character literally so axis-entry names containing
+    # otherwise-special characters can be embedded inline
+    # (e.g. `gene = AL627309\.1`).
+    #
+    # The non-ASCII range is `[^\x00-\xFF]` to match Julia tokens.jl
+    # VALUE_REGEX exactly: codepoints in the Latin-1 supplement (e.g. `é`,
+    # `ñ`, `ü`) are NOT in the safe set and must be escaped or quoted,
+    # while characters above U+00FF (CJK, emoji, math symbols) pass through.
     #
     # Single regex match (O(n) for the whole run) rather than a per-char R
     # loop (O(n^2) due to the c(out, ch) accumulation, ~5s for a 50k-char
@@ -102,7 +108,7 @@ NULL
     m <- regmatches(
         rest,
         regexpr(
-            "^(?:\\\\.|[0-9a-zA-Z_.+\\-]|[^\\x00-\\x7F])+",
+            "^(?:\\\\.|[0-9a-zA-Z_.+\\-]|[^\\x00-\\xFF])+",
             rest, perl = TRUE
         )
     )

@@ -43,10 +43,14 @@ test_that("Clamp attaches .dafr_builtin = 'Clamp'", {
 test_that("Convert changes vector storage mode", {
     fn <- get_eltwise("Convert")
     expect_type(fn(c(1.0, 2.0, 3.0), type = "integer"), "integer")
-    expect_equal(fn(c(1.5, 2.9), type = "integer"), c(1L, 2L))  # truncation
+    # Julia parity: fractional value -> InexactError (was R-lenient truncation).
+    expect_error(fn(c(1.5, 2.9), type = "integer"),
+        "InexactError: integer\\(1\\.5\\)")
     expect_type(fn(c(1L, 2L, 3L), type = "double"), "double")
     expect_type(fn(c(0, 1, 1), type = "logical"), "logical")
-    expect_equal(fn(c(0, 1, 2), type = "logical"), c(FALSE, TRUE, TRUE))
+    # Julia parity: non-{0,1} value -> InexactError (was R-lenient `as.logical`).
+    expect_error(fn(c(0, 1, 2), type = "logical"),
+        "InexactError: Bool\\(2\\)")
 })
 
 test_that("Convert requires type parameter", {
@@ -56,8 +60,11 @@ test_that("Convert requires type parameter", {
 
 test_that("Convert rejects unknown type names", {
     fn <- get_eltwise("Convert")
-    expect_error(fn(c(1, 2, 3), type = "float64"), "type.*double.*integer.*logical")
+    # Julia parity: lowercase aliases (`float64`, `int32`, etc.) are accepted
+    # alongside their cased forms. Unknown names still error.
+    expect_equal(fn(c(1, 2, 3), type = "float64"), c(1, 2, 3))
     expect_error(fn(c(1, 2, 3), type = "string"), "type")
+    expect_error(fn(c(1, 2, 3), type = "Decimal"), "type")
 })
 
 test_that("Convert preserves sparsity for target 'double'", {

@@ -156,20 +156,45 @@ test_that("operations / eltwise / convert / invalid", {
 test_that("operations / eltwise / convert / scalar", {
     d <- .ops_fresh_daf()
     set_scalar(d, "value", 1.3)
-    expect_identical(as.integer(get_query(d, ". value % Convert type integer")), 1L)
+    # Julia parity: Convert with fractional input -> InexactError.
+    expect_error(get_query(d, ". value % Convert type integer"),
+        "InexactError: integer\\(1\\.3\\)")
+})
+
+test_that("operations / eltwise / convert / scalar / integer in", {
+    d <- .ops_fresh_daf()
+    set_scalar(d, "value", 7L)
+    expect_identical(as.integer(get_query(d, ". value % Convert type integer")), 7L)
 })
 
 test_that("operations / eltwise / convert / vector", {
     d <- .ops_fresh_daf()
     set_vector(d, "cell", "value", c(-1.5, 2.5))
+    # Julia parity: fractional values -> InexactError.
+    expect_error(get_query(d, "@ cell : value % Convert type integer"),
+        "InexactError: integer\\(-1\\.5\\)")
+})
+
+test_that("operations / eltwise / convert / vector / integer in", {
+    d <- .ops_fresh_daf()
+    set_vector(d, "cell", "value", c(1, 2))
     res <- as.integer(unname(get_query(d, "@ cell : value % Convert type integer")))
-    expect_length(res, 2L)
-    expect_type(res, "integer")
+    expect_equal(res, c(1L, 2L))
 })
 
 test_that("operations / eltwise / convert / matrix", {
     d <- .ops_fresh_daf()
     m <- matrix(c(0.0, -1.5, 1.0, 2.5, 3.0, 4.5), nrow = 2L, ncol = 3L,
+                dimnames = list(c("A", "B"), c("X", "Y", "Z")))
+    set_matrix(d, "cell", "gene", "value", m)
+    # Julia parity: fractional values -> InexactError.
+    expect_error(get_query(d, "@ cell @ gene :: value % Convert type integer"),
+        "InexactError: integer\\(-1\\.5\\)")
+})
+
+test_that("operations / eltwise / convert / matrix / integer in", {
+    d <- .ops_fresh_daf()
+    m <- matrix(c(0, 1, 2, 3, 4, 5), nrow = 2L, ncol = 3L,
                 dimnames = list(c("A", "B"), c("X", "Y", "Z")))
     set_matrix(d, "cell", "gene", "value", m)
     res <- get_query(d, "@ cell @ gene :: value % Convert type integer")

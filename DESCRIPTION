@@ -1,6 +1,6 @@
 Package: dafr
 Title: Data in Axes in Formats (DAF) for R
-Version: 0.2.7
+Version: 0.2.8
 Authors@R: c(
     person("Aviezer", "Lifshitz", , "aviezer.lifshitz@weizmann.ac.il",
            role = c("aut", "cre"),
@@ -72,6 +72,7 @@ Collate:
     'query_ast.R'
     'query_parse.R'
     'operations.R'
+    'op_dispatch.R'
     'query_eval.R'
     'queries.R'
     'view_daf.R'

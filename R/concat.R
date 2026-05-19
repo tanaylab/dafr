@@ -376,8 +376,15 @@ concatenate <- function(destination, axis, sources,
                 axes <- format_axes_set(src)
                 for (rax in axes) {
                     if (r_pat != "*" && r_pat != rax) next
+                    # Matrices with a concat axis on either side are
+                    # stitched by .concat_axis_matrix; merge handlers
+                    # only own matrices with BOTH axes off-concat.
+                    # Skipping here mirrors the vector branch above
+                    # (`if (axis %in% concat_axes) next`).
+                    if (rax %in% concat_axes) next
                     for (cax in axes) {
                         if (c_pat != "*" && c_pat != cax) next
+                        if (cax %in% concat_axes) next
                         for (n in format_matrices_set(src, rax, cax)) {
                             if (nm_pat != "*" && nm_pat != n) next
                             k <- paste(rax, cax, n, sep = "|")

@@ -21,9 +21,17 @@ test_that(".op_convert accepts Int32 as integer alias", {
 })
 
 test_that(".op_convert accepts Bool as logical alias", {
-    x <- c(0, 1, 2)
+    x <- c(0, 1, 1)
     expect_identical(.op_convert(x, type = "Bool"),
                      .op_convert(x, type = "logical"))
+})
+
+test_that(".op_convert type Bool raises InexactError on non-{0,1} (Julia parity)", {
+    expect_error(.op_convert(c(0, 1, 2), type = "Bool"),
+        "InexactError: Bool\\(2\\)")
+    # Canonical R name `logical` falls back to the Julia error template too.
+    expect_error(.op_convert(c(0, 1, 2), type = "logical"),
+        "InexactError: Bool\\(2\\)")
 })
 
 test_that(".op_convert Int64 returns bit64::integer64", {

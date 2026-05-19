@@ -46,7 +46,8 @@
     if (length(value) != 1L) {
         stop(sprintf("scalar %s value must have length 1 (got %d)", sQuote(name), length(value)), call. = FALSE)
     }
-    if (is.na(value)) {
+    # NaN is a valid Float64 value (Julia DAF parity); only reject true NA.
+    if (is.na(value) && !is.nan(value)) {
         stop(sprintf("scalar %s value may not be NA", sQuote(name)), call. = FALSE)
     }
     invisible()

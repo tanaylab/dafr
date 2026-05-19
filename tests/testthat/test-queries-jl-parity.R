@@ -83,8 +83,12 @@ test_that("queries / invalid / operation", {
 })
 
 test_that("queries / invalid / parameter", {
+    # Julia parity: error wording is "the parameter: phase\ndoes not
+    # exist for the operation: Log" (with a literal newline between
+    # the parameter name and "does not exist"). Use a regex that
+    # tolerates the newline.
     expect_error(parse_query(". score % Log phase 2"),
-        regexp = "the parameter: phase does not exist for the operation: Log"
+        regexp = "the parameter: phase.*does not exist for the operation: Log"
     )
 })
 

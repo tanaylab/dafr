@@ -228,10 +228,9 @@ parse_query <- function(query_string) {
 
 .parse_cmp <- function(tokens, i, src, ctor) {
     if (i + 1L > length(tokens) || tokens[[i + 1L]]$type != "value") {
-        stop(sprintf(
-            "expected value after comparator at position %d in query %s",
-            tokens[[i]]$pos, sQuote(src)
-        ), call. = FALSE)
+        # Julia parity: error wording is just `expected: value` -
+        # matches Julia's tokens.jl error template for missing tokens.
+        stop("expected: value", call. = FALSE)
     }
     list(node = ctor(tokens[[i + 1L]]$value), next_index = i + 2L)
 }
@@ -309,10 +308,16 @@ parse_query <- function(query_string) {
     bad <- setdiff(names(pp$params), valid)
     if (length(bad) > 0L) {
         stop(sprintf(
-            "the parameter: %s does not exist for the operation: %s",
+            "the parameter: %s\ndoes not exist for the operation: %s",
             bad[[1L]], op_name
         ), call. = FALSE)
     }
+    # Julia parity: parse_query validates the type tag (e.g.
+    # `>> Mean type NotAType`) eagerly at parse, before any axis /
+    # property lookup runs. Without this, R defers to eval and the
+    # missing-prop error surfaces first instead of the type-tag error.
+    .validate_op_invocation_at_parse(op_name, "reduction",
+                                     .coerce_params(pp$params))
     list(node = ctor(op_name, params = pp$params), next_index = pp$next_index)
 }
 
@@ -342,10 +347,12 @@ parse_query <- function(query_string) {
     bad <- setdiff(names(pp$params), valid)
     if (length(bad) > 0L) {
         stop(sprintf(
-            "the parameter: %s does not exist for the operation: %s",
+            "the parameter: %s\ndoes not exist for the operation: %s",
             bad[[1L]], op_name
         ), call. = FALSE)
     }
+    .validate_op_invocation_at_parse(op_name, "eltwise",
+                                     .coerce_params(pp$params))
     list(
         node = .qop_eltwise(op_name, params = pp$params),
         next_index = pp$next_index
@@ -371,12 +378,30 @@ parse_query <- function(query_string) {
                    tokens[[j]]$type == "value" &&
                    tokens[[j]]$value %in% c(
                        "Bool", "String",
-                       "Int8", "Int16", "Int32", "Int64",
+                       "Int", "Int8", "Int16", "Int32", "Int64",
                        "UInt8", "UInt16", "UInt32", "UInt64",
-                       "Float32", "Float64"
+                       "Float32", "Float64",
+                       # Julia parity (operations.jl DTYPE_BY_NAME):
+                       # lowercase aliases are valid type tokens in every
+                       # context that takes a Julia type. % Convert
+                       # already accepts them; IfMissing must too.
+                       "bool",
+                       "int", "int8", "int16", "int32", "int64",
+                       "uint8", "uint16", "uint32", "uint64",
+                       "float32", "float64"
                    )) {
             type <- tokens[[j]]$value
             j <- j + 1L
+        }
+        # Julia parity: when an explicit type is given, validate the
+        # default at parse time even if the surrounding lookup ends up
+        # finding the property (so the IfMissing branch is never taken).
+        # Julia's parse_query reports `invalid value "<v>" / must be a
+        # valid <T> / for parameter value / for operation ||`. dafr
+        # used to defer this to evaluation, so `. intver || 1.5 Int32`
+        # succeeded by silently ignoring the broken default.
+        if (!is.null(type)) {
+            .validate_if_missing_default(default, type)
         }
         list(node = .qop_if_missing(default, type = type), next_index = j)
     } else {
