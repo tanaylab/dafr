@@ -1,4 +1,67 @@
-# dafr 0.2.8 (in development)
+# dafr 0.2.8
+
+## Query DSL: Julia parity sweep (Round 5 + Round 6)
+
+200 adversarial probes (Round 5) and a 1000-query grammar fuzzer
+(Round 6) surfaced a long tail of silent wrong-answer cases, type
+contracts that diverged from `DataAxesFormats.jl`, and error
+messages that had drifted out of alignment. Major user-visible
+changes:
+
+- **Centralised op-invocation validator.** The per-op `.reject_*`
+  dispatches scattered across five eltwise / reduction /
+  grouped-reduction handlers are replaced by `.OP_META` +
+  `.validate_op_invocation` in `R/op_dispatch.R`. The same type-tag
+  rejection now fires at parse time before any axis / property
+  lookup, mirroring Julia.
+- **`integer64` is demoted in eltwise and reduction dispatch** so
+  Float64-only kernels see the expected type instead of bit-aliased
+  doubles.
+- **`Median` preserves `NaN`** like Julia rather than promoting to
+  `NA`.
+- **Mask comparators on strings are bytewise** so `"é" < "f"`
+  agrees with Julia's lexicographic order.
+- **`Significant high/low`, `Round digits`, `Convert` to `Bool` on
+  non-{0,1}, `Float32` sum to `Int32`, ...** now raise
+  `InexactError` instead of returning silently-wrong values.
+  `Convert` and `Round` accept the full set of dtype aliases
+  (`Int8/16/32/64`, `UInt8/16/32/64`, `Float32/64`, `Bool` plus the
+  lowercase R-style aliases).
+- **`IfMissing` default is validated at parse time.** Typed
+  defaults must be in-range for the declared eltype; hex / binary
+  literals and the named constants `pi` / `e` are accepted.
+- **Latin-1 / Unicode value tokens** raise the same
+  `unexpected character` error as Julia instead of parsing
+  through with a corrupted token.
+- **Bare `??` without a lookup chain** raises
+  `invalid operation` rather than returning a tautology.
+- **GroupBy on `Bool` keys** uses lowercase `"true"` / `"false"`
+  for bucket labels.
+- **`NaN` group key with `IfMissing`** fills the NaN bucket with
+  the user default instead of dropping it.
+- **`BeginMask`** eager-rejects properties that are not matrix
+  names so the error surfaces before the (more expensive) lookup
+  path.
+- **Matrix-reduction fast paths** honour the `type =` parameter
+  via `.cast_to_type`; previously the type cast was silently
+  dropped on the fast path.
+- **`% Clamp` low/high** is rejected at parse time. (Julia exposes
+  this via `min` / `max`; `Clamp` is not a DAF operation.)
+- **Error-message alignment with Julia.** Collapses roughly 300
+  cosmetic divergence buckets in the parity fuzzer; common cases:
+    - `the parameter: X does not exist for the operation: Y`
+    - `missing required parameter: X` (Significant / Convert /
+      Quantile)
+    - `expected: value` (was `expected value after comparator
+      at ...`)
+    - Comparator-on-non-string drops the `for the comparison
+      operation: X` suffix.
+
+The Round-5 / Round-6 adversarial harness lives in
+`dev/adversarial-parity/` (R + Julia runners, Python diff tool,
+1100-query corpus, `FINDINGS.md` with per-bug provenance). About
+55 regression tests added across `tests/testthat/test-query-*` and
+`tests/testthat/test-operations-*`.
 
 ## Fix: cross-backend write/read parity (Round 7)
 
