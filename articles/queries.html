@@ -68,49 +68,30 @@
       <h1>Query DSL</h1>
             
       
-      <small class="dont-index">Source: <a href="https://github.com/tanaylab/dafr/blob/v0.2.8.1/vignettes/queries.Rmd" class="external-link"><code>vignettes/queries.Rmd</code></a></small>
+      <small class="dont-index">Source: <a href="https://github.com/tanaylab/dafr/blob/main/vignettes/queries.Rmd" class="external-link"><code>vignettes/queries.Rmd</code></a></small>
       <div class="d-none name"><code>queries.Rmd</code></div>
     </div>
 
     
     
+<p>dafr ships a small query language for composing reads against a daf.
+This vignette is the practical tour; for the full operator grammar see
+<code>vignette("query-dsl-reference", package = "dafr")</code>.</p>
 <div class="section level2">
 <h2 id="two-equivalent-forms">Two equivalent forms<a class="anchor" aria-label="anchor" href="#two-equivalent-forms"></a>
 </h2>
-<p>Queries can be written as strings or as pipe-chain builder objects.
-The following two expressions are equivalent:</p>
+<p>Every query has two surface syntaxes that compile to the same
+plan:</p>
+<ul>
+<li>
+<strong>String DSL</strong> - terse, good for ad-hoc work and
+scripts.</li>
+<li>
+<strong>Builder pipe-chains</strong> - composable R objects; good
+when query fragments are computed at runtime.</li>
+</ul>
 <div class="sourceCode" id="cb1"><pre class="downlit sourceCode r">
-<code class="sourceCode R"><span><span class="fu"><a href="https://rdrr.io/r/utils/head.html" class="external-link">head</a></span><span class="op">(</span><span class="va">d</span><span class="op">[</span><span class="st">"@ cell : donor"</span><span class="op">]</span><span class="op">)</span></span>
-<span><span class="co">#&gt; demux_07_12_20_1_AACAAGATCCATTTCA-1 demux_07_12_20_1_AACGAAAGTCCAATCA-1 </span></span>
-<span><span class="co">#&gt;                               "N89"                               "N84" </span></span>
-<span><span class="co">#&gt; demux_07_12_20_1_AAGACAAAGTTCCGTA-1 demux_07_12_20_1_AGACTCATCTATTGTC-1 </span></span>
-<span><span class="co">#&gt;                               "N86"                               "N84" </span></span>
-<span><span class="co">#&gt; demux_07_12_20_1_AGATAGACATTCCTCG-1 demux_07_12_20_1_ATCGTAGTCCAGTGCG-1 </span></span>
-<span><span class="co">#&gt;                               "N89"                               "N89"</span></span>
-<span><span class="fu"><a href="https://rdrr.io/r/utils/head.html" class="external-link">head</a></span><span class="op">(</span><span class="va">d</span><span class="op">[</span><span class="fu"><a href="../reference/Axis.html">Axis</a></span><span class="op">(</span><span class="st">"cell"</span><span class="op">)</span> <span class="op">|&gt;</span> <span class="fu"><a href="../reference/LookupVector.html">LookupVector</a></span><span class="op">(</span><span class="st">"donor"</span><span class="op">)</span><span class="op">]</span><span class="op">)</span></span>
-<span><span class="co">#&gt; demux_07_12_20_1_AACAAGATCCATTTCA-1 demux_07_12_20_1_AACGAAAGTCCAATCA-1 </span></span>
-<span><span class="co">#&gt;                               "N89"                               "N84" </span></span>
-<span><span class="co">#&gt; demux_07_12_20_1_AAGACAAAGTTCCGTA-1 demux_07_12_20_1_AGACTCATCTATTGTC-1 </span></span>
-<span><span class="co">#&gt;                               "N86"                               "N84" </span></span>
-<span><span class="co">#&gt; demux_07_12_20_1_AGATAGACATTCCTCG-1 demux_07_12_20_1_ATCGTAGTCCAGTGCG-1 </span></span>
-<span><span class="co">#&gt;                               "N89"                               "N89"</span></span></code></pre></div>
-</div>
-<div class="section level2">
-<h2 id="string-form">String form<a class="anchor" aria-label="anchor" href="#string-form"></a>
-</h2>
-<div class="sourceCode" id="cb2"><pre class="downlit sourceCode r">
-<code class="sourceCode R"><span><span class="co"># Scalar</span></span>
-<span><span class="va">d</span><span class="op">[</span><span class="st">". organism"</span><span class="op">]</span></span>
-<span><span class="co">#&gt; [1] "human"</span></span>
-<span><span class="co"># Axis entries</span></span>
-<span><span class="fu"><a href="https://rdrr.io/r/utils/head.html" class="external-link">head</a></span><span class="op">(</span><span class="va">d</span><span class="op">[</span><span class="st">"@ cell"</span><span class="op">]</span><span class="op">)</span></span>
-<span><span class="co">#&gt;   demux_07_12_20_1_AACAAGATCCATTTCA-1   demux_07_12_20_1_AACGAAAGTCCAATCA-1 </span></span>
-<span><span class="co">#&gt; "demux_07_12_20_1_AACAAGATCCATTTCA-1" "demux_07_12_20_1_AACGAAAGTCCAATCA-1" </span></span>
-<span><span class="co">#&gt;   demux_07_12_20_1_AAGACAAAGTTCCGTA-1   demux_07_12_20_1_AGACTCATCTATTGTC-1 </span></span>
-<span><span class="co">#&gt; "demux_07_12_20_1_AAGACAAAGTTCCGTA-1" "demux_07_12_20_1_AGACTCATCTATTGTC-1" </span></span>
-<span><span class="co">#&gt;   demux_07_12_20_1_AGATAGACATTCCTCG-1   demux_07_12_20_1_ATCGTAGTCCAGTGCG-1 </span></span>
-<span><span class="co">#&gt; "demux_07_12_20_1_AGATAGACATTCCTCG-1" "demux_07_12_20_1_ATCGTAGTCCAGTGCG-1"</span></span>
-<span><span class="co"># Vector on axis</span></span>
+<code class="sourceCode R"><span><span class="co"># String:</span></span>
 <span><span class="fu"><a href="https://rdrr.io/r/utils/head.html" class="external-link">head</a></span><span class="op">(</span><span class="va">d</span><span class="op">[</span><span class="st">"@ cell : donor"</span><span class="op">]</span><span class="op">)</span></span>
 <span><span class="co">#&gt; demux_07_12_20_1_AACAAGATCCATTTCA-1 demux_07_12_20_1_AACGAAAGTCCAATCA-1 </span></span>
 <span><span class="co">#&gt;                               "N89"                               "N84" </span></span>
@@ -118,56 +99,169 @@ The following two expressions are equivalent:</p>
 <span><span class="co">#&gt;                               "N86"                               "N84" </span></span>
 <span><span class="co">#&gt; demux_07_12_20_1_AGATAGACATTCCTCG-1 demux_07_12_20_1_ATCGTAGTCCAGTGCG-1 </span></span>
 <span><span class="co">#&gt;                               "N89"                               "N89"</span></span>
-<span><span class="co"># Matrix</span></span>
+<span><span class="co"># Builder:</span></span>
+<span><span class="fu"><a href="https://rdrr.io/r/utils/head.html" class="external-link">head</a></span><span class="op">(</span><span class="va">d</span><span class="op">[</span><span class="fu"><a href="../reference/Axis.html">Axis</a></span><span class="op">(</span><span class="st">"cell"</span><span class="op">)</span> <span class="op">|&gt;</span> <span class="fu"><a href="../reference/LookupVector.html">LookupVector</a></span><span class="op">(</span><span class="st">"donor"</span><span class="op">)</span><span class="op">]</span><span class="op">)</span></span>
+<span><span class="co">#&gt; demux_07_12_20_1_AACAAGATCCATTTCA-1 demux_07_12_20_1_AACGAAAGTCCAATCA-1 </span></span>
+<span><span class="co">#&gt;                               "N89"                               "N84" </span></span>
+<span><span class="co">#&gt; demux_07_12_20_1_AAGACAAAGTTCCGTA-1 demux_07_12_20_1_AGACTCATCTATTGTC-1 </span></span>
+<span><span class="co">#&gt;                               "N86"                               "N84" </span></span>
+<span><span class="co">#&gt; demux_07_12_20_1_AGATAGACATTCCTCG-1 demux_07_12_20_1_ATCGTAGTCCAGTGCG-1 </span></span>
+<span><span class="co">#&gt;                               "N89"                               "N89"</span></span></code></pre></div>
+<p><code><a href="../reference/canonical_query.html">canonical_query()</a></code> and <code><a href="../reference/parse_query.html">parse_query()</a></code> let you
+inspect what a string compiles to:</p>
+<div class="sourceCode" id="cb2"><pre class="downlit sourceCode r">
+<code class="sourceCode R"><span><span class="fu"><a href="../reference/canonical_query.html">canonical_query</a></span><span class="op">(</span><span class="st">"@ cell : donor"</span><span class="op">)</span></span>
+<span><span class="co">#&gt; [1] "@ cell : donor"</span></span></code></pre></div>
+</div>
+<div class="section level2">
+<h2 id="lookups">Lookups<a class="anchor" aria-label="anchor" href="#lookups"></a>
+</h2>
+<p>The smallest queries look up a single piece of data. Each is keyed by
+how many axes you push onto the stack before the property.</p>
+<div class="sourceCode" id="cb3"><pre class="downlit sourceCode r">
+<code class="sourceCode R"><span><span class="co"># Scalar (zero axes):</span></span>
+<span><span class="va">d</span><span class="op">[</span><span class="st">". organism"</span><span class="op">]</span></span>
+<span><span class="co">#&gt; [1] "human"</span></span>
+<span><span class="co"># Vector (one axis):</span></span>
+<span><span class="fu"><a href="https://rdrr.io/r/utils/head.html" class="external-link">head</a></span><span class="op">(</span><span class="va">d</span><span class="op">[</span><span class="st">"@ donor : age"</span><span class="op">]</span><span class="op">)</span></span>
+<span><span class="co">#&gt; N16 N17 N18 N59 N79 N83 </span></span>
+<span><span class="co">#&gt;  61  73  71  75  66  42</span></span>
+<span><span class="co"># Matrix (two axes):</span></span>
 <span><span class="fu"><a href="https://rdrr.io/r/base/dim.html" class="external-link">dim</a></span><span class="op">(</span><span class="va">d</span><span class="op">[</span><span class="st">"@ cell @ gene :: UMIs"</span><span class="op">]</span><span class="op">)</span></span>
 <span><span class="co">#&gt; [1] 856 683</span></span></code></pre></div>
 </div>
 <div class="section level2">
-<h2 id="builder-form">Builder form<a class="anchor" aria-label="anchor" href="#builder-form"></a>
+<h2 id="masks-filtering-an-axis">Masks: filtering an axis<a class="anchor" aria-label="anchor" href="#masks-filtering-an-axis"></a>
 </h2>
-<div class="sourceCode" id="cb3"><pre class="downlit sourceCode r">
-<code class="sourceCode R"><span><span class="co"># Filtered axis entries — cells whose donor is "N89"</span></span>
-<span><span class="va">q</span> <span class="op">&lt;-</span> <span class="fu"><a href="../reference/Axis.html">Axis</a></span><span class="op">(</span><span class="st">"cell"</span><span class="op">)</span> <span class="op">|&gt;</span> <span class="fu"><a href="../reference/BeginMask.html">BeginMask</a></span><span class="op">(</span><span class="st">"donor"</span><span class="op">)</span> <span class="op">|&gt;</span> <span class="fu"><a href="../reference/IsEqual.html">IsEqual</a></span><span class="op">(</span><span class="st">"N89"</span><span class="op">)</span> <span class="op">|&gt;</span> <span class="fu"><a href="../reference/EndMask.html">EndMask</a></span><span class="op">(</span><span class="op">)</span></span>
-<span><span class="fu"><a href="https://rdrr.io/r/base/length.html" class="external-link">length</a></span><span class="op">(</span><span class="va">d</span><span class="op">[</span><span class="va">q</span><span class="op">]</span><span class="op">)</span></span>
-<span><span class="co">#&gt; [1] 14</span></span></code></pre></div>
+<p>Wrap a comparison in <code>[ ... ]</code> (string) or
+<code>BeginMask(...)</code> / <code><a href="../reference/EndMask.html">EndMask()</a></code> (builder) to keep
+only the entries that pass:</p>
+<div class="sourceCode" id="cb4"><pre class="downlit sourceCode r">
+<code class="sourceCode R"><span><span class="co"># Donors older than 60 - string and builder are equivalent:</span></span>
+<span><span class="fu"><a href="https://rdrr.io/r/base/length.html" class="external-link">length</a></span><span class="op">(</span><span class="va">d</span><span class="op">[</span><span class="st">"@ donor [ age &gt; 60 ]"</span><span class="op">]</span><span class="op">)</span></span>
+<span><span class="co">#&gt; [1] 59</span></span>
+<span><span class="fu"><a href="https://rdrr.io/r/base/length.html" class="external-link">length</a></span><span class="op">(</span><span class="va">d</span><span class="op">[</span><span class="fu"><a href="../reference/Axis.html">Axis</a></span><span class="op">(</span><span class="st">"donor"</span><span class="op">)</span> <span class="op">|&gt;</span> <span class="fu"><a href="../reference/BeginMask.html">BeginMask</a></span><span class="op">(</span><span class="st">"age"</span><span class="op">)</span> <span class="op">|&gt;</span> <span class="fu"><a href="../reference/IsGreater.html">IsGreater</a></span><span class="op">(</span><span class="fl">60</span><span class="op">)</span> <span class="op">|&gt;</span> <span class="fu"><a href="../reference/EndMask.html">EndMask</a></span><span class="op">(</span><span class="op">)</span><span class="op">]</span><span class="op">)</span></span>
+<span><span class="co">#&gt; [1] 59</span></span></code></pre></div>
+<p>Masks compose with <code>&amp;</code> (AND), <code>|</code> (OR),
+<code>^</code> (XOR), each with an optional <code>!</code> for negation.
+Combinators are left-to-right, not by precedence - parenthesize via
+nested <code>[ ... ]</code> blocks if you need grouping.</p>
+<div class="sourceCode" id="cb5"><pre class="downlit sourceCode r">
+<code class="sourceCode R"><span><span class="co"># Female donors over 60:</span></span>
+<span><span class="fu"><a href="https://rdrr.io/r/base/length.html" class="external-link">length</a></span><span class="op">(</span><span class="va">d</span><span class="op">[</span><span class="st">"@ donor [ age &gt; 60 &amp; sex = female ]"</span><span class="op">]</span><span class="op">)</span></span>
+<span><span class="co">#&gt; [1] 30</span></span>
+<span><span class="fu"><a href="https://rdrr.io/r/base/length.html" class="external-link">length</a></span><span class="op">(</span><span class="va">d</span><span class="op">[</span><span class="fu"><a href="../reference/Axis.html">Axis</a></span><span class="op">(</span><span class="st">"donor"</span><span class="op">)</span> <span class="op">|&gt;</span></span>
+<span>    <span class="fu"><a href="../reference/BeginMask.html">BeginMask</a></span><span class="op">(</span><span class="st">"age"</span><span class="op">)</span> <span class="op">|&gt;</span> <span class="fu"><a href="../reference/IsGreater.html">IsGreater</a></span><span class="op">(</span><span class="fl">60</span><span class="op">)</span> <span class="op">|&gt;</span></span>
+<span>    <span class="fu"><a href="../reference/AndMask.html">AndMask</a></span><span class="op">(</span><span class="st">"sex"</span><span class="op">)</span> <span class="op">|&gt;</span> <span class="fu"><a href="../reference/IsEqual.html">IsEqual</a></span><span class="op">(</span><span class="st">"female"</span><span class="op">)</span> <span class="op">|&gt;</span></span>
+<span>    <span class="fu"><a href="../reference/EndMask.html">EndMask</a></span><span class="op">(</span><span class="op">)</span><span class="op">]</span><span class="op">)</span></span>
+<span><span class="co">#&gt; [1] 30</span></span></code></pre></div>
+</div>
+<div class="section level2">
+<h2 id="element-wise-transforms">Element-wise transforms<a class="anchor" aria-label="anchor" href="#element-wise-transforms"></a>
+</h2>
+<p><code>Log</code>, <code>Abs</code>, <code>Clamp</code>,
+<code>Round</code>, <code>Convert</code>, etc. transform the values in
+place. In the string DSL they follow a <code>%</code> prefix.</p>
+<div class="sourceCode" id="cb6"><pre class="downlit sourceCode r">
+<code class="sourceCode R"><span><span class="co"># log2(age + 1):</span></span>
+<span><span class="fu"><a href="https://rdrr.io/r/utils/head.html" class="external-link">head</a></span><span class="op">(</span><span class="va">d</span><span class="op">[</span><span class="st">"@ donor : age % Log base 2 eps 1"</span><span class="op">]</span><span class="op">)</span></span>
+<span><span class="co">#&gt;      N16      N17      N18      N59      N79      N83 </span></span>
+<span><span class="co">#&gt; 5.954196 6.209453 6.169925 6.247928 6.066089 5.426265</span></span>
+<span><span class="fu"><a href="https://rdrr.io/r/utils/head.html" class="external-link">head</a></span><span class="op">(</span><span class="va">d</span><span class="op">[</span><span class="fu"><a href="../reference/Axis.html">Axis</a></span><span class="op">(</span><span class="st">"donor"</span><span class="op">)</span> <span class="op">|&gt;</span> <span class="fu"><a href="../reference/LookupVector.html">LookupVector</a></span><span class="op">(</span><span class="st">"age"</span><span class="op">)</span> <span class="op">|&gt;</span> <span class="fu"><a href="../reference/Log.html">Log</a></span><span class="op">(</span>base <span class="op">=</span> <span class="fl">2</span>, eps <span class="op">=</span> <span class="fl">1</span><span class="op">)</span><span class="op">]</span><span class="op">)</span></span>
+<span><span class="co">#&gt;      N16      N17      N18      N59      N79      N83 </span></span>
+<span><span class="co">#&gt; 5.954196 6.209453 6.169925 6.247928 6.066089 5.426265</span></span></code></pre></div>
 </div>
 <div class="section level2">
 <h2 id="reductions">Reductions<a class="anchor" aria-label="anchor" href="#reductions"></a>
 </h2>
-<div class="sourceCode" id="cb4"><pre class="downlit sourceCode r">
-<code class="sourceCode R"><span><span class="co"># Per-gene mean UMI — reduce across the cell axis</span></span>
-<span><span class="va">per_gene_mean</span> <span class="op">&lt;-</span> <span class="va">d</span><span class="op">[</span><span class="fu"><a href="../reference/Axis.html">Axis</a></span><span class="op">(</span><span class="st">"gene"</span><span class="op">)</span> <span class="op">|&gt;</span> <span class="fu"><a href="../reference/Axis.html">Axis</a></span><span class="op">(</span><span class="st">"cell"</span><span class="op">)</span> <span class="op">|&gt;</span> <span class="fu"><a href="../reference/LookupMatrix.html">LookupMatrix</a></span><span class="op">(</span><span class="st">"UMIs"</span><span class="op">)</span> <span class="op">|&gt;</span> <span class="fu"><a href="../reference/ReduceToRow.html">ReduceToRow</a></span><span class="op">(</span><span class="fu"><a href="../reference/Mean.html">Mean</a></span><span class="op">(</span><span class="op">)</span><span class="op">)</span><span class="op">]</span></span>
-<span><span class="fu"><a href="https://rdrr.io/r/utils/head.html" class="external-link">head</a></span><span class="op">(</span><span class="va">per_gene_mean</span><span class="op">)</span></span>
+<p>A reduction collapses one dimension. For matrices, <code>&gt;-</code>
+reduces <strong>to a row</strong> (across the column axis),
+<code>&gt;|</code> reduces <strong>to a column</strong> (across the row
+axis); the builder forms are <code><a href="../reference/ReduceToRow.html">ReduceToRow()</a></code> and
+<code><a href="../reference/ReduceToColumn.html">ReduceToColumn()</a></code>. For vectors the reduction is
+<code>&gt;&gt;</code> and yields a scalar.</p>
+<div class="sourceCode" id="cb7"><pre class="downlit sourceCode r">
+<code class="sourceCode R"><span><span class="co"># Per-gene mean UMIs (reduce across cells):</span></span>
+<span><span class="fu"><a href="https://rdrr.io/r/utils/head.html" class="external-link">head</a></span><span class="op">(</span><span class="va">d</span><span class="op">[</span><span class="st">"@ gene @ cell :: UMIs &gt;- Mean"</span><span class="op">]</span><span class="op">)</span></span>
+<span><span class="co">#&gt; demux_07_12_20_1_AACAAGATCCATTTCA-1 demux_07_12_20_1_AACGAAAGTCCAATCA-1 </span></span>
+<span><span class="co">#&gt;                            3.351391                            4.535871 </span></span>
+<span><span class="co">#&gt; demux_07_12_20_1_AAGACAAAGTTCCGTA-1 demux_07_12_20_1_AGACTCATCTATTGTC-1 </span></span>
+<span><span class="co">#&gt;                            2.411420                            4.131772 </span></span>
+<span><span class="co">#&gt; demux_07_12_20_1_AGATAGACATTCCTCG-1 demux_07_12_20_1_ATCGTAGTCCAGTGCG-1 </span></span>
+<span><span class="co">#&gt;                            2.641288                            3.929722</span></span>
+<span><span class="fu"><a href="https://rdrr.io/r/utils/head.html" class="external-link">head</a></span><span class="op">(</span><span class="va">d</span><span class="op">[</span><span class="fu"><a href="../reference/Axis.html">Axis</a></span><span class="op">(</span><span class="st">"gene"</span><span class="op">)</span> <span class="op">|&gt;</span> <span class="fu"><a href="../reference/Axis.html">Axis</a></span><span class="op">(</span><span class="st">"cell"</span><span class="op">)</span> <span class="op">|&gt;</span> <span class="fu"><a href="../reference/LookupMatrix.html">LookupMatrix</a></span><span class="op">(</span><span class="st">"UMIs"</span><span class="op">)</span> <span class="op">|&gt;</span> <span class="fu"><a href="../reference/ReduceToRow.html">ReduceToRow</a></span><span class="op">(</span><span class="fu"><a href="../reference/Mean.html">Mean</a></span><span class="op">(</span><span class="op">)</span><span class="op">)</span><span class="op">]</span><span class="op">)</span></span>
 <span><span class="co">#&gt; demux_07_12_20_1_AACAAGATCCATTTCA-1 demux_07_12_20_1_AACGAAAGTCCAATCA-1 </span></span>
 <span><span class="co">#&gt;                            3.351391                            4.535871 </span></span>
 <span><span class="co">#&gt; demux_07_12_20_1_AAGACAAAGTTCCGTA-1 demux_07_12_20_1_AGACTCATCTATTGTC-1 </span></span>
 <span><span class="co">#&gt;                            2.411420                            4.131772 </span></span>
 <span><span class="co">#&gt; demux_07_12_20_1_AGATAGACATTCCTCG-1 demux_07_12_20_1_ATCGTAGTCCAGTGCG-1 </span></span>
 <span><span class="co">#&gt;                            2.641288                            3.929722</span></span></code></pre></div>
-<p>The equivalent string form uses <code>&gt;-</code> (reduce-to-row) or
-<code>&gt;|</code> (reduce-to-column):</p>
-<div class="sourceCode" id="cb5"><pre class="downlit sourceCode r">
-<code class="sourceCode R"><span><span class="fu"><a href="https://rdrr.io/r/utils/head.html" class="external-link">head</a></span><span class="op">(</span><span class="va">d</span><span class="op">[</span><span class="st">"@ gene @ cell :: UMIs &gt;- Mean"</span><span class="op">]</span><span class="op">)</span></span>
+<div class="sourceCode" id="cb8"><pre class="downlit sourceCode r">
+<code class="sourceCode R"><span><span class="co"># Library size per cell (reduce across genes):</span></span>
+<span><span class="fu"><a href="https://rdrr.io/r/utils/head.html" class="external-link">head</a></span><span class="op">(</span><span class="va">d</span><span class="op">[</span><span class="st">"@ cell @ gene :: UMIs &gt;| Sum"</span><span class="op">]</span><span class="op">)</span></span>
 <span><span class="co">#&gt; demux_07_12_20_1_AACAAGATCCATTTCA-1 demux_07_12_20_1_AACGAAAGTCCAATCA-1 </span></span>
-<span><span class="co">#&gt;                            3.351391                            4.535871 </span></span>
+<span><span class="co">#&gt;                                2289                                3098 </span></span>
 <span><span class="co">#&gt; demux_07_12_20_1_AAGACAAAGTTCCGTA-1 demux_07_12_20_1_AGACTCATCTATTGTC-1 </span></span>
-<span><span class="co">#&gt;                            2.411420                            4.131772 </span></span>
+<span><span class="co">#&gt;                                1647                                2822 </span></span>
 <span><span class="co">#&gt; demux_07_12_20_1_AGATAGACATTCCTCG-1 demux_07_12_20_1_ATCGTAGTCCAGTGCG-1 </span></span>
-<span><span class="co">#&gt;                            2.641288                            3.929722</span></span></code></pre></div>
+<span><span class="co">#&gt;                                1804                                2684</span></span></code></pre></div>
+<div class="sourceCode" id="cb9"><pre class="downlit sourceCode r">
+<code class="sourceCode R"><span><span class="co"># Vector -&gt; scalar:</span></span>
+<span><span class="va">d</span><span class="op">[</span><span class="st">"@ donor : age &gt;&gt; Mean"</span><span class="op">]</span></span>
+<span><span class="co">#&gt; [1] 64.41053</span></span></code></pre></div>
 </div>
 <div class="section level2">
-<h2 id="comparison-mask-composition">Comparison + mask composition<a class="anchor" aria-label="anchor" href="#comparison-mask-composition"></a>
+<h2 id="groupby">GroupBy<a class="anchor" aria-label="anchor" href="#groupby"></a>
 </h2>
-<div class="sourceCode" id="cb6"><pre class="downlit sourceCode r">
-<code class="sourceCode R"><span><span class="co"># Donors older than 30 (the `age` vector lives on the `donor` axis)</span></span>
-<span><span class="va">q</span> <span class="op">&lt;-</span> <span class="fu"><a href="../reference/Axis.html">Axis</a></span><span class="op">(</span><span class="st">"donor"</span><span class="op">)</span> <span class="op">|&gt;</span> <span class="fu"><a href="../reference/BeginMask.html">BeginMask</a></span><span class="op">(</span><span class="st">"age"</span><span class="op">)</span> <span class="op">|&gt;</span> <span class="fu"><a href="../reference/IsGreater.html">IsGreater</a></span><span class="op">(</span><span class="fl">30</span><span class="op">)</span> <span class="op">|&gt;</span> <span class="fu"><a href="../reference/EndMask.html">EndMask</a></span><span class="op">(</span><span class="op">)</span></span>
-<span><span class="fu"><a href="https://rdrr.io/r/base/length.html" class="external-link">length</a></span><span class="op">(</span><span class="va">d</span><span class="op">[</span><span class="va">q</span><span class="op">]</span><span class="op">)</span></span>
-<span><span class="co">#&gt; [1] 93</span></span></code></pre></div>
+<p><code>/</code> on a vector groups by another property of the same
+length and applies a reduction per group. <code>-/</code> /
+<code>|/</code> do the same for matrix rows / columns.</p>
+<div class="sourceCode" id="cb10"><pre class="downlit sourceCode r">
+<code class="sourceCode R"><span><span class="co"># Mean donor age, split by sex:</span></span>
+<span><span class="va">d</span><span class="op">[</span><span class="st">"@ donor : age / sex &gt;&gt; Mean"</span><span class="op">]</span></span>
+<span><span class="co">#&gt;   female     male </span></span>
+<span><span class="co">#&gt; 63.19231 65.88372</span></span>
+<span><span class="va">d</span><span class="op">[</span><span class="fu"><a href="../reference/Axis.html">Axis</a></span><span class="op">(</span><span class="st">"donor"</span><span class="op">)</span> <span class="op">|&gt;</span> <span class="fu"><a href="../reference/LookupVector.html">LookupVector</a></span><span class="op">(</span><span class="st">"age"</span><span class="op">)</span> <span class="op">|&gt;</span> <span class="fu"><a href="../reference/GroupBy.html">GroupBy</a></span><span class="op">(</span><span class="st">"sex"</span>, <span class="fu"><a href="../reference/AsAxis.html">AsAxis</a></span><span class="op">(</span><span class="op">)</span><span class="op">)</span> <span class="op">|&gt;</span> <span class="fu"><a href="../reference/Mean.html">Mean</a></span><span class="op">(</span><span class="op">)</span><span class="op">]</span></span>
+<span><span class="co">#&gt;   female     male </span></span>
+<span><span class="co">#&gt; 63.19231 65.88372</span></span></code></pre></div>
+<div class="sourceCode" id="cb11"><pre class="downlit sourceCode r">
+<code class="sourceCode R"><span><span class="co"># Mean UMIs per donor, per gene (group cell rows by their donor):</span></span>
+<span><span class="va">m</span> <span class="op">&lt;-</span> <span class="va">d</span><span class="op">[</span><span class="st">"@ cell @ gene :: UMIs -/ donor &gt;- Mean"</span><span class="op">]</span></span>
+<span><span class="fu"><a href="https://rdrr.io/r/base/dim.html" class="external-link">dim</a></span><span class="op">(</span><span class="va">m</span><span class="op">)</span></span>
+<span><span class="co">#&gt; [1]  95 683</span></span>
+<span><span class="va">m</span><span class="op">[</span><span class="fl">1</span><span class="op">:</span><span class="fl">3</span>, <span class="fl">1</span><span class="op">:</span><span class="fl">3</span><span class="op">]</span></span>
+<span><span class="co">#&gt;         RPL22     PARK7      ENO1</span></span>
+<span><span class="co">#&gt; N100 6.857143 0.3571429 0.8571429</span></span>
+<span><span class="co">#&gt; N101 6.375000 0.4375000 1.1875000</span></span>
+<span><span class="co">#&gt; N102 3.857143 0.2857143 0.4285714</span></span></code></pre></div>
 </div>
 <div class="section level2">
-<h2 id="see-axis-lookupvector-isgreater-for-the-full-builder-list-">See <code>?Axis</code>, <code>?LookupVector</code>,
-<code>?IsGreater</code> for the full builder list.<a class="anchor" aria-label="anchor" href="#see-axis-lookupvector-isgreater-for-the-full-builder-list-"></a>
+<h2 id="ifmissing-safe-lookups">IfMissing: safe lookups<a class="anchor" aria-label="anchor" href="#ifmissing-safe-lookups"></a>
 </h2>
+<p><code><a href="../reference/IfMissing.html">IfMissing()</a></code> lets a vector / matrix lookup fall back to a
+default when the property doesn’t exist. Useful for queries that survive
+across dafs with slightly different schemas.</p>
+<div class="sourceCode" id="cb12"><pre class="downlit sourceCode r">
+<code class="sourceCode R"><span><span class="fu"><a href="https://rdrr.io/r/utils/head.html" class="external-link">head</a></span><span class="op">(</span><span class="va">d</span><span class="op">[</span><span class="fu"><a href="../reference/Axis.html">Axis</a></span><span class="op">(</span><span class="st">"gene"</span><span class="op">)</span> <span class="op">|&gt;</span> <span class="fu"><a href="../reference/LookupVector.html">LookupVector</a></span><span class="op">(</span><span class="st">"absent_property"</span><span class="op">)</span> <span class="op">|&gt;</span> <span class="fu"><a href="../reference/IfMissing.html">IfMissing</a></span><span class="op">(</span><span class="op">-</span><span class="fl">1</span><span class="op">)</span><span class="op">]</span><span class="op">)</span></span>
+<span><span class="co">#&gt;  RPL22  PARK7   ENO1  PRDM2 HP1BP3  CDC42 </span></span>
+<span><span class="co">#&gt;     -1     -1     -1     -1     -1     -1</span></span></code></pre></div>
+</div>
+<div class="section level2">
+<h2 id="tips">Tips<a class="anchor" aria-label="anchor" href="#tips"></a>
+</h2>
+<ul>
+<li>Use <code>parse_query(s)</code> to see the operator list a string
+compiles to; this is the easiest way to learn the grammar by
+analogy.</li>
+<li>Builder fragments are ordinary R objects: store them in variables,
+build them in loops, pass them around. The expression
+<code>Axis("cell") |&gt; LookupVector("donor")</code> is a
+<code>DafrQuery</code> you can index with later.</li>
+<li>
+<code><a href="../reference/Axis.html">?Axis</a></code>, <code><a href="../reference/LookupVector.html">?LookupVector</a></code>, <code><a href="../reference/Mean.html">?Mean</a></code>,
+<code><a href="../reference/GroupBy.html">?GroupBy</a></code> (etc.) have the full per-operator detail; the
+reference grouping is also in the pkgdown “Query builders” section.</li>
+</ul>
 </div>
   </main><aside class="col-md-3"><nav id="toc" aria-label="Table of contents"><h2>On this page</h2>
     </nav></aside>

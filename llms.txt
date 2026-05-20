@@ -9,7 +9,7 @@ vectors, per-axis-pair matrices, disk-backed persistence, and a
 composable query DSL.
 
 This package is a pure R + C++ port of the Julia reference
-implementation — **no Julia install is required**.
+implementation - **no Julia install is required**.
 
 ## Installation
 
@@ -26,7 +26,7 @@ This package has no Julia dependency. It is pure R + C++.
 
 ## Native advantages
 
-- No Julia install required — pure R + C++ (no JuliaCall copy tax).
+- No Julia install required - pure R + C++ (no JuliaCall copy tax).
 - Mmap-backed reads via `mmap_dgCMatrix` / `mmap_int` / `mmap_lgl` /
   `mmap_real`.
 - OpenMP-parallel kernels for Sum / Mean / Var / Mode / Quantile /
@@ -108,26 +108,30 @@ daf["@ cell : ?"]
 
 # Vector data
 daf["@ cell : age"]
-#> [1] 10 50 70
+#>  A  B  C 
+#> 10 50 70
 
 # Matrix data
 daf["@ cell @ gene :: counts"]
-#>      [,1] [,2] [,3]
-#> [1,]    1    4    7
-#> [2,]    2    5    8
-#> [3,]    3    6    9
+#>   X Y Z
+#> A 1 4 7
+#> B 2 5 8
+#> C 3 6 9
 
 # Filter axis by property
 daf["@ cell [ age > 20 ]"]
-#> [1] "B" "C"
+#>   B   C 
+#> "B" "C"
 
 # Transform with eltwise op
 daf["@ cell : age % Abs"]
-#> [1] 10 50 70
+#>  A  B  C 
+#> 10 50 70
 
 # Pipe-chain builder form
 daf[Axis("cell") |> LookupVector("age")]
-#> [1] 10 50 70
+#>  A  B  C 
+#> 10 50 70
 
 # Composed builder: mask + vector lookup
 daf[
@@ -136,7 +140,8 @@ daf[
         IsGreater(20) |>
         EndMask()
 ]
-#> [1] "B" "C"
+#>   B   C 
+#> "B" "C"
 ```
 
 The query syntax follows a simple pattern:
@@ -149,10 +154,11 @@ The query syntax follows a simple pattern:
 - `>> reduction` applies a reduction operation
 - `[ property comparison value ]` filters by a property
 
-See the upstream Julia
-[documentation](https://tanaylab.github.io/DataAxesFormats.jl/v0.2.0/queries.html)
-for the full query language reference — the native parser is
-semantically equivalent.
+See
+[`vignette("queries", package = "dafr")`](https://tanaylab.github.io/dafr/articles/queries.md)
+for the practical tour and
+`vignette("query-dsl-reference", package = "dafr")` for the full
+operator grammar.
 
 ## AnnData interop
 
@@ -240,12 +246,24 @@ tbl(d, "cell") |>
 
 Supported verbs: `filter`, `select`, `mutate`, `arrange`, `summarise`,
 `group_by` / `ungroup`, `distinct`, `pull`, `collect`, `as_tibble`,
-`count` / `tally` / `add_count` / `add_tally`.
+`rename` / `relocate`, `transmute`, `reframe`, `slice` and the
+`slice_head` / `slice_tail` / `slice_min` / `slice_max` / `slice_sample`
+family, `count` / `tally` / `add_count` / `add_tally`. Inside
+[`mutate()`](https://dplyr.tidyverse.org/reference/mutate.html) /
+[`summarise()`](https://dplyr.tidyverse.org/reference/summarise.html):
+window functions (`lag`, `lead`, `cumsum`, `row_number`, rank family),
+scalar helpers (`if_else`, `case_when`, `coalesce`, `n_distinct`,
+`first` / `last` / `nth`), `across(where(...), ...)`, and tidyselect
+helpers in
+[`select()`](https://dplyr.tidyverse.org/reference/select.html). `.by =`
+(dplyr 1.1+) works on `filter` / `mutate` / `summarise`. See
+[`vignette("dplyr", package = "dafr")`](https://tanaylab.github.io/dafr/articles/dplyr.md)
+for details.
 
 When a grouping variable names another axis already in the daf,
 [`summarise()`](https://dplyr.tidyverse.org/reference/summarise.html)
 and [`count()`](https://dplyr.tidyverse.org/reference/count.html)
-**auto-tie-back** to a lazy `daf_axis_tbl` on that axis — so the
+**auto-tie-back** to a lazy `daf_axis_tbl` on that axis - so the
 pipeline can continue. Axis entries then appear in the `name` column
 (the convention for the axis-identity column). Example:
 
@@ -271,15 +289,18 @@ updated <- tbl(d, "cell") |>
 dplyr::compute(updated, vectors = "donor_upper")
 ```
 
-Matrices are out of scope — use the native query DSL for those.
+Matrices are out of scope - use the native query DSL for those.
 
 ## Key Features
 
 - Full Daf data model: scalars, per-axis vectors, per-axis-pair
   matrices.
-- In-memory (`memory_daf`) and on-disk (`files_daf`) stores.
+- Storage backends: `memory_daf` (in-memory), `files_daf`
+  (one-file-per-property + mmap reads), `zarr_daf` (directory or
+  single-file `.daf.zarr.zip`, Zarr v2 layout readable by
+  `zarr-python`), `http_daf` (read-only over HTTP).
 - Zero-copy mmap-backed reads for vectors and sparse matrices on
-  read-only `FilesDaf`.
+  read-only `FilesDaf` and `MmapZipStore`-backed `ZarrDaf`.
 - OpenMP-parallel reduction kernels (Sum, Mean, Var, Mode, Quantile,
   GeoMean).
 - Views and adapters for zero-copy subsetting / renaming.
@@ -288,14 +309,19 @@ Matrices are out of scope — use the native query DSL for those.
 - Explicit support for grouped axes and group helpers.
 - Query DSL (string form + pipe-chain builders) with user-extensible ops
   (`register_eltwise`, `register_reduction`).
-- AnnData (`h5ad`) import / export.
+- AnnData (`h5ad`) import / export, plus a read-only `AnnData`-shaped
+  facade (`as_anndata`).
+- dplyr backend for per-axis tibbles.
 - Control over data layout and support for both dense and sparse
   matrices.
 
 ## Status
 
-First public release: `0.1.0`. See `NEWS.md` for headline features and
-known gaps. Comments, bug reports, and PRs are welcome.
+Pre-CRAN, lifecycle: **experimental**. The data model and on-disk
+formats are stable and cross-checked against `DataAxesFormats.jl` and
+`zarr-python`; the R API may still see breaking refinements before the
+first CRAN release. See `NEWS.md` for release notes. Comments, bug
+reports, and PRs are welcome.
 
 ## Roadmap
 

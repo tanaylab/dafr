@@ -1,5 +1,40 @@
 # Changelog
 
+## dafr (development version)
+
+### Documentation pass
+
+- Rewrote
+  [`vignette("queries")`](https://tanaylab.github.io/dafr/articles/queries.md)
+  to cover element-wise transforms, compound masks (string + builder),
+  reductions to row / column / scalar, `GroupBy` on vectors and
+  matrices, and `IfMissing` fallbacks. Previously the vignette only
+  demonstrated trivial lookups.
+- Expanded
+  [`vignette("dafr")`](https://tanaylab.github.io/dafr/articles/dafr.md)
+  (Getting Started) with
+  [`description()`](https://tanaylab.github.io/dafr/reference/description.md),
+  a `dplyr` backend demo, a working `files_daf` round-trip, and explicit
+  vignette pointers for chains / views / contracts / computations.
+- Fixed stale “Limitations (0.1.0)” block in
+  [`vignette("anndata")`](https://tanaylab.github.io/dafr/articles/anndata.md).
+  Sparse CSR / CSC, categorical columns, dense layers, and `obsm` /
+  `varm` matrices have all been supported since 0.2.x; the vignette now
+  lists the actual current gaps (`obsp`, `varp`, `raw`, sparse layer /
+  obsm / varm entries).
+- `README`: dropped the “First public release: 0.1.0” status line, added
+  Zarr and HTTP backends to Key Features, expanded the dplyr verb list,
+  and pointed the DSL link at our own `vignette("query-dsl-reference")`
+  instead of the Julia upstream page.
+
+### Fixed (docs only)
+
+- [`vignette("dafr")`](https://tanaylab.github.io/dafr/articles/dafr.md)
+  persistence example called `copy_all(d, fd)` with destination and
+  source swapped. The example was gated under `eval = FALSE` so the bug
+  was invisible until the chunk was set to evaluate. Package code was
+  correct; only the vignette was affected.
+
 ## dafr 0.2.8.1
 
 ### CI: fix stale `Round` test expectation (`test-operations-registry.R:117`)

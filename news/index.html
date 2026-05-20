@@ -42,9 +42,25 @@
   <main id="main" class="col-md-9"><div class="page-header">
 
       <h1>Changelog</h1>
-      <small>Source: <a href="https://github.com/tanaylab/dafr/blob/v0.2.8.1/NEWS.md" class="external-link"><code>NEWS.md</code></a></small>
+      <small>Source: <a href="https://github.com/tanaylab/dafr/blob/main/NEWS.md" class="external-link"><code>NEWS.md</code></a></small>
     </div>
 
+    <div class="section level2">
+<h2 class="pkg-version" data-toc-text="development version" id="dafr-development-version">dafr (development version)<a class="anchor" aria-label="anchor" href="#dafr-development-version"></a></h2>
+<div class="section level3">
+<h3 id="documentation-pass-development-version">Documentation pass<a class="anchor" aria-label="anchor" href="#documentation-pass-development-version"></a></h3>
+<ul><li>Rewrote <code><a href="../articles/queries.html">vignette("queries")</a></code> to cover element-wise transforms, compound masks (string + builder), reductions to row / column / scalar, <code>GroupBy</code> on vectors and matrices, and <code>IfMissing</code> fallbacks. Previously the vignette only demonstrated trivial lookups.</li>
+<li>Expanded <code><a href="../articles/dafr.html">vignette("dafr")</a></code> (Getting Started) with <code><a href="../reference/description.html">description()</a></code>, a <code>dplyr</code> backend demo, a working <code>files_daf</code> round-trip, and explicit vignette pointers for chains / views / contracts / computations.</li>
+<li>Fixed stale “Limitations (0.1.0)” block in <code><a href="../articles/anndata.html">vignette("anndata")</a></code>. Sparse CSR / CSC, categorical columns, dense layers, and <code>obsm</code> / <code>varm</code> matrices have all been supported since 0.2.x; the vignette now lists the actual current gaps (<code>obsp</code>, <code>varp</code>, <code>raw</code>, sparse layer / obsm / varm entries).</li>
+<li>
+<code>README</code>: dropped the “First public release: 0.1.0” status line, added Zarr and HTTP backends to Key Features, expanded the dplyr verb list, and pointed the DSL link at our own <code>vignette("query-dsl-reference")</code> instead of the Julia upstream page.</li>
+</ul></div>
+<div class="section level3">
+<h3 id="fixed-docs-only-development-version">Fixed (docs only)<a class="anchor" aria-label="anchor" href="#fixed-docs-only-development-version"></a></h3>
+<ul><li>
+<code><a href="../articles/dafr.html">vignette("dafr")</a></code> persistence example called <code>copy_all(d, fd)</code> with destination and source swapped. The example was gated under <code>eval = FALSE</code> so the bug was invisible until the chunk was set to evaluate. Package code was correct; only the vignette was affected.</li>
+</ul></div>
+</div>
     <div class="section level2">
 <h2 class="pkg-version" data-toc-text="0.2.8.1" id="dafr-0281">dafr 0.2.8.1<a class="anchor" aria-label="anchor" href="#dafr-0281"></a></h2>
 <div class="section level3">

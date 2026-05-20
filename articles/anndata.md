@@ -56,10 +56,32 @@ if (file.exists(fixture) && requireNamespace("hdf5r", quietly = TRUE)) {
 #> n_vars: 20
 ```
 
-## Limitations (0.1.0)
+## What the h5ad readers translate
 
-- Sparse matrix h5ad encoding (`csr_matrix` / `csc_matrix`) not yet
-  translated; read path warns and skips.
-- Categorical (factor) columns skipped on read.
-- Nested `uns` groups skipped.
-- `varm` / `obsm` / `obsp` / `varp` / `raw` not translated.
+[`h5ad_as_daf()`](https://tanaylab.github.io/dafr/reference/h5ad_as_daf.md)
+(and
+[`daf_as_h5ad()`](https://tanaylab.github.io/dafr/reference/daf_as_h5ad.md)
+in the other direction) cover:
+
+- `/X` dense and sparse (`csr_matrix`, `csc_matrix`) - sparse is
+  round-tripped via
+  [`Matrix::sparseMatrix`](https://rdrr.io/pkg/Matrix/man/sparseMatrix.html).
+- `/obs` and `/var` columns: plain datasets and `categorical` groups
+  (read as `factor`, ordered or not).
+- `/layers` - dense layers become extra `obs x var` matrices keyed by
+  the layer name.
+- `/obsm` and `/varm` dense matrices - each is placed on a synthetic
+  axis named `obsm_<name>_dim` / `varm_<name>_dim`.
+- `/uns` scalars (flat and nested; nested keys are flattened with `_`).
+
+Things still NOT translated (escalated via `unsupported_handler`,
+default `WARN_HANDLER`, then skipped):
+
+- `/obsp` and `/varp` (square per-pair matrices on obs/var).
+- `/raw` (the legacy raw counts slot).
+- Sparse layers / `obsm` / `varm` entries; only dense forms are read.
+- Group-valued obs/var columns other than `categorical`.
+
+If a strict round-trip matters, pass
+`unsupported_handler = ERROR_HANDLER` so unhandled entries hard-fail
+instead of being dropped silently.

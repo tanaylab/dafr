@@ -68,7 +68,7 @@
       <h1>AnnData interop</h1>
             
       
-      <small class="dont-index">Source: <a href="https://github.com/tanaylab/dafr/blob/v0.2.8.1/vignettes/anndata.Rmd" class="external-link"><code>vignettes/anndata.Rmd</code></a></small>
+      <small class="dont-index">Source: <a href="https://github.com/tanaylab/dafr/blob/main/vignettes/anndata.Rmd" class="external-link"><code>vignettes/anndata.Rmd</code></a></small>
       <div class="d-none name"><code>anndata.Rmd</code></div>
     </div>
 
@@ -127,18 +127,47 @@ modify data, write to the underlying Daf:
 <span><span class="co">#&gt; n_vars: 20</span></span></code></pre></div>
 </div>
 <div class="section level2">
-<h2 id="limitations-0-1-0">Limitations (0.1.0)<a class="anchor" aria-label="anchor" href="#limitations-0-1-0"></a>
+<h2 id="what-the-h5ad-readers-translate">What the h5ad readers translate<a class="anchor" aria-label="anchor" href="#what-the-h5ad-readers-translate"></a>
 </h2>
+<p><code><a href="../reference/h5ad_as_daf.html">h5ad_as_daf()</a></code> (and <code><a href="../reference/daf_as_h5ad.html">daf_as_h5ad()</a></code> in the
+other direction) cover:</p>
 <ul>
-<li>Sparse matrix h5ad encoding (<code>csr_matrix</code> /
-<code>csc_matrix</code>) not yet translated; read path warns and
-skips.</li>
-<li>Categorical (factor) columns skipped on read.</li>
-<li>Nested <code>uns</code> groups skipped.</li>
 <li>
-<code>varm</code> / <code>obsm</code> / <code>obsp</code> /
-<code>varp</code> / <code>raw</code> not translated.</li>
+<code>/X</code> dense and sparse (<code>csr_matrix</code>,
+<code>csc_matrix</code>) - sparse is round-tripped via
+<code><a href="https://rdrr.io/pkg/Matrix/man/sparseMatrix.html" class="external-link">Matrix::sparseMatrix</a></code>.</li>
+<li>
+<code>/obs</code> and <code>/var</code> columns: plain datasets and
+<code>categorical</code> groups (read as <code>factor</code>, ordered or
+not).</li>
+<li>
+<code>/layers</code> - dense layers become extra
+<code>obs x var</code> matrices keyed by the layer name.</li>
+<li>
+<code>/obsm</code> and <code>/varm</code> dense matrices - each is
+placed on a synthetic axis named <code>obsm_&lt;name&gt;_dim</code> /
+<code>varm_&lt;name&gt;_dim</code>.</li>
+<li>
+<code>/uns</code> scalars (flat and nested; nested keys are
+flattened with <code>_</code>).</li>
 </ul>
+<p>Things still NOT translated (escalated via
+<code>unsupported_handler</code>, default <code>WARN_HANDLER</code>,
+then skipped):</p>
+<ul>
+<li>
+<code>/obsp</code> and <code>/varp</code> (square per-pair matrices
+on obs/var).</li>
+<li>
+<code>/raw</code> (the legacy raw counts slot).</li>
+<li>Sparse layers / <code>obsm</code> / <code>varm</code> entries; only
+dense forms are read.</li>
+<li>Group-valued obs/var columns other than
+<code>categorical</code>.</li>
+</ul>
+<p>If a strict round-trip matters, pass
+<code>unsupported_handler = ERROR_HANDLER</code> so unhandled entries
+hard-fail instead of being dropped silently.</p>
 </div>
   </main><aside class="col-md-3"><nav id="toc" aria-label="Table of contents"><h2>On this page</h2>
     </nav></aside>

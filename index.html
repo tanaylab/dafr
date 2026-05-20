@@ -67,7 +67,7 @@
 <!-- badges: start -->
 
 <p><code>dafr</code> is a native R + C++ implementation of the <a href="https://github.com/tanaylab/DataAxesFormats.jl" class="external-link">DataAxesFormats</a> (DAF) data model: a uniform, self-describing container for 1D and 2D data arranged along a set of named axes. Think of it as a generalisation of <a href="https://github.com/scverse/anndata" class="external-link">AnnData</a> with scalars, per-axis vectors, per-axis-pair matrices, disk-backed persistence, and a composable query DSL.</p>
-<p>This package is a pure R + C++ port of the Julia reference implementation — <strong>no Julia install is required</strong>.</p>
+<p>This package is a pure R + C++ port of the Julia reference implementation - <strong>no Julia install is required</strong>.</p>
 <div class="section level2">
 <h2 id="installation">Installation<a class="anchor" aria-label="anchor" href="#installation"></a>
 </h2>
@@ -83,7 +83,7 @@
 <h2 id="native-advantages">Native advantages<a class="anchor" aria-label="anchor" href="#native-advantages"></a>
 </h2>
 <ul>
-<li>No Julia install required — pure R + C++ (no JuliaCall copy tax).</li>
+<li>No Julia install required - pure R + C++ (no JuliaCall copy tax).</li>
 <li>Mmap-backed reads via <code>mmap_dgCMatrix</code> / <code>mmap_int</code> / <code>mmap_lgl</code> / <code>mmap_real</code>.</li>
 <li>OpenMP-parallel kernels for Sum / Mean / Var / Mode / Quantile / GeoMean.</li>
 <li>
@@ -160,26 +160,30 @@
 <span></span>
 <span><span class="co"># Vector data</span></span>
 <span><span class="va">daf</span><span class="op">[</span><span class="st">"@ cell : age"</span><span class="op">]</span></span>
-<span><span class="co">#&gt; [1] 10 50 70</span></span>
+<span><span class="co">#&gt;  A  B  C </span></span>
+<span><span class="co">#&gt; 10 50 70</span></span>
 <span></span>
 <span><span class="co"># Matrix data</span></span>
 <span><span class="va">daf</span><span class="op">[</span><span class="st">"@ cell @ gene :: counts"</span><span class="op">]</span></span>
-<span><span class="co">#&gt;      [,1] [,2] [,3]</span></span>
-<span><span class="co">#&gt; [1,]    1    4    7</span></span>
-<span><span class="co">#&gt; [2,]    2    5    8</span></span>
-<span><span class="co">#&gt; [3,]    3    6    9</span></span>
+<span><span class="co">#&gt;   X Y Z</span></span>
+<span><span class="co">#&gt; A 1 4 7</span></span>
+<span><span class="co">#&gt; B 2 5 8</span></span>
+<span><span class="co">#&gt; C 3 6 9</span></span>
 <span></span>
 <span><span class="co"># Filter axis by property</span></span>
 <span><span class="va">daf</span><span class="op">[</span><span class="st">"@ cell [ age &gt; 20 ]"</span><span class="op">]</span></span>
-<span><span class="co">#&gt; [1] "B" "C"</span></span>
+<span><span class="co">#&gt;   B   C </span></span>
+<span><span class="co">#&gt; "B" "C"</span></span>
 <span></span>
 <span><span class="co"># Transform with eltwise op</span></span>
 <span><span class="va">daf</span><span class="op">[</span><span class="st">"@ cell : age % Abs"</span><span class="op">]</span></span>
-<span><span class="co">#&gt; [1] 10 50 70</span></span>
+<span><span class="co">#&gt;  A  B  C </span></span>
+<span><span class="co">#&gt; 10 50 70</span></span>
 <span></span>
 <span><span class="co"># Pipe-chain builder form</span></span>
 <span><span class="va">daf</span><span class="op">[</span><span class="fu"><a href="reference/Axis.html">Axis</a></span><span class="op">(</span><span class="st">"cell"</span><span class="op">)</span> <span class="op">|&gt;</span> <span class="fu"><a href="reference/LookupVector.html">LookupVector</a></span><span class="op">(</span><span class="st">"age"</span><span class="op">)</span><span class="op">]</span></span>
-<span><span class="co">#&gt; [1] 10 50 70</span></span>
+<span><span class="co">#&gt;  A  B  C </span></span>
+<span><span class="co">#&gt; 10 50 70</span></span>
 <span></span>
 <span><span class="co"># Composed builder: mask + vector lookup</span></span>
 <span><span class="va">daf</span><span class="op">[</span></span>
@@ -188,7 +192,8 @@
 <span>        <span class="fu"><a href="reference/IsGreater.html">IsGreater</a></span><span class="op">(</span><span class="fl">20</span><span class="op">)</span> <span class="op">|&gt;</span></span>
 <span>        <span class="fu"><a href="reference/EndMask.html">EndMask</a></span><span class="op">(</span><span class="op">)</span></span>
 <span><span class="op">]</span></span>
-<span><span class="co">#&gt; [1] "B" "C"</span></span></code></pre></div>
+<span><span class="co">#&gt;   B   C </span></span>
+<span><span class="co">#&gt; "B" "C"</span></span></code></pre></div>
 <p>The query syntax follows a simple pattern:</p>
 <ul>
 <li>
@@ -206,7 +211,7 @@
 <li>
 <code>[ property comparison value ]</code> filters by a property</li>
 </ul>
-<p>See the upstream Julia <a href="https://tanaylab.github.io/DataAxesFormats.jl/v0.2.0/queries.html" class="external-link">documentation</a> for the full query language reference — the native parser is semantically equivalent.</p>
+<p>See <code><a href="articles/queries.html">vignette("queries", package = "dafr")</a></code> for the practical tour and <code>vignette("query-dsl-reference", package = "dafr")</code> for the full operator grammar.</p>
 </div>
 <div class="section level2">
 <h2 id="anndata-interop">AnnData interop<a class="anchor" aria-label="anchor" href="#anndata-interop"></a>
@@ -275,8 +280,8 @@
 <span><span class="co">#&gt; 4 demux_22_02_21_2 47</span></span>
 <span><span class="co">#&gt; 5 demux_01_03_21_1 45</span></span>
 <span><span class="co">#&gt; 6 demux_07_12_20_2 42</span></span></code></pre></div>
-<p>Supported verbs: <code>filter</code>, <code>select</code>, <code>mutate</code>, <code>arrange</code>, <code>summarise</code>, <code>group_by</code> / <code>ungroup</code>, <code>distinct</code>, <code>pull</code>, <code>collect</code>, <code>as_tibble</code>, <code>count</code> / <code>tally</code> / <code>add_count</code> / <code>add_tally</code>.</p>
-<p>When a grouping variable names another axis already in the daf, <code><a href="https://dplyr.tidyverse.org/reference/summarise.html" class="external-link">summarise()</a></code> and <code><a href="https://dplyr.tidyverse.org/reference/count.html" class="external-link">count()</a></code> <strong>auto-tie-back</strong> to a lazy <code>daf_axis_tbl</code> on that axis — so the pipeline can continue. Axis entries then appear in the <code>name</code> column (the convention for the axis-identity column). Example:</p>
+<p>Supported verbs: <code>filter</code>, <code>select</code>, <code>mutate</code>, <code>arrange</code>, <code>summarise</code>, <code>group_by</code> / <code>ungroup</code>, <code>distinct</code>, <code>pull</code>, <code>collect</code>, <code>as_tibble</code>, <code>rename</code> / <code>relocate</code>, <code>transmute</code>, <code>reframe</code>, <code>slice</code> and the <code>slice_head</code> / <code>slice_tail</code> / <code>slice_min</code> / <code>slice_max</code> / <code>slice_sample</code> family, <code>count</code> / <code>tally</code> / <code>add_count</code> / <code>add_tally</code>. Inside <code><a href="https://dplyr.tidyverse.org/reference/mutate.html" class="external-link">mutate()</a></code> / <code><a href="https://dplyr.tidyverse.org/reference/summarise.html" class="external-link">summarise()</a></code>: window functions (<code>lag</code>, <code>lead</code>, <code>cumsum</code>, <code>row_number</code>, rank family), scalar helpers (<code>if_else</code>, <code>case_when</code>, <code>coalesce</code>, <code>n_distinct</code>, <code>first</code> / <code>last</code> / <code>nth</code>), <code>across(where(...), ...)</code>, and tidyselect helpers in <code><a href="https://dplyr.tidyverse.org/reference/select.html" class="external-link">select()</a></code>. <code>.by =</code> (dplyr 1.1+) works on <code>filter</code> / <code>mutate</code> / <code>summarise</code>. See <code><a href="articles/dplyr.html">vignette("dplyr", package = "dafr")</a></code> for details.</p>
+<p>When a grouping variable names another axis already in the daf, <code><a href="https://dplyr.tidyverse.org/reference/summarise.html" class="external-link">summarise()</a></code> and <code><a href="https://dplyr.tidyverse.org/reference/count.html" class="external-link">count()</a></code> <strong>auto-tie-back</strong> to a lazy <code>daf_axis_tbl</code> on that axis - so the pipeline can continue. Axis entries then appear in the <code>name</code> column (the convention for the axis-identity column). Example:</p>
 <div class="sourceCode" id="cb7"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span><span class="co"># `donor` is an axis of example_cells_daf(); count() re-anchors onto it.</span></span>
 <span><span class="fu"><a href="https://dplyr.tidyverse.org/reference/tbl.html" class="external-link">tbl</a></span><span class="op">(</span><span class="va">d</span>, <span class="st">"cell"</span><span class="op">)</span> <span class="op">|&gt;</span></span>
@@ -291,29 +296,30 @@
 <span></span>
 <span><span class="co"># ...materialise the new vector on the underlying daf:</span></span>
 <span><span class="fu">dplyr</span><span class="fu">::</span><span class="fu"><a href="https://dplyr.tidyverse.org/reference/compute.html" class="external-link">compute</a></span><span class="op">(</span><span class="va">updated</span>, vectors <span class="op">=</span> <span class="st">"donor_upper"</span><span class="op">)</span></span></code></pre></div>
-<p>Matrices are out of scope — use the native query DSL for those.</p>
+<p>Matrices are out of scope - use the native query DSL for those.</p>
 </div>
 <div class="section level2">
 <h2 id="key-features">Key Features<a class="anchor" aria-label="anchor" href="#key-features"></a>
 </h2>
 <ul>
 <li>Full Daf data model: scalars, per-axis vectors, per-axis-pair matrices.</li>
-<li>In-memory (<code>memory_daf</code>) and on-disk (<code>files_daf</code>) stores.</li>
-<li>Zero-copy mmap-backed reads for vectors and sparse matrices on read-only <code>FilesDaf</code>.</li>
+<li>Storage backends: <code>memory_daf</code> (in-memory), <code>files_daf</code> (one-file-per-property + mmap reads), <code>zarr_daf</code> (directory or single-file <code>.daf.zarr.zip</code>, Zarr v2 layout readable by <code>zarr-python</code>), <code>http_daf</code> (read-only over HTTP).</li>
+<li>Zero-copy mmap-backed reads for vectors and sparse matrices on read-only <code>FilesDaf</code> and <code>MmapZipStore</code>-backed <code>ZarrDaf</code>.</li>
 <li>OpenMP-parallel reduction kernels (Sum, Mean, Var, Mode, Quantile, GeoMean).</li>
 <li>Views and adapters for zero-copy subsetting / renaming.</li>
 <li>Chaining repositories for efficient overlay / reuse of data.</li>
 <li>Contracts for explicit computation input / output validation.</li>
 <li>Explicit support for grouped axes and group helpers.</li>
 <li>Query DSL (string form + pipe-chain builders) with user-extensible ops (<code>register_eltwise</code>, <code>register_reduction</code>).</li>
-<li>AnnData (<code>h5ad</code>) import / export.</li>
+<li>AnnData (<code>h5ad</code>) import / export, plus a read-only <code>AnnData</code>-shaped facade (<code>as_anndata</code>).</li>
+<li>dplyr backend for per-axis tibbles.</li>
 <li>Control over data layout and support for both dense and sparse matrices.</li>
 </ul>
 </div>
 <div class="section level2">
 <h2 id="status">Status<a class="anchor" aria-label="anchor" href="#status"></a>
 </h2>
-<p>First public release: <code>0.1.0</code>. See <code>NEWS.md</code> for headline features and known gaps. Comments, bug reports, and PRs are welcome.</p>
+<p>Pre-CRAN, lifecycle: <strong>experimental</strong>. The data model and on-disk formats are stable and cross-checked against <code>DataAxesFormats.jl</code> and <code>zarr-python</code>; the R API may still see breaking refinements before the first CRAN release. See <code>NEWS.md</code> for release notes. Comments, bug reports, and PRs are welcome.</p>
 </div>
 <div class="section level2">
 <h2 id="roadmap">Roadmap<a class="anchor" aria-label="anchor" href="#roadmap"></a>

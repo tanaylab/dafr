@@ -68,7 +68,7 @@
       <h1>Getting Started with dafr</h1>
             
       
-      <small class="dont-index">Source: <a href="https://github.com/tanaylab/dafr/blob/v0.2.8.1/vignettes/dafr.Rmd" class="external-link"><code>vignettes/dafr.Rmd</code></a></small>
+      <small class="dont-index">Source: <a href="https://github.com/tanaylab/dafr/blob/main/vignettes/dafr.Rmd" class="external-link"><code>vignettes/dafr.Rmd</code></a></small>
       <div class="d-none name"><code>dafr.Rmd</code></div>
     </div>
 
@@ -77,13 +77,28 @@
 <div class="section level2">
 <h2 id="what-is-a-daf">What is a Daf?<a class="anchor" aria-label="anchor" href="#what-is-a-daf"></a>
 </h2>
-<p>A Daf (Data Axes Format) is a multi-axis container for biological /
-scientific data. Think of it as a typed dictionary of scalars, per-axis
-vectors, and per-axis-pair matrices, with cache invalidation and lazy
-mmap-backed reads.</p>
+<p>A <strong>Daf</strong> (Data Axes Format) is a typed, multi-axis
+container for scientific data. Each daf holds:</p>
+<ul>
+<li>
+<strong>Axes</strong> - named lists of entries
+(e.g. <code>cell</code>, <code>gene</code>, <code>donor</code>).</li>
+<li>
+<strong>Scalars</strong> - single values
+(e.g. <code>organism = "human"</code>).</li>
+<li>
+<strong>Vectors</strong> - one value per entry on a chosen
+axis.</li>
+<li>
+<strong>Matrices</strong> - one value per pair of entries on two
+chosen axes.</li>
+</ul>
+<p>Think of it as AnnData generalised to any number of axes, with typed
+scalars, on-disk persistence in several formats, and a query DSL for
+composing reads.</p>
 </div>
 <div class="section level2">
-<h2 id="create-a-daf">Create a Daf<a class="anchor" aria-label="anchor" href="#create-a-daf"></a>
+<h2 id="build-a-daf-in-memory">Build a daf in memory<a class="anchor" aria-label="anchor" href="#build-a-daf-in-memory"></a>
 </h2>
 <div class="sourceCode" id="cb1"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span><span class="va">d</span> <span class="op">&lt;-</span> <span class="fu"><a href="../reference/memory_daf.html">memory_daf</a></span><span class="op">(</span>name <span class="op">=</span> <span class="st">"demo"</span><span class="op">)</span></span>
@@ -96,16 +111,34 @@ mmap-backed reads.</p>
 <span><span class="fu"><a href="https://rdrr.io/r/base/print.html" class="external-link">print</a></span><span class="op">(</span><span class="va">d</span><span class="op">)</span></span>
 <span><span class="co">#&gt; &lt;dafr::MemoryDaf&gt;</span></span>
 <span><span class="co">#&gt;  @ name                  : chr "demo"</span></span>
-<span><span class="co">#&gt;  @ internal              :&lt;environment: 0x564e3e7acec8&gt; </span></span>
-<span><span class="co">#&gt;  @ cache                 :&lt;environment: 0x564e3e7c7f78&gt; </span></span>
-<span><span class="co">#&gt;  @ axis_version_counter  :&lt;environment: 0x564e3e7ce330&gt; </span></span>
-<span><span class="co">#&gt;  @ vector_version_counter:&lt;environment: 0x564e3e7ce058&gt; </span></span>
-<span><span class="co">#&gt;  @ matrix_version_counter:&lt;environment: 0x564e3e7cdd80&gt;</span></span></code></pre></div>
+<span><span class="co">#&gt;  @ internal              :&lt;environment: 0x55dbd07c3a58&gt; </span></span>
+<span><span class="co">#&gt;  @ cache                 :&lt;environment: 0x55dbd07deb08&gt; </span></span>
+<span><span class="co">#&gt;  @ axis_version_counter  :&lt;environment: 0x55dbd07e2fa0&gt; </span></span>
+<span><span class="co">#&gt;  @ vector_version_counter:&lt;environment: 0x55dbd07e2cc8&gt; </span></span>
+<span><span class="co">#&gt;  @ matrix_version_counter:&lt;environment: 0x55dbd07e29f0&gt;</span></span></code></pre></div>
+<p><code>description(d)</code> produces a more detailed dump of axes,
+vectors, matrices, and scalars, useful for inspecting unfamiliar
+dafs:</p>
+<div class="sourceCode" id="cb2"><pre class="downlit sourceCode r">
+<code class="sourceCode R"><span><span class="fu"><a href="https://rdrr.io/r/base/cat.html" class="external-link">cat</a></span><span class="op">(</span><span class="fu"><a href="../reference/description.html">description</a></span><span class="op">(</span><span class="va">d</span><span class="op">)</span><span class="op">)</span></span>
+<span><span class="co">#&gt; name: demo</span></span>
+<span><span class="co">#&gt; type: MemoryDaf</span></span>
+<span><span class="co">#&gt; scalars:</span></span>
+<span><span class="co">#&gt;   organism: "human"</span></span>
+<span><span class="co">#&gt; axes:</span></span>
+<span><span class="co">#&gt;   cell: 3 entries</span></span>
+<span><span class="co">#&gt;   gene: 2 entries</span></span>
+<span><span class="co">#&gt; vectors:</span></span>
+<span><span class="co">#&gt;   cell:</span></span>
+<span><span class="co">#&gt;     donor</span></span>
+<span><span class="co">#&gt; matrices:</span></span>
+<span><span class="co">#&gt;   cell,gene:</span></span>
+<span><span class="co">#&gt;     UMIs</span></span></code></pre></div>
 </div>
 <div class="section level2">
-<h2 id="reading-data">Reading data<a class="anchor" aria-label="anchor" href="#reading-data"></a>
+<h2 id="read-data-back">Read data back<a class="anchor" aria-label="anchor" href="#read-data-back"></a>
 </h2>
-<div class="sourceCode" id="cb2"><pre class="downlit sourceCode r">
+<div class="sourceCode" id="cb3"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span><span class="fu"><a href="../reference/get_scalar.html">get_scalar</a></span><span class="op">(</span><span class="va">d</span>, <span class="st">"organism"</span><span class="op">)</span></span>
 <span><span class="co">#&gt; [1] "human"</span></span>
 <span><span class="fu"><a href="../reference/get_vector.html">get_vector</a></span><span class="op">(</span><span class="va">d</span>, <span class="st">"cell"</span>, <span class="st">"donor"</span><span class="op">)</span></span>
@@ -116,45 +149,120 @@ mmap-backed reads.</p>
 <span><span class="co">#&gt; c1  1  4</span></span>
 <span><span class="co">#&gt; c2  2  5</span></span>
 <span><span class="co">#&gt; c3  3  6</span></span></code></pre></div>
+<p><code>scalars_set(d)</code>, <code>vectors_set(d, axis)</code>, and
+<code>matrices_set(d, a, b)</code> list the property names present on
+the corresponding container.</p>
 </div>
 <div class="section level2">
 <h2 id="queries">Queries<a class="anchor" aria-label="anchor" href="#queries"></a>
 </h2>
-<p>Queries let you compose reads. Two equivalent forms — a string DSL
-and pipe-chain builders:</p>
-<div class="sourceCode" id="cb3"><pre class="downlit sourceCode r">
-<code class="sourceCode R"><span><span class="fu"><a href="../reference/get_query.html">get_query</a></span><span class="op">(</span><span class="va">d</span>, <span class="st">"@ cell : donor"</span><span class="op">)</span></span>
-<span><span class="co">#&gt;  c1  c2  c3 </span></span>
-<span><span class="co">#&gt; "A" "B" "A"</span></span>
-<span><span class="fu"><a href="../reference/get_query.html">get_query</a></span><span class="op">(</span><span class="va">d</span>, <span class="st">". organism"</span><span class="op">)</span></span>
-<span><span class="co">#&gt; [1] "human"</span></span></code></pre></div>
+<p>Queries let you compose reads. Two equivalent forms - a string DSL
+and pipe-chain builders - share the same execution engine:</p>
 <div class="sourceCode" id="cb4"><pre class="downlit sourceCode r">
-<code class="sourceCode R"><span><span class="va">d</span><span class="op">[</span><span class="fu"><a href="../reference/Axis.html">Axis</a></span><span class="op">(</span><span class="st">"cell"</span><span class="op">)</span> <span class="op">|&gt;</span> <span class="fu"><a href="../reference/LookupVector.html">LookupVector</a></span><span class="op">(</span><span class="st">"donor"</span><span class="op">)</span><span class="op">]</span></span>
+<code class="sourceCode R"><span><span class="va">d</span><span class="op">[</span><span class="st">". organism"</span><span class="op">]</span></span>
+<span><span class="co">#&gt; [1] "human"</span></span>
+<span><span class="va">d</span><span class="op">[</span><span class="fu"><a href="../reference/Axis.html">Axis</a></span><span class="op">(</span><span class="st">"cell"</span><span class="op">)</span> <span class="op">|&gt;</span> <span class="fu"><a href="../reference/LookupVector.html">LookupVector</a></span><span class="op">(</span><span class="st">"donor"</span><span class="op">)</span><span class="op">]</span></span>
 <span><span class="co">#&gt;  c1  c2  c3 </span></span>
 <span><span class="co">#&gt; "A" "B" "A"</span></span></code></pre></div>
+<div class="sourceCode" id="cb5"><pre class="downlit sourceCode r">
+<code class="sourceCode R"><span><span class="co"># Mean UMI count per cell (reduce across the gene axis):</span></span>
+<span><span class="va">d</span><span class="op">[</span><span class="st">"@ cell @ gene :: UMIs &gt;| Mean"</span><span class="op">]</span></span>
+<span><span class="co">#&gt;  c1  c2  c3 </span></span>
+<span><span class="co">#&gt; 2.5 3.5 4.5</span></span></code></pre></div>
+<p>See <code><a href="../articles/queries.html">vignette("queries", package = "dafr")</a></code> for the
+practical tour and
+<code>vignette("query-dsl-reference", package = "dafr")</code> for the
+full operator grammar.</p>
 </div>
 <div class="section level2">
-<h2 id="data-frames">Data frames<a class="anchor" aria-label="anchor" href="#data-frames"></a>
+<h2 id="data-frames-and-dplyr">Data frames and dplyr<a class="anchor" aria-label="anchor" href="#data-frames-and-dplyr"></a>
 </h2>
-<div class="sourceCode" id="cb5"><pre class="downlit sourceCode r">
+<p><code><a href="../reference/get_dataframe.html">get_dataframe()</a></code> materialises an axis-keyed slice as a
+<code>tibble</code>:</p>
+<div class="sourceCode" id="cb6"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span><span class="fu"><a href="../reference/get_dataframe.html">get_dataframe</a></span><span class="op">(</span><span class="va">d</span>, <span class="st">"cell"</span><span class="op">)</span></span>
 <span><span class="co">#&gt;    donor</span></span>
 <span><span class="co">#&gt; c1     A</span></span>
 <span><span class="co">#&gt; c2     B</span></span>
 <span><span class="co">#&gt; c3     A</span></span></code></pre></div>
+<p>The dplyr backend lets you treat any axis as a <code>tbl</code> and
+pipe verbs:</p>
+<div class="sourceCode" id="cb7"><pre class="downlit sourceCode r">
+<code class="sourceCode R"><span><span class="kw"><a href="https://rdrr.io/r/base/library.html" class="external-link">library</a></span><span class="op">(</span><span class="va"><a href="https://dplyr.tidyverse.org" class="external-link">dplyr</a></span>, warn.conflicts <span class="op">=</span> <span class="cn">FALSE</span><span class="op">)</span></span>
+<span><span class="fu"><a href="https://dplyr.tidyverse.org/reference/tbl.html" class="external-link">tbl</a></span><span class="op">(</span><span class="va">d</span>, <span class="st">"cell"</span><span class="op">)</span> <span class="op">|&gt;</span></span>
+<span>    <span class="fu"><a href="https://dplyr.tidyverse.org/reference/group_by.html" class="external-link">group_by</a></span><span class="op">(</span><span class="va">donor</span><span class="op">)</span> <span class="op">|&gt;</span></span>
+<span>    <span class="fu"><a href="https://dplyr.tidyverse.org/reference/summarise.html" class="external-link">summarise</a></span><span class="op">(</span>n <span class="op">=</span> <span class="fu"><a href="https://dplyr.tidyverse.org/reference/context.html" class="external-link">n</a></span><span class="op">(</span><span class="op">)</span><span class="op">)</span></span>
+<span><span class="co">#&gt; <span style="color: #949494;"># A tibble: 2 × 2</span></span></span>
+<span><span class="co">#&gt;   donor     n</span></span>
+<span><span class="co">#&gt;   <span style="color: #949494; font-style: italic;">&lt;chr&gt;</span> <span style="color: #949494; font-style: italic;">&lt;int&gt;</span></span></span>
+<span><span class="co">#&gt; <span style="color: #BCBCBC;">1</span> A         2</span></span>
+<span><span class="co">#&gt; <span style="color: #BCBCBC;">2</span> B         1</span></span></code></pre></div>
+<p>See <code><a href="../articles/dplyr.html">vignette("dplyr", package = "dafr")</a></code> for the
+supported verbs and write-back semantics.</p>
 </div>
 <div class="section level2">
 <h2 id="persistence">Persistence<a class="anchor" aria-label="anchor" href="#persistence"></a>
 </h2>
-<div class="sourceCode" id="cb6"><pre class="downlit sourceCode r">
-<code class="sourceCode R"><span><span class="co"># Write to a directory:</span></span>
-<span><span class="va">fd</span> <span class="op">&lt;-</span> <span class="fu"><a href="../reference/files_daf.html">files_daf</a></span><span class="op">(</span><span class="fu"><a href="https://rdrr.io/r/base/tempfile.html" class="external-link">tempfile</a></span><span class="op">(</span><span class="st">"dafr-"</span><span class="op">)</span>, mode <span class="op">=</span> <span class="st">"w+"</span>, name <span class="op">=</span> <span class="st">"persisted"</span><span class="op">)</span></span>
-<span><span class="fu"><a href="../reference/copy_all.html">copy_all</a></span><span class="op">(</span><span class="va">d</span>, <span class="va">fd</span><span class="op">)</span></span></code></pre></div>
+<p>A daf can be persisted in three on-disk shapes - pick the one that
+matches how the data needs to travel.</p>
+<div class="sourceCode" id="cb8"><pre class="downlit sourceCode r">
+<code class="sourceCode R"><span><span class="co"># files_daf: one file per property, mmap-backed reads.</span></span>
+<span><span class="va">path</span> <span class="op">&lt;-</span> <span class="fu"><a href="https://rdrr.io/r/base/tempfile.html" class="external-link">tempfile</a></span><span class="op">(</span><span class="st">"dafr-"</span><span class="op">)</span></span>
+<span><span class="va">fd</span> <span class="op">&lt;-</span> <span class="fu"><a href="../reference/files_daf.html">files_daf</a></span><span class="op">(</span><span class="va">path</span>, mode <span class="op">=</span> <span class="st">"w+"</span>, name <span class="op">=</span> <span class="st">"persisted"</span><span class="op">)</span></span>
+<span><span class="fu"><a href="../reference/copy_all.html">copy_all</a></span><span class="op">(</span><span class="va">fd</span>, <span class="va">d</span><span class="op">)</span>  <span class="co"># destination first, then source</span></span>
+<span><span class="fu"><a href="https://rdrr.io/r/base/list.files.html" class="external-link">list.files</a></span><span class="op">(</span><span class="va">path</span>, recursive <span class="op">=</span> <span class="cn">TRUE</span><span class="op">)</span></span>
+<span><span class="co">#&gt;  [1] "axes/cell.txt"                "axes/gene.txt"               </span></span>
+<span><span class="co">#&gt;  [3] "axes/metadata.json"           "daf.json"                    </span></span>
+<span><span class="co">#&gt;  [5] "matrices/cell/gene/UMIs.data" "matrices/cell/gene/UMIs.json"</span></span>
+<span><span class="co">#&gt;  [7] "matrices/gene/cell/UMIs.data" "matrices/gene/cell/UMIs.json"</span></span>
+<span><span class="co">#&gt;  [9] "metadata.zip"                 "scalars/organism.json"       </span></span>
+<span><span class="co">#&gt; [11] "vectors/cell/donor.json"      "vectors/cell/donor.txt"</span></span></code></pre></div>
+<div class="sourceCode" id="cb9"><pre class="downlit sourceCode r">
+<code class="sourceCode R"><span><span class="co"># Reopen read-only:</span></span>
+<span><span class="va">fd2</span> <span class="op">&lt;-</span> <span class="fu"><a href="../reference/files_daf.html">files_daf</a></span><span class="op">(</span><span class="va">path</span>, mode <span class="op">=</span> <span class="st">"r"</span><span class="op">)</span></span>
+<span><span class="fu"><a href="../reference/get_scalar.html">get_scalar</a></span><span class="op">(</span><span class="va">fd2</span>, <span class="st">"organism"</span><span class="op">)</span></span>
+<span><span class="co">#&gt; [1] "human"</span></span>
+<span><span class="fu"><a href="../reference/get_matrix.html">get_matrix</a></span><span class="op">(</span><span class="va">fd2</span>, <span class="st">"cell"</span>, <span class="st">"gene"</span>, <span class="st">"UMIs"</span><span class="op">)</span></span>
+<span><span class="co">#&gt;    g1 g2</span></span>
+<span><span class="co">#&gt; c1  1  4</span></span>
+<span><span class="co">#&gt; c2  2  5</span></span>
+<span><span class="co">#&gt; c3  3  6</span></span></code></pre></div>
+<p><code><a href="../reference/zarr_daf.html">zarr_daf()</a></code> (directory or <code>.daf.zarr.zip</code>) and
+<code><a href="../reference/HttpDaf.html">http_daf()</a></code> (read-only HTTP) round-trip the same data; see
+<code><a href="../articles/zarr.html">vignette("zarr", package = "dafr")</a></code>.</p>
+</div>
+<div class="section level2">
+<h2 id="where-to-go-next">Where to go next<a class="anchor" aria-label="anchor" href="#where-to-go-next"></a>
+</h2>
+<ul>
+<li>
+<strong>Query DSL</strong> -
+<code><a href="../articles/queries.html">vignette("queries", package = "dafr")</a></code>.</li>
+<li>
+<strong>dplyr backend</strong> -
+<code><a href="../articles/dplyr.html">vignette("dplyr", package = "dafr")</a></code>.</li>
+<li>
+<strong>AnnData / h5ad interop</strong> -
+<code><a href="../articles/anndata.html">vignette("anndata", package = "dafr")</a></code>.</li>
+<li>
+<strong>Zarr &amp; HTTP storage</strong> -
+<code><a href="../articles/zarr.html">vignette("zarr", package = "dafr")</a></code>.</li>
+<li>
+<strong>Native performance notes</strong> -
+<code><a href="../articles/native-performance.html">vignette("native-performance", package = "dafr")</a></code>.</li>
+<li>
+<strong>Larger building blocks</strong> - chains
+(<code>chain_reader</code>), views (<code>viewer</code>,
+<code>VIEW_ALL_DATA</code>), contracts (<code>Contract</code>,
+<code>verify_input</code>), and computations (<code>computation</code>,
+<code>adapter</code>) all have detailed help pages in the
+reference.</li>
+</ul>
 </div>
 <div class="section level2">
 <h2 id="example-data">Example data<a class="anchor" aria-label="anchor" href="#example-data"></a>
 </h2>
-<div class="sourceCode" id="cb7"><pre class="downlit sourceCode r">
+<div class="sourceCode" id="cb10"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span><span class="va">d2</span> <span class="op">&lt;-</span> <span class="fu"><a href="../reference/example_cells_daf.html">example_cells_daf</a></span><span class="op">(</span><span class="op">)</span></span>
 <span><span class="fu"><a href="../reference/axes_set.html">axes_set</a></span><span class="op">(</span><span class="va">d2</span><span class="op">)</span></span>
 <span><span class="co">#&gt; [1] "cell"       "donor"      "experiment" "gene"</span></span></code></pre></div>
