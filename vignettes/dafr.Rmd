@@ -14,12 +14,19 @@ library(dafr)
 
 ## What is a Daf?
 
-A Daf (Data Axes Format) is a multi-axis container for biological /
-scientific data. Think of it as a typed dictionary of scalars,
-per-axis vectors, and per-axis-pair matrices, with cache invalidation
-and lazy mmap-backed reads.
+A **Daf** (Data Axes Format) is a typed, multi-axis container for
+scientific data. Each daf holds:
 
-## Create a Daf
+- **Axes** - named lists of entries (e.g. `cell`, `gene`, `donor`).
+- **Scalars** - single values (e.g. `organism = "human"`).
+- **Vectors** - one value per entry on a chosen axis.
+- **Matrices** - one value per pair of entries on two chosen axes.
+
+Think of it as AnnData generalised to any number of axes, with
+typed scalars, on-disk persistence in several formats, and a query
+DSL for composing reads.
+
+## Build a daf in memory
 
 ```{r}
 d <- memory_daf(name = "demo")
@@ -32,7 +39,14 @@ set_matrix(d, "cell", "gene", "UMIs",
 print(d)
 ```
 
-## Reading data
+`description(d)` produces a more detailed dump of axes, vectors,
+matrices, and scalars, useful for inspecting unfamiliar dafs:
+
+```{r}
+cat(description(d))
+```
+
+## Read data back
 
 ```{r}
 get_scalar(d, "organism")
@@ -40,33 +54,83 @@ get_vector(d, "cell", "donor")
 get_matrix(d, "cell", "gene", "UMIs")
 ```
 
+`scalars_set(d)`, `vectors_set(d, axis)`, and `matrices_set(d, a, b)`
+list the property names present on the corresponding container.
+
 ## Queries
 
-Queries let you compose reads. Two equivalent forms — a string DSL and
-pipe-chain builders:
+Queries let you compose reads. Two equivalent forms - a string DSL
+and pipe-chain builders - share the same execution engine:
 
 ```{r}
-get_query(d, "@ cell : donor")
-get_query(d, ". organism")
-```
-
-```{r}
+d[". organism"]
 d[Axis("cell") |> LookupVector("donor")]
 ```
 
-## Data frames
+```{r}
+# Mean UMI count per cell (reduce across the gene axis):
+d["@ cell @ gene :: UMIs >| Mean"]
+```
+
+See `vignette("queries", package = "dafr")` for the practical tour
+and `vignette("query-dsl-reference", package = "dafr")` for the full
+operator grammar.
+
+## Data frames and dplyr
+
+`get_dataframe()` materialises an axis-keyed slice as a `tibble`:
 
 ```{r}
 get_dataframe(d, "cell")
 ```
 
+The dplyr backend lets you treat any axis as a `tbl` and pipe verbs:
+
+```{r, eval = requireNamespace("dplyr", quietly = TRUE)}
+library(dplyr, warn.conflicts = FALSE)
+tbl(d, "cell") |>
+    group_by(donor) |>
+    summarise(n = n())
+```
+
+See `vignette("dplyr", package = "dafr")` for the supported verbs and
+write-back semantics.
+
 ## Persistence
 
-```{r, eval = FALSE}
-# Write to a directory:
-fd <- files_daf(tempfile("dafr-"), mode = "w+", name = "persisted")
-copy_all(d, fd)
+A daf can be persisted in three on-disk shapes - pick the one that
+matches how the data needs to travel.
+
+```{r}
+# files_daf: one file per property, mmap-backed reads.
+path <- tempfile("dafr-")
+fd <- files_daf(path, mode = "w+", name = "persisted")
+copy_all(fd, d)  # destination first, then source
+list.files(path, recursive = TRUE)
 ```
+
+```{r}
+# Reopen read-only:
+fd2 <- files_daf(path, mode = "r")
+get_scalar(fd2, "organism")
+get_matrix(fd2, "cell", "gene", "UMIs")
+```
+
+`zarr_daf()` (directory or `.daf.zarr.zip`) and `http_daf()`
+(read-only HTTP) round-trip the same data; see
+`vignette("zarr", package = "dafr")`.
+
+## Where to go next
+
+- **Query DSL** - `vignette("queries", package = "dafr")`.
+- **dplyr backend** - `vignette("dplyr", package = "dafr")`.
+- **AnnData / h5ad interop** - `vignette("anndata", package = "dafr")`.
+- **Zarr & HTTP storage** - `vignette("zarr", package = "dafr")`.
+- **Native performance notes** - `vignette("native-performance", package = "dafr")`.
+- **Larger building blocks** - chains (`chain_reader`), views
+  (`viewer`, `VIEW_ALL_DATA`), contracts (`Contract`, `verify_input`),
+  and computations (`computation`, `adapter`) all have detailed help
+  pages in the reference.
 
 ## Example data
 
