@@ -39,6 +39,14 @@
     unname(.DTYPE_SIZES[[dtype]])
 }
 
+# Total on-disk byte count for `n` elements of `dtype`, always as a double.
+# Used by the truncation checks in files_daf_read.R. Avoids int32 overflow
+# on Float64 matrices with n*8 > 2^31 (e.g. a 15176 x 19867 atlas: n=3.0e8,
+# bytes = 2.4e9 - past .Machine$integer.max).
+.bytes_for_count <- function(n, dtype) {
+    as.numeric(n) * as.numeric(.dtype_size(dtype))
+}
+
 .dtype_for_r_vector <- function(v) {
     if (is.logical(v)) {
         return("Bool")
