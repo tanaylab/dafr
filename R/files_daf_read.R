@@ -259,11 +259,11 @@ S7::method(
             call. = FALSE
         )
     }
-    expected <- n * .dtype_size(elt)
+    expected <- .bytes_for_count(n, elt)
     actual <- file.size(data_path)
     if (actual < expected) {
         stop(sprintf(
-            "files_daf: vector %s payload truncated (%d < %d bytes)",
+            "files_daf: vector %s payload truncated (%.0f < %.0f bytes)",
             sQuote(name), actual, expected
         ), call. = FALSE)
     }
@@ -474,13 +474,20 @@ S7::method(
             call. = FALSE
         )
     }
-    total <- as.integer(nr) * as.integer(nc)
-    expected_bytes <- total * .dtype_size(elt)
-    if (file.size(data_path) < expected_bytes) {
+    # Use double arithmetic for the byte count: for an 8-byte eltype with
+    # nr*nc > 2^28 entries (e.g., a 15176 x 19867 Float64 atlas matrix),
+    # `total * .dtype_size(elt)` in int32 overflows to NA and the truncation
+    # `if (file.size < NA)` errors with "missing value where TRUE/FALSE
+    # needed". `total` itself stays correct up to 2^31-1 entries -- the
+    # ceiling for R-side matrices anyway -- but bytes need a wider type.
+    total <- as.numeric(nr) * as.numeric(nc)
+    expected_bytes <- .bytes_for_count(total, elt)
+    actual_bytes <- file.size(data_path)
+    if (actual_bytes < expected_bytes) {
         stop(
             sprintf(
-                "files_daf: matrix %s payload truncated (%d < %d bytes)",
-                sQuote(name), file.size(data_path), expected_bytes
+                "files_daf: matrix %s payload truncated (%.0f < %.0f bytes)",
+                sQuote(name), actual_bytes, expected_bytes
             ),
             call. = FALSE
         )
