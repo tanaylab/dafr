@@ -3,10 +3,8 @@
 ^dev/.*
 ^AGENTS\.md$
 ^CLAUDE\.md$
-^\.a5c$
-^\.a5c/.*
-^tests/\.a5c$
-^tests/\.a5c/.*
+(^|/)\.a5c$
+(^|/)\.a5c/
 ^.*\.Rproj$
 ^\.Rproj\.user$
 ^README\.Rmd$
@@ -29,3 +27,7 @@
 ^\.rhub$
 ^vignettes/articles$
 ^vignettes/articles/.*
+# Local testthat failure debris - never ship
+(^|/)_problems$
+(^|/)_problems/
+(^|/)testthat-problems\.rds$
