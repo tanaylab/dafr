@@ -1,22 +1,13 @@
-## 0.2.0 notes
+## Submission
 
-This is a feature release. New backends:
-
-- `ZarrDaf` (slices 16/17): Zarr v2 directory + zip-archive storage,
-  byte-compatible with Python `zarr.open()`/`anndata.read_zarr()`.
-- `HttpDaf` (slice 18): read-only HTTP-served `FilesDaf`.
-- `MmapZipStore` (slice 17): mmap-backed Zarr v2 zip-store with
-  crash-safe append (C++ in `src/mmap_zip_store.cpp`).
-- `reorder_axes()` (slice 15): crash-safe axis-entry permutation.
-
-New `Imports`: `httr2` (and transitively `curl`), required by the
-`HttpDaf` and `HttpStore` backends. Both already widely deployed.
-
-New `SystemRequirements: zlib` (slice 17).
+This is a new submission: the first CRAN release of `dafr` (version
+0.2.8.1). The package is a native R implementation of the
+`DataAxesFormats.jl` data model, with storage, query evaluation, and
+reductions implemented directly in R and C++ (no Julia dependency).
 
 ## Test environments
 
-- Local: Linux (x86_64, R 4.4, gcc 13) — 0 errors, 0 warnings, 2 notes.
+- Local: Linux (x86_64, R 4.4, gcc 13) - 0 errors, 0 warnings, 2 notes.
 - GitHub Actions (R-CMD-check.yaml matrix):
   - ubuntu-latest on R r-devel
   - ubuntu-latest on R r-release
@@ -25,11 +16,24 @@ New `SystemRequirements: zlib` (slice 17).
   - windows-latest on R r-release
 - R-hub v2 (run cayenned-slothbear, branch `main`):
   - linux (R-devel), windows (R-devel), macos-arm64 (R-devel),
-    gcc14, atlas, valgrind — all `Status: OK`.
+    gcc14, atlas, valgrind - all `Status: OK`.
 
 Full `testthat` suite: ~2987 assertions.
 
-## R-hub notes
+## R CMD check results
+
+0 errors, 0 warnings, 2 notes.
+
+- **New submission.** Expected for a first release.
+
+- **Installed size ~7.9 Mb (`libs` ~5.1 Mb).** The shared library holds
+  the package's C++ compute kernels (element-wise transforms, grouped
+  reductions, quantile/mode/variance over dense and sparse CSC layouts,
+  the mmap/zip ALTREP backends) with optional OpenMP parallelism. The
+  size reflects the number of specialized kernels, not bundled data; it
+  is not reducible without dropping functionality.
+
+## Notes from extended (R-hub) checks worth justifying
 
 - **valgrind.** Reports 432 bytes "possibly lost" in a single block,
   inside glibc's pthread thread-local-storage allocator
@@ -49,7 +53,7 @@ Full `testthat` suite: ~2987 assertions.
   package itself is clean under clang-ASAN and clang-UBSAN
   (32m and 36m runs respectively, 0 sanitizer findings).
 
-## R CMD check notes worth justifying
+## CRAN policy compliance worth noting
 
 - **Thread compliance.** `.onLoad()` detects CRAN's check harness
   (via `_R_CHECK_LIMIT_CORES_` or `OMP_THREAD_LIMIT <= 2`) and caps
@@ -61,4 +65,4 @@ Full `testthat` suite: ~2987 assertions.
 
 ## Downstream dependencies
 
-None — new package.
+None - new package.
