@@ -1,6 +1,6 @@
 # Changelog
 
-## dafr 0.3.0
+## dafr 0.3.1
 
 ### Fix: read DataAxesFormats.jl 0.3.0 FilesFormat v1.1 directories
 

@@ -7,7 +7,7 @@
 
     <a class="navbar-brand me-2" href="../index.html">dafr</a>
 
-    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">0.3.0</small>
+    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">0.3.1</small>
 
 
     <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbar" aria-controls="navbar" aria-expanded="false" aria-label="Toggle navigation">
@@ -46,9 +46,9 @@
     </div>
 
     <div class="section level2">
-<h2 class="pkg-version" data-toc-text="0.3.0" id="dafr-030">dafr 0.3.0<a class="anchor" aria-label="anchor" href="#dafr-030"></a></h2>
+<h2 class="pkg-version" data-toc-text="0.3.1" id="dafr-031">dafr 0.3.1<a class="anchor" aria-label="anchor" href="#dafr-031"></a></h2>
 <div class="section level3">
-<h3 id="fix-read-dataaxesformatsjl-filesformat-v11-directories-0-3-0">Fix: read DataAxesFormats.jl 0.3.0 FilesFormat v1.1 directories<a class="anchor" aria-label="anchor" href="#fix-read-dataaxesformatsjl-filesformat-v11-directories-0-3-0"></a></h3>
+<h3 id="fix-read-dataaxesformatsjl-filesformat-v11-directories-0-3-1">Fix: read DataAxesFormats.jl 0.3.0 FilesFormat v1.1 directories<a class="anchor" aria-label="anchor" href="#fix-read-dataaxesformatsjl-filesformat-v11-directories-0-3-1"></a></h3>
 <p><code>DataAxesFormats.jl</code> 0.3.0 bumped the FilesDaf on-disk format from 1.0 to 1.1. The binary blobs are byte-identical, but a <strong>sparse</strong> property’s JSON sidecar moved from top-level <code>eltype</code>/<code>indtype</code> keys to per-component descriptors (<code>nzind</code>/<code>nzval</code> for vectors; <code>colptr</code>/<code>rowval</code>/<code>nzval</code> for matrices). dafr was a 1.0-only reader and rejected 1.1 directories outright (<code>incompatible format version: 1.1</code>). dafr now:</p>
 <ul><li>accepts FilesFormat minor version 1 (it still <em>writes</em> 1.0, and reads both 1.0 and 1.1);</li>
 <li>parses both the legacy top-level and the v1.1 per-component sparse descriptors - deriving the element type from the <code>nzval</code> component (or <code>Bool</code> when it is absent) and the index type from the index component - mirroring <code>DataAxesFormats.jl</code>’s <code>parse_sparse_descriptor</code>;</li>
@@ -57,7 +57,7 @@
 <p>This covers reading flat FilesFormat 1.1 repos (directory and over HTTP) only, not the rest of 0.3.0 (the zarr/zip and “packed view of a directory as Zarr” machinery).</p>
 </div>
 <div class="section level3">
-<h3 id="fix-zarrdaf-on-disk-format-now-interoperates-with-dataaxesformatsjl-0-3-0">Fix: ZarrDaf on-disk format now interoperates with DataAxesFormats.jl<a class="anchor" aria-label="anchor" href="#fix-zarrdaf-on-disk-format-now-interoperates-with-dataaxesformatsjl-0-3-0"></a></h3>
+<h3 id="fix-zarrdaf-on-disk-format-now-interoperates-with-dataaxesformatsjl-0-3-1">Fix: ZarrDaf on-disk format now interoperates with DataAxesFormats.jl<a class="anchor" aria-label="anchor" href="#fix-zarrdaf-on-disk-format-now-interoperates-with-dataaxesformatsjl-0-3-1"></a></h3>
 <p><code>.daf.zarr</code> stores written by dafr and by <code>DataAxesFormats.jl</code> were mutually unreadable. Opening a Julia-written store in R failed with <code>missing daf.json</code>; opening an R-written store in Julia failed with <code>not a daf data set</code>. Three divergences from upstream (<code>DataAxesFormats.jl</code> v0.2.0, <code>src/zarr_format.jl</code>) caused this, all now fixed:</p>
 <ul><li>
 <strong><code>daf</code> marker array.</strong> Upstream marks a store with a Zarr <em>array</em> named <code>daf</code> holding two <code>UInt8</code> bytes <code>[MAJOR, MINOR]</code> = <code>[1, 0]</code> and validates via <code>haskey(root.arrays, "daf")</code>. dafr wrote a plain <code>daf.json</code> file instead. dafr now writes (and validates) the <code>daf</code> marker array and no longer writes <code>daf.json</code> for Zarr stores. This is a <strong>breaking change</strong> to the dafr Zarr on-disk format: <code>.daf.zarr</code> stores written by earlier dafr versions (which carry <code>daf.json</code>, not the <code>daf</code> array) are not readable by this version. The FilesDaf <code>daf.json</code> marker is unchanged.</li>
@@ -70,7 +70,7 @@
 </ul><p>Round-trip interop in both directions is covered by <code>tests/testthat/test-zarr-julia-interop.R</code> (gated on the <code>dafr-mcview</code> Julia env), and zarr-python interop remains green.</p>
 </div>
 <div class="section level3">
-<h3 id="documentation-pass-0-3-0">Documentation pass<a class="anchor" aria-label="anchor" href="#documentation-pass-0-3-0"></a></h3>
+<h3 id="documentation-pass-0-3-1">Documentation pass<a class="anchor" aria-label="anchor" href="#documentation-pass-0-3-1"></a></h3>
 <ul><li>Rewrote <code><a href="../articles/queries.html">vignette("queries")</a></code> to cover element-wise transforms, compound masks (string + builder), reductions to row / column / scalar, <code>GroupBy</code> on vectors and matrices, and <code>IfMissing</code> fallbacks. Previously the vignette only demonstrated trivial lookups.</li>
 <li>Expanded <code><a href="../articles/dafr.html">vignette("dafr")</a></code> (Getting Started) with <code><a href="../reference/description.html">description()</a></code>, a <code>dplyr</code> backend demo, a working <code>files_daf</code> round-trip, and explicit vignette pointers for chains / views / contracts / computations.</li>
 <li>Fixed stale “Limitations (0.1.0)” block in <code><a href="../articles/anndata.html">vignette("anndata")</a></code>. Sparse CSR / CSC, categorical columns, dense layers, and <code>obsm</code> / <code>varm</code> matrices have all been supported since 0.2.x; the vignette now lists the actual current gaps (<code>obsp</code>, <code>varp</code>, <code>raw</code>, sparse layer / obsm / varm entries).</li>
@@ -78,7 +78,7 @@
 <code>README</code>: dropped the “First public release: 0.1.0” status line, added Zarr and HTTP backends to Key Features, expanded the dplyr verb list, and pointed the DSL link at our own <code>vignette("query-dsl-reference")</code> instead of the Julia upstream page.</li>
 </ul></div>
 <div class="section level3">
-<h3 id="fixed-docs-only-0-3-0">Fixed (docs only)<a class="anchor" aria-label="anchor" href="#fixed-docs-only-0-3-0"></a></h3>
+<h3 id="fixed-docs-only-0-3-1">Fixed (docs only)<a class="anchor" aria-label="anchor" href="#fixed-docs-only-0-3-1"></a></h3>
 <ul><li>
 <code><a href="../articles/dafr.html">vignette("dafr")</a></code> persistence example called <code>copy_all(d, fd)</code> with destination and source swapped. The example was gated under <code>eval = FALSE</code> so the bug was invisible until the chunk was set to evaluate. Package code was correct; only the vignette was affected.</li>
 </ul></div>
