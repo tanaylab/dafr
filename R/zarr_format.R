@@ -670,8 +670,11 @@ S7::method(
     n_axis <- format_axis_length(daf, axis)
     store <- S7::prop(daf, "store")
     base <- paste0("vectors/", axis, "/", name)
-    exists_dense <- store_exists(store, paste0(base, "/.zarray"))
-    exists_sparse <- store_exists(store, paste0(base, "/.zgroup"))
+    existing <- zarr_v3_read_node(store, base)
+    exists_dense <- !is.null(existing) &&
+        identical(existing$node_type, "array")
+    exists_sparse <- !is.null(existing) &&
+        identical(existing$node_type, "group")
     # Validate length BEFORE deleting existing form, so a length mismatch
     # leaves the prior data intact.
     if (methods::is(vec, "sparseVector")) {
@@ -691,8 +694,8 @@ S7::method(
     }
     # Delete any existing form before overwriting.
     if (exists_dense) {
-        store_delete(store, paste0(base, "/.zarray"))
-        store_delete(store, paste0(base, "/0"))
+        store_delete(store, paste0(base, "/zarr.json"))
+        store_delete(store, zarr_v3_chunk_path(base, 1L))
     }
     if (exists_sparse) {
         for (k in store_list(store, base)) store_delete(store, k)
@@ -714,43 +717,44 @@ S7::method(
 }
 
 .zarr_write_dense_vector <- function(store, base, vec) {
-    dtype <- zarr_v2_dtype_for_r(vec)
-    zarray <- zarr_v2_zarray(shape = length(vec), dtype = dtype)
-    if (dtype == "|O") {
-        zarray$filters <- list(list(id = "vlen-utf8"))
-        chunk <- zarr_v2_encode_strings(vec)
+    dtype <- zarr_v3_dtype_for_r(vec)
+    meta <- zarr_v3_array_meta(shape = length(vec), dtype = dtype)
+    zarr_v3_write_array(store, base, meta)
+    chunk <- if (dtype == "string") {
+        zarr_v3_encode_strings(vec)
     } else {
-        chunk <- zarr_v2_encode_chunk(vec, dtype)
+        zarr_v3_encode_chunk(vec, dtype)
     }
-    zarr_v2_write_zarray(store, base, zarray)
-    store_set_bytes(store, paste0(base, "/0"), chunk)
-    zarr_v2_write_zmetadata(store)
+    store_set_bytes(store, zarr_v3_chunk_path(base, 1L), chunk)
+    zarr_v3_write_consolidated(store)
 }
 
 .zarr_write_sparse_vector <- function(store, base, vec) {
-    # Mark as group. NO .zattrs is written — upstream parity with
+    # Mark as a v3 group. NO attributes are written — upstream parity with
     # sparse matrices: shape comes from the axis length on read, and
     # the all-TRUE Bool case is inferred from absence of `nzval/`.
-    store_set_bytes(store, paste0(base, "/.zgroup"), .ZARR_ZGROUP_BYTES)
+    zarr_v3_write_group(store, base)
     is_all_true_bool <- is.logical(vec@x) && length(vec@x) > 0L &&
                         all(vec@x, na.rm = FALSE)
-    # Write nzind: 1-based indices (upstream Julia SparseVector convention).
-    nzind <- as.integer(vec@i)
-    nzind_dtype <- "<i4"  # int32; upgrade to <i8 if/when we hit huge axes.
-    nzind_zarray <- zarr_v2_zarray(shape = length(nzind), dtype = nzind_dtype)
-    zarr_v2_write_zarray(store, paste0(base, "/nzind"), nzind_zarray)
-    store_set_bytes(store, paste0(base, "/nzind/0"),
-                    zarr_v2_encode_chunk(nzind, nzind_dtype))
+    # Write nzind: int64, 1-based indices (DAF SparseVector convention).
+    nzind <- bit64::as.integer64(vec@i)
+    nzind_base <- paste0(base, "/nzind")
+    zarr_v3_write_array(store, nzind_base,
+                        zarr_v3_array_meta(shape = length(nzind),
+                                           dtype = "int64"))
+    store_set_bytes(store, zarr_v3_chunk_path(nzind_base, 1L),
+                    zarr_v3_encode_chunk(nzind, "int64"))
     # Write nzval (skip for all-TRUE Bool — upstream-compatible compaction).
     if (!is_all_true_bool) {
-        nzval_dtype <- zarr_v2_dtype_for_r(vec@x)
-        nzval_zarray <- zarr_v2_zarray(shape = length(vec@x),
-                                       dtype = nzval_dtype)
-        zarr_v2_write_zarray(store, paste0(base, "/nzval"), nzval_zarray)
-        store_set_bytes(store, paste0(base, "/nzval/0"),
-                        zarr_v2_encode_chunk(vec@x, nzval_dtype))
+        nzval_dtype <- zarr_v3_dtype_for_r(vec@x)
+        nzval_base <- paste0(base, "/nzval")
+        zarr_v3_write_array(store, nzval_base,
+                            zarr_v3_array_meta(shape = length(vec@x),
+                                               dtype = nzval_dtype))
+        store_set_bytes(store, zarr_v3_chunk_path(nzval_base, 1L),
+                        zarr_v3_encode_chunk(vec@x, nzval_dtype))
     }
-    zarr_v2_write_zmetadata(store)
+    zarr_v3_write_consolidated(store)
 }
 
 S7::method(format_delete_vector,
