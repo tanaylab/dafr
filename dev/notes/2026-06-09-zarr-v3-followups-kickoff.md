@@ -122,7 +122,26 @@ strings/bools/dense+sparse matrices) plus the `*_set` enumeration paths.
 `HttpDaf`/`FilesDaf`-over-HTTP (FilesFormat path) was unaffected, as predicted.
 Full suite green (5907 pass / 0 fail / 131 env-gated skips, `NOT_CRAN=true`).
 
-### 3. O(N^2) consolidated-metadata refresh (re-scoped: medium, not small)
+### 3. O(N^2) consolidated-metadata refresh - SHIPPED 2026-06-10 (`cbf385a`)
+**Done, without the feared lifecycle change.** The re-scoping note below worried
+that only *deferring* the root write could drop the O(N^2) order. That turned
+out wrong: profiling showed the killer was the per-mutation **re-parse +
+`toJSON` re-serialize** of the whole root, not the byte-write. A non-root node's
+on-disk `zarr.json` is *exactly* the text to inline (nodes carry no
+`consolidated_metadata`), so the fix caches the raw node JSON **strings** in a
+per-store `consolidate_cache` env and **assembles the root by string
+concatenation** - no parse, no slow `toJSON`. `zarr_v3_consolidate_upsert(store,
+base)` edits only the changed subtree (+ ancestor groups), dropping the prior
+subtree first so a sparse->dense overwrite drops stale `nzind`/`nzval`.
+Deletes/init/reorder keep the full rebuild (also refreshes the cache). Writes
+stay **eager** (store always consistent on disk; no `flush_daf()`/finalizer, no
+flakiness). Result: bulk write of 400 vectors **44.6s -> 1.66s (27x)**,
+near-linear; output byte-equivalent-after-parse to the rebuild (pinned by
+`test-zarr-consolidate.R`). Still technically O(N^2) (assemble+write grow) but a
+tiny constant; deferral is unnecessary. The int64/uint64 sparse `nzval`->double
+narrowing note below is unrelated and still open.
+
+#### Original re-scoping note (superseded by the fix above)
 `zarr_v3_write_consolidated` (`R/zarr_v3.R`) re-scans + re-parses the whole store
 on **every** set/delete (DAF consolidates once at close). Correct + idempotent,
 but O(N^2) for bulk writes. Comment in the code flags it. Fix: consolidate
@@ -192,12 +211,14 @@ independent and can slot in anytime.
 
 ## Status (2026-06-10)
 - **DONE:** 1 (packed/sharded read, merge `fde115a`), 2 (HttpStore-v3, `7be98fc`),
-  6 (changelog audit - no behavioural ports needed; ZipDaf format gap noted).
-- **PENDING:** 3 (O(N^2) consolidation - re-scoped MEDIUM, needs a flush/close
-  lifecycle); 4 (Phase-2 dense kernels - perf, where the sparse-reduction commits
+  3 (incremental consolidation, `cbf385a` - 27x on bulk writes, no lifecycle
+  change), 6 (changelog audit - no behavioural ports; ZipDaf format gap noted).
+- **PENDING:** 4 (Phase-2 dense kernels - perf, where the sparse-reduction commits
   from item 6 also land); 5 (FilesFormat 1.1 write + packed read + the new ZipDaf
-  reader). All are perf/format follow-ups; no correctness gaps remain from the
-  0.3.0 audit.
+  reader). Both are perf/format follow-ups; no correctness gaps remain from the
+  0.3.0 audit. Minor open note: a genuine int64/uint64 non-bool sparse `nzval`
+  narrows to double on read (commented at the decode site; revisit only if a real
+  int64-valued sparse appears - now reachable via packed read too).
 
 ## References
 - Shipped: spec `docs/superpowers/specs/2026-06-09-zarrdaf-v3-port-design.md`,
