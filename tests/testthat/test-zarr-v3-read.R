@@ -22,3 +22,15 @@ test_that("v3 dense vector reads with correct values", {
   d <- zarr_daf(daf030_flat_fixture(), mode = "r")
   expect_equal(unname(get_vector(d, "cell", "score")), c(1.5, 2.5, 3.5))
 })
+
+test_that("v3 dense + sparse matrix read with correct orientation", {
+  d <- zarr_daf(daf030_flat_fixture(), mode = "r")
+  expr <- get_matrix(d, "cell", "gene", "expr")
+  expect_equal(dim(expr), c(3L, 2L))
+  expect_equal(unname(as.matrix(expr)),
+               matrix(c(1, 3, 5, 2, 4, 6), nrow = 3))   # cols [1,3,5],[2,4,6]
+  sp <- get_matrix(d, "cell", "gene", "sp")
+  expect_equal(dim(sp), c(3L, 2L))
+  expect_equal(unname(as.matrix(sp)),
+               matrix(c(0, 0, 5, 2, 0, 0), nrow = 3))
+})

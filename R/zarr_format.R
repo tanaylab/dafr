@@ -819,8 +819,8 @@ S7::method(format_has_matrix,
 .zarr_has_matrix <- function(daf, rows_axis, columns_axis, name) {
     store <- S7::prop(daf, "store")
     base <- paste0("matrices/", rows_axis, "/", columns_axis, "/", name)
-    store_exists(store, paste0(base, "/.zarray")) ||
-        store_exists(store, paste0(base, "/.zgroup"))
+    # Dense (array) or sparse (group); both carry a zarr.json at `base`.
+    !is.null(zarr_v3_read_node(store, base))
 }
 
 S7::method(format_matrices_set,
@@ -839,48 +839,42 @@ S7::method(format_matrices_set,
     keys <- store_list(store, prefix)
     if (length(keys) == 0L) return(character(0L))
     rel <- sub(paste0("^", prefix, "/"), "", keys)
-    # Top-level dense:  "{name}/.zarray"  (one slash, ends .zarray)
-    # Top-level sparse: "{name}/.zgroup"  (one slash, ends .zgroup)
-    # Sparse children:  "{name}/colptr/.zarray" — multiple slashes, skip.
-    is_dense <- grepl("^[^/]+/\\.zarray$", rel)
-    is_sparse <- grepl("^[^/]+/\\.zgroup$", rel)
-    names <- c(
-        sub("/\\.zarray$", "", rel[is_dense]),
-        sub("/\\.zgroup$", "", rel[is_sparse])
-    )
+    # A property (dense array or sparse group) is "<name>/zarr.json" (one
+    # slash). Sparse children ("<name>/colptr/zarr.json") are deeper — skipped.
+    names <- sub("/zarr.json$", "", rel[grepl("^[^/]+/zarr.json$", rel)])
     sort(unique(names), method = "radix")
 }
 
-# Read the matrix at (rows_axis, columns_axis, name). Dispatches on
-# .zarray (dense) vs .zgroup (sparse).
+# Read the matrix at (rows_axis, columns_axis, name). Dispatches on the
+# node_type of the single zarr.json: "array" (dense) vs "group" (sparse).
 .zarr_get_matrix <- function(daf, rows_axis, columns_axis, name) {
     store <- S7::prop(daf, "store")
     base <- paste0("matrices/", rows_axis, "/", columns_axis, "/", name)
-    if (store_exists(store, paste0(base, "/.zarray"))) {
-        return(.zarr_get_dense_matrix(store, base))
+    node <- zarr_v3_read_node(store, base)
+    if (is.null(node)) {
+        .require_matrix(daf, rows_axis, columns_axis, name, relayout = FALSE)
     }
-    if (store_exists(store, paste0(base, "/.zgroup"))) {
-        nr <- as.integer(format_axis_length(daf, rows_axis))
-        nc <- as.integer(format_axis_length(daf, columns_axis))
-        return(.zarr_get_sparse_matrix(store, base, nr, nc))
+    if (identical(node$node_type, "array")) {
+        return(.zarr_get_dense_matrix(store, base, node))
     }
-    .require_matrix(daf, rows_axis, columns_axis, name, relayout = FALSE)
+    nr <- as.integer(format_axis_length(daf, rows_axis))
+    nc <- as.integer(format_axis_length(daf, columns_axis))
+    .zarr_get_sparse_matrix(store, base, nr, nc)
 }
 
-.zarr_get_dense_matrix <- function(store, base) {
-    zarray <- zarr_v2_read_zarray(store, base)
-    # Upstream writes .zarray shape REVERSED (Julia/R column-major bytes
-    # presented to Zarr's C-order metadata as [n_cols, n_rows]). So the
-    # *Daf* dimensions are (rows = shape[2], cols = shape[1]).
-    on_disk_d0 <- as.integer(zarray$shape[[1L]])
-    on_disk_d1 <- as.integer(zarray$shape[[2L]])
+.zarr_get_dense_matrix <- function(store, base, node) {
+    # Upstream writes shape REVERSED (Julia/R column-major bytes presented to
+    # Zarr's C-order metadata as [n_cols, n_rows]). So the *Daf* dimensions are
+    # (rows = shape[2], cols = shape[1]).
+    on_disk_d0 <- as.integer(node$shape[[1L]])
+    on_disk_d1 <- as.integer(node$shape[[2L]])
     nr <- on_disk_d1
     nc <- on_disk_d0
-    chunk_path <- paste0(base, "/0.0")
+    chunk_path <- zarr_v3_chunk_path(base, 2L)
     total <- nr * nc
-    if (zarray$dtype != "|O") {
-        mm <- .zarr_try_mmap_dense(store, chunk_path, zarray$dtype, total,
-                                   zarray$compressor)
+    is_string <- identical(node$data_type, "string")
+    if (!is_string) {
+        mm <- .zarr_try_mmap_dense(store, chunk_path, node$data_type, total, NULL)
         if (!is.null(mm)) {
             # Column-major bytes in (nr, nc) — R's native fill, zero-copy.
             dim(mm) <- c(nr, nc)
@@ -891,11 +885,10 @@ S7::method(format_matrices_set,
     if (is.null(bytes)) {
         stop(sprintf("matrix at %s missing chunk", sQuote(base)), call. = FALSE)
     }
-    if (zarray$dtype == "|O") {
-        flat <- zarr_v2_decode_strings(bytes, n = total)
+    flat <- if (is_string) {
+        zarr_v3_decode_strings(bytes, n = total)
     } else {
-        flat <- zarr_v2_decode_chunk(bytes, zarray$dtype, n = total,
-                                     compressor = zarray$compressor)
+        zarr_v3_decode_chunk(bytes, node$data_type, n = total)
     }
     # The on-disk byte order is column-major in (nr, nc) — R's native fill.
     dim(flat) <- c(nr, nc)
@@ -903,58 +896,59 @@ S7::method(format_matrices_set,
 }
 
 .zarr_get_sparse_matrix <- function(store, base, nr, nc) {
-    # colptr (1-based on disk per upstream).
-    colptr_zarray <- zarr_v2_read_zarray(store, paste0(base, "/colptr"))
-    colptr <- zarr_v2_decode_chunk(
-        store_get_bytes(store, paste0(base, "/colptr/0")),
-        colptr_zarray$dtype,
-        n = as.integer(colptr_zarray$shape[[1L]]),
-        compressor = colptr_zarray$compressor
-    )
-    # rowval (1-based on disk per upstream).
-    rowval_zarray <- zarr_v2_read_zarray(store, paste0(base, "/rowval"))
-    rowval_n <- as.integer(rowval_zarray$shape[[1L]])
-    rowval <- if (rowval_n == 0L) integer(0L) else
-        zarr_v2_decode_chunk(
-            store_get_bytes(store, paste0(base, "/rowval/0")),
-            rowval_zarray$dtype, n = rowval_n,
-            compressor = rowval_zarray$compressor
+    # colptr (1-based on disk per upstream). DAF writes int64, so decode is
+    # integer64 -> as.integer() before the 0-based / dgCMatrix math.
+    colptr_meta <- zarr_v3_read_array(store, paste0(base, "/colptr"))
+    colptr <- as.integer(zarr_v3_decode_chunk(
+        store_get_bytes(store, zarr_v3_chunk_path(paste0(base, "/colptr"), 1L)),
+        colptr_meta$data_type,
+        n = as.integer(colptr_meta$shape[[1L]])
+    ))
+    # rowval (1-based on disk per upstream). Also int64 -> as.integer().
+    rowval_meta <- zarr_v3_read_array(store, paste0(base, "/rowval"))
+    rowval_n <- as.integer(rowval_meta$shape[[1L]])
+    rowval <- if (rowval_n == 0L) integer(0L) else as.integer(
+        zarr_v3_decode_chunk(
+            store_get_bytes(
+                store, zarr_v3_chunk_path(paste0(base, "/rowval"), 1L)),
+            rowval_meta$data_type, n = rowval_n
         )
-    has_nzval <- store_exists(store, paste0(base, "/nzval/.zarray"))
+    )
+    has_nzval <- !is.null(zarr_v3_read_array(store, paste0(base, "/nzval")))
     if (!has_nzval) {
         # Upstream-compatible: absence of nzval => all-TRUE Bool sparse.
         return(methods::new("lgCMatrix",
             x = rep(TRUE, length(rowval)),
-            i = as.integer(rowval) - 1L,
-            p = as.integer(colptr) - 1L,
+            i = rowval - 1L,
+            p = colptr - 1L,
             Dim = c(as.integer(nr), as.integer(nc)),
             Dimnames = list(NULL, NULL)
         ))
     }
-    nzval_zarray <- zarr_v2_read_zarray(store, paste0(base, "/nzval"))
-    nzval_n <- as.integer(nzval_zarray$shape[[1L]])
+    nzval_meta <- zarr_v3_read_array(store, paste0(base, "/nzval"))
+    nzval_n <- as.integer(nzval_meta$shape[[1L]])
     nzval <- if (nzval_n == 0L) {
-        if (nzval_zarray$dtype == "|b1") logical(0L) else double(0L)
+        if (nzval_meta$data_type == "bool") logical(0L) else double(0L)
     } else {
-        zarr_v2_decode_chunk(
-            store_get_bytes(store, paste0(base, "/nzval/0")),
-            nzval_zarray$dtype, n = nzval_n,
-            compressor = nzval_zarray$compressor
+        zarr_v3_decode_chunk(
+            store_get_bytes(
+                store, zarr_v3_chunk_path(paste0(base, "/nzval"), 1L)),
+            nzval_meta$data_type, n = nzval_n
         )
     }
-    if (nzval_zarray$dtype == "|b1") {
+    if (nzval_meta$data_type == "bool") {
         return(methods::new("lgCMatrix",
             x = as.logical(nzval),
-            i = as.integer(rowval) - 1L,
-            p = as.integer(colptr) - 1L,
+            i = rowval - 1L,
+            p = colptr - 1L,
             Dim = c(as.integer(nr), as.integer(nc)),
             Dimnames = list(NULL, NULL)
         ))
     }
     methods::new("dgCMatrix",
         x = as.double(nzval),
-        i = as.integer(rowval) - 1L,
-        p = as.integer(colptr) - 1L,
+        i = rowval - 1L,
+        p = colptr - 1L,
         Dim = c(as.integer(nr), as.integer(nc)),
         Dimnames = list(NULL, NULL)
     )
