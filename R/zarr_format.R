@@ -232,40 +232,37 @@ zarr_daf <- function(uri = NULL, mode = c("r", "r+", "w", "w+"),
 
 S7::method(format_has_scalar, list(ZarrDaf, S7::class_character)) <-
     function(daf, name) {
-        store_exists(
+        !is.null(zarr_v3_read_array(
             S7::prop(daf, "store"),
-            paste0("scalars/", name, "/.zarray")
-        )
+            paste0("scalars/", name)
+        ))
     }
 S7::method(format_has_scalar, list(ZarrDafReadOnly, S7::class_character)) <-
     function(daf, name) {
-        store_exists(
+        !is.null(zarr_v3_read_array(
             S7::prop(daf, "store"),
-            paste0("scalars/", name, "/.zarray")
-        )
+            paste0("scalars/", name)
+        ))
     }
 
 .zarr_get_scalar <- function(daf, name) {
     store <- S7::prop(daf, "store")
-    path <- paste0("scalars/", name)
-    zarray <- zarr_v2_read_zarray(store, path)
-    if (is.null(zarray)) {
+    base <- paste0("scalars/", name)
+    meta <- zarr_v3_read_array(store, base)
+    if (is.null(meta)) {
         .require_scalar(daf, name)
     }
-    chunk_path <- paste0(path, "/0")
-    bytes <- store_get_bytes(store, chunk_path)
+    n <- as.integer(meta$shape[[1L]])
+    bytes <- store_get_bytes(store, zarr_v3_chunk_path(base, 1L))
     if (is.null(bytes)) {
         stop(sprintf("scalar %s missing chunk", sQuote(name)), call. = FALSE)
     }
-    if (zarray$dtype == "|O") {
-        decoded <- zarr_v2_decode_strings(bytes, n = 1L)
-        return(decoded[[1L]])
+    decoded <- if (identical(meta$data_type, "string")) {
+        zarr_v3_decode_strings(bytes, n = n)
+    } else {
+        zarr_v3_decode_chunk(bytes, meta$data_type, n = n)
     }
-    decoded <- zarr_v2_decode_chunk(bytes, zarray$dtype,
-        n = 1L,
-        compressor = zarray$compressor
-    )
-    decoded[[1L]]
+    decoded[[1L]]   # scalars are shape [1]
 }
 
 S7::method(format_get_scalar, list(ZarrDaf, S7::class_character)) <-
@@ -286,10 +283,11 @@ S7::method(format_scalars_set, ZarrDafReadOnly) <- function(daf) {
 .zarr_scalars_set <- function(daf) {
     store <- S7::prop(daf, "store")
     keys <- store_list(store, "scalars")
-    suffix <- "/.zarray"
-    matched <- keys[endsWith(keys, suffix)]
-    names_only <- sub("^scalars/", "", sub(paste0(suffix, "$"), "", matched))
-    sort(names_only, method = "radix")
+    if (length(keys) == 0L) return(character(0L))
+    rel <- sub("^scalars/", "", keys)
+    # A scalar is "<name>/zarr.json" (one slash); skip the container marker.
+    names_only <- sub("/zarr.json$", "", rel[grepl("^[^/]+/zarr.json$", rel)])
+    sort(unique(names_only), method = "radix")
 }
 
 S7::method(
@@ -353,17 +351,17 @@ S7::method(
 
 S7::method(format_has_axis, list(ZarrDaf, S7::class_character)) <-
     function(daf, axis) {
-        store_exists(
+        !is.null(zarr_v3_read_array(
             S7::prop(daf, "store"),
-            paste0("axes/", axis, "/.zarray")
-        )
+            paste0("axes/", axis)
+        ))
     }
 S7::method(format_has_axis, list(ZarrDafReadOnly, S7::class_character)) <-
     function(daf, axis) {
-        store_exists(
+        !is.null(zarr_v3_read_array(
             S7::prop(daf, "store"),
-            paste0("axes/", axis, "/.zarray")
-        )
+            paste0("axes/", axis)
+        ))
     }
 
 S7::method(format_axes_set, ZarrDaf) <- function(daf) .zarr_axes_set(daf)
@@ -371,25 +369,26 @@ S7::method(format_axes_set, ZarrDafReadOnly) <- function(daf) .zarr_axes_set(daf
 .zarr_axes_set <- function(daf) {
     store <- S7::prop(daf, "store")
     keys <- store_list(store, "axes")
-    suffix <- "/.zarray"
-    matched <- keys[endsWith(keys, suffix)]
-    names_only <- sub("^axes/", "", sub(paste0(suffix, "$"), "", matched))
-    sort(names_only, method = "radix")
+    if (length(keys) == 0L) return(character(0L))
+    rel <- sub("^axes/", "", keys)
+    # An axis is "<name>/zarr.json" (one slash); skip the container marker.
+    names_only <- sub("/zarr.json$", "", rel[grepl("^[^/]+/zarr.json$", rel)])
+    sort(unique(names_only), method = "radix")
 }
 
 .zarr_axis_entries <- function(daf, axis) {
     store <- S7::prop(daf, "store")
-    path <- paste0("axes/", axis)
-    zarray <- zarr_v2_read_zarray(store, path)
-    if (is.null(zarray)) {
+    base <- paste0("axes/", axis)
+    meta <- zarr_v3_read_array(store, base)
+    if (is.null(meta)) {
         .require_axis(daf, "for: zarr backend", axis)
     }
-    chunk_bytes <- store_get_bytes(store, paste0(path, "/0"))
+    chunk_bytes <- store_get_bytes(store, zarr_v3_chunk_path(base, 1L))
     if (is.null(chunk_bytes)) {
         stop(sprintf("axis %s missing chunk", sQuote(axis)), call. = FALSE)
     }
-    n <- as.integer(zarray$shape[[1L]])
-    zarr_v2_decode_strings(chunk_bytes, n = n)
+    n <- as.integer(meta$shape[[1L]])
+    zarr_v3_decode_strings(chunk_bytes, n = n)
 }
 
 S7::method(format_axis_array, list(ZarrDaf, S7::class_character)) <-
