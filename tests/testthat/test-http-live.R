@@ -299,6 +299,29 @@ test_that("empty_cache(http_daf) is safe with prior reads still held", {
     zarr_path
 }
 
+# ---- Known limitation: zarr_daf() over HTTP can't read a v3 store ----------
+# `HttpStore` (the backend behind zarr_daf("http://...")) still expects the
+# Zarr v2 `.zmetadata` consolidated-metadata index. A v3 `.daf.zarr` does not
+# write `.zmetadata` (v3 inlines consolidated metadata into the root
+# `zarr.json`), so opening one over HTTP currently fails. This test pins that
+# behaviour as a live assertion so the limitation isn't silently "fixed" or
+# regressed without an explicit decision. When HttpStore is ported to v3,
+# flip this to a positive round-trip.
+
+test_that("zarr_daf() over HTTP rejects a v3 store (HttpStore still v2-only)", {
+    skip_if_no_http_harness()
+    root <- withr::local_tempdir("daf-http-zarr-v3-gap-")
+    .populate_served_zarr(root)  # writes a Zarr v3 .daf.zarr (no .zmetadata)
+    h <- start_http_server(root)
+    on.exit(stop_http_server(h), add = TRUE)
+
+    url <- paste0(h$url, "/served.daf.zarr")
+    # HttpStore fetches <url>/.zmetadata at open; the v3 store has none, so
+    # new_http_store() hard-errors before any data is read.
+    expect_error(zarr_daf(url, mode = "r"), ".zmetadata not found",
+                 fixed = TRUE)
+})
+
 test_that("dafr-published .daf.zarr served over HTTP is readable from numpy via urllib", {
     skip_if_no_http_harness()
     skip_if_not(nzchar(Sys.which("python3")) || nzchar(Sys.which("python")))

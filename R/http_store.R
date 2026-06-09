@@ -12,6 +12,18 @@ NULL
 #'
 #' Writes hard-error: HTTP-served Zarr is read-only.
 #'
+#' Zarr version: this backend currently targets the **Zarr v2** on-disk
+#' layout, where discoverability hinges on a consolidated `.zmetadata`
+#' index at the store root. It has **not** yet been ported to the Zarr v3
+#' format that the rest of `dafr` reads and writes locally. v3 stores do
+#' not write `.zmetadata` (v3 inlines the consolidated metadata into the
+#' root `zarr.json`), so opening a v3 `.daf.zarr` over HTTP via
+#' [zarr_daf()] currently fails with a `.zmetadata not found` error.
+#' Porting `HttpStore` to v3 is a separate follow-up; local directory
+#' (`DirStore`) and zip (`MmapZipStore`) v3 stores are fully supported, as
+#' is `http_daf()` (the FilesFormat-over-HTTP path, which does not use
+#' Zarr).
+#'
 #' @param url Root URL of the served Zarr v2 directory.
 #' @param zmetadata Parsed consolidated `.zmetadata` content.
 #' @param chunk_cache Environment caching fetched chunk bytes by path.
@@ -28,6 +40,13 @@ HttpStore <- S7::new_class(
 )
 
 #' Construct a read-only [ZarrStore] over HTTP.
+#'
+#' Reads the consolidated `.zmetadata` index from the store root, so it
+#' currently targets the **Zarr v2** layout only and is not yet ported to
+#' Zarr v3 (which inlines consolidated metadata into the root `zarr.json`
+#' and does not write `.zmetadata`). Opening a v3 store over HTTP errors
+#' with `.zmetadata not found`. See [HttpStore] for the supported
+#' alternatives.
 #'
 #' @param url Root URL of a Zarr v2 directory served over HTTP(S).
 #' @return An `HttpStore`.

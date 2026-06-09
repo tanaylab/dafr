@@ -13,5 +13,10 @@ new_http_store(url)
 An \code{HttpStore}.
 }
 \description{
-Construct a read-only \link{ZarrStore} over HTTP.
+Reads the consolidated \code{.zmetadata} index from the store root, so it
+currently targets the \strong{Zarr v2} layout only and is not yet ported to
+Zarr v3 (which inlines consolidated metadata into the root \code{zarr.json}
+and does not write \code{.zmetadata}). Opening a v3 store over HTTP errors
+with \verb{.zmetadata not found}. See \link{HttpStore} for the supported
+alternatives.
 }
