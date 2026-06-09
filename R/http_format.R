@@ -71,11 +71,11 @@ http_daf <- function(url, name = NULL) {
     daf_json <- jsonlite::fromJSON(unz(zip_path, "daf.json"),
                                    simplifyVector = TRUE)
     v <- daf_json$version
-    if (length(v) != 2L || v[[1]] != 1L || v[[2]] > 0L) {
+    if (length(v) != 2L || v[[1]] != 1L || v[[2]] > 1L) {
         unlink(zip_path, force = TRUE)
         stop(sprintf(paste0("incompatible format version: %d.%d\n",
                             "for the daf HTTP data set: %s\n",
-                            "the code supports version: 1.0"),
+                            "the code supports version: 1.1"),
                      v[[1]], v[[2]], url), call. = FALSE)
     }
 
@@ -297,6 +297,12 @@ S7::method(
     if (is.null(fmt) || !(fmt %in% c("dense", "sparse"))) {
         stop("HttpDaf: descriptor missing $format", call. = FALSE)
     }
+    if (fmt == "sparse" && is.null(j$eltype)) {
+        # FilesFormat v1.1: per-component descriptors, no top-level eltype.
+        # Return the full descriptor; the sparse readers derive eltype/indtype
+        # via .files_parse_sparse_descriptor.
+        return(j)
+    }
     list(
         format  = fmt,
         eltype  = .dtype_canonical(j$eltype),
@@ -353,13 +359,15 @@ S7::method(
             .attach_vector_axis_names(daf, axis, v), MEMORY_DATA))
     }
 
-    # sparse
-    indtype <- desc$indtype %||% "UInt32"
+    # sparse (v1.0 top-level or v1.1 per-component descriptors)
+    sd <- .files_parse_sparse_descriptor(desc, "nzind")
+    indtype <- sd$indtype
+    eltype <- sd$eltype
     nzind_bytes <- .dafr_http_get(paste0(base, ".nzind"))
     nnz <- length(nzind_bytes) %/% .dtype_size(indtype)
     idx <- .http_bytes_to_dense(nzind_bytes, indtype, nnz)
 
-    if (desc$eltype == "String") {
+    if (eltype == "String") {
         nztxt_bytes <- .dafr_http_get(paste0(base, ".nztxt"))
         vals <- .http_split_text_lines(nztxt_bytes)
         if (length(vals) != nnz) {
@@ -371,7 +379,7 @@ S7::method(
         return(.cache_group_value(
             .attach_vector_axis_names(daf, axis, out), MEMORY_DATA))
     }
-    if (desc$eltype == "Bool") {
+    if (eltype == "Bool") {
         nzval_bytes <- .dafr_http_get(paste0(base, ".nzval"), allow_404 = TRUE)
         out <- logical(n)
         if (is.null(nzval_bytes)) {
@@ -385,8 +393,8 @@ S7::method(
             .attach_vector_axis_names(daf, axis, out), MEMORY_DATA))
     }
     nzval_bytes <- .dafr_http_get(paste0(base, ".nzval"))
-    vals <- .http_bytes_to_dense(nzval_bytes, desc$eltype, nnz)
-    out <- .http_zero_vector(desc$eltype, n)
+    vals <- .http_bytes_to_dense(nzval_bytes, eltype, nnz)
+    out <- .http_zero_vector(eltype, n)
     out[as.integer(idx)] <- vals
     .cache_group_value(.attach_vector_axis_names(daf, axis, out), MEMORY_DATA)
 }
@@ -449,8 +457,10 @@ S7::method(
             MEMORY_DATA))
     }
 
-    # sparse — CSC layout
-    indtype <- desc$indtype %||% "UInt32"
+    # sparse — CSC layout (v1.0 top-level or v1.1 per-component descriptors)
+    sd <- .files_parse_sparse_descriptor(desc, "colptr")
+    indtype <- sd$indtype
+    eltype <- sd$eltype
     colptr_bytes <- .dafr_http_get(paste0(base, ".colptr"))
     colptr <- .http_bytes_to_dense(colptr_bytes, indtype,
                                    as.integer(nc) + 1L)
@@ -462,7 +472,7 @@ S7::method(
         integer(0L)
     }
 
-    if (desc$eltype == "Bool") {
+    if (eltype == "Bool") {
         nzval_bytes <- .dafr_http_get(paste0(base, ".nzval"), allow_404 = TRUE)
         vals <- if (is.null(nzval_bytes)) {
             rep(TRUE, nnz)
@@ -481,7 +491,7 @@ S7::method(
             MEMORY_DATA))
     }
 
-    if (desc$eltype == "String") {
+    if (eltype == "String") {
         # Sparse string matrices: scatter into a dense character matrix.
         # Mirrors upstream http_format.jl.
         nztxt_bytes <- .dafr_http_get(paste0(base, ".nztxt"))
@@ -507,7 +517,7 @@ S7::method(
 
     nzval_bytes <- .dafr_http_get(paste0(base, ".nzval"))
     vals <- if (nnz > 0L) {
-        .http_bytes_to_dense(nzval_bytes, desc$eltype, nnz)
+        .http_bytes_to_dense(nzval_bytes, eltype, nnz)
     } else {
         double(0L)
     }

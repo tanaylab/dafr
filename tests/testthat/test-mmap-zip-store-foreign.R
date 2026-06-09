@@ -120,9 +120,11 @@ test_that("Python's zipfile lists every entry of a dafr-written zarr_daf", {
     rm(d); gc()
 
     out <- read_zip_via_python(path)
-    # Every dafr-written zarr_daf has these structural members; the
-    # `daf.json` marker plus root .zgroup must be present.
-    expect_true("daf.json" %in% names(out))
+    # Every dafr-written zarr_daf has these structural members; the upstream
+    # `daf` marker array plus root .zgroup must be present (not daf.json).
+    expect_true("daf/.zarray" %in% names(out))
+    expect_true("daf/0" %in% names(out))
+    expect_false("daf.json" %in% names(out))
     expect_true(".zgroup" %in% names(out))
     # The axis array under axes/cell.
     expect_true("axes/cell/.zarray" %in% names(out))
@@ -130,7 +132,6 @@ test_that("Python's zipfile lists every entry of a dafr-written zarr_daf", {
     # The scalar.
     expect_true("scalars/k/.zarray" %in% names(out))
     expect_true("scalars/k/0" %in% names(out))
-    # Verify the daf.json bytes are valid JSON with our format key.
-    daf_json <- rawToChar(out[["daf.json"]])
-    expect_match(daf_json, "zarr_daf")
+    # The `daf` marker chunk holds the two version bytes [MAJOR, MINOR] = [1, 0].
+    expect_identical(as.integer(out[["daf/0"]]), c(1L, 0L))
 })

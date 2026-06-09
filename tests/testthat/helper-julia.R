@@ -26,3 +26,16 @@ run_julia <- function(script_lines) {
         stdout = TRUE, stderr = TRUE
     )
 }
+
+# DataAxesFormats.jl 0.3.0 switched ZarrDaf to the Zarr v3 on-disk format and
+# rejects v2 stores; dafr's ZarrDaf is Zarr v2. So R <-> Julia `.daf.zarr`
+# interop only holds against DAF <= 0.2.x. The Julia-gated zarr round-trip
+# tests skip when the env's DAF is v3 (and auto-recover if it is downgraded).
+.daf_jl_uses_zarr_v3 <- function() {
+    if (!.have_julia_env()) return(FALSE)
+    out <- run_julia(c(
+        "using DataAxesFormats",
+        'println(pkgversion(DataAxesFormats) >= v"0.3.0" ? "ZARRV3" : "ZARRV2")'
+    ))
+    any(grepl("^ZARRV3$", out))
+}
