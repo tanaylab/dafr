@@ -53,3 +53,31 @@ test_that("packed FilesDaf read errors actionably when c-blosc is absent", {
     daf <- files_daf(.files_packed_path("blosc_zstd_bitshuffle"), mode = "r")
     expect_error(get_vector(daf, "cell", "score"), "requires c-blosc")
 })
+
+test_that("dafr reads a Julia-written packed Float32 store (live, gzip)", {
+    # Parity with DataAxesFormats.jl test/packed_format.jl, which exercises
+    # Float32 (4-byte element) packed components; the committed fixtures are
+    # Float64. gzip needs no optional codec lib. Live-gated on the Julia env.
+    skip_on_cran()
+    skip_if_not(.daf_jl_uses_zarr_v3(), "DAF >= 0.3.0 not available")
+    out <- withr::local_tempdir("daf-f32-packed-")
+    p <- file.path(out, "f.files")
+    res <- run_julia(c(
+        "using DataAxesFormats",
+        "import DataAxesFormats.PackedFormat as PF",
+        "PF.DAF_PACKED_COMPRESSION = :gzip",
+        sprintf('d = FilesDaf(raw"%s", "w"; packed=true)', p),
+        'add_axis!(d, "cell", ["c$(i)" for i in 1:1500])',
+        'add_axis!(d, "gene", ["g$(j)" for j in 1:4])',
+        'set_vector!(d, "cell", "v32", Float32.(1:1500))',
+        'set_matrix!(d, "cell", "gene", "m32", Matrix{Float32}(reshape(Float32.(1:6000), 1500, 4)))',
+        'println("OK")'
+    ))
+    skip_if_not(any(grepl("^OK$", res)),
+                paste0("julia packed write failed:\n", paste(res, collapse = "\n")))
+    daf <- files_daf(p, mode = "r")
+    expect_equal(as.numeric(get_vector(daf, "cell", "v32")), as.numeric(1:1500))
+    m <- get_matrix(daf, "cell", "gene", "m32")
+    expect_equal(dim(m), c(1500L, 4L))
+    expect_equal(as.numeric(m), as.numeric(1:6000))
+})
