@@ -1,13 +1,12 @@
 # Interop parity with DataAxesFormats.jl's ZarrDaf on-disk format.
 #
-# Upstream (DataAxesFormats.jl src/zarr_format.jl) marks a daf-zarr store
-# with a Zarr *array* named `daf` holding two UInt8 bytes
-# [MAJOR_VERSION, MINOR_VERSION] = [1, 0], and validates a store by
-# `haskey(root.arrays, "daf")`. dafr historically wrote a plain `daf.json`
-# file instead, which made R-written and Julia-written `.daf.zarr` stores
-# mutually unreadable. These tests pin the upstream-compatible marker.
+# DataAxesFormats.jl 0.3.0 uses the Zarr *v3* on-disk format and marks a
+# daf-zarr store with the root-group attribute `daf: [MAJOR, MINOR] = [1, 0]`,
+# validating a store by reading that attribute. dafr's ZarrDaf now reads and
+# writes the same v3 format. These tests pin the upstream-compatible v3 shape
+# (single `zarr.json` per node, `c/`-prefixed chunk keys, root `daf` attribute).
 
-test_that("a fresh ZarrDaf store uses upstream's `daf` array marker, not daf.json", {
+test_that("a fresh ZarrDaf store uses upstream's root `daf` attribute marker (v3)", {
     path <- tempfile(fileext = ".daf.zarr")
     on.exit(unlink(path, recursive = TRUE, force = TRUE), add = TRUE)
 
@@ -15,45 +14,27 @@ test_that("a fresh ZarrDaf store uses upstream's `daf` array marker, not daf.jso
     add_axis(d, "cell", c("c1", "c2"))
     store <- S7::prop(d, "store")
 
-    # Upstream marker: a `daf` Zarr array of dtype |u1, shape [2], bytes [1, 0].
-    expect_true(store_exists(store, "daf/.zarray"))
+    # v3 marker: the root group carries a `daf: [1, 0]` attribute; there is no
+    # legacy v2 `daf` array, no daf.json.
+    expect_true(zarr_v3_daf_marker_exists(store))
+    expect_identical(zarr_v3_daf_version(store), c(1L, 0L))
+    expect_false(store_exists(store, "daf/.zarray"))
     expect_false(store_exists(store, "daf.json"))
 
-    zarray <- zarr_v2_read_zarray(store, "daf")
-    expect_identical(zarray$dtype, "|u1")
-    expect_identical(as.integer(unlist(zarray$shape)), 2L)
-
-    marker <- store_get_bytes(store, "daf/0")
-    expect_identical(as.integer(marker), c(1L, 0L))
+    root <- zarr_v3_read_node(store, "")
+    expect_identical(root$node_type, "group")
+    expect_identical(as.integer(unlist(root$attributes$daf)), c(1L, 0L))
 })
 
-test_that("zarr_v2_decode_chunk reads the unsigned / narrow / float32 dtypes Julia emits", {
-    # |u1 (the `daf` marker dtype) + <u1: unsigned byte 0..255.
-    expect_identical(zarr_v2_decode_chunk(as.raw(c(1, 255)), "|u1", 2L),
-                     c(1L, 255L))
-    expect_identical(zarr_v2_decode_chunk(as.raw(c(0, 200)), "<u1", 2L),
-                     c(0L, 200L))
-    # <i1: signed byte.
-    expect_identical(zarr_v2_decode_chunk(as.raw(c(0xFF, 0x7F)), "<i1", 2L),
-                     c(-1L, 127L))
-    # <u2 / <i2: little-endian 16-bit. 65535 = FF FF, 258 = 02 01, -1 = FF FF.
-    expect_identical(zarr_v2_decode_chunk(as.raw(c(0xFF, 0xFF, 0x02, 0x01)),
-                                          "<u2", 2L), c(65535L, 258L))
-    expect_identical(zarr_v2_decode_chunk(as.raw(c(0xFF, 0xFF, 0x02, 0x01)),
-                                          "<i2", 2L), c(-1L, 258L))
-    # <u4: 3000000000 > .Machine$integer.max -> returned as double.
-    expect_equal(zarr_v2_decode_chunk(as.raw(c(0x00, 0x5E, 0xD0, 0xB2)),
-                                      "<u4", 1L), 3000000000)
-    # <u8: 5000000000 (Julia index/size eltype on the empty-fill path).
-    expect_equal(as.numeric(zarr_v2_decode_chunk(
-        as.raw(c(0x00, 0xF2, 0x05, 0x2A, 0x01, 0x00, 0x00, 0x00)), "<u8", 1L)),
-        5000000000)
-    # <f4: Float32 values (common for single-cell expression matrices).
-    f32 <- writeBin(c(1.5, -2.25), raw(), size = 4L, endian = "little")
-    expect_equal(zarr_v2_decode_chunk(f32, "<f4", 2L), c(1.5, -2.25))
-})
+# NOTE: the former "zarr_v2_decode_chunk reads the unsigned/narrow/float32
+# dtypes Julia emits" test is superseded by the v3 port. It exercised the v2
+# numpy-dtype reader (`zarr_v2_decode_chunk`), which dafr no longer uses for
+# interop now that DAF 0.3.0 is Zarr v3. The equivalent v3 decode coverage
+# lives in tests/testthat/test-zarr-v3.R ("zarr_v3 decodes float32 ...", the
+# numeric chunk round-trip cases). The v2 codec and its own unit tests are
+# removed in the Phase 4 sweep; nothing here depends on the v2 dtype reader.
 
-test_that("R-written store has a real .zgroup for every group (Julia directory open needs them)", {
+test_that("R-written store has a `zarr.json` group marker for every group (v3 directory open)", {
     path <- tempfile(fileext = ".daf.zarr")
     on.exit(unlink(path, recursive = TRUE, force = TRUE), add = TRUE)
 
@@ -68,16 +49,18 @@ test_that("R-written store has a real .zgroup for every group (Julia directory o
 
     # The four standard top-level groups (Julia create_daf makes them eagerly).
     for (g in c("axes", "scalars", "vectors", "matrices")) {
-        expect_true(store_exists(store, paste0(g, "/.zgroup")), info = g)
+        expect_true(store_exists(store, paste0(g, "/zarr.json")), info = g)
     }
-    # Per-axis / per-matrix subgroups also need real .zgroup markers.
-    expect_true(store_exists(store, "vectors/cell/.zgroup"))
-    expect_true(store_exists(store, "matrices/cell/.zgroup"))
-    expect_true(store_exists(store, "matrices/cell/gene/.zgroup"))
-    expect_true(store_exists(store, "matrices/cell/gene/UMIs/.zgroup"))
+    # Per-axis / per-matrix subgroups also need real group markers.
+    expect_true(store_exists(store, "vectors/cell/zarr.json"))
+    expect_true(store_exists(store, "matrices/cell/zarr.json"))
+    expect_true(store_exists(store, "matrices/cell/gene/zarr.json"))
+    expect_true(store_exists(store, "matrices/cell/gene/UMIs/zarr.json"))
+    # No legacy v2 markers remain.
+    expect_false(store_exists(store, "axes/.zgroup"))
 })
 
-test_that("R-written dense matrix uses the Zarr-default '.' chunk separator (Julia interop)", {
+test_that("R-written dense matrix uses the v3 `c/0/0` chunk key (Julia interop)", {
     path <- tempfile(fileext = ".daf.zarr")
     on.exit(unlink(path, recursive = TRUE, force = TRUE), add = TRUE)
 
@@ -88,13 +71,15 @@ test_that("R-written dense matrix uses the Zarr-default '.' chunk separator (Jul
     set_matrix(d, "cell", "gene", "D", m)
     store <- S7::prop(d, "store")
 
-    # Upstream (and the Zarr v2 default) addresses a 2-D chunk as `0.0`, not
-    # `0/0`. dafr historically used `/`, which made Julia fail to find the
-    # dense-matrix chunk ("missing chunks and no fill_value").
-    expect_true(store_exists(store, "matrices/cell/gene/D/0.0"))
+    # Zarr v3 addresses a 2-D single chunk as `c/0/0` (prefix `c`, separator
+    # `/`). The legacy v2 `0.0` / `0/0` keys are gone.
+    expect_true(store_exists(store, "matrices/cell/gene/D/c/0/0"))
+    expect_false(store_exists(store, "matrices/cell/gene/D/0.0"))
     expect_false(store_exists(store, "matrices/cell/gene/D/0/0"))
-    za <- zarr_v2_read_zarray(store, "matrices/cell/gene/D")
-    expect_identical(za$dimension_separator, ".")
+    meta <- zarr_v3_read_array(store, "matrices/cell/gene/D")
+    expect_identical(meta$node_type, "array")
+    # On-disk shape is reversed [n_cols, n_rows]; no v2 `order`/`dimension_separator`.
+    expect_identical(as.integer(unlist(meta$shape)), c(2L, 3L))
 
     # Still round-trips within R.
     expect_equal(as.matrix(get_matrix(d, "cell", "gene", "D")), m,
@@ -108,8 +93,8 @@ test_that("R-written dense matrix uses the Zarr-default '.' chunk separator (Jul
 test_that("an R-written .daf.zarr is readable by DataAxesFormats.jl", {
     skip_on_cran()
     skip_if_not(.have_julia_env(), "dafr-mcview Julia env not available")
-    skip_if(.daf_jl_uses_zarr_v3(),
-            "DAF >= 0.3.0 uses Zarr v3; dafr ZarrDaf is v2 (R<->Julia zarr interop pending the v3 port)")
+    skip_if_not(.daf_jl_uses_zarr_v3(),
+                "requires DAF >= 0.3.0 (Zarr v3)")
 
     rpath <- tempfile(fileext = ".daf.zarr")
     on.exit(unlink(rpath, recursive = TRUE, force = TRUE), add = TRUE)
@@ -151,8 +136,8 @@ test_that("an R-written .daf.zarr is readable by DataAxesFormats.jl", {
 test_that("a DataAxesFormats.jl-written .daf.zarr is readable by dafr", {
     skip_on_cran()
     skip_if_not(.have_julia_env(), "dafr-mcview Julia env not available")
-    skip_if(.daf_jl_uses_zarr_v3(),
-            "DAF >= 0.3.0 uses Zarr v3; dafr ZarrDaf is v2 (R<->Julia zarr interop pending the v3 port)")
+    skip_if_not(.daf_jl_uses_zarr_v3(),
+                "requires DAF >= 0.3.0 (Zarr v3)")
 
     jpath <- tempfile(fileext = ".daf.zarr")
     on.exit(unlink(jpath, recursive = TRUE, force = TRUE), add = TRUE)
@@ -180,11 +165,11 @@ test_that("a DataAxesFormats.jl-written .daf.zarr is readable by dafr", {
                  .umis_dense, ignore_attr = TRUE)
 })
 
-test_that("a DENSE matrix round-trips R <-> Julia (the '.'-separator chunk)", {
+test_that("a DENSE matrix round-trips R <-> Julia (the v3 c/0/0 chunk)", {
     skip_on_cran()
     skip_if_not(.have_julia_env(), "dafr-mcview Julia env not available")
-    skip_if(.daf_jl_uses_zarr_v3(),
-            "DAF >= 0.3.0 uses Zarr v3; dafr ZarrDaf is v2 (R<->Julia zarr interop pending the v3 port)")
+    skip_if_not(.daf_jl_uses_zarr_v3(),
+                "requires DAF >= 0.3.0 (Zarr v3)")
 
     dense <- matrix(as.double(1:12), nrow = 3, ncol = 4)  # cell x gene
 
