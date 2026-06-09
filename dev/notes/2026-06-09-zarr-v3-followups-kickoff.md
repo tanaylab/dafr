@@ -58,7 +58,34 @@ now reads **and** writes the **Zarr v3** on-disk format of DataAxesFormats.jl
 
 ## Remaining work (prioritized)
 
-### 1. Packed/sharded v3 READ (large; the rest of Item 1)
+### 1. Packed/sharded v3 READ (large; the rest of Item 1) - SHIPPED 2026-06-10 (merge `fde115a`)
+**Done** on branch `zarr-v3-packed-read` (8 commits) merged to `dev`. Plan:
+`docs/superpowers/plans/2026-06-09-zarrdaf-v3-packed-read.md`. What shipped,
+vs the work list below:
+- `src/crc32c.{h,c}` always-compiled Castagnoli CRC-32C; `src/shard_codecs.cpp`
+  cpp11 wrappers (crc32c always; blosc/zstd gated, self-sizing for vlen strings).
+- `configure`/`configure.win` + `src/Makevars.in`: probe system c-blosc + libzstd,
+  honour `BLOSC_HOME`/`ZSTD_HOME`/`CONDA_PREFIX`; `DAFR_NO_PACKED_CODECS` forces a
+  flat-only (CRAN-equivalent) build. Committed `src/Makevars` is the no-lib fallback.
+- `R/zarr_sharded.R`: detect `sharding_indexed`; parse the start index (crc32c
+  warn-not-fail); inner-codec dispatch (gzip base-R; blosc/zstd C); 1-D + 2-D
+  reassembly (column-major, matching the flat reversed-shape convention);
+  `vlen-utf8` sharded strings; sparse components route independently.
+- Fixtures: `dev/scripts/gen_packed_fixtures.jl` + committed
+  `tests/testthat/fixtures/daf030-packed/{blosc_zstd_bitshuffle,blosc_lz4_bitshuffle,zstd,gzip}.daf.zarr`.
+- **Ground-truth surprises** (vs the original work list): (a) the shard is a
+  *dual-format* blob (ZIP + Zarr); we read it purely via the Zarr start index and
+  ignore the ZIP framing. (b) Packing is per-component AND 8 KiB-threshold-gated
+  even under `packed=true`, so small sparse `colptr`/short vectors stay flat. (c)
+  Inner-chunk grid is C-order; dense-matrix inner shape is `[1,1024]` (one gene
+  column, cell-chunked), NOT "one column per inner chunk". (d) Three ZIP framings
+  per codec (STORED/zstd-93/DEFLATE) but the Zarr index points at the codec output
+  regardless. (e) blosc v1 wasn't installed; used the Julia Blosc.jl artifact's
+  `libblosc.so.1.21.6` to verify.
+- Verified: all 4 codecs end-to-end, live interop vs Julia, no-lib CRAN path
+  (gzip works, blosc/zstd error actionably), full suite 5972 pass / 0 fail.
+
+#### Original work list (for reference)
 The decided scope (maintainer): **read** packed stores (in addition to flat),
 **never write** packed; **CRAN-safe** compression backend. Backend decision was
 adjusted from "vendor c-blosc" to **`configure`-gated optional system c-blosc**
