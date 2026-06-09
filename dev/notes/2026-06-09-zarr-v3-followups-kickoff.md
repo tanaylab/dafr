@@ -82,24 +82,41 @@ CRAN). See spec phases 5-6 for the full design. Work:
 - **CRAN stays green without blosc** (flat path intact; packed read errors with an
   actionable message on a no-blosc build).
 
-### 2. HttpStore-over-v3 (medium; NEW gap the port surfaced)
-`R/http_store.R` (the `zarr_daf("http://...")` ZarrDaf-over-HTTP backend) still
-expects the v2 `.zmetadata` index, so reading a v3 `.daf.zarr` over HTTP fails on
-open. This was **inherited** when the writer went v3 (not a regression from this
-batch) and is now **documented as a known limitation** (NEWS + `http_store.R`
-docstrings) and **pinned by a test** (`test-http-live.R`: `zarr_daf()` over HTTP
-rejects a v3 store). Port: have `new_http_store()` GET the root `zarr.json`, parse
-its inline `consolidated_metadata.metadata` as the node index (replacing the v2
-`.zmetadata` dict), and resolve chunk GETs by v3 keys. **Not** affected and needs
-no work: `HttpDaf`/`FilesDaf`-over-HTTP (the FilesFormat path, `R/http_format.R`),
-which uses `metadata.zip` and is fully working/tested.
+### 2. HttpStore-over-v3 (medium; NEW gap the port surfaced) - SHIPPED 2026-06-09 (`7be98fc`)
+**Done.** `new_http_store()` now GETs the root `zarr.json`, parses its inline
+`consolidated_metadata.metadata` as the node index, serves node metadata from
+that index (re-serialized to the per-node JSON the reader expects), and fetches
+chunks lazily over HTTP; `store_list`/`store_exists` resolve against the index.
+A legacy v2 store served over HTTP is rejected with the `python -m zarr
+v2_to_v3` hint (HEAD-probes `.zmetadata` to name the mismatch). The live
+`test-http-live.R` gap test was flipped from "rejects a v3 store" to a full v3
+round-trip across all component kinds (scalars/axes/dense+sparse vectors/
+strings/bools/dense+sparse matrices) plus the `*_set` enumeration paths.
+`HttpDaf`/`FilesDaf`-over-HTTP (FilesFormat path) was unaffected, as predicted.
+Full suite green (5907 pass / 0 fail / 131 env-gated skips, `NOT_CRAN=true`).
 
-### 3. O(N^2) consolidated-metadata refresh (small perf)
+### 3. O(N^2) consolidated-metadata refresh (re-scoped: medium, not small)
 `zarr_v3_write_consolidated` (`R/zarr_v3.R`) re-scans + re-parses the whole store
 on **every** set/delete (DAF consolidates once at close). Correct + idempotent,
 but O(N^2) for bulk writes. Comment in the code flags it. Fix: consolidate
 lazily/at-close instead of per-mutation (needs a close/flush hook in the ZarrDaf
-lifecycle). Also: a genuine `int64`/`uint64` non-bool sparse `nzval` is narrowed
+lifecycle).
+**Re-scoping note (2026-06-09, item-2 follow-up investigation):** this is
+*medium*, not small. (a) The consolidated index is a single root `zarr.json`
+holding **all** node metadata, so any per-mutation rewrite is inherently O(N^2)
+in bytes written - incremental in-memory indexing only cuts the constant, not
+the order. The order only drops by *deferring* the root write. (b) Local
+`DirStore`/`MmapZipStore` reads do **not** consult the consolidated index (they
+read per-node `zarr.json` directly); only HTTP/external consumers (the new
+HttpStore, zarr-python, Julia DAF) need it. So deferral is safe for in-session
+local reads but moves correctness-for-external-consumers to an explicit flush
+point. (c) There is **no** close/flush hook for `DirStore` today (only
+`MmapZipStore` has `dafr_mmap_zip_close`, and `write_consolidated` already
+no-ops for zip; `http_format.R` uses `reg.finalizer`). So this requires either
+an explicit `flush_daf()`/`close_daf()` API or a `reg.finalizer` on the ZarrDaf
+internal env - i.e. a genuine lifecycle addition with correctness-by-default
+tradeoffs, not a local tweak. Decide the lifecycle approach before coding.
+Also: a genuine `int64`/`uint64` non-bool sparse `nzval` is narrowed
 to double on read (lossy > 2^53; DAF sparse values are realistically float/bool) -
 commented at the decode site; revisit only if a real int64-valued sparse appears.
 
