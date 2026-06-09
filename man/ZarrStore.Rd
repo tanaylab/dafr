@@ -5,7 +5,7 @@
 \alias{DirStore}
 \alias{DictStore}
 \alias{MmapZipStore}
-\title{Zarr v2 Store abstract base class.}
+\title{Zarr Store abstract base class.}
 \usage{
 ZarrStore()
 

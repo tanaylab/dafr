@@ -1,3 +1,17 @@
+# dafr 0.4.0
+
+## ZarrDaf: Zarr v3 (DataAxesFormats.jl 0.3.0 interop)
+
+* ZarrDaf now reads and writes the **Zarr v3** on-disk format used by
+  DataAxesFormats.jl 0.3.0 (a single `zarr.json` per node, `c/`-prefixed chunk
+  keys, the `daf` version marker as a root-group attribute, and inline
+  consolidated metadata). Flat (uncompressed) read and write are supported.
+* **Breaking:** the legacy Zarr v2 reader/writer is removed. Opening a Zarr v2
+  `.daf.zarr` now errors with a conversion hint (`python -m zarr v2_to_v3`),
+  matching DataAxesFormats.jl 0.3.0's own behaviour.
+* Reading packed/sharded (`packed=true`) v3 stores is not yet supported (a
+  follow-up); default DAF writes are flat and read fully.
+
 # dafr 0.3.1
 
 ## Fix: read DataAxesFormats.jl 0.3.0 FilesFormat v1.1 directories
