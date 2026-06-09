@@ -82,3 +82,25 @@ test_that("zarr_v3 consolidated metadata indexes non-root nodes", {
   expect_equal(md[["vectors/cell/score"]]$node_type, "array")
   expect_false("" %in% names(md))   # root is not listed in its own index
 })
+
+test_that("zarr_v3 numeric chunk encode/decode round-trips", {
+  for (case in list(
+      list(v = c(1.5, 2.5, 3.5), d = "float64"),
+      list(v = c(1L, 2L, 3L), d = "int32"),
+      list(v = bit64::as.integer64(c(1, 2, 3)), d = "int64"),
+      list(v = c(TRUE, FALSE, TRUE), d = "bool"))) {
+    enc <- zarr_v3_encode_chunk(case$v, case$d)
+    dec <- zarr_v3_decode_chunk(enc, case$d, n = length(case$v))
+    expect_equal(dec, case$v, info = case$d)
+  }
+})
+
+test_that("zarr_v3 decodes float32 by widening to double", {
+  raw <- writeBin(c(1.0, 3.0, 5.0), raw(), size = 4L, endian = "little")
+  expect_equal(zarr_v3_decode_chunk(raw, "float32", n = 3L), c(1, 3, 5))
+})
+
+test_that("zarr_v3 vlen-utf8 strings round-trip", {
+  enc <- zarr_v3_encode_strings(c("alpha", "", "βeta"))
+  expect_equal(zarr_v3_decode_strings(enc, n = 3L), c("alpha", "", "βeta"))
+})

@@ -204,3 +204,128 @@ zarr_v3_write_consolidated <- function(store) {
     store_set_bytes(store, "zarr.json", charToRaw(as.character(json)))
     invisible()
 }
+
+# ---- chunk encode (write) ------------------------------------------------
+
+# Encode an R vector to raw little-endian bytes for a v3 numeric dtype.
+# Strings use zarr_v3_encode_strings (vlen-utf8).
+zarr_v3_encode_chunk <- function(value, dtype) {
+    if (dtype == "string") {
+        stop("zarr_v3_encode_chunk: use zarr_v3_encode_strings for strings",
+             call. = FALSE)
+    }
+    if (dtype == "float64") return(.zarr_v3_writeBin(as.double(value), 8L))
+    if (dtype == "int32")   return(.zarr_v3_writeBin(as.integer(value), 4L))
+    if (dtype == "int64") {
+        if (!inherits(value, "integer64")) value <- bit64::as.integer64(value)
+        return(.zarr_v3_writeBin(unclass(value), 8L, what = "double"))
+    }
+    if (dtype == "bool") return(as.raw(as.integer(as.logical(value))))
+    stop(sprintf("zarr_v3_encode_chunk: unsupported write dtype %s",
+                 sQuote(dtype)), call. = FALSE)
+}
+
+.zarr_v3_writeBin <- function(value, size, what = NULL) {
+    con <- rawConnection(raw(0L), "wb"); on.exit(close(con))
+    if (is.null(what)) {
+        writeBin(value, con, size = size, endian = "little")
+    } else {
+        writeBin(as(value, what), con, size = size, endian = "little")
+    }
+    rawConnectionValue(con)
+}
+
+# ---- chunk decode (read) -------------------------------------------------
+
+# Decode raw bytes to an R vector for a v3 numeric dtype. `compressor` carries
+# over the v2 gzip path (DAF flat arrays are uncompressed; sharded/blosc is a
+# separate plan). Strings use zarr_v3_decode_strings.
+zarr_v3_decode_chunk <- function(bytes, dtype, n, compressor = NULL) {
+    if (!is.null(compressor)) {
+        codec_id <- compressor$id %||% compressor[["id"]]
+        if (identical(codec_id, "gzip")) {
+            bytes <- memDecompress(bytes, type = "gzip")
+        } else {
+            stop(sprintf("zarr_v3: codec %s not supported on the flat path",
+                         sQuote(codec_id)), call. = FALSE)
+        }
+    }
+    if (dtype == "string") {
+        stop("zarr_v3_decode_chunk: use zarr_v3_decode_strings for strings",
+             call. = FALSE)
+    }
+    con <- rawConnection(bytes, "rb"); on.exit(close(con))
+    if (dtype == "float64") return(readBin(con, "double", n, 8L, endian = "little"))
+    if (dtype == "float32") return(readBin(con, "double", n, 4L, endian = "little"))
+    if (dtype == "int32")   return(readBin(con, "integer", n, 4L, endian = "little"))
+    if (dtype %in% c("uint8", "int8")) {
+        return(readBin(con, "integer", n, 1L, signed = (dtype == "int8")))
+    }
+    if (dtype %in% c("uint16", "int16")) {
+        return(readBin(con, "integer", n, 2L, signed = (dtype == "int16"),
+                       endian = "little"))
+    }
+    if (dtype == "uint32") {
+        x <- readBin(con, "integer", n, 4L, endian = "little")
+        neg <- !is.na(x) & x < 0L
+        if (any(neg)) { x <- as.double(x); x[neg] <- x[neg] + 2^32 }
+        return(x)
+    }
+    if (dtype %in% c("int64", "uint64")) {
+        d <- readBin(con, "double", n, 8L, endian = "little")
+        class(d) <- "integer64"
+        return(d)
+    }
+    if (dtype == "bool") return(as.logical(readBin(con, "raw", n)))
+    stop(sprintf("zarr_v3_decode_chunk: unsupported data_type %s",
+                 sQuote(dtype)), call. = FALSE)
+}
+
+# ---- vlen-utf8 strings (numcodecs wire format; identical to v2) ----------
+# [N: uint32 LE] then per string: [len_i: uint32 LE][utf8 bytes].
+
+zarr_v3_encode_strings <- function(strings) {
+    if (!is.character(strings)) {
+        stop("zarr_v3_encode_strings: input must be a character vector",
+             call. = FALSE)
+    }
+    con <- rawConnection(raw(0L), "wb"); on.exit(close(con))
+    writeBin(length(strings), con, size = 4L, endian = "little")
+    for (s in strings) {
+        if (is.na(s)) stop("zarr_v3_encode_strings: NA not supported",
+                           call. = FALSE)
+        b <- charToRaw(enc2utf8(s))
+        writeBin(length(b), con, size = 4L, endian = "little")
+        if (length(b) > 0L) writeBin(b, con)
+    }
+    rawConnectionValue(con)
+}
+
+zarr_v3_decode_strings <- function(bytes, n = NA_integer_) {
+    if (length(bytes) < 4L) {
+        stop("zarr_v3_decode_strings: truncated (no count header)",
+             call. = FALSE)
+    }
+    con <- rawConnection(bytes, "rb"); on.exit(close(con))
+    n_in <- readBin(con, "integer", 1L, 4L, endian = "little")
+    if (!is.na(n) && n_in != n) {
+        stop(sprintf("zarr_v3_decode_strings: count %d != expected %d",
+                     n_in, n), call. = FALSE)
+    }
+    out <- character(n_in)
+    for (i in seq_len(n_in)) {
+        len_i <- readBin(con, "integer", 1L, 4L, endian = "little")
+        if (length(len_i) != 1L) {
+            stop(sprintf("zarr_v3_decode_strings: truncated length at %d", i),
+                 call. = FALSE)
+        }
+        if (len_i == 0L) { out[[i]] <- ""; next }
+        payload <- readBin(con, "raw", len_i)
+        if (length(payload) != len_i) {
+            stop(sprintf("zarr_v3_decode_strings: truncated string at %d", i),
+                 call. = FALSE)
+        }
+        out[[i]] <- rawToChar(payload); Encoding(out[[i]]) <- "UTF-8"
+    }
+    out
+}
