@@ -309,17 +309,20 @@ S7::method(
     .zarr_read_only_guard("set_scalar")
 }
 
+# Write a single dense v3 array (numeric or string) + its one chunk. ndim is
+# derived from length(shape); caller refreshes consolidated metadata.
+.zarr_write_dense_array <- function(store, base, values, shape) {
+    dtype <- zarr_v3_dtype_for_r(values)
+    zarr_v3_write_array(store, base, zarr_v3_array_meta(shape = shape, dtype = dtype))
+    chunk <- if (dtype == "string") zarr_v3_encode_strings(values) else
+        zarr_v3_encode_chunk(values, dtype)
+    store_set_bytes(store, zarr_v3_chunk_path(base, length(shape)), chunk)
+    invisible()
+}
+
 .zarr_write_scalar <- function(store, name, value) {
     base <- paste0("scalars/", name)
-    dtype <- zarr_v3_dtype_for_r(value)
-    meta <- zarr_v3_array_meta(shape = length(value), dtype = dtype)
-    zarr_v3_write_array(store, base, meta)
-    chunk_bytes <- if (dtype == "string") {
-        zarr_v3_encode_strings(value)
-    } else {
-        zarr_v3_encode_chunk(value, dtype)
-    }
-    store_set_bytes(store, zarr_v3_chunk_path(base, 1L), chunk_bytes)
+    .zarr_write_dense_array(store, base, value, length(value))
     zarr_v3_write_consolidated(store)
 }
 
@@ -447,13 +450,7 @@ S7::method(
     .require_no_axis(daf, axis)
     store <- S7::prop(daf, "store")
     base <- paste0("axes/", axis)
-    n <- length(entries)
-    meta <- zarr_v3_array_meta(shape = n, dtype = "string")
-    zarr_v3_write_array(store, base, meta)
-    store_set_bytes(
-        store, zarr_v3_chunk_path(base, 1L),
-        zarr_v3_encode_strings(entries)
-    )
+    .zarr_write_dense_array(store, base, entries, length(entries))
     zarr_v3_write_consolidated(store)
     invisible()
 }
@@ -714,20 +711,12 @@ S7::method(
 }
 
 .zarr_write_dense_vector <- function(store, base, vec) {
-    dtype <- zarr_v3_dtype_for_r(vec)
-    meta <- zarr_v3_array_meta(shape = length(vec), dtype = dtype)
-    zarr_v3_write_array(store, base, meta)
-    chunk <- if (dtype == "string") {
-        zarr_v3_encode_strings(vec)
-    } else {
-        zarr_v3_encode_chunk(vec, dtype)
-    }
-    store_set_bytes(store, zarr_v3_chunk_path(base, 1L), chunk)
+    .zarr_write_dense_array(store, base, vec, length(vec))
     zarr_v3_write_consolidated(store)
 }
 
 .zarr_write_sparse_vector <- function(store, base, vec) {
-    # Mark as a v3 group. NO attributes are written — upstream parity with
+    # Mark as a v3 group. NO attributes are written - upstream parity with
     # sparse matrices: shape comes from the axis length on read, and
     # the all-TRUE Bool case is inferred from absence of `nzval/`.
     zarr_v3_write_group(store, base)
@@ -794,16 +783,16 @@ S7::method(format_delete_vector,
 #       Dense:  zarr.json (array) + c/0/0   (shape = [n_cols, n_rows])
 #       Sparse: zarr.json (group) + colptr/, rowval/, [nzval/]
 #
-# Dense:   upstream stores the array shape REVERSED — [n_cols, n_rows] (there
+# Dense:   upstream stores the array shape REVERSED - [n_cols, n_rows] (there
 #          is no `order` field in v3). The on-disk chunk bytes are Julia/R
 #          column-major (R's natural matrix layout). A Python zarr reader sees
-#          this as a C-contiguous (n_cols, n_rows) array — the transpose of the
+#          this as a C-contiguous (n_cols, n_rows) array - the transpose of the
 #          R/Julia view. Matches upstream exactly.
 #
 # Sparse:  on-disk colptr / rowval are int64, 1-based (Julia SparseMatrixCSC
 #          native); Matrix's @p / @i are 0-based, so we convert with +1L on
 #          write, -1L on read. Upstream writes NO attributes for sparse
-#          matrices — shape comes from the axis lengths and "all-TRUE Bool" is
+#          matrices - shape comes from the axis lengths and "all-TRUE Bool" is
 #          inferred from the absence of `nzval/`.
 
 S7::method(format_has_matrix,
@@ -1027,19 +1016,10 @@ S7::method(
 }
 
 .zarr_write_dense_matrix <- function(store, base, mat, nr, nc) {
-    dimnames(mat) <- NULL
-    flat <- as.vector(mat)  # R column-major flatten — bytes match Julia.
-    dtype <- zarr_v3_dtype_for_r(flat)
     # On-disk shape is REVERSED [n_cols, n_rows] (matches DAF; no `order`
-    # field in v3). Chunk bytes are R/Julia column-major.
-    meta <- zarr_v3_array_meta(shape = c(nc, nr), dtype = dtype)
-    zarr_v3_write_array(store, base, meta)
-    chunk <- if (dtype == "string") {
-        zarr_v3_encode_strings(flat)
-    } else {
-        zarr_v3_encode_chunk(flat, dtype)
-    }
-    store_set_bytes(store, zarr_v3_chunk_path(base, 2L), chunk)
+    # field in v3). Chunk bytes are R/Julia column-major (as.vector flatten).
+    dimnames(mat) <- NULL
+    .zarr_write_dense_array(store, base, as.vector(mat), c(nc, nr))
     zarr_v3_write_consolidated(store)
 }
 
@@ -1048,7 +1028,7 @@ S7::method(
     is_lg <- methods::is(mat, "lgCMatrix")
     is_all_true_bool <- is_lg && length(mat@x) > 0L &&
                         all(mat@x, na.rm = FALSE)
-    # No attributes for sparse matrices — upstream-compatible.
+    # No attributes for sparse matrices - upstream-compatible.
     # colptr + rowval: int64, 1-based (DAF SparseMatrixCSC convention).
     # Matrix's @p / @i are 0-based, so +1L on write.
     colptr_1 <- bit64::as.integer64(mat@p + 1L)
@@ -1175,13 +1155,8 @@ S7::method(format_replace_reorder, list(ZarrDaf, S7::class_list)) <-
             tick_crash_counter(crash_counter)
             pa <- plan$planned_axes[[axis]]
             base <- paste0("axes/", axis)
-            n <- length(pa$new_entries)
-            zarr_v3_write_array(store, base,
-                                zarr_v3_array_meta(shape = n, dtype = "string"))
-            store_set_bytes(
-                store, zarr_v3_chunk_path(base, 1L),
-                zarr_v3_encode_strings(pa$new_entries)
-            )
+            .zarr_write_dense_array(store, base, pa$new_entries,
+                                    length(pa$new_entries))
         }
 
         # Vectors: read, permute, overwrite.

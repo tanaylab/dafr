@@ -178,6 +178,9 @@ zarr_v3_daf_version <- function(store) {
 # path -> its full metadata (the root's own consolidated_metadata field is
 # stripped from any node before inlining). No-op on append-only zip stores
 # (DAF omits consolidated metadata there and uses the zip central directory).
+# Perf follow-up: this re-scans and reparses the whole store on every call, so
+# bulk writes are O(N^2). A future optimization is to consolidate lazily / at
+# close (as DAF does) rather than on every per-mutation refresh.
 zarr_v3_write_consolidated <- function(store) {
     if (S7::S7_inherits(store, MmapZipStore)) return(invisible())
     keys <- store_list(store, "")

@@ -88,6 +88,19 @@ test_that("v3 vector + matrix delete remove the node and refresh the index", {
   expect_false("matrices/cell/gene/m" %in% idx)
 })
 
+test_that("v3 scalar + axis delete remove the node and the on-disk zarr.json", {
+  dir <- tempfile(fileext = ".daf.zarr")
+  d <- zarr_daf(dir, mode = "w")
+  add_axis(d, "cell", c("c1", "c2"))
+  set_scalar(d, "title", "hello")
+  delete_scalar(d, "title")
+  delete_axis(d, "cell")
+  expect_false(has_scalar(d, "title"))
+  expect_false(has_axis(d, "cell"))
+  expect_false(file.exists(file.path(dir, "scalars", "title", "zarr.json")))
+  expect_false(file.exists(file.path(dir, "axes", "cell", "zarr.json")))
+})
+
 test_that("v3 sparse vector delete removes the whole subtree", {
   dir <- tempfile(fileext = ".daf.zarr")
   d <- zarr_daf(dir, mode = "w")
