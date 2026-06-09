@@ -149,6 +149,37 @@ test_that("http_daf reads a FilesFormat v1.1 repo served over HTTP", {
                  as.matrix(sm), ignore_attr = TRUE)
 })
 
+test_that("files_daf reads a real DataAxesFormats.jl 0.3.0-written v1.1 repo", {
+    skip_on_cran()
+    skip_if_not(.have_julia_env(), "dafr-mcview Julia env not available")
+    p <- tempfile(fileext = ".daf")
+    on.exit(unlink(p, recursive = TRUE, force = TRUE), add = TRUE)
+    out <- run_julia(c(
+        "using DataAxesFormats, SparseArrays",
+        sprintf('daf = FilesDaf("%s", "w"; name = "jl")', p),
+        'add_axis!(daf, "cell", ["c1", "c2", "c3"])',
+        'add_axis!(daf, "gene", ["g1", "g2", "g3"])',
+        'set_scalar!(daf, "title", "hi")',
+        'set_vector!(daf, "cell", "age", Float64[10, 20, 30])',
+        'set_vector!(daf, "cell", "sv", SparseVector(3, [2], [5.0]))',
+        'set_matrix!(daf, "cell", "gene", "UMIs", sparse([1.0 0 0; 0 2.0 0; 0 0 3.0]); relayout = false)',
+        'println("DONE")'
+    ))
+    skip_if_not(any(grepl("^DONE$", out)),
+                paste0("Julia FilesDaf writer failed:\n", paste(out, collapse = "\n")))
+    # This only exercises the v1.1 reader if the writer actually emitted 1.1.
+    skip_if_not(any(grepl("\\[1, ?1\\]",
+                          readLines(file.path(p, "daf.json"), warn = FALSE))),
+                "Julia FilesDaf did not write format v1.1")
+
+    d <- files_daf(p, "r")
+    expect_identical(get_scalar(d, "title"), "hi")
+    expect_equal(unname(get_vector(d, "cell", "age")), c(10, 20, 30))
+    expect_equal(unname(get_vector(d, "cell", "sv")), c(0, 5, 0))
+    expect_equal(as.matrix(get_matrix(d, "cell", "gene", "UMIs")),
+                 diag(c(1, 2, 3)), ignore_attr = TRUE)
+})
+
 test_that("files_daf still rejects a too-new FilesFormat (v1.2)", {
     p <- tempfile(fileext = ".daf")
     on.exit(unlink(p, recursive = TRUE, force = TRUE), add = TRUE)
