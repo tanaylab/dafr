@@ -125,6 +125,30 @@ test_that("files_daf rejects a v1.1 packed sparse component (0.3.0 .zip), not su
     expect_error(get_vector(d2, "cell", "sv"), "packed")
 })
 
+test_that("http_daf reads a FilesFormat v1.1 repo served over HTTP", {
+    skip_on_cran()
+    p <- tempfile(fileext = ".daf")
+    on.exit(unlink(p, recursive = TRUE, force = TRUE), add = TRUE)
+    d <- files_daf(p, "w")
+    add_axis(d, "cell", c("c1", "c2", "c3"))
+    add_axis(d, "gene", c("g1", "g2"))
+    set_vector(d, "cell", "sv", c(0, 5, 0))
+    set_scalar(d, "title", "hi")
+    sm <- Matrix::Matrix(matrix(c(1, 0, 0, 0, 2, 0), 3, 2), sparse = TRUE)
+    set_matrix(d, "cell", "gene", "SM", sm)
+    rm(d)
+    .rewrite_files_repo_to_v11(p)
+    dafr:::.metadata_zip_rebuild(p)   # repack metadata.zip with the v1.1 JSONs
+
+    srv <- start_http_server(p)
+    on.exit(stop_http_server(srv), add = TRUE)
+    hd <- http_daf(srv$url, name = "v11")
+    expect_identical(get_scalar(hd, "title"), "hi")
+    expect_equal(unname(get_vector(hd, "cell", "sv")), c(0, 5, 0))
+    expect_equal(as.matrix(get_matrix(hd, "cell", "gene", "SM")),
+                 as.matrix(sm), ignore_attr = TRUE)
+})
+
 test_that("files_daf still rejects a too-new FilesFormat (v1.2)", {
     p <- tempfile(fileext = ".daf")
     on.exit(unlink(p, recursive = TRUE, force = TRUE), add = TRUE)
