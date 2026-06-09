@@ -127,15 +127,18 @@
 }
 
 # ---- reassembly ----------------------------------------------------------
+#
+# The reassembly core takes the raw shard bytes plus a node descriptor and is
+# storage-agnostic: ZarrDaf passes bytes fetched from its store at the single
+# outer-chunk key; FilesDaf/ZipDaf pass the whole dual-format `.zip` payload
+# (the start-located Zarr shard index sits at byte 0 of that file). The thin
+# `.zarr_read_sharded_*` wrappers below fetch the bytes from a zarr store; the
+# `.shard_decode_*` cores do the actual index parse + inner decode + tiling.
 
-# Read a sharded 1-D array (dense vector or a sparse component) to an R vector.
-.zarr_read_sharded_vector <- function(store, base, node) {
+# Decode a sharded 1-D array (dense vector or sparse component) from shard
+# bytes to an R vector.
+.shard_decode_vector <- function(shard, node) {
     cfg <- .zarr_sharding_config(node)
-    shard <- store_get_bytes(store, zarr_v3_chunk_path(base, 1L))
-    if (is.null(shard)) {
-        stop(sprintf("sharded array %s missing chunk", sQuote(base)),
-             call. = FALSE)
-    }
     idx <- .zarr_shard_index(shard, node, cfg)
     grid <- .zarr_shard_grid(node, cfg)
     len <- grid$outer[[1L]]; inner <- grid$inner[[1L]]
@@ -152,17 +155,23 @@
     out
 }
 
-# Read a sharded 2-D dense array to an R matrix. On-disk shape is reversed
-# [n_cols, n_rows]; the Daf matrix is nr=shape[2] x nc=shape[1], filled
-# column-major (== C-order of the reversed on-disk shape), matching the flat
-# dense reader.
-.zarr_read_sharded_matrix <- function(store, base, node) {
-    cfg <- .zarr_sharding_config(node)
-    shard <- store_get_bytes(store, zarr_v3_chunk_path(base, 2L))
+# Read a sharded 1-D array (dense vector or a sparse component) to an R vector.
+.zarr_read_sharded_vector <- function(store, base, node) {
+    shard <- store_get_bytes(store, zarr_v3_chunk_path(base, 1L))
     if (is.null(shard)) {
-        stop(sprintf("sharded matrix %s missing chunk", sQuote(base)),
+        stop(sprintf("sharded array %s missing chunk", sQuote(base)),
              call. = FALSE)
     }
+    .shard_decode_vector(shard, node)
+}
+
+# Decode a sharded 2-D dense array from shard bytes to an R matrix. The node's
+# `shape` is in on-disk (C-order) axis order; the matrix is filled column-major
+# so that C-order over `shape` equals column-major over (nr, nc). For ZarrDaf
+# the on-disk shape is reversed [n_cols, n_rows]; FilesDaf presents the same
+# reversed convention (see R/files_packed.R) so this core is shared verbatim.
+.shard_decode_matrix <- function(shard, node) {
+    cfg <- .zarr_sharding_config(node)
     idx <- .zarr_shard_index(shard, node, cfg)
     grid <- .zarr_shard_grid(node, cfg)
     d0 <- grid$outer[[1L]]; d1 <- grid$outer[[2L]]   # on-disk dims (C-order)
@@ -187,6 +196,16 @@
     }
     dim(flat) <- c(d1, d0)   # nr=d1, nc=d0; column-major == on-disk C-order
     flat
+}
+
+# Read a sharded 2-D dense array to an R matrix (ZarrDaf store wrapper).
+.zarr_read_sharded_matrix <- function(store, base, node) {
+    shard <- store_get_bytes(store, zarr_v3_chunk_path(base, 2L))
+    if (is.null(shard)) {
+        stop(sprintf("sharded matrix %s missing chunk", sQuote(base)),
+             call. = FALSE)
+    }
+    .shard_decode_matrix(shard, node)
 }
 
 # Decode a 1-D component array (sharded or flat) to an R vector. Sparse

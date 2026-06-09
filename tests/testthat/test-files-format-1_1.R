@@ -108,21 +108,25 @@ test_that("files_daf reads a v1.1 all-true Bool sparse vector (no nzval descript
                      c(FALSE, TRUE, FALSE, TRUE, FALSE))
 })
 
-test_that("files_daf rejects a v1.1 packed sparse component (0.3.0 .zip), not supported", {
+test_that("files_daf rejects a 'zipped'-only packed component (no Zarr index)", {
+    # dafr reads the dual-format "indexed+zipped" shards DataAxesFormats.jl
+    # writes (via the start-located Zarr index); a bare "zipped" ZIP-only shard
+    # from a foreign producer carries no such index and is rejected with an
+    # actionable message before any byte is read. (Real "indexed+zipped" read
+    # coverage lives in test-files-packed-read.R against committed fixtures.)
     p <- tempfile(fileext = ".daf")
     on.exit(unlink(p, recursive = TRUE, force = TRUE), add = TRUE)
     d <- files_daf(p, "w")
     add_axis(d, "cell", c("c1", "c2", "c3"))
     set_vector(d, "cell", "sv", c(0, 5, 0))
     .rewrite_files_repo_to_v11(p)
-    # Mark the nzind component as packed (as 0.3.0 would for a .zip shard).
     j <- file.path(p, "vectors/cell/sv.json")
     desc <- jsonlite::fromJSON(j, simplifyVector = TRUE)
-    desc$nzind$packed_format <- "indexed+zipped"
+    desc$nzind$packed_format <- "zipped"   # ZIP-only, no leading Zarr index
     writeLines(jsonlite::toJSON(desc, auto_unbox = TRUE), j)
 
     d2 <- files_daf(p, "r")
-    expect_error(get_vector(d2, "cell", "sv"), "packed")
+    expect_error(get_vector(d2, "cell", "sv"), "indexed\\+zipped")
 })
 
 test_that("http_daf reads a FilesFormat v1.1 repo served over HTTP", {

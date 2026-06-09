@@ -137,6 +137,13 @@
         # eltype/indtype via .files_parse_sparse_descriptor.
         return(j)
     }
+    if (!is.null(j$packed_format)) {
+        # Packed (chunked + compressed) dense property (DataAxesFormats.jl
+        # 0.3.0): return the full descriptor (packed_format / chunk_shape /
+        # compression / eltype) so the packed readers in R/files_packed.R can
+        # route and decode the `.zip` shard.
+        return(j)
+    }
     if (is.null(elt)) {
         stop(sprintf(
             "files_daf: %s has malformed descriptor (no eltype)",

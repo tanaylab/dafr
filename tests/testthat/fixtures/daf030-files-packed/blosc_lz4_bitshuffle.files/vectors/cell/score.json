@@ -1,0 +1,1 @@
+{"format":"dense","eltype":"Float64","packed_format":"indexed+zipped","chunk_shape":[1024],"compression":"blosc_lz4_bitshuffle","compression_level":5,"index_location":"start"}
