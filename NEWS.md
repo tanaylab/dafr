@@ -1,5 +1,48 @@
 # dafr (development version)
 
+## Fix: ZarrDaf on-disk format now interoperates with DataAxesFormats.jl
+
+`.daf.zarr` stores written by dafr and by `DataAxesFormats.jl` were
+mutually unreadable. Opening a Julia-written store in R failed with
+`missing daf.json`; opening an R-written store in Julia failed with
+`not a daf data set`. Three divergences from upstream
+(`DataAxesFormats.jl` v0.2.0, `src/zarr_format.jl`) caused this, all now
+fixed:
+
+- **`daf` marker array.** Upstream marks a store with a Zarr *array*
+  named `daf` holding two `UInt8` bytes `[MAJOR, MINOR]` = `[1, 0]` and
+  validates via `haskey(root.arrays, "daf")`. dafr wrote a plain
+  `daf.json` file instead. dafr now writes (and validates) the `daf`
+  marker array and no longer writes `daf.json` for Zarr stores. This is
+  a **breaking change** to the dafr Zarr on-disk format: `.daf.zarr`
+  stores written by earlier dafr versions (which carry `daf.json`, not
+  the `daf` array) are not readable by this version. The FilesDaf
+  `daf.json` marker is unchanged.
+- **Intermediate `.zgroup` markers.** Upstream writes a real `.zgroup`
+  for every group (the four `scalars`/`axes`/`vectors`/`matrices`
+  containers, eagerly, plus every sub-group). dafr only wrote the root
+  `.zgroup` and synthesised the rest inside the consolidated
+  `.zmetadata` - enough for zarr-python's consolidated reader, but
+  Julia's directory-store open navigates real `.zgroup` files and so
+  raised `KeyError: key "axes" not found`. dafr now writes a `.zgroup`
+  for every group.
+- **Read-side dtype coverage.** The chunk reader only understood
+  `<f8/<i4/<i8/|b1/|O`. It now also reads `|u1`, `<u1`, `<i1`, `<u2`,
+  `<i2`, `<u4`, `<u8`, and `<f4` - the unsigned, narrow, and Float32
+  dtypes upstream legitimately emits (Float32 expression matrices,
+  unsigned index arrays, and the `|u1` marker itself).
+- **Dense-matrix chunk separator.** dafr wrote multi-dimensional chunk
+  keys with the `/` dimension separator (chunk file `0/0`); upstream and
+  the Zarr v2 default use `.` (chunk file `0.0`). A Julia reader looked
+  for `0.0`, did not find it, and failed with `missing chunks and no
+  fill_value`. (Sparse matrices were unaffected - their components are
+  1-D, whose single chunk is `0` either way.) dafr now uses the `.`
+  separator for all arrays, matching upstream.
+
+Round-trip interop in both directions is covered by
+`tests/testthat/test-zarr-julia-interop.R` (gated on the `dafr-mcview`
+Julia env), and zarr-python interop remains green.
+
 ## Documentation pass
 
 - Rewrote `vignette("queries")` to cover element-wise transforms,

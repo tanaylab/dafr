@@ -18,8 +18,9 @@ test_that("open_daf of a fresh .daf.zarr.zip path creates a writable ZarrDaf", {
     expect_s7_class(d, ZarrDaf)
     expect_s7_class(S7::prop(d, "store"), MmapZipStore)
     expect_true(file.exists(path))
-    # daf.json marker present.
-    expect_true(store_exists(S7::prop(d, "store"), "daf.json"))
+    # Upstream `daf` marker array present.
+    expect_true(store_exists(S7::prop(d, "store"), "daf/.zarray"))
+    expect_false(store_exists(S7::prop(d, "store"), "daf.json"))
     dafr:::dafr_mmap_zip_close(S7::prop(S7::prop(d, "store"), "xptr"))
 })
 
@@ -119,7 +120,7 @@ test_that("close the writer, reopen in 'r' mode, all data is intact", {
     dafr:::dafr_mmap_zip_close(S7::prop(S7::prop(d2, "store"), "xptr"))
 })
 
-test_that("re-open in 'r' mode after partial write doesn't double-init the daf.json", {
+test_that("re-open in 'r' mode after partial write doesn't double-init the daf marker", {
     skip_if_no_mmap_zip()
     # First write: create + populate.
     path <- new_zip_path()
@@ -127,8 +128,8 @@ test_that("re-open in 'r' mode after partial write doesn't double-init the daf.j
     add_axis(d, "cell", c("c1", "c2"))
     dafr:::dafr_mmap_zip_close(S7::prop(S7::prop(d, "store"), "xptr"))
 
-    # Reopen 'r' should NOT touch daf.json (which is append-only and would
-    # error). Just reads the existing one.
+    # Reopen 'r' should NOT re-init the `daf` marker array (which is
+    # append-only in the zip store and would error). Just reads the existing one.
     d2 <- open_daf(path, mode = "r")
     expect_s7_class(d2, ZarrDafReadOnly)
     expect_identical(axis_entries(d2, "cell"), c("c1", "c2"))
