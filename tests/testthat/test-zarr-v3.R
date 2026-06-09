@@ -21,3 +21,12 @@ test_that("zarr_v3 dtype mapping covers R types and v3 names", {
   expect_equal(zarr_v3_size_for_dtype("uint8"), 1L)
   expect_true(is.na(zarr_v3_size_for_dtype("string")))
 })
+
+test_that("zarr_v3 chunk keys use c/ prefix and / separator", {
+  expect_equal(zarr_v3_chunk_key(1L), "c/0")
+  expect_equal(zarr_v3_chunk_key(2L), "c/0/0")
+  # path-qualified
+  expect_equal(zarr_v3_chunk_path("vectors/cell/score", 1L), "vectors/cell/score/c/0")
+  expect_equal(zarr_v3_chunk_path("matrices/cell/gene/expr", 2L),
+               "matrices/cell/gene/expr/c/0/0")
+})

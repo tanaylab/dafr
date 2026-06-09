@@ -46,3 +46,15 @@ zarr_v3_size_for_dtype <- function(dtype) {
         stop(sprintf("zarr_v3: unsupported data_type %s", sQuote(dtype)),
              call. = FALSE))
 }
+
+# ---- chunk keys (v3 default encoding: prefix "c", separator "/") ---------
+
+# Single-chunk key for an ndim-dimensional array: "c/0" (1-D), "c/0/0" (2-D).
+zarr_v3_chunk_key <- function(ndim) {
+    paste(c("c", rep("0", ndim)), collapse = "/")
+}
+
+# Full store key for the single chunk of the array at `base`.
+zarr_v3_chunk_path <- function(base, ndim) {
+    paste0(base, "/", zarr_v3_chunk_key(ndim))
+}
