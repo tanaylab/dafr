@@ -138,9 +138,10 @@ zarr_daf <- function(uri = NULL, mode = c("r", "r+", "w", "w+"),
     }
 
     if (mode %in% c("r", "r+")) {
+        .zarr_reject_if_v2(store, store_path)
         if (!.zarr_daf_marker_exists(store)) {
             stop(sprintf(
-                "zarr_daf: store at %s is not a valid ZarrDaf store (missing `daf` marker array)",
+                "zarr_daf: store at %s is not a valid ZarrDaf store (missing `daf` marker)",
                 sQuote(store_path)
             ), call. = FALSE)
         }
@@ -163,29 +164,39 @@ zarr_daf <- function(uri = NULL, mode = c("r", "r+", "w", "w+"),
     )
 }
 
-# Daf-zarr format version. Upstream (DataAxesFormats.jl src/zarr_format.jl)
-# marks a store with a Zarr *array* named `daf` holding two UInt8 bytes
-# [MAJOR_VERSION, MINOR_VERSION]. We match it byte-for-byte so R- and
-# Julia-written `.daf.zarr` stores are mutually readable.
-.ZARR_DAF_MAJOR <- 1L
-.ZARR_DAF_MINOR <- 0L
+# Daf-zarr format version is carried as the root group attribute `daf:[MAJOR,
+# MINOR]` (DataAxesFormats.jl 0.3.0, Zarr v3). See R/zarr_v3.R for the marker.
+.ZARR_DAF_MAJOR <- .ZARR_V3_DAF_MAJOR
+.ZARR_DAF_MINOR <- .ZARR_V3_DAF_MINOR
 
-# Does the store carry the upstream `daf` marker array?
+# Does the store carry a v3 daf marker (root group with a `daf` attribute)?
 .zarr_daf_marker_exists <- function(store) {
-    store_exists(store, "daf/.zarray")
+    zarr_v3_daf_marker_exists(store)
 }
 
-# Read + validate the `daf` marker array's version bytes. Mirrors Julia's
-# `verify_daf` (src/zarr_format.jl): a newer major, or a newer minor than
-# this code supports, is rejected.
+# Reject a legacy Zarr v2 store (DAF 0.3.0 does the same). Detected by a root
+# `.zgroup`/`.zarray` with no `zarr.json`.
+.zarr_reject_if_v2 <- function(store, store_path) {
+    has_v3 <- store_exists(store, "zarr.json")
+    has_v2 <- store_exists(store, ".zgroup") || store_exists(store, ".zarray") ||
+              store_exists(store, "daf/.zarray")
+    if (!has_v3 && has_v2) {
+        stop(sprintf(paste0(
+            "zarr_daf: Zarr v2 store at %s; dafr requires a Zarr v3 store ",
+            "(DAF 0.3.0). Convert via `python -m zarr v2_to_v3 <path>` ",
+            "(zarr-python 3.1.2+), then reopen."), sQuote(store_path)),
+            call. = FALSE)
+    }
+    invisible()
+}
+
+# Read + validate the root daf version attribute. A newer major, or a newer
+# minor than this code supports, is rejected.
 .zarr_verify_daf <- function(store, store_path) {
-    marker <- store_get_bytes(store, "daf/0")
-    version <- if (is.null(marker)) integer(0L) else as.integer(marker)
+    version <- zarr_v3_daf_version(store)
     if (length(version) != 2L) {
-        stop(sprintf(
-            "zarr_daf: store at %s has a malformed `daf` version marker",
-            sQuote(store_path)
-        ), call. = FALSE)
+        stop(sprintf("zarr_daf: store at %s has a malformed `daf` marker",
+                     sQuote(store_path)), call. = FALSE)
     }
     if (version[1L] != .ZARR_DAF_MAJOR || version[2L] > .ZARR_DAF_MINOR) {
         stop(sprintf(paste0(
@@ -197,26 +208,14 @@ zarr_daf <- function(uri = NULL, mode = c("r", "r+", "w", "w+"),
     invisible()
 }
 
-# Initialize an empty Zarr store with upstream's `daf` marker array. Also
-# writes the root `.zgroup` (so zarr-python v3's `zarr.open()` recognises
-# the directory as a Zarr v2 group) and an empty `.zmetadata` (consolidated
-# metadata, see zarr_v2.R) so both files exist from store creation and the
-# invariant "every ZarrDaf store has `.zgroup` + `.zmetadata` at its root"
-# holds unconditionally.
+# Initialize an empty v3 store: root group (with daf attribute) + the four
+# container groups, then refresh consolidated metadata.
 .zarr_daf_init_store <- function(store) {
-    # `daf` Zarr array: dtype |u1, shape [2], one chunk, bytes [MAJOR, MINOR].
-    zarray <- zarr_v2_zarray(shape = 2L, dtype = "|u1")
-    zarr_v2_write_zarray(store, "daf", zarray)
-    store_set_bytes(store, "daf/0",
-                    as.raw(c(.ZARR_DAF_MAJOR, .ZARR_DAF_MINOR)))
-    store_set_bytes(store, ".zgroup", .ZARR_ZGROUP_BYTES)
-    # Upstream create_daf eagerly creates the four container groups, each with
-    # a real `.zgroup` (Julia's directory-store open navigates the tree via
-    # actual `.zgroup` files, not the consolidated `.zmetadata`).
+    zarr_v3_write_root(store)
     for (grp in c("scalars", "axes", "vectors", "matrices")) {
-        store_set_bytes(store, paste0(grp, "/.zgroup"), .ZARR_ZGROUP_BYTES)
+        zarr_v3_write_group(store, grp)
     }
-    zarr_v2_write_zmetadata(store)
+    zarr_v3_write_consolidated(store)
     invisible()
 }
 
