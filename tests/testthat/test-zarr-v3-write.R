@@ -65,3 +65,36 @@ test_that("v3 dense + sparse matrix write round-trips in-process", {
   expect_equal(colptr_meta$data_type, "int64")
   expect_equal(rowval_meta$data_type, "int64")
 })
+
+test_that("v3 vector + matrix delete remove the node and refresh the index", {
+  dir <- tempfile(fileext = ".daf.zarr")
+  d <- zarr_daf(dir, mode = "w")
+  add_axis(d, "cell", c("c1", "c2"))
+  add_axis(d, "gene", c("g1", "g2"))
+  set_vector(d, "cell", "v", c(1, 2))
+  set_matrix(d, "cell", "gene", "m", matrix(c(1, 2, 3, 4), nrow = 2))
+  delete_vector(d, "cell", "v")
+  delete_matrix(d, "cell", "gene", "m")
+  expect_false(has_vector(d, "cell", "v"))
+  expect_false(has_matrix(d, "cell", "gene", "m"))
+  expect_false(file.exists(file.path(dir, "vectors", "cell", "v", "zarr.json")))
+  expect_false(file.exists(file.path(dir, "matrices", "cell", "gene", "m",
+                                     "zarr.json")))
+  # the consolidated index no longer lists the deleted nodes
+  root <- jsonlite::fromJSON(file.path(dir, "zarr.json"),
+                             simplifyVector = FALSE)
+  idx <- names(root$consolidated_metadata$metadata)
+  expect_false("vectors/cell/v" %in% idx)
+  expect_false("matrices/cell/gene/m" %in% idx)
+})
+
+test_that("v3 sparse vector delete removes the whole subtree", {
+  dir <- tempfile(fileext = ".daf.zarr")
+  d <- zarr_daf(dir, mode = "w")
+  add_axis(d, "cell", c("c1", "c2", "c3"))
+  set_vector(d, "cell", "sv", Matrix::sparseVector(c(4, 9), c(1, 3), 3))
+  delete_vector(d, "cell", "sv")
+  expect_false(has_vector(d, "cell", "sv"))
+  expect_false(file.exists(file.path(dir, "vectors", "cell", "sv", "nzind",
+                                     "zarr.json")))
+})

@@ -106,6 +106,9 @@ zarr_v2_write_zarray <- function(store, path, zarray) {
     invisible()
 }
 
+# Group marker for sparse layouts (Zarr v2 .zgroup convention).
+.ZARR_ZGROUP_BYTES <- charToRaw('{"zarr_format":2}')
+
 # Ensure every ancestor group of `path` carries a real `.zgroup` marker.
 # Upstream (DataAxesFormats.jl) writes a `.zgroup` for every group, and
 # Julia's directory-store open relies on them to navigate the tree (it does

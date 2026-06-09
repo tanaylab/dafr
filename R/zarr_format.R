@@ -491,9 +491,6 @@ S7::method(
 
 # ---- Vectors -------------------------------------------------------------
 
-# Group marker for sparse layouts (Zarr v2 .zgroup convention).
-.ZARR_ZGROUP_BYTES <- charToRaw('{"zarr_format":2}')
-
 S7::method(format_has_vector,
            list(ZarrDaf, S7::class_character, S7::class_character)) <-
     function(daf, axis, name) {
@@ -763,8 +760,9 @@ S7::method(format_delete_vector,
     function(daf, axis, name, must_exist) {
         store <- S7::prop(daf, "store")
         base <- paste0("vectors/", axis, "/", name)
-        exists_dense <- store_exists(store, paste0(base, "/.zarray"))
-        exists_sparse <- store_exists(store, paste0(base, "/.zgroup"))
+        node <- zarr_v3_read_node(store, base)
+        exists_dense <- !is.null(node) && identical(node$node_type, "array")
+        exists_sparse <- !is.null(node) && identical(node$node_type, "group")
         if (!exists_dense && !exists_sparse) {
             if (must_exist) {
                 .require_vector(daf, axis, name)
@@ -772,13 +770,13 @@ S7::method(format_delete_vector,
             return(invisible())
         }
         if (exists_dense) {
-            store_delete(store, paste0(base, "/.zarray"))
-            store_delete(store, paste0(base, "/0"))
+            store_delete(store, paste0(base, "/zarr.json"))
+            store_delete(store, zarr_v3_chunk_path(base, 1L))
         }
         if (exists_sparse) {
             for (k in store_list(store, base)) store_delete(store, k)
         }
-        zarr_v2_write_zmetadata(store)
+        zarr_v3_write_consolidated(store)
         bump_vector_counter(daf, axis, name)
         invisible()
     }
@@ -791,23 +789,22 @@ S7::method(format_delete_vector,
 
 # ---- Matrices ------------------------------------------------------------
 #
-# Layout (mirrors DataAxesFormats.jl/src/zarr_format.jl):
+# Layout (mirrors DataAxesFormats.jl/src/zarr_format.jl, Zarr v3):
 #   matrices/{rows_axis}/{cols_axis}/{name}/
-#       Dense:  .zarray + 0.0   (shape = [n_cols, n_rows], order = "C";
-#               chunk uses the Zarr-default "." separator for Julia interop)
-#       Sparse: .zgroup + colptr/, rowval/, [nzval/]
+#       Dense:  zarr.json (array) + c/0/0   (shape = [n_cols, n_rows])
+#       Sparse: zarr.json (group) + colptr/, rowval/, [nzval/]
 #
-# Dense:   upstream stores `.zarray` shape REVERSED — [n_cols, n_rows] with
-#          order = "C". The on-disk bytes are Julia/R column-major (R's
-#          natural matrix layout). A Python zarr reader sees this as a
-#          C-contiguous (n_cols, n_rows) array — the transpose of the
+# Dense:   upstream stores the array shape REVERSED — [n_cols, n_rows] (there
+#          is no `order` field in v3). The on-disk chunk bytes are Julia/R
+#          column-major (R's natural matrix layout). A Python zarr reader sees
+#          this as a C-contiguous (n_cols, n_rows) array — the transpose of the
 #          R/Julia view. Matches upstream exactly.
 #
-# Sparse:  on-disk colptr / rowval are 1-based (Julia SparseMatrixCSC native);
-#          Matrix's @p / @i are 0-based, so we convert with +1L on write,
-#          -1L on read. Upstream writes NO .zattrs for sparse matrices —
-#          shape comes from the axis lengths and "all-TRUE Bool" is inferred
-#          from the absence of `nzval/`.
+# Sparse:  on-disk colptr / rowval are int64, 1-based (Julia SparseMatrixCSC
+#          native); Matrix's @p / @i are 0-based, so we convert with +1L on
+#          write, -1L on read. Upstream writes NO attributes for sparse
+#          matrices — shape comes from the axis lengths and "all-TRUE Bool" is
+#          inferred from the absence of `nzval/`.
 
 S7::method(format_has_matrix,
            list(ZarrDaf, S7::class_character, S7::class_character,
@@ -1087,8 +1084,9 @@ S7::method(format_delete_matrix,
     function(daf, rows_axis, columns_axis, name, must_exist) {
         store <- S7::prop(daf, "store")
         base <- paste0("matrices/", rows_axis, "/", columns_axis, "/", name)
-        exists_dense <- store_exists(store, paste0(base, "/.zarray"))
-        exists_sparse <- store_exists(store, paste0(base, "/.zgroup"))
+        node <- zarr_v3_read_node(store, base)
+        exists_dense <- !is.null(node) && identical(node$node_type, "array")
+        exists_sparse <- !is.null(node) && identical(node$node_type, "group")
         if (!exists_dense && !exists_sparse) {
             if (must_exist) {
                 .require_matrix(daf, rows_axis, columns_axis, name, relayout = FALSE)
@@ -1096,13 +1094,13 @@ S7::method(format_delete_matrix,
             return(invisible())
         }
         if (exists_dense) {
-            store_delete(store, paste0(base, "/.zarray"))
-            store_delete(store, paste0(base, "/0.0"))
+            store_delete(store, paste0(base, "/zarr.json"))
+            store_delete(store, zarr_v3_chunk_path(base, 2L))
         }
         if (exists_sparse) {
             for (k in store_list(store, base)) store_delete(store, k)
         }
-        zarr_v2_write_zmetadata(store)
+        zarr_v3_write_consolidated(store)
         bump_matrix_counter(daf, rows_axis, columns_axis, name)
         invisible()
     }
@@ -1176,14 +1174,13 @@ S7::method(format_replace_reorder, list(ZarrDaf, S7::class_list)) <-
         for (axis in names(plan$planned_axes)) {
             tick_crash_counter(crash_counter)
             pa <- plan$planned_axes[[axis]]
-            path <- paste0("axes/", axis)
+            base <- paste0("axes/", axis)
             n <- length(pa$new_entries)
-            zarray <- zarr_v2_zarray(shape = n, dtype = "|O")
-            zarray$filters <- list(list(id = "vlen-utf8"))
-            zarr_v2_write_zarray(store, path, zarray)
+            zarr_v3_write_array(store, base,
+                                zarr_v3_array_meta(shape = n, dtype = "string"))
             store_set_bytes(
-                store, paste0(path, "/0"),
-                zarr_v2_encode_strings(pa$new_entries)
+                store, zarr_v3_chunk_path(base, 1L),
+                zarr_v3_encode_strings(pa$new_entries)
             )
         }
 
@@ -1220,7 +1217,7 @@ S7::method(format_replace_reorder, list(ZarrDaf, S7::class_list)) <-
                               pm$name, permuted, overwrite = TRUE)
         }
 
-        zarr_v2_write_zmetadata(store)
+        zarr_v3_write_consolidated(store)
         invisible()
     }
 
