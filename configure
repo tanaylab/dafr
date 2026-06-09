@@ -3,6 +3,7 @@
 # v3 read. Absent either, the flat path is unaffected and a blosc/zstd-packed
 # read raises an actionable runtime error (CRAN-clean). Non-standard installs:
 # set BLOSC_HOME / ZSTD_HOME (or CONDA_PREFIX) to a prefix with include/ + lib/.
+# Set DAFR_NO_PACKED_CODECS=1 to force a flat-only (CRAN-equivalent) build.
 set -e
 
 : "${R_HOME=`R RHOME`}"
@@ -10,6 +11,14 @@ RBIN="${R_HOME}/bin/R"
 CC=`"${RBIN}" CMD config CC`
 CFLAGS=`"${RBIN}" CMD config CFLAGS`
 RCPPFLAGS=`"${RBIN}" CMD config CPPFLAGS`
+
+if [ -n "$DAFR_NO_PACKED_CODECS" ]; then
+    echo "configure: DAFR_NO_PACKED_CODECS set -> flat-only build (no blosc/zstd)"
+    sed -e "s|@DAFR_SHARD_CPPFLAGS@||" -e "s|@DAFR_SHARD_LIBS@||" \
+        src/Makevars.in > src/Makevars
+    echo "configure: wrote src/Makevars"
+    exit 0
+fi
 
 # Candidate prefixes whose include/lib should be searched, in priority order.
 prefix_flags() { # $1 = prefix -> echo "<cppflags>|<libflags>"
