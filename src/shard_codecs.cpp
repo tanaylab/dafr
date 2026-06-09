@@ -11,7 +11,18 @@
 #include <cpp11.hpp>
 #include "crc32c.h"
 #ifdef HAVE_BLOSC
-#include <blosc.h>
+  // Classic c-blosc (v1) exposes blosc.h + blosc_decompress; the modern c-blosc2
+  // exposes blosc2.h + the always-available blosc1_* legacy API (which decodes
+  // the blosc1 chunks DAF writes). configure picks via HAVE_BLOSC2.
+  #ifdef HAVE_BLOSC2
+    #include <blosc2.h>
+    #define DAFR_BLOSC_DECOMPRESS    blosc1_decompress
+    #define DAFR_BLOSC_CBUFFER_SIZES blosc1_cbuffer_sizes
+  #else
+    #include <blosc.h>
+    #define DAFR_BLOSC_DECOMPRESS    blosc_decompress
+    #define DAFR_BLOSC_CBUFFER_SIZES blosc_cbuffer_sizes
+  #endif
 #endif
 #ifdef HAVE_ZSTD
 #include <zstd.h>
@@ -37,14 +48,14 @@ cpp11::raws dafr_blosc_decompress_cpp(cpp11::raws src, double out_nbytes) {
         want = static_cast<size_t>(out_nbytes);
     } else {
         size_t nbytes = 0, cbytes = 0, blocksize = 0;
-        blosc_cbuffer_sizes(reinterpret_cast<const void*>(RAW(src.data())),
-                            &nbytes, &cbytes, &blocksize);
+        DAFR_BLOSC_CBUFFER_SIZES(reinterpret_cast<const void*>(RAW(src.data())),
+                                 &nbytes, &cbytes, &blocksize);
         want = nbytes;
     }
     cpp11::writable::raws out(static_cast<R_xlen_t>(want));
     const void* s = reinterpret_cast<const void*>(RAW(src.data()));
     void* d = reinterpret_cast<void*>(RAW(out.data()));
-    int got = blosc_decompress(s, d, want);
+    int got = DAFR_BLOSC_DECOMPRESS(s, d, want);
     if (got < 0) cpp11::stop("blosc_decompress failed (code %d)", got);
     if (static_cast<size_t>(got) != want)
         cpp11::stop("blosc_decompress size mismatch: got %d want %zu",

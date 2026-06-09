@@ -57,10 +57,18 @@ EOF
 SHARD_CPP=""
 SHARD_LIBS=""
 
+# Classic c-blosc (v1) ships blosc.h + libblosc. The modern c-blosc2 (the only
+# conda-forge build now) ships blosc2.h + libblosc2, whose always-available
+# blosc1_* legacy API decodes the blosc1 chunks DAF writes. Prefer v1; fall back
+# to v2 with an extra -DHAVE_BLOSC2 so the wrapper picks the blosc1_* symbols.
 if R=`probe_lib blosc.h blosc "$BLOSC_HOME" "$CONDA_PREFIX"`; then
     SHARD_CPP="$SHARD_CPP -DHAVE_BLOSC `printf %s "$R" | cut -d'|' -f1`"
     SHARD_LIBS="$SHARD_LIBS `printf %s "$R" | cut -d'|' -f2`"
-    echo "configure: c-blosc found -> blosc-packed ZarrDaf read enabled"
+    echo "configure: c-blosc (v1) found -> blosc-packed ZarrDaf read enabled"
+elif R=`probe_lib blosc2.h blosc2 "$BLOSC_HOME" "$CONDA_PREFIX"`; then
+    SHARD_CPP="$SHARD_CPP -DHAVE_BLOSC -DHAVE_BLOSC2 `printf %s "$R" | cut -d'|' -f1`"
+    SHARD_LIBS="$SHARD_LIBS `printf %s "$R" | cut -d'|' -f2`"
+    echo "configure: c-blosc2 found -> blosc-packed ZarrDaf read enabled"
 else
     echo "configure: c-blosc NOT found -> blosc-packed read errors at runtime"
 fi
