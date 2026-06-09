@@ -120,8 +120,9 @@ Collate:
     'reorder_plan.R'
     'threads.R'
     'top_k_per_col.R'
-    'zarr_v2.R'
+    'zarr_v3.R'
     'zarr_format.R'
     'zarr_convert.R'
+    'zarr_v2.R'
     'zzz.R'
 Config/roxygen2/version: 8.0.0

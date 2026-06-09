@@ -1,4 +1,4 @@
-#' @include classes.R zarr_store.R zarr_v2.R cache.R cache_group.R format_api.R utils.R
+#' @include classes.R zarr_store.R zarr_v3.R cache.R cache_group.R format_api.R utils.R
 NULL
 
 #' Zarr-backed Daf class.

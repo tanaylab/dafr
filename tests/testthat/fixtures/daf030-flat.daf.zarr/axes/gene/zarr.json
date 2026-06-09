@@ -1,0 +1,1 @@
+{"chunk_grid":{"configuration":{"chunk_shape":[2]},"name":"regular"},"chunk_key_encoding":{"configuration":{"separator":"/"},"name":"default"},"codecs":[{"configuration":{},"name":"vlen-utf8"}],"data_type":"string","fill_value":"","node_type":"array","shape":[2],"zarr_format":3}
