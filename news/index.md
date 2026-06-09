@@ -1,6 +1,78 @@
 # Changelog
 
-## dafr (development version)
+## dafr 0.3.0
+
+### Fix: read DataAxesFormats.jl 0.3.0 FilesFormat v1.1 directories
+
+`DataAxesFormats.jl` 0.3.0 bumped the FilesDaf on-disk format from 1.0
+to 1.1. The binary blobs are byte-identical, but a **sparse** property’s
+JSON sidecar moved from top-level `eltype`/`indtype` keys to
+per-component descriptors (`nzind`/`nzval` for vectors;
+`colptr`/`rowval`/`nzval` for matrices). dafr was a 1.0-only reader and
+rejected 1.1 directories outright (`incompatible format version: 1.1`).
+dafr now:
+
+- accepts FilesFormat minor version 1 (it still *writes* 1.0, and reads
+  both 1.0 and 1.1);
+- parses both the legacy top-level and the v1.1 per-component sparse
+  descriptors - deriving the element type from the `nzval` component (or
+  `Bool` when it is absent) and the index type from the index
+  component - mirroring `DataAxesFormats.jl`’s
+  `parse_sparse_descriptor`;
+- raises a clear error on 0.3.0 “packed” (`.zip`, chunked + compressed)
+  sparse components, which are not yet supported (re-save with flat
+  components).
+
+`HttpDaf` (a `FilesDaf` served over HTTP) gets the same treatment: it
+accepts v1.1, parses per-component sparse descriptors, and rejects
+packed components.
+
+This covers reading flat FilesFormat 1.1 repos (directory and over HTTP)
+only, not the rest of 0.3.0 (the zarr/zip and “packed view of a
+directory as Zarr” machinery).
+
+### Fix: ZarrDaf on-disk format now interoperates with DataAxesFormats.jl
+
+`.daf.zarr` stores written by dafr and by `DataAxesFormats.jl` were
+mutually unreadable. Opening a Julia-written store in R failed with
+`missing daf.json`; opening an R-written store in Julia failed with
+`not a daf data set`. Three divergences from upstream
+(`DataAxesFormats.jl` v0.2.0, `src/zarr_format.jl`) caused this, all now
+fixed:
+
+- **`daf` marker array.** Upstream marks a store with a Zarr *array*
+  named `daf` holding two `UInt8` bytes `[MAJOR, MINOR]` = `[1, 0]` and
+  validates via `haskey(root.arrays, "daf")`. dafr wrote a plain
+  `daf.json` file instead. dafr now writes (and validates) the `daf`
+  marker array and no longer writes `daf.json` for Zarr stores. This is
+  a **breaking change** to the dafr Zarr on-disk format: `.daf.zarr`
+  stores written by earlier dafr versions (which carry `daf.json`, not
+  the `daf` array) are not readable by this version. The FilesDaf
+  `daf.json` marker is unchanged.
+- **Intermediate `.zgroup` markers.** Upstream writes a real `.zgroup`
+  for every group (the four `scalars`/`axes`/`vectors`/`matrices`
+  containers, eagerly, plus every sub-group). dafr only wrote the root
+  `.zgroup` and synthesised the rest inside the consolidated
+  `.zmetadata` - enough for zarr-python’s consolidated reader, but
+  Julia’s directory-store open navigates real `.zgroup` files and so
+  raised `KeyError: key "axes" not found`. dafr now writes a `.zgroup`
+  for every group.
+- **Read-side dtype coverage.** The chunk reader only understood
+  `<f8/<i4/<i8/|b1/|O`. It now also reads `|u1`, `<u1`, `<i1`, `<u2`,
+  `<i2`, `<u4`, `<u8`, and `<f4` - the unsigned, narrow, and Float32
+  dtypes upstream legitimately emits (Float32 expression matrices,
+  unsigned index arrays, and the `|u1` marker itself).
+- **Dense-matrix chunk separator.** dafr wrote multi-dimensional chunk
+  keys with the `/` dimension separator (chunk file `0/0`); upstream and
+  the Zarr v2 default use `.` (chunk file `0.0`). A Julia reader looked
+  for `0.0`, did not find it, and failed with
+  `missing chunks and no fill_value`. (Sparse matrices were unaffected -
+  their components are 1-D, whose single chunk is `0` either way.) dafr
+  now uses the `.` separator for all arrays, matching upstream.
+
+Round-trip interop in both directions is covered by
+`tests/testthat/test-zarr-julia-interop.R` (gated on the `dafr-mcview`
+Julia env), and zarr-python interop remains green.
 
 ### Documentation pass
 
