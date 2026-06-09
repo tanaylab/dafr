@@ -569,6 +569,9 @@ S7::method(format_vectors_set,
         return(.zarr_get_sparse_vector(daf, axis, name))
     }
     # Dense (array) path.
+    if (.zarr_is_sharded(node)) {
+        return(.zarr_read_sharded_vector(store, base, node))
+    }
     n <- as.integer(node$shape[[1L]])
     is_string <- identical(node$data_type, "string")
     if (!is_string) {
@@ -603,11 +606,7 @@ S7::method(format_vectors_set,
     base <- paste0("vectors/", axis, "/", name)
     n <- as.integer(format_axis_length(daf, axis))
     nzind_meta <- zarr_v3_read_array(store, paste0(base, "/nzind"))
-    nzind_n <- as.integer(nzind_meta$shape[[1L]])
-    nzind <- zarr_v3_decode_chunk(
-        store_get_bytes(store, zarr_v3_chunk_path(paste0(base, "/nzind"), 1L)),
-        nzind_meta$data_type, n = nzind_n
-    )
+    nzind <- .zarr_read_component_vector(store, paste0(base, "/nzind"), nzind_meta)
     # Upstream stores 1-based indices on disk (Julia SparseVector convention).
     # DAF writes nzind as int64, so the decode is integer64 -> as.integer().
     nzind_1 <- as.integer(nzind)
@@ -620,14 +619,10 @@ S7::method(format_vectors_set,
         return(out)
     }
     nzval_meta <- zarr_v3_read_array(store, paste0(base, "/nzval"))
-    nzval_n <- as.integer(nzval_meta$shape[[1L]])
     # Non-bool sparse values are read as double here (DAF sparse values are
     # realistically float/bool); a genuine int64 sparse nzval would narrow to
     # double, lossy above 2^53 - future follow-up if needed.
-    nzval <- zarr_v3_decode_chunk(
-        store_get_bytes(store, zarr_v3_chunk_path(paste0(base, "/nzval"), 1L)),
-        nzval_meta$data_type, n = nzval_n
-    )
+    nzval <- .zarr_read_component_vector(store, paste0(base, "/nzval"), nzval_meta)
     out <- if (is.logical(nzval)) {
         logical(n)
     } else if (is.integer(nzval)) {
@@ -857,6 +852,9 @@ S7::method(format_matrices_set,
 }
 
 .zarr_get_dense_matrix <- function(store, base, node) {
+    if (.zarr_is_sharded(node)) {
+        return(.zarr_read_sharded_matrix(store, base, node))
+    }
     # Upstream writes shape REVERSED (Julia/R column-major bytes presented to
     # Zarr's C-order metadata as [n_cols, n_rows]). So the *Daf* dimensions are
     # (rows = shape[2], cols = shape[1]).
@@ -893,21 +891,12 @@ S7::method(format_matrices_set,
     # colptr (1-based on disk per upstream). DAF writes int64, so decode is
     # integer64 -> as.integer() before the 0-based / dgCMatrix math.
     colptr_meta <- zarr_v3_read_array(store, paste0(base, "/colptr"))
-    colptr <- as.integer(zarr_v3_decode_chunk(
-        store_get_bytes(store, zarr_v3_chunk_path(paste0(base, "/colptr"), 1L)),
-        colptr_meta$data_type,
-        n = as.integer(colptr_meta$shape[[1L]])
-    ))
+    colptr <- as.integer(.zarr_read_component_vector(
+        store, paste0(base, "/colptr"), colptr_meta))
     # rowval (1-based on disk per upstream). Also int64 -> as.integer().
     rowval_meta <- zarr_v3_read_array(store, paste0(base, "/rowval"))
-    rowval_n <- as.integer(rowval_meta$shape[[1L]])
-    rowval <- if (rowval_n == 0L) integer(0L) else as.integer(
-        zarr_v3_decode_chunk(
-            store_get_bytes(
-                store, zarr_v3_chunk_path(paste0(base, "/rowval"), 1L)),
-            rowval_meta$data_type, n = rowval_n
-        )
-    )
+    rowval <- as.integer(.zarr_read_component_vector(
+        store, paste0(base, "/rowval"), rowval_meta))
     has_nzval <- !is.null(zarr_v3_read_array(store, paste0(base, "/nzval")))
     if (!has_nzval) {
         # Upstream-compatible: absence of nzval => all-TRUE Bool sparse.
@@ -920,20 +909,11 @@ S7::method(format_matrices_set,
         ))
     }
     nzval_meta <- zarr_v3_read_array(store, paste0(base, "/nzval"))
-    nzval_n <- as.integer(nzval_meta$shape[[1L]])
     # Non-bool sparse values are read as double below (via as.double() into the
     # dgCMatrix); DAF sparse values are realistically float/bool, but a genuine
     # int64 sparse nzval would narrow to double, lossy above 2^53 - future
     # follow-up if needed.
-    nzval <- if (nzval_n == 0L) {
-        if (nzval_meta$data_type == "bool") logical(0L) else double(0L)
-    } else {
-        zarr_v3_decode_chunk(
-            store_get_bytes(
-                store, zarr_v3_chunk_path(paste0(base, "/nzval"), 1L)),
-            nzval_meta$data_type, n = nzval_n
-        )
-    }
+    nzval <- .zarr_read_component_vector(store, paste0(base, "/nzval"), nzval_meta)
     if (nzval_meta$data_type == "bool") {
         return(methods::new("lgCMatrix",
             x = as.logical(nzval),

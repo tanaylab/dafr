@@ -25,12 +25,22 @@ double dafr_crc32c_cpp(cpp11::raws x) {
     return static_cast<double>(dafr_crc32c(p, static_cast<size_t>(n)));
 }
 
-// Decompress a classic blosc1 chunk to exactly out_nbytes bytes (the inner
-// chunk's uncompressed size, = n_elem * elem_size, known by the R caller).
+// Decompress a classic blosc1 chunk. out_nbytes is the uncompressed size when
+// the caller knows it (fixed-width dtype = n_elem * elem_size); pass <= 0 for
+// variable-length (string/vlen-utf8) chunks, where the size is read from the
+// blosc header.
 [[cpp11::register]]
 cpp11::raws dafr_blosc_decompress_cpp(cpp11::raws src, double out_nbytes) {
 #ifdef HAVE_BLOSC
-    size_t want = static_cast<size_t>(out_nbytes);
+    size_t want;
+    if (out_nbytes > 0) {
+        want = static_cast<size_t>(out_nbytes);
+    } else {
+        size_t nbytes = 0, cbytes = 0, blocksize = 0;
+        blosc_cbuffer_sizes(reinterpret_cast<const void*>(RAW(src.data())),
+                            &nbytes, &cbytes, &blocksize);
+        want = nbytes;
+    }
     cpp11::writable::raws out(static_cast<R_xlen_t>(want));
     const void* s = reinterpret_cast<const void*>(RAW(src.data()));
     void* d = reinterpret_cast<void*>(RAW(out.data()));
@@ -48,11 +58,23 @@ cpp11::raws dafr_blosc_decompress_cpp(cpp11::raws src, double out_nbytes) {
 #endif
 }
 
-// Decompress a raw zstd frame to exactly out_nbytes bytes.
+// Decompress a raw zstd frame. out_nbytes is the uncompressed size when known;
+// pass <= 0 for variable-length chunks, where the size is read from the frame
+// header (ZSTD_getFrameContentSize).
 [[cpp11::register]]
 cpp11::raws dafr_zstd_decompress_cpp(cpp11::raws src, double out_nbytes) {
 #ifdef HAVE_ZSTD
-    size_t want = static_cast<size_t>(out_nbytes);
+    size_t want;
+    if (out_nbytes > 0) {
+        want = static_cast<size_t>(out_nbytes);
+    } else {
+        unsigned long long sz = ZSTD_getFrameContentSize(
+            reinterpret_cast<const void*>(RAW(src.data())),
+            static_cast<size_t>(src.size()));
+        if (sz == ZSTD_CONTENTSIZE_UNKNOWN || sz == ZSTD_CONTENTSIZE_ERROR)
+            cpp11::stop("ZSTD frame content size unknown");
+        want = static_cast<size_t>(sz);
+    }
     cpp11::writable::raws out(static_cast<R_xlen_t>(want));
     const void* s = reinterpret_cast<const void*>(RAW(src.data()));
     void* d = reinterpret_cast<void*>(RAW(out.data()));

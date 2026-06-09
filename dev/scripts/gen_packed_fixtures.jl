@@ -19,10 +19,13 @@ function populate!(d)
     set_vector!(d, "cell", "label", ["v$(i)" for i in 1:ncell]) # strings -> flat
     set_matrix!(d, "cell", "gene", "dense",
                 reshape(Float64.(1:(ncell*ngene)), ncell, ngene)) # sharded
-    # Dense-enough sparse: ~2000 nonzeros so nzval (16 KB) shards.
-    I = repeat(1:ncell, outer=2)[1:2000]
-    J = [((k-1) % ngene)+1 for k in 1:2000]
-    V = Float64.(1:2000)
+    # Dense-enough sparse: 2000 DISTINCT (cell,gene) nonzeros so nzval (16 KB)
+    # shards. Entry k = (cell ((k-1)%ncell)+1, gene ((k-1)div ncell)+1) holds k,
+    # so sparse[1,1]=1 and sparse[1,2]=ncell+1.
+    N = 2000
+    I = [((k - 1) % ncell) + 1 for k in 1:N]
+    J = [((k - 1) ÷ ncell) + 1 for k in 1:N]
+    V = Float64.(1:N)
     set_matrix!(d, "cell", "gene", "sparse", sparse(I, J, V, ncell, ngene))
 end
 

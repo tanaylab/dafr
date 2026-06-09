@@ -74,26 +74,40 @@
 
 # ---- inner-codec decode --------------------------------------------------
 
-# Name of the compression codec in the inner pipeline (the `bytes` endian step
-# is skipped; absent compression -> "bytes").
-.zarr_inner_codec_name <- function(cfg) {
-    for (c in cfg$codecs) if (!identical(c$name, "bytes")) return(c$name)
-    "bytes"
+# Name of the compression codec in the inner pipeline. The array->bytes
+# serialization step (`bytes` for fixed-width, `vlen-utf8` for strings) is
+# skipped; "none" if there is no compressor.
+.zarr_inner_compressor <- function(cfg) {
+    for (c in cfg$codecs) {
+        if (!c$name %in% c("bytes", "vlen-utf8")) return(c$name)
+    }
+    "none"
 }
 
-# Decode one inner chunk's raw bytes to exactly n_elem values of dtype. The
-# `bytes` endian codec is a no-op on little-endian; the result is handed to the
-# flat element decoder.
-.zarr_inner_decode <- function(raw_bytes, cfg, n_elem, dtype) {
-    codec <- .zarr_inner_codec_name(cfg)
-    out_nbytes <- n_elem * zarr_v3_size_for_dtype(dtype)
-    plain <- switch(codec,
+# Decompress one inner chunk's raw bytes. `out_nbytes` is the known
+# uncompressed size for fixed-width dtypes; 0 for variable-length (string)
+# chunks, where blosc/zstd read the size from their own header.
+.zarr_inner_decompress <- function(raw_bytes, cfg, out_nbytes) {
+    comp <- .zarr_inner_compressor(cfg)
+    switch(comp,
+        "none"  = raw_bytes,
         "gzip"  = memDecompress(raw_bytes, type = "gzip"),
         "zstd"  = dafr_zstd_decompress_cpp(raw_bytes, out_nbytes),
         "blosc" = dafr_blosc_decompress_cpp(raw_bytes, out_nbytes),
-        "bytes" = raw_bytes,
-        stop(sprintf("zarr_sharded: unsupported inner codec %s", sQuote(codec)),
-             call. = FALSE))
+        stop(sprintf("zarr_sharded: unsupported inner compressor %s",
+                     sQuote(comp)), call. = FALSE))
+}
+
+# Decode one inner chunk's raw bytes to a vector of dtype. Fixed-width dtypes
+# yield n_elem values; strings yield however many the chunk's vlen-utf8 block
+# encodes (the count is in the block header, padded chunks included).
+.zarr_inner_decode <- function(raw_bytes, cfg, n_elem, dtype) {
+    if (identical(dtype, "string")) {
+        plain <- .zarr_inner_decompress(raw_bytes, cfg, out_nbytes = 0)
+        return(zarr_v3_decode_strings(plain))
+    }
+    out_nbytes <- n_elem * zarr_v3_size_for_dtype(dtype)
+    plain <- .zarr_inner_decompress(raw_bytes, cfg, out_nbytes)
     zarr_v3_decode_chunk(plain, dtype, n = n_elem)
 }
 
@@ -182,6 +196,7 @@
         return(.zarr_read_sharded_vector(store, base, node))
     }
     n <- as.integer(node$shape[[1L]])
+    if (n == 0L) return(.zarr_zero_vector(node$data_type, 0L))   # no chunk file
     chunk <- store_get_bytes(store, zarr_v3_chunk_path(base, 1L))
     zarr_v3_decode_chunk(chunk, node$data_type, n = n)
 }
