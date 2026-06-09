@@ -55,3 +55,29 @@ conda run -n dafr-mcview julia -t 16 benchmarks/efficiency-gaps.jl    # Julia si
 
 These are baselines; Phase 2 will re-run this harness and report the closed
 gaps.
+
+## Phase 2 - zarr zero-copy reads (2026-06-09)
+
+Wired the FilesDaf typed-mmap fast path into the ZarrDaf directory-store
+reader (`R/zarr_format.R::.zarr_try_mmap_dense`): a stored, uncompressed,
+single-chunk `<f8`/`<i4` array is now returned as an ALTREP mmap view
+(`mmap_real`/`mmap_int`) instead of decoded through `readBin`. The mmap reads
+are tagged `MappedData` so the capped in-memory cache tier doesn't copy them.
+
+Effect on the dense-matrix read (4000x2500 Float64, mmap on vs off):
+
+| stage                        | decode (mmap off) | mmap on |
+|------------------------------|------------------:|--------:|
+| `.zarr_get_dense_matrix`     |            322 ms |    1 ms |
+| `get_matrix` (cold, full)    |            ~390 ms |   85 ms |
+
+The data decode+copy is eliminated (322 ms -> ~1 ms, lazy). The ~85 ms
+residual on a *cold* `get_matrix` is **not** the data: it is the one-time
+axis-name (vlen-utf8) decode in `.attach_matrix_axis_dimnames` (~70 ms for
+4000+2500 entries), which is cached after the first touch in real use. That
+axis-string decode is a separate follow-up (it does not materialise the
+matrix - ALTREP is preserved). DataAxesFormats.jl reads the same matrix in
+~8 ms; the remaining gap is now that axis decode, not the chunk read.
+
+Still single-threaded (separate follow-up): dense matrix reductions and
+`% Abs`/`% Round`/`% Clamp`/`% Convert` element-wise ops.
