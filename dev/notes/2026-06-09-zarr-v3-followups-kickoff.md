@@ -161,17 +161,43 @@ rejected; reading them is "bells and whistles" - revisit only if real repos use
 them. (Note: the same vendored/configure blosc decode from item 1 would unlock
 packed FilesFormat read too.)
 
-### 6. Item 4 (parent doc): full 0.3.0 changelog audit (small-medium)
-Unchanged. This batch covered 0.3.0's zarr (v2->v3 flat) + FilesFormat 1.1. The
-rest of `b40377f..8541a4b` (parallel-loop policy, small fixes, packing WIP) hasn't
-been diffed for non-format behavioural changes worth porting. Run the commit-by-
-commit review.
+### 6. Item 4 (parent doc): full 0.3.0 changelog audit - DONE 2026-06-10
+Commit-by-commit review of `b40377f..8541a4b` (12 commits). **Result: no
+non-format behavioural changes need porting.** Breakdown:
+- `d01bcba` ZipDaf, `f2bacad..50eff3d` packing phases + `8541a4b` Zarr/Zip/Http:
+  format work. Zarr v3 + FilesFormat 1.1/1.0 + packed read already ported (items
+  1, parent batches). **One format GAP surfaced (NOT behavioural):** **ZipDaf**
+  = a `FilesDaf` encoding zipped into a single `*.daf.zip`/`*.dafs.zip` (distinct
+  from dafr's existing `.daf.zarr.zip` = ZarrDaf-in-zip). dafr has no ZipDaf
+  reader (no `zip_daf`/`.daf.zip` path). Separate format-reader effort; slot
+  alongside item 5. Low priority unless real `.daf.zip` repos appear.
+- `77b7974` "Use sparse median/quantile", `291a43f` "Add sparse var/std":
+  **perf only, identical results.** Both swap `median/quantile/var/std(@view ...)`
+  for `sparse_*` helpers; the dense view already included implicit zeros, and
+  0.2.0 already used `corrected=false` (population var). No result change ->
+  nothing to port; this is Phase-2-kernel (perf) territory, item 4 above.
+- `8541a4b` "small fixes": (a) `files_format.jl` `nzval_is_present` fixes reading
+  a **v1.0 sparse Bool** property whose `nzval` file is omitted (all-true) - dafr
+  **already correct** (`files_daf_read.R:337-346` synthesizes `rep(TRUE, nnz)` on
+  `eltype=="Bool"` when `.nzval` is absent). (b) queries.jl parallel-loop policy
+  `:static`->`:greedy_sticky`: Julia thread *scheduling*, same results, doesn't
+  map to dafr's OpenMP. (c) operations.jl `@check_turbo_vector` asserts +
+  `formats.jl` comment: no behavioural change.
 
 ## Suggested order
 2 (HttpStore) and 3 (O(N^2)) are cheap and close real gaps the port left -
 knock out first. Then 1 (packed read) is the big remaining piece of "re-fix zarr",
 and it also de-risks 5 (packed FilesFormat shares the blosc backend). 4 and 6 are
 independent and can slot in anytime.
+
+## Status (2026-06-10)
+- **DONE:** 1 (packed/sharded read, merge `fde115a`), 2 (HttpStore-v3, `7be98fc`),
+  6 (changelog audit - no behavioural ports needed; ZipDaf format gap noted).
+- **PENDING:** 3 (O(N^2) consolidation - re-scoped MEDIUM, needs a flush/close
+  lifecycle); 4 (Phase-2 dense kernels - perf, where the sparse-reduction commits
+  from item 6 also land); 5 (FilesFormat 1.1 write + packed read + the new ZipDaf
+  reader). All are perf/format follow-ups; no correctness gaps remain from the
+  0.3.0 audit.
 
 ## References
 - Shipped: spec `docs/superpowers/specs/2026-06-09-zarrdaf-v3-port-design.md`,
