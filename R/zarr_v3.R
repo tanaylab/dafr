@@ -242,7 +242,11 @@ zarr_v3_encode_chunk <- function(value, dtype) {
 # separate plan). Strings use zarr_v3_decode_strings.
 zarr_v3_decode_chunk <- function(bytes, dtype, n, compressor = NULL) {
     if (!is.null(compressor)) {
-        codec_id <- compressor$id %||% compressor[["id"]]
+        # v3 codec specs are keyed by `name`; fall back to the legacy v2 `id`.
+        codec_id <- compressor$name %||% compressor$id
+        if (is.null(codec_id)) {
+            stop("zarr_v3_decode_chunk: compressor has no name/id", call. = FALSE)
+        }
         if (identical(codec_id, "gzip")) {
             bytes <- memDecompress(bytes, type = "gzip")
         } else {

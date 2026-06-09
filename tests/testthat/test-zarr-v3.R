@@ -81,6 +81,9 @@ test_that("zarr_v3 consolidated metadata indexes non-root nodes", {
   expect_true("vectors/cell/score" %in% names(md))
   expect_equal(md[["vectors/cell/score"]]$node_type, "array")
   expect_false("" %in% names(md))   # root is not listed in its own index
+  # the block shape the DAF reader keys on
+  expect_equal(root$consolidated_metadata$kind, "inline")
+  expect_false(root$consolidated_metadata$must_understand)
 })
 
 test_that("zarr_v3 numeric chunk encode/decode round-trips", {
@@ -103,4 +106,51 @@ test_that("zarr_v3 decodes float32 by widening to double", {
 test_that("zarr_v3 vlen-utf8 strings round-trip", {
   enc <- zarr_v3_encode_strings(c("alpha", "", "βeta"))
   expect_equal(zarr_v3_decode_strings(enc, n = 3L), c("alpha", "", "βeta"))
+})
+
+test_that("zarr_v3_decode_chunk compressor branch resolves v3 name and errors clearly", {
+  # v3 codec spec is keyed by `name`; an unsupported codec must raise a
+  # non-empty, informative error naming the codec.
+  expect_error(
+    zarr_v3_decode_chunk(raw(8), "float64", n = 1L,
+                         compressor = list(name = "zstd")),
+    "zstd")
+  # a compressor with neither name nor id is rejected explicitly
+  expect_error(
+    zarr_v3_decode_chunk(raw(8), "float64", n = 1L,
+                         compressor = list(foo = "bar")),
+    "no name/id")
+  # the legacy v2 `id` key still works as a fallback
+  expect_error(
+    zarr_v3_decode_chunk(raw(8), "float64", n = 1L,
+                         compressor = list(id = "blosc")),
+    "blosc")
+  # gzip is accepted via the v3 `name` key and decodes the payload
+  payload <- zarr_v3_encode_chunk(c(1.5, 2.5, 3.5), "float64")
+  gz <- memCompress(payload, type = "gzip")
+  dec <- zarr_v3_decode_chunk(gz, "float64", n = 3L,
+                              compressor = list(name = "gzip"))
+  expect_equal(dec, c(1.5, 2.5, 3.5))
+})
+
+test_that("zarr_v3 string array round-trips through a DictStore", {
+  store <- new_dict_store()
+  vals <- c("alpha", "", "βeta")
+  meta <- zarr_v3_array_meta(shape = c(length(vals)), dtype = "string")
+  zarr_v3_write_array(store, "vectors/cell/name", meta)
+  store_set_bytes(store, zarr_v3_chunk_path("vectors/cell/name", 1L),
+                  zarr_v3_encode_strings(vals))
+
+  rt <- zarr_v3_read_array(store, "vectors/cell/name")
+  expect_equal(rt$data_type, "string")
+  chunk <- store_get_bytes(store, zarr_v3_chunk_path("vectors/cell/name", 1L))
+  expect_equal(zarr_v3_decode_strings(chunk, n = length(vals)), vals)
+})
+
+test_that("zarr_v3 empty attributes serialize as {} not []", {
+  store <- new_dict_store()
+  zarr_v3_write_array(store, "vectors/cell/score",
+                      zarr_v3_array_meta(c(3L), "float64"))
+  raw <- store_get_bytes(store, "vectors/cell/score/zarr.json")
+  expect_match(rawToChar(raw), '"attributes":\\{\\}')
 })
