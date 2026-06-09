@@ -108,6 +108,8 @@ test_that("R-written dense matrix uses the Zarr-default '.' chunk separator (Jul
 test_that("an R-written .daf.zarr is readable by DataAxesFormats.jl", {
     skip_on_cran()
     skip_if_not(.have_julia_env(), "dafr-mcview Julia env not available")
+    skip_if(.daf_jl_uses_zarr_v3(),
+            "DAF >= 0.3.0 uses Zarr v3; dafr ZarrDaf is v2 (R<->Julia zarr interop pending the v3 port)")
 
     rpath <- tempfile(fileext = ".daf.zarr")
     on.exit(unlink(rpath, recursive = TRUE, force = TRUE), add = TRUE)
@@ -149,6 +151,8 @@ test_that("an R-written .daf.zarr is readable by DataAxesFormats.jl", {
 test_that("a DataAxesFormats.jl-written .daf.zarr is readable by dafr", {
     skip_on_cran()
     skip_if_not(.have_julia_env(), "dafr-mcview Julia env not available")
+    skip_if(.daf_jl_uses_zarr_v3(),
+            "DAF >= 0.3.0 uses Zarr v3; dafr ZarrDaf is v2 (R<->Julia zarr interop pending the v3 port)")
 
     jpath <- tempfile(fileext = ".daf.zarr")
     on.exit(unlink(jpath, recursive = TRUE, force = TRUE), add = TRUE)
@@ -179,6 +183,8 @@ test_that("a DataAxesFormats.jl-written .daf.zarr is readable by dafr", {
 test_that("a DENSE matrix round-trips R <-> Julia (the '.'-separator chunk)", {
     skip_on_cran()
     skip_if_not(.have_julia_env(), "dafr-mcview Julia env not available")
+    skip_if(.daf_jl_uses_zarr_v3(),
+            "DAF >= 0.3.0 uses Zarr v3; dafr ZarrDaf is v2 (R<->Julia zarr interop pending the v3 port)")
 
     dense <- matrix(as.double(1:12), nrow = 3, ncol = 4)  # cell x gene
 
