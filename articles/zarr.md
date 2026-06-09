@@ -28,9 +28,9 @@ rm(d); gc()
 # Reopen read-only and inspect.
 d <- zarr_daf(path, mode = "r")
 cat(description(d))
-#> name: file28965fe8db14.daf.zarr
+#> name: file28a638750e33.daf.zarr
 #> type: ZarrDaf
-#> path: /tmp/Rtmp7ibJMg/file28965fe8db14.daf.zarr
+#> path: /tmp/Rtmp04bArJ/file28a638750e33.daf.zarr
 #> mode: r
 #> scalars:
 #>   organism: "human"
