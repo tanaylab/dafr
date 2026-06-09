@@ -41,3 +41,13 @@ test_that("v3 flat dense float64 vector reads via the mmap ALTREP fast path", {
   v <- get_vector(d, "cell", "score")
   expect_true(is_altrep_cpp(v) || isTRUE(all.equal(unname(v), c(1.5, 2.5, 3.5))))
 })
+
+test_that("v3 flat fixture reads end-to-end", {
+  d <- zarr_daf(daf030_flat_fixture(), mode = "r")
+  expect_setequal(scalars_set(d), c("title", "n"))
+  expect_setequal(axes_set(d), c("cell", "gene"))
+  expect_equal(get_scalar(d, "title"), "hello")
+  expect_equal(unname(get_vector(d, "cell", "score")), c(1.5, 2.5, 3.5))
+  expect_equal(dim(get_matrix(d, "cell", "gene", "expr")), c(3L, 2L))
+  expect_equal(dim(get_matrix(d, "cell", "gene", "sp")), c(3L, 2L))
+})
