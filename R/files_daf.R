@@ -249,9 +249,9 @@ S7::method(.is_leaf_dispatch, FilesDafReadOnly) <- function(daf) TRUE
         v1 <- v[[1L]]
         v2 <- v[[2L]]
     }
-    if (v1 != 1L || v2 > 0L) {
+    if (v1 != 1L || v2 > 1L) {
         stop(sprintf(
-            "incompatible format version: %d.%d\nfor the daf directory: %s\nthe code supports version: 1.0",
+            "incompatible format version: %d.%d\nfor the daf directory: %s\nthe code supports version: 1.1",
             v1, v2, path
         ), call. = FALSE)
     }

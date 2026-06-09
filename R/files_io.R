@@ -130,6 +130,13 @@
             sQuote(path)
         ), call. = FALSE)
     }
+    if (fmt == "sparse" && is.null(elt)) {
+        # FilesFormat v1.1 (DataAxesFormats.jl 0.3.0): no top-level eltype;
+        # per-component descriptors (nzind/nzval or colptr/rowval/nzval) carry
+        # the dtypes. Return the full descriptor so the sparse readers derive
+        # eltype/indtype via .files_parse_sparse_descriptor.
+        return(j)
+    }
     if (is.null(elt)) {
         stop(sprintf(
             "files_daf: %s has malformed descriptor (no eltype)",
