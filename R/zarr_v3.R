@@ -58,3 +58,86 @@ zarr_v3_chunk_key <- function(ndim) {
 zarr_v3_chunk_path <- function(base, ndim) {
     paste0(base, "/", zarr_v3_chunk_key(ndim))
 }
+
+# ---- array zarr.json -----------------------------------------------------
+
+# Build a Zarr v3 array metadata list (one chunk == shape). `bytes` codec for
+# numeric dtypes (little-endian); `vlen-utf8` for strings. fill_value defaults
+# to the dtype zero ("" for strings).
+zarr_v3_array_meta <- function(shape, dtype, fill_value = NULL) {
+    shape <- as.integer(shape)
+    if (is.null(fill_value)) {
+        fill_value <- if (dtype == "string") "" else
+            if (dtype == "bool") FALSE else
+            if (zarr_v3_r_kind_for_dtype(dtype) == "double") 0.0 else 0L
+    }
+    codecs <- if (dtype == "string") {
+        list(list(name = "vlen-utf8", configuration = structure(list(),
+                                                  names = character(0L))))
+    } else {
+        list(list(name = "bytes", configuration = list(endian = "little")))
+    }
+    list(
+        zarr_format = 3L,
+        node_type = "array",
+        shape = as.list(shape),
+        data_type = dtype,
+        chunk_grid = list(name = "regular",
+                          configuration = list(chunk_shape = as.list(shape))),
+        chunk_key_encoding = list(name = "default",
+                                  configuration = list(separator = "/")),
+        codecs = codecs,
+        fill_value = fill_value,
+        attributes = structure(list(), names = character(0L))
+    )
+}
+
+# Write path/zarr.json for an array, ensuring every ancestor group marker.
+zarr_v3_write_array <- function(store, path, meta) {
+    .zarr_v3_ensure_ancestor_groups(store, path)
+    json <- jsonlite::toJSON(meta, auto_unbox = TRUE, null = "null",
+                             pretty = FALSE)
+    store_set_bytes(store, paste0(path, "/zarr.json"),
+                    charToRaw(as.character(json)))
+    invisible()
+}
+
+# Read + parse a node's zarr.json (array or group), or NULL if absent.
+zarr_v3_read_node <- function(store, path) {
+    key <- if (nzchar(path)) paste0(path, "/zarr.json") else "zarr.json"
+    raw <- store_get_bytes(store, key)
+    if (is.null(raw)) return(NULL)
+    jsonlite::fromJSON(rawToChar(raw), simplifyVector = FALSE)
+}
+
+# Read an array node; NULL if absent or not an array.
+zarr_v3_read_array <- function(store, path) {
+    node <- zarr_v3_read_node(store, path)
+    if (is.null(node) || !identical(node$node_type, "array")) return(NULL)
+    node
+}
+
+# ---- group zarr.json -----------------------------------------------------
+
+# Group metadata for a plain (non-root) group.
+.ZARR_V3_GROUP <- list(zarr_format = 3L, node_type = "group")
+
+# Write a plain group marker at `path` (idempotent on append-only stores).
+zarr_v3_write_group <- function(store, path) {
+    key <- if (nzchar(path)) paste0(path, "/zarr.json") else "zarr.json"
+    if (store_exists(store, key)) return(invisible())
+    json <- jsonlite::toJSON(.ZARR_V3_GROUP, auto_unbox = TRUE, pretty = FALSE)
+    store_set_bytes(store, key, charToRaw(as.character(json)))
+    invisible()
+}
+
+# Ensure every ancestor group of an array `path` carries a group zarr.json.
+# Mirrors DAF's directory layout (every intermediate dir is a v3 group).
+.zarr_v3_ensure_ancestor_groups <- function(store, path) {
+    parts <- strsplit(path, "/", fixed = TRUE)[[1L]]
+    if (length(parts) <= 1L) return(invisible())
+    for (i in seq_len(length(parts) - 1L)) {
+        zarr_v3_write_group(store, paste(parts[seq_len(i)], collapse = "/"))
+    }
+    invisible()
+}
