@@ -310,18 +310,17 @@ S7::method(
 }
 
 .zarr_write_scalar <- function(store, name, value) {
-    path <- paste0("scalars/", name)
-    dtype <- zarr_v2_dtype_for_r(value)
-    zarray <- zarr_v2_zarray(shape = 1L, dtype = dtype)
-    if (dtype == "|O") {
-        zarray$filters <- list(list(id = "vlen-utf8"))
-        chunk_bytes <- zarr_v2_encode_strings(value)
+    base <- paste0("scalars/", name)
+    dtype <- zarr_v3_dtype_for_r(value)
+    meta <- zarr_v3_array_meta(shape = length(value), dtype = dtype)
+    zarr_v3_write_array(store, base, meta)
+    chunk_bytes <- if (dtype == "string") {
+        zarr_v3_encode_strings(value)
     } else {
-        chunk_bytes <- zarr_v2_encode_chunk(value, dtype)
+        zarr_v3_encode_chunk(value, dtype)
     }
-    zarr_v2_write_zarray(store, path, zarray)
-    store_set_bytes(store, paste0(path, "/0"), chunk_bytes)
-    zarr_v2_write_zmetadata(store)
+    store_set_bytes(store, zarr_v3_chunk_path(base, 1L), chunk_bytes)
+    zarr_v3_write_consolidated(store)
 }
 
 S7::method(
@@ -329,15 +328,16 @@ S7::method(
     list(ZarrDaf, S7::class_character, S7::class_logical)
 ) <- function(daf, name, must_exist) {
     store <- S7::prop(daf, "store")
-    if (!store_exists(store, paste0("scalars/", name, "/.zarray"))) {
+    base <- paste0("scalars/", name)
+    if (!store_exists(store, paste0(base, "/zarr.json"))) {
         if (must_exist) {
             .require_scalar(daf, name)
         }
         return(invisible())
     }
-    store_delete(store, paste0("scalars/", name, "/.zarray"))
-    store_delete(store, paste0("scalars/", name, "/0"))
-    zarr_v2_write_zmetadata(store)
+    store_delete(store, paste0(base, "/zarr.json"))
+    store_delete(store, zarr_v3_chunk_path(base, 1L))
+    zarr_v3_write_consolidated(store)
     invisible()
 }
 S7::method(
@@ -446,16 +446,15 @@ S7::method(
     }
     .require_no_axis(daf, axis)
     store <- S7::prop(daf, "store")
-    path <- paste0("axes/", axis)
+    base <- paste0("axes/", axis)
     n <- length(entries)
-    zarray <- zarr_v2_zarray(shape = n, dtype = "|O")
-    zarray$filters <- list(list(id = "vlen-utf8"))
-    zarr_v2_write_zarray(store, path, zarray)
+    meta <- zarr_v3_array_meta(shape = n, dtype = "string")
+    zarr_v3_write_array(store, base, meta)
     store_set_bytes(
-        store, paste0(path, "/0"),
-        zarr_v2_encode_strings(entries)
+        store, zarr_v3_chunk_path(base, 1L),
+        zarr_v3_encode_strings(entries)
     )
-    zarr_v2_write_zmetadata(store)
+    zarr_v3_write_consolidated(store)
     invisible()
 }
 S7::method(
@@ -470,15 +469,16 @@ S7::method(
     list(ZarrDaf, S7::class_character, S7::class_logical)
 ) <- function(daf, axis, must_exist) {
     store <- S7::prop(daf, "store")
-    if (!store_exists(store, paste0("axes/", axis, "/.zarray"))) {
+    base <- paste0("axes/", axis)
+    if (!store_exists(store, paste0(base, "/zarr.json"))) {
         if (must_exist) {
             .require_axis(daf, "for: delete_axis", axis)
         }
         return(invisible())
     }
-    store_delete(store, paste0("axes/", axis, "/.zarray"))
-    store_delete(store, paste0("axes/", axis, "/0"))
-    zarr_v2_write_zmetadata(store)
+    store_delete(store, paste0(base, "/zarr.json"))
+    store_delete(store, zarr_v3_chunk_path(base, 1L))
+    zarr_v3_write_consolidated(store)
     bump_axis_counter(daf, axis)
     invisible()
 }
