@@ -539,6 +539,40 @@ S7::method(format_vectors_set,
     sort(unique(names), method = "radix")
 }
 
+# Filesystem path of a chunk, if the store backs it with a real file. Only the
+# directory store does; the in-memory, zip, and HTTP stores return NULL so the
+# caller falls back to decoding the chunk bytes.
+.zarr_chunk_file <- function(store, chunk_key) {
+    if (!S7::S7_inherits(store, DirStore)) return(NULL)
+    full <- file.path(S7::prop(store, "root"), chunk_key)
+    if (file.exists(full)) full else NULL
+}
+
+# Zero-copy fast path for a stored, uncompressed, single-chunk dense array:
+# return an ALTREP mmap view of the chunk file when the dtype is mmap-able and
+# the store is file-backed, else NULL (caller decodes). Mirrors the FilesDaf
+# typed-mmap fast path (R/files_daf_read.R); chunk files start at offset 0 so
+# they are page-aligned.
+.zarr_try_mmap_dense <- function(store, chunk_key, dtype, n, compressor) {
+    if (!isTRUE(dafr_opt("dafr.mmap"))) return(NULL)
+    if (!is.null(compressor)) return(NULL)               # only stored/uncompressed
+    if (n <= 0L) return(NULL)
+    if (!dtype %in% c("<f8", "<i4")) return(NULL)        # mmap-able fixed-width
+    file <- .zarr_chunk_file(store, chunk_key)
+    if (is.null(file)) return(NULL)
+    elt <- if (dtype == "<f8") 8L else 4L
+    if (file.size(file) < as.numeric(n) * elt) return(NULL)  # truncated -> decode/error
+    if (dtype == "<f8") mmap_real(file, n) else mmap_int(file, n)
+}
+
+# An mmap-backed (ALTREP) read is MAPPED_DATA: file-backed and cheap, it must
+# stay lazy and not be copied into the capped in-memory cache tier. A decoded
+# value (strings, compressed/zip/in-memory chunks) is a real MEMORY_DATA copy.
+# Mirrors the FilesDaf classification (R/files_daf_read.R).
+.zarr_value_cache_group <- function(value) {
+    if (is_altrep_cpp(value)) MAPPED_DATA else MEMORY_DATA
+}
+
 # format_get_vector dispatches based on dense vs sparse layout on disk.
 .zarr_get_vector <- function(daf, axis, name) {
     store <- S7::prop(daf, "store")
@@ -547,6 +581,11 @@ S7::method(format_vectors_set,
         # Dense path
         zarray <- zarr_v2_read_zarray(store, base)
         n <- as.integer(zarray$shape[[1L]])
+        if (zarray$dtype != "|O") {
+            mm <- .zarr_try_mmap_dense(store, paste0(base, "/0"),
+                                       zarray$dtype, n, zarray$compressor)
+            if (!is.null(mm)) return(mm)
+        }
         chunk <- store_get_bytes(store, paste0(base, "/0"))
         if (is.null(chunk)) {
             stop(sprintf("vector %s missing chunk", sQuote(name)),
@@ -616,20 +655,16 @@ S7::method(format_vectors_set,
 S7::method(format_get_vector,
            list(ZarrDaf, S7::class_character, S7::class_character)) <-
     function(daf, axis, name) {
-        .cache_group_value(
-            .attach_vector_axis_names(daf, axis,
-                .zarr_get_vector(daf, axis, name)),
-            MEMORY_DATA
-        )
+        v <- .attach_vector_axis_names(daf, axis,
+            .zarr_get_vector(daf, axis, name))
+        .cache_group_value(v, .zarr_value_cache_group(v))
     }
 S7::method(format_get_vector,
            list(ZarrDafReadOnly, S7::class_character, S7::class_character)) <-
     function(daf, axis, name) {
-        .cache_group_value(
-            .attach_vector_axis_names(daf, axis,
-                .zarr_get_vector(daf, axis, name)),
-            MEMORY_DATA
-        )
+        v <- .attach_vector_axis_names(daf, axis,
+            .zarr_get_vector(daf, axis, name))
+        .cache_group_value(v, .zarr_value_cache_group(v))
     }
 
 # format_set_vector dispatches based on input type (dense vs sparse).
@@ -853,14 +888,24 @@ S7::method(format_matrices_set,
     nr <- on_disk_d1
     nc <- on_disk_d0
     chunk_path <- paste0(base, "/0.0")
+    total <- nr * nc
+    if (zarray$dtype != "|O") {
+        mm <- .zarr_try_mmap_dense(store, chunk_path, zarray$dtype, total,
+                                   zarray$compressor)
+        if (!is.null(mm)) {
+            # Column-major bytes in (nr, nc) — R's native fill, zero-copy.
+            dim(mm) <- c(nr, nc)
+            return(mm)
+        }
+    }
     bytes <- store_get_bytes(store, chunk_path)
     if (is.null(bytes)) {
         stop(sprintf("matrix at %s missing chunk", sQuote(base)), call. = FALSE)
     }
     if (zarray$dtype == "|O") {
-        flat <- zarr_v2_decode_strings(bytes, n = nr * nc)
+        flat <- zarr_v2_decode_strings(bytes, n = total)
     } else {
-        flat <- zarr_v2_decode_chunk(bytes, zarray$dtype, n = nr * nc,
+        flat <- zarr_v2_decode_chunk(bytes, zarray$dtype, n = total,
                                      compressor = zarray$compressor)
     }
     # The on-disk byte order is column-major in (nr, nc) — R's native fill.
@@ -930,21 +975,17 @@ S7::method(format_get_matrix,
            list(ZarrDaf, S7::class_character, S7::class_character,
                 S7::class_character)) <-
     function(daf, rows_axis, columns_axis, name) {
-        .cache_group_value(
-            .attach_matrix_axis_dimnames(daf, rows_axis, columns_axis,
-                .zarr_get_matrix(daf, rows_axis, columns_axis, name)),
-            MEMORY_DATA
-        )
+        m <- .attach_matrix_axis_dimnames(daf, rows_axis, columns_axis,
+            .zarr_get_matrix(daf, rows_axis, columns_axis, name))
+        .cache_group_value(m, .zarr_value_cache_group(m))
     }
 S7::method(format_get_matrix,
            list(ZarrDafReadOnly, S7::class_character, S7::class_character,
                 S7::class_character)) <-
     function(daf, rows_axis, columns_axis, name) {
-        .cache_group_value(
-            .attach_matrix_axis_dimnames(daf, rows_axis, columns_axis,
-                .zarr_get_matrix(daf, rows_axis, columns_axis, name)),
-            MEMORY_DATA
-        )
+        m <- .attach_matrix_axis_dimnames(daf, rows_axis, columns_axis,
+            .zarr_get_matrix(daf, rows_axis, columns_axis, name))
+        .cache_group_value(m, .zarr_value_cache_group(m))
     }
 
 S7::method(
