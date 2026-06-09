@@ -322,17 +322,20 @@ test_that("dafr-published .daf.zarr served over HTTP is readable from numpy via 
         "def fetch(rel):\n",
         "    with urllib.request.urlopen(base + '/' + rel) as r:\n",
         "        return r.read()\n",
-        # Consolidated metadata is the discoverability anchor — without it
-        # foreign consumers can't enumerate the tree over HTTP.
-        "zmeta = json.loads(fetch('.zmetadata'))\n",
-        "keys = sorted(zmeta['metadata'].keys())\n",
+        # Zarr v3 inline consolidated metadata is the discoverability anchor:
+        # the root zarr.json carries consolidated_metadata.metadata keyed by
+        # node path (no .zarray suffix). Without it foreign consumers can't
+        # enumerate the tree over HTTP.
+        "root = json.loads(fetch('zarr.json'))\n",
+        "md = root['consolidated_metadata']['metadata']\n",
+        "keys = sorted(md.keys())\n",
         "print('SCALARS_NAME_PRESENT=' + str(any(k.startswith('scalars/name') for k in keys)), flush=True)\n",
         # Pull the score vector's chunk and decode.
-        "score_meta = zmeta['metadata']['vectors/cell/score/.zarray']\n",
-        "print('SCORE_DTYPE=' + score_meta['dtype'], flush=True)\n",
-        "print('SCORE_SHAPE=' + str(score_meta['shape']), flush=True)\n",
-        "buf = fetch('vectors/cell/score/0')\n",
-        "score = np.frombuffer(buf, dtype=score_meta['dtype'])\n",
+        "score_meta = md['vectors/cell/score']\n",
+        "print('SCORE_DTYPE=' + score_meta['data_type'], flush=True)\n",
+        "print('SCORE_SHAPE=' + str(list(score_meta['shape'])), flush=True)\n",
+        "buf = fetch('vectors/cell/score/c/0')\n",
+        "score = np.frombuffer(buf, dtype='<f8')\n",
         "print('SCORE=' + ','.join(f'{v}' for v in score), flush=True)\n"
     )
     out <- system2(py, c("-c", shQuote(script)), stdout = TRUE, stderr = TRUE)
@@ -341,10 +344,10 @@ test_that("dafr-published .daf.zarr served over HTTP is readable from numpy via 
     if (!is.null(rc) && rc != 0L) {
         testthat::fail(paste0("python smoke failed: ", text))
     }
-    expect_match(text, "SCORE_DTYPE=<f8", fixed = TRUE)
+    expect_match(text, "SCORE_DTYPE=float64", fixed = TRUE)
     expect_match(text, "SCORE_SHAPE=[3]", fixed = TRUE)
     expect_match(text, "SCORE=1.5,2.5,3.5", fixed = TRUE)
-    # `.zmetadata` should expose every group dafr writes.
+    # The inline consolidated metadata should expose every group dafr writes.
     expect_match(text, "SCALARS_NAME_PRESENT=True", fixed = TRUE)
 })
 
@@ -383,7 +386,7 @@ test_that("dafr-published .daf.zarr served over HTTP opens via zarr.open + fsspe
     text <- paste(out, collapse = "\n")
     if (!is.null(rc) && rc != 0L) {
         # zarr-python releases vary in their HTTP support; some choke on
-        # the v2 layout dafr writes. Skip rather than fail so this stays a
+        # the v3 layout dafr writes. Skip rather than fail so this stays a
         # smoke, not a gate.
         testthat::skip(paste0("zarr.open over HTTP failed: ", text))
     }
