@@ -144,6 +144,26 @@ dafr_mmap_zip_set_crash_counter <- function(xptr, counter, ns_env) {
   .Call(`_dafr_dafr_mmap_zip_set_crash_counter`, xptr, counter, ns_env)
 }
 
+dafr_crc32c_cpp <- function(x) {
+  .Call(`_dafr_dafr_crc32c_cpp`, x)
+}
+
+dafr_blosc_decompress_cpp <- function(src, out_nbytes) {
+  .Call(`_dafr_dafr_blosc_decompress_cpp`, src, out_nbytes)
+}
+
+dafr_zstd_decompress_cpp <- function(src, out_nbytes) {
+  .Call(`_dafr_dafr_zstd_decompress_cpp`, src, out_nbytes)
+}
+
+dafr_have_blosc_cpp <- function() {
+  .Call(`_dafr_dafr_have_blosc_cpp`)
+}
+
+dafr_have_zstd_cpp <- function() {
+  .Call(`_dafr_dafr_have_zstd_cpp`)
+}
+
 dafr_set_num_threads <- function(n) {
   invisible(.Call(`_dafr_dafr_set_num_threads`, n))
 }

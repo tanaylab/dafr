@@ -1,3 +1,8 @@
+# Generated from src/Makevars.in by ./configure. The committed src/Makevars is
+# a no-optional-lib fallback so source installs that skip configure still build
+# the flat ZarrDaf path. configure substitutes @DAFR_SHARD_*@ when a system
+# c-blosc / libzstd is found, enabling packed/sharded read.
+PKG_CPPFLAGS = 
 PKG_CXXFLAGS = -DDAFR_HAVE_MMAP=1 $(SHLIB_OPENMP_CXXFLAGS)
-PKG_LIBS = $(SHLIB_OPENMP_CXXFLAGS) $(LAPACK_LIBS) $(BLAS_LIBS) $(FLIBS) -lz
+PKG_LIBS = $(SHLIB_OPENMP_CXXFLAGS) $(LAPACK_LIBS) $(BLAS_LIBS) $(FLIBS) -lz 
 CXX_STD = CXX17

@@ -9,8 +9,20 @@
 * **Breaking:** the legacy Zarr v2 reader/writer is removed. Opening a Zarr v2
   `.daf.zarr` now errors with a conversion hint (`python -m zarr v2_to_v3`),
   matching DataAxesFormats.jl 0.3.0's own behaviour.
-* Reading packed/sharded (`packed=true`) v3 stores is not yet supported (a
-  follow-up); default DAF writes are flat and read fully.
+## ZarrDaf: packed/sharded v3 read
+
+* Reading packed/sharded (`packed=true`) Zarr v3 `.daf.zarr` stores is now
+  supported (read-only; dafr still writes flat). Each packed array's
+  start-located shard index (ZEP-0002, crc32c-checked) is parsed in R, and its
+  inner chunks decode via `gzip` (base R, always available) or - when the
+  optional system library is present - `c-blosc` (the default
+  `blosc_zstd_bitshuffle` / `blosc_lz4_bitshuffle` codecs) and `libzstd` (plain
+  `zstd`). Dense and sparse matrices/vectors, including `vlen-utf8` strings,
+  are covered; flat sub-threshold components in a packed store read as before.
+* **CRAN-safe:** `configure` probes for `c-blosc`/`libzstd` (honouring
+  `BLOSC_HOME` / `ZSTD_HOME` / `CONDA_PREFIX`). With neither present the flat
+  path is unchanged and a blosc/zstd-packed read raises an actionable
+  "install c-blosc/libzstd" error. `crc32c` is always compiled (no dependency).
 
 ## ZarrDaf over HTTP: Zarr v3 read
 
@@ -27,10 +39,11 @@
 
 ### Known limitations
 
-* Reading packed/sharded (`packed=true`) v3 stores is not yet supported, either
-  locally or over HTTP (a follow-up). Default DataAxesFormats.jl writes are flat
-  and read fully. Local **directory** (`DirStore`) and **zip** (`MmapZipStore`,
-  `.daf.zarr.zip`) v3 stores are fully supported for read and write.
+* dafr reads packed/sharded v3 stores but only ever **writes flat** (the common
+  default). Reading blosc/zstd-packed stores needs the optional `c-blosc` /
+  `libzstd` system libraries (see above); `gzip`-packed and all flat stores read
+  with no extra dependency. Local **directory** (`DirStore`), **zip**
+  (`MmapZipStore`, `.daf.zarr.zip`), and **HTTP** v3 stores are all supported.
 
 # dafr 0.3.1
 
