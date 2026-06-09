@@ -27,6 +27,7 @@
         fmt <- d[["format"]]
         if (is.null(fmt) || fmt != "sparse") next
         elt <- d$eltype
+        if (is.null(elt)) next   # already v1.1 per-component (dafr now writes 1.1)
         ind <- if (is.null(d$indtype)) "UInt32" else d$indtype
         base <- sub("\\.json$", "", j)
         comp <- function(dtype, file) {
@@ -182,6 +183,45 @@ test_that("files_daf reads a real DataAxesFormats.jl 0.3.0-written v1.1 repo", {
     expect_equal(unname(get_vector(d, "cell", "sv")), c(0, 5, 0))
     expect_equal(as.matrix(get_matrix(d, "cell", "gene", "UMIs")),
                  diag(c(1, 2, 3)), ignore_attr = TRUE)
+})
+
+test_that("DataAxesFormats.jl 0.3.0 reads a dafr-written v1.1 FilesDaf store", {
+    skip_on_cran()
+    skip_if_not(.daf_jl_uses_zarr_v3(), "dafr-mcview Julia env not DAF >= 0.3.0")
+    out <- withr::local_tempdir("dafr-v11-")
+    p <- file.path(out, "w.daf")
+    d <- files_daf(p, mode = "w+")
+    add_axis(d, "cell", c("c1", "c2", "c3", "c4"))
+    add_axis(d, "gene", c("g1", "g2"))
+    set_scalar(d, "name", "from-dafr")
+    set_vector(d, "cell", "score", c(1.5, 2.5, 3.5, 4.5))            # dense
+    set_vector(d, "cell", "sv", c(0, 5, 0, 7))                       # sparse numeric
+    set_matrix(d, "cell", "gene", "dm", matrix(c(1, 2, 3, 4, 5, 6, 7, 8), 4, 2))
+    set_matrix(d, "cell", "gene", "sm",
+               Matrix::sparseMatrix(i = c(1L, 4L), j = c(1L, 2L),
+                                    x = c(1.5, 2.5), dims = c(4L, 2L)))
+    rm(d); gc()
+    # dafr wrote v1.1; confirm Julia 0.3.0 reads every property kind back.
+    expect_true(any(grepl("\\[1, ?1\\]",
+                          readLines(file.path(p, "daf.json"), warn = FALSE))))
+    res <- run_julia(c(
+        "using DataAxesFormats",
+        sprintf('d = FilesDaf(raw"%s", "r")', p),
+        'println("NAME=", get_scalar(d, "name"))',
+        'println("SCORE=", join(get_vector(d, "cell", "score"), ","))',
+        'println("SV=", join(get_vector(d, "cell", "sv"), ","))',
+        'println("DM=", join(vec(Matrix(get_matrix(d, "cell", "gene", "dm"))), ","))',
+        'println("SM=", join(vec(Matrix(get_matrix(d, "cell", "gene", "sm"))), ","))'
+    ))
+    skip_if_not(any(grepl("^NAME=from-dafr$", res)),
+                paste0("Julia FilesDaf read failed:\n", paste(res, collapse = "\n")))
+    getline <- function(tag) {
+        sub(paste0("^", tag), "", grep(paste0("^", tag), res, value = TRUE)[1])
+    }
+    expect_equal(getline("SCORE="), "1.5,2.5,3.5,4.5")
+    expect_equal(getline("SV="), "0.0,5.0,0.0,7.0")
+    expect_equal(getline("DM="), "1.0,2.0,3.0,4.0,5.0,6.0,7.0,8.0")
+    expect_equal(getline("SM="), "1.5,0.0,0.0,0.0,0.0,0.0,0.0,2.5")
 })
 
 test_that("files_daf still rejects a too-new FilesFormat (v1.2)", {

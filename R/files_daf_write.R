@@ -158,27 +158,33 @@ S7::method(
 
 .files_write_vector_sparse_numeric <- function(vdir, name, nzind, nzval,
                                                eltype, indtype) {
+    nnz <- length(nzind)
     .write_bin_dense(
         file.path(vdir, paste0(name, ".nzind")),
         as.integer(nzind), indtype
     )
+    comps <- list(list(key = "nzind", eltype = indtype, n_elements = nnz))
     if (eltype == "Bool") {
+        # All-true sparse Bool omits the .nzval payload (and its descriptor).
         if (!all(nzval)) {
             .write_bin_dense(
                 file.path(vdir, paste0(name, ".nzval")),
                 as.logical(nzval), "Bool"
             )
+            comps <- c(comps, list(list(key = "nzval", eltype = "Bool",
+                                        n_elements = nnz)))
         }
     } else {
         .write_bin_dense(file.path(vdir, paste0(name, ".nzval")), nzval, eltype)
+        comps <- c(comps, list(list(key = "nzval", eltype = eltype,
+                                    n_elements = nnz)))
     }
-    .write_descriptor_sparse(file.path(vdir, paste0(name, ".json")),
-        dtype = eltype, indtype = indtype
-    )
+    .write_descriptor_sparse(file.path(vdir, paste0(name, ".json")), comps)
     invisible()
 }
 
 .files_write_vector_sparse_string <- function(vdir, name, nzind, nzval, indtype) {
+    nnz <- length(nzind)
     .write_bin_dense(
         file.path(vdir, paste0(name, ".nzind")),
         as.integer(nzind), indtype
@@ -190,8 +196,8 @@ S7::method(
     writeLines(nzval, con, useBytes = FALSE)
     close(con)
     .write_descriptor_sparse(file.path(vdir, paste0(name, ".json")),
-        dtype = "String", indtype = indtype
-    )
+        list(list(key = "nzind", eltype = indtype, n_elements = nnz),
+             list(key = "nzval", eltype = "String", n_elements = nnz)))
     invisible()
 }
 
@@ -304,22 +310,28 @@ S7::method(
         file.path(mdir, paste0(name, ".rowval")),
         as.integer(mat@i) + 1L, indtype
     )
+    comps <- list(
+        list(key = "colptr", eltype = indtype, n_elements = nc + 1L),
+        list(key = "rowval", eltype = indtype, n_elements = nnz))
     if (is_bool) {
+        # All-true sparse Bool omits the .nzval payload (and its descriptor).
         if (!all(mat@x)) {
             .write_bin_dense(
                 file.path(mdir, paste0(name, ".nzval")),
                 as.logical(mat@x), "Bool"
             )
+            comps <- c(comps, list(list(key = "nzval", eltype = "Bool",
+                                        n_elements = nnz)))
         }
     } else {
         .write_bin_dense(
             file.path(mdir, paste0(name, ".nzval")),
             as.double(mat@x), "Float64"
         )
+        comps <- c(comps, list(list(key = "nzval", eltype = "Float64",
+                                    n_elements = nnz)))
     }
-    .write_descriptor_sparse(file.path(mdir, paste0(name, ".json")),
-        dtype = dtype, indtype = indtype
-    )
+    .write_descriptor_sparse(file.path(mdir, paste0(name, ".json")), comps)
     invisible()
 }
 

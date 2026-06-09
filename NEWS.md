@@ -1,5 +1,16 @@
 # dafr 0.4.0
 
+## FilesFormat: writes v1.1 (DataAxesFormats.jl 0.3.0 default)
+
+* `FilesDaf` now writes the **v1.1** on-disk format (`{"version":[1,1]}`),
+  matching DataAxesFormats.jl 0.3.0. The only change from v1.0 is the sparse
+  property JSON descriptor: it now carries a per-component object (`nzind` /
+  `nzval` for vectors, `colptr` / `rowval` / `nzval` for matrices), each shaped
+  like a stand-alone dense descriptor with its `eltype` and `n_elements`. The
+  binary payload files are byte-identical to v1.0, and the reader accepts both
+  shapes, so existing v1.0 repos still read. Verified round-trip in both
+  directions against DAF 0.3.0 (dafr reads Julia's v1.1; Julia reads dafr's).
+
 ## ZarrDaf: faster bulk writes
 
 * Writing many properties to a directory/in-memory ZarrDaf is now

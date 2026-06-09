@@ -219,14 +219,17 @@ S7::method(.is_leaf_dispatch, FilesDafReadOnly) <- function(daf) TRUE
     }
     .write_axes_metadata(path)  # axes/metadata.json: empty array on fresh init
     if (!file.exists(file.path(path, "daf.json"))) {
-        writeLines('{"version":[1,0]}', con = file.path(path, "daf.json"), sep = "\n")
+        # FilesFormat v1.1 (matches DataAxesFormats.jl 0.3.0; the reader accepts
+        # both 1.0 and 1.1). The only on-disk difference vs 1.0 is the sparse
+        # JSON descriptor shape; binary payloads are unchanged.
+        writeLines('{"version":[1,1]}', con = file.path(path, "daf.json"), sep = "\n")
     }
     .metadata_zip_rebuild(path)
     invisible()
 }
 
-# Fast-path regex for the daf.json dafr emits:
-#   {"version":[1,0]}
+# Fast-path regex for the daf.json dafr emits (now {"version":[1,1]}; the
+# pattern accepts any [major,minor] and an optional "name", so it reads 1.0 too).
 # Falls back to jsonlite on any mismatch.
 .DAF_JSON_RE <- '^\\{"version":\\[([0-9]+),([0-9]+)\\](?:,"name":"[^"\\\\[:cntrl:]]*")?\\}\\s*$'
 

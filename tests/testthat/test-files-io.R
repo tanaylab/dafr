@@ -50,14 +50,18 @@ test_that(".write_descriptor_dense / .read_descriptor round-trip", {
     expect_equal(d$eltype, "Float64")
 })
 
-test_that(".write_descriptor_sparse / .read_descriptor round-trip", {
+test_that(".write_descriptor_sparse / .read_descriptor round-trip (v1.1)", {
     tmp <- tempfile(fileext = ".json")
-    dafr:::.write_descriptor_sparse(tmp, dtype = "Float64", indtype = "UInt32")
+    dafr:::.write_descriptor_sparse(tmp, list(
+        list(key = "nzind", eltype = "UInt32", n_elements = 3L),
+        list(key = "nzval", eltype = "Float64", n_elements = 3L)))
     on.exit(unlink(tmp))
     d <- dafr:::.read_descriptor(tmp)
     expect_equal(d$format, "sparse")
-    expect_equal(d$eltype, "Float64")
-    expect_equal(d$indtype, "UInt32")
+    # v1.1 per-component descriptor (no top-level eltype/indtype)
+    expect_equal(d$nzind$eltype, "UInt32")
+    expect_equal(d$nzval$eltype, "Float64")
+    expect_equal(d$nzval$n_elements, 3)
 })
 
 test_that(".read_descriptor rejects malformed JSON", {
