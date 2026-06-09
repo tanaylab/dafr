@@ -56,3 +56,29 @@ test_that("zarr_v3 array metadata round-trips through a DictStore", {
   expect_equal(smeta$data_type, "string")
   expect_equal(smeta$fill_value, "")
 })
+
+test_that("zarr_v3 root marker carries daf attribute and reads back", {
+  store <- new_dict_store()
+  zarr_v3_write_root(store)
+  expect_true(zarr_v3_daf_marker_exists(store))
+  expect_equal(zarr_v3_daf_version(store), c(1L, 0L))
+
+  # an empty dict store with no root is not a marker
+  expect_false(zarr_v3_daf_marker_exists(new_dict_store()))
+})
+
+test_that("zarr_v3 consolidated metadata indexes non-root nodes", {
+  store <- new_dict_store()
+  zarr_v3_write_root(store)
+  zarr_v3_write_group(store, "scalars")
+  zarr_v3_write_array(store, "vectors/cell/score",
+                      zarr_v3_array_meta(c(3L), "float64"))
+  zarr_v3_write_consolidated(store)
+
+  root <- zarr_v3_read_node(store, "")
+  md <- root$consolidated_metadata$metadata
+  expect_true("scalars" %in% names(md))
+  expect_true("vectors/cell/score" %in% names(md))
+  expect_equal(md[["vectors/cell/score"]]$node_type, "array")
+  expect_false("" %in% names(md))   # root is not listed in its own index
+})

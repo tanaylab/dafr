@@ -141,3 +141,66 @@ zarr_v3_write_group <- function(store, path) {
     }
     invisible()
 }
+
+# ---- root marker + consolidated metadata ---------------------------------
+
+# Daf-zarr format version (root-group attribute `daf: [MAJOR, MINOR]`).
+.ZARR_V3_DAF_MAJOR <- 1L
+.ZARR_V3_DAF_MINOR <- 0L
+
+# Write the root group zarr.json with the daf version attribute. Consolidated
+# metadata is (re)written separately via zarr_v3_write_consolidated().
+zarr_v3_write_root <- function(store) {
+    root <- list(
+        zarr_format = 3L,
+        node_type = "group",
+        attributes = list(daf = list(.ZARR_V3_DAF_MAJOR, .ZARR_V3_DAF_MINOR))
+    )
+    json <- jsonlite::toJSON(root, auto_unbox = TRUE, pretty = FALSE)
+    store_set_bytes(store, "zarr.json", charToRaw(as.character(json)))
+    invisible()
+}
+
+# TRUE if the store's root zarr.json is a group carrying a `daf` attribute.
+zarr_v3_daf_marker_exists <- function(store) {
+    node <- zarr_v3_read_node(store, "")
+    !is.null(node) && identical(node$node_type, "group") &&
+        !is.null(node$attributes) && !is.null(node$attributes$daf)
+}
+
+# The [MAJOR, MINOR] version from the root daf attribute (integer vector).
+zarr_v3_daf_version <- function(store) {
+    node <- zarr_v3_read_node(store, "")
+    as.integer(unlist(node$attributes$daf))
+}
+
+# Rebuild root consolidated_metadata: index every non-root node by relative
+# path -> its full metadata (the root's own consolidated_metadata field is
+# stripped from any node before inlining). No-op on append-only zip stores
+# (DAF omits consolidated metadata there and uses the zip central directory).
+zarr_v3_write_consolidated <- function(store) {
+    if (S7::S7_inherits(store, MmapZipStore)) return(invisible())
+    keys <- store_list(store, "")
+    node_keys <- keys[keys == "zarr.json" | endsWith(keys, "/zarr.json")]
+    md <- list()
+    for (k in node_keys) {
+        path <- if (k == "zarr.json") "" else sub("/zarr.json$", "", k)
+        if (path == "") next                      # root not listed in its index
+        node <- jsonlite::fromJSON(rawToChar(store_get_bytes(store, k)),
+                                   simplifyVector = FALSE)
+        node$consolidated_metadata <- NULL
+        md[[path]] <- node
+    }
+    if (length(md) == 0L) md <- structure(list(), names = character(0L))
+    root <- list(
+        zarr_format = 3L,
+        node_type = "group",
+        attributes = list(daf = list(.ZARR_V3_DAF_MAJOR, .ZARR_V3_DAF_MINOR)),
+        consolidated_metadata = list(kind = "inline", must_understand = FALSE,
+                                     metadata = md)
+    )
+    json <- jsonlite::toJSON(root, auto_unbox = TRUE, null = "null",
+                             pretty = FALSE)
+    store_set_bytes(store, "zarr.json", charToRaw(as.character(json)))
+    invisible()
+}
