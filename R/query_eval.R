@@ -2294,16 +2294,22 @@ NULL
 
         # Julia parity: log of a negative value raises DomainError; log(0)
         # returns -Inf without error. Reject only strictly-negative input
-        # before the C++ kernel which silently produces NaN otherwise.
-        log_input <- if (methods::is(state$value, "Matrix")) state$value@x
-                     else if (is.numeric(state$value)) as.numeric(state$value)
-                     else NULL
-        if (!is.null(log_input) && length(log_input) > 0L &&
-            any(log_input + eps < 0, na.rm = TRUE)) {
-            stop(sprintf(
-                "DomainError with %s:\nlog was called with a negative real argument",
-                format(min(log_input[!is.na(log_input)]))
-            ), call. = FALSE)
+        # before the C++ kernel which silently produces NaN otherwise. Use a
+        # min() reduction rather than `any(as.numeric(x) + eps < 0)`: the latter
+        # copies the whole matrix to a vector and allocates a second full
+        # temporary, dwarfing the parallel kernel on a large matrix; min() is a
+        # single allocation-free scan and `min(x) + eps < 0` is equivalent.
+        log_vals <- if (methods::is(state$value, "Matrix")) state$value@x
+                    else if (is.numeric(state$value)) state$value
+                    else NULL
+        if (!is.null(log_vals) && length(log_vals) > 0L) {
+            log_min <- suppressWarnings(min(log_vals, na.rm = TRUE))
+            if (is.finite(log_min) && log_min + eps < 0) {
+                stop(sprintf(
+                    "DomainError with %s:\nlog was called with a negative real argument",
+                    format(log_min)
+                ), call. = FALSE)
+            }
         }
 
         # Fast path 1: sparsity-preserving Log on dgCMatrix. log1p(0) == 0,

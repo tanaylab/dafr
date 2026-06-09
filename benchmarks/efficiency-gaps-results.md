@@ -81,3 +81,24 @@ matrix - ALTREP is preserved). DataAxesFormats.jl reads the same matrix in
 
 Still single-threaded (separate follow-up): dense matrix reductions and
 `% Abs`/`% Round`/`% Clamp`/`% Convert` element-wise ops.
+
+## Phase 3 - `% Log` matrix per-call overhead (2026-06-10)
+
+The `% Log` 6.4x gap was the per-call overhead the baseline suspected, not the
+kernel. `.apply_eltwise` (`R/query_eval.R`) ran its negative-input domain check
+as `any(as.numeric(value) + eps < 0)`: on a dense matrix that copied the whole
+matrix to a vector (`as.numeric`) and allocated a second full temporary
+(`+ eps`) - two ~80 MB allocations plus a single-threaded scan - *before* the
+parallel `kernel_log_dense_mat_cpp` ran. Replaced with an allocation-free
+`min(value) + eps < 0` reduction (equivalent, since `+ eps` is monotonic;
+preserves the exact DomainError + reported value).
+
+| stage (4000x2500 Float64, warm)        | before | after |
+|----------------------------------------|-------:|------:|
+| negative pre-check                     |  92 ms |  7 ms |
+| full `% Log base 2 eps 1` matrix query | ~166 ms | 81 ms |
+
+`% Log` is now ~81 ms vs DataAxesFormats.jl's ~61 ms (1.3x) - effectively at
+parity. The dense `>| Sum` (2.3x) and `% Abs` (3.7x) gaps are the genuine
+single-threaded-R vs parallel-Julia kernel gaps (no analogous overhead lever)
+and remain the separate dense-kernel follow-up.
