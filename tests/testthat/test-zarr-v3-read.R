@@ -17,3 +17,8 @@ test_that("v3 scalars and axis entries read correctly", {
   expect_equal(axis_vector(d, "cell"), c("c1", "c2", "c3"))
   expect_equal(axis_vector(d, "gene"), c("g1", "g2"))
 })
+
+test_that("v3 dense vector reads with correct values", {
+  d <- zarr_daf(daf030_flat_fixture(), mode = "r")
+  expect_equal(unname(get_vector(d, "cell", "score")), c(1.5, 2.5, 3.5))
+})

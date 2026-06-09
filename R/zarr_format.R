@@ -506,10 +506,9 @@ S7::method(format_has_vector,
     }
 .zarr_has_vector <- function(daf, axis, name) {
     store <- S7::prop(daf, "store")
-    base <- paste0("vectors/", axis, "/", name)
-    # Either dense (.zarray at base) or sparse (.zgroup at base).
-    store_exists(store, paste0(base, "/.zarray")) ||
-        store_exists(store, paste0(base, "/.zgroup"))
+    # Dense (array) or sparse (group); both carry a zarr.json at `base`.
+    node <- zarr_v3_read_node(store, paste0("vectors/", axis, "/", name))
+    !is.null(node)
 }
 
 S7::method(format_vectors_set,
@@ -523,17 +522,10 @@ S7::method(format_vectors_set,
     prefix <- paste0("vectors/", axis)
     keys <- store_list(store, prefix)
     if (length(keys) == 0L) return(character(0L))
-    # Strip the "vectors/{axis}/" prefix and split remainder on "/".
     rel <- sub(paste0("^", prefix, "/"), "", keys)
-    # Top-level dense:   "{name}/.zarray"          (one slash, ends .zarray)
-    # Top-level sparse:  "{name}/.zgroup"          (one slash, ends .zgroup)
-    # Sparse children:   "{name}/nzind/.zarray"    (multiple slashes — skip)
-    is_dense <- grepl("^[^/]+/\\.zarray$", rel)
-    is_sparse <- grepl("^[^/]+/\\.zgroup$", rel)
-    names <- c(
-        sub("/\\.zarray$", "", rel[is_dense]),
-        sub("/\\.zgroup$", "", rel[is_sparse])
-    )
+    # A property (dense array or sparse group) is "<name>/zarr.json" (one
+    # slash). Sparse children ("<name>/nzind/zarr.json") are deeper — skipped.
+    names <- sub("/zarr.json$", "", rel[grepl("^[^/]+/zarr.json$", rel)])
     sort(unique(names), method = "radix")
 }
 
@@ -575,30 +567,30 @@ S7::method(format_vectors_set,
 .zarr_get_vector <- function(daf, axis, name) {
     store <- S7::prop(daf, "store")
     base <- paste0("vectors/", axis, "/", name)
-    if (store_exists(store, paste0(base, "/.zarray"))) {
-        # Dense path
-        zarray <- zarr_v2_read_zarray(store, base)
-        n <- as.integer(zarray$shape[[1L]])
-        if (zarray$dtype != "|O") {
-            mm <- .zarr_try_mmap_dense(store, paste0(base, "/0"),
-                                       zarray$dtype, n, zarray$compressor)
-            if (!is.null(mm)) return(mm)
-        }
-        chunk <- store_get_bytes(store, paste0(base, "/0"))
-        if (is.null(chunk)) {
-            stop(sprintf("vector %s missing chunk", sQuote(name)),
-                 call. = FALSE)
-        }
-        if (zarray$dtype == "|O") {
-            return(zarr_v2_decode_strings(chunk, n = n))
-        }
-        return(zarr_v2_decode_chunk(chunk, zarray$dtype, n = n,
-                                    compressor = zarray$compressor))
+    node <- zarr_v3_read_node(store, base)
+    if (is.null(node)) {
+        .require_vector(daf, axis, name)
     }
-    if (store_exists(store, paste0(base, "/.zgroup"))) {
+    if (identical(node$node_type, "group")) {
         return(.zarr_get_sparse_vector(daf, axis, name))
     }
-    .require_vector(daf, axis, name)
+    # Dense (array) path.
+    n <- as.integer(node$shape[[1L]])
+    is_string <- identical(node$data_type, "string")
+    if (!is_string) {
+        mm <- .zarr_try_mmap_dense(store, zarr_v3_chunk_path(base, 1L),
+                                   node$data_type, n, NULL)
+        if (!is.null(mm)) return(mm)
+    }
+    chunk <- store_get_bytes(store, zarr_v3_chunk_path(base, 1L))
+    if (is.null(chunk)) {
+        stop(sprintf("vector %s missing chunk", sQuote(name)),
+             call. = FALSE)
+    }
+    if (is_string) {
+        return(zarr_v3_decode_strings(chunk, n = n))
+    }
+    zarr_v3_decode_chunk(chunk, node$data_type, n = n)
 }
 
 .zarr_get_sparse_vector <- function(daf, axis, name) {
@@ -615,29 +607,28 @@ S7::method(format_vectors_set,
     store <- S7::prop(daf, "store")
     base <- paste0("vectors/", axis, "/", name)
     n <- as.integer(format_axis_length(daf, axis))
-    nzind_zarray <- zarr_v2_read_zarray(store, paste0(base, "/nzind"))
-    nzind_n <- as.integer(nzind_zarray$shape[[1L]])
-    nzind <- zarr_v2_decode_chunk(
-        store_get_bytes(store, paste0(base, "/nzind/0")),
-        nzind_zarray$dtype, n = nzind_n,
-        compressor = nzind_zarray$compressor
+    nzind_meta <- zarr_v3_read_array(store, paste0(base, "/nzind"))
+    nzind_n <- as.integer(nzind_meta$shape[[1L]])
+    nzind <- zarr_v3_decode_chunk(
+        store_get_bytes(store, zarr_v3_chunk_path(paste0(base, "/nzind"), 1L)),
+        nzind_meta$data_type, n = nzind_n
     )
     # Upstream stores 1-based indices on disk (Julia SparseVector convention).
+    # DAF writes nzind as int64, so the decode is integer64 -> as.integer().
     nzind_1 <- as.integer(nzind)
 
-    has_nzval <- store_exists(store, paste0(base, "/nzval/.zarray"))
+    has_nzval <- !is.null(zarr_v3_read_array(store, paste0(base, "/nzval")))
     if (!has_nzval) {
         # All-TRUE Bool sparse: nzval was omitted on write; synthesize.
         out <- logical(n)
         out[nzind_1] <- TRUE
         return(out)
     }
-    nzval_zarray <- zarr_v2_read_zarray(store, paste0(base, "/nzval"))
-    nzval_n <- as.integer(nzval_zarray$shape[[1L]])
-    nzval <- zarr_v2_decode_chunk(
-        store_get_bytes(store, paste0(base, "/nzval/0")),
-        nzval_zarray$dtype, n = nzval_n,
-        compressor = nzval_zarray$compressor
+    nzval_meta <- zarr_v3_read_array(store, paste0(base, "/nzval"))
+    nzval_n <- as.integer(nzval_meta$shape[[1L]])
+    nzval <- zarr_v3_decode_chunk(
+        store_get_bytes(store, zarr_v3_chunk_path(paste0(base, "/nzval"), 1L)),
+        nzval_meta$data_type, n = nzval_n
     )
     out <- if (is.logical(nzval)) {
         logical(n)
