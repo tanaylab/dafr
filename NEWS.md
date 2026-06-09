@@ -19,8 +19,13 @@ matrices). dafr was a 1.0-only reader and rejected 1.1 directories outright
   sparse components, which are not yet supported (re-save with flat
   components).
 
-This covers reading flat FilesFormat 1.1 repos only, not the rest of 0.3.0
-(the zarr/zip/http and "packed view of a directory as Zarr" machinery).
+`HttpDaf` (a `FilesDaf` served over HTTP) gets the same treatment: it
+accepts v1.1, parses per-component sparse descriptors, and rejects packed
+components.
+
+This covers reading flat FilesFormat 1.1 repos (directory and over HTTP)
+only, not the rest of 0.3.0 (the zarr/zip and "packed view of a directory
+as Zarr" machinery).
 
 ## Fix: ZarrDaf on-disk format now interoperates with DataAxesFormats.jl
 
