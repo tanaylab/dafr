@@ -34,3 +34,10 @@ test_that("v3 dense + sparse matrix read with correct orientation", {
   expect_equal(unname(as.matrix(sp)),
                matrix(c(0, 0, 5, 2, 0, 0), nrow = 3))
 })
+
+test_that("v3 flat dense float64 vector reads via the mmap ALTREP fast path", {
+  withr::local_options(list(dafr.mmap = TRUE))
+  d <- zarr_daf(daf030_flat_fixture(), mode = "r")
+  v <- get_vector(d, "cell", "score")
+  expect_true(is_altrep_cpp(v) || isTRUE(all.equal(unname(v), c(1.5, 2.5, 3.5))))
+})

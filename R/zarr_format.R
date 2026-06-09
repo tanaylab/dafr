@@ -547,12 +547,12 @@ S7::method(format_vectors_set,
     if (!isTRUE(dafr_opt("dafr.mmap"))) return(NULL)
     if (!is.null(compressor)) return(NULL)               # only stored/uncompressed
     if (n <= 0L) return(NULL)
-    if (!dtype %in% c("<f8", "<i4")) return(NULL)        # mmap-able fixed-width
+    if (!dtype %in% c("float64", "int32")) return(NULL)  # mmap-able fixed-width
     file <- .zarr_chunk_file(store, chunk_key)
     if (is.null(file)) return(NULL)
-    elt <- if (dtype == "<f8") 8L else 4L
+    elt <- if (dtype == "float64") 8L else 4L
     if (file.size(file) < as.numeric(n) * elt) return(NULL)  # truncated -> decode/error
-    if (dtype == "<f8") mmap_real(file, n) else mmap_int(file, n)
+    if (dtype == "float64") mmap_real(file, n) else mmap_int(file, n)
 }
 
 # An mmap-backed (ALTREP) read is MAPPED_DATA: file-backed and cheap, it must
