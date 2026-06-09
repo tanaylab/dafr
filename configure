@@ -1,0 +1,72 @@
+#!/bin/sh
+# Probe for optional system c-blosc / libzstd, enabling packed/sharded ZarrDaf
+# v3 read. Absent either, the flat path is unaffected and a blosc/zstd-packed
+# read raises an actionable runtime error (CRAN-clean). Non-standard installs:
+# set BLOSC_HOME / ZSTD_HOME (or CONDA_PREFIX) to a prefix with include/ + lib/.
+set -e
+
+: "${R_HOME=`R RHOME`}"
+RBIN="${R_HOME}/bin/R"
+CC=`"${RBIN}" CMD config CC`
+CFLAGS=`"${RBIN}" CMD config CFLAGS`
+RCPPFLAGS=`"${RBIN}" CMD config CPPFLAGS`
+
+# Candidate prefixes whose include/lib should be searched, in priority order.
+prefix_flags() { # $1 = prefix -> echo "<cppflags>|<libflags>"
+    if [ -n "$1" ] && [ -d "$1/include" ]; then
+        printf -- "-I%s/include|-L%s/lib -Wl,-rpath,%s/lib" "$1" "$1" "$1"
+    fi
+}
+
+# Try to compile+link a probe for header $1 / lib -l$2 over a set of candidate
+# prefixes (empty prefix = system default paths). Echoes "<cpp>|<libs>" of the
+# first combo that links, or nothing.
+probe_lib() { # $1=header $2=lib $3..=prefixes
+    header="$1"; lib="$2"; shift 2
+    for pref in "" "$@"; do
+        if [ -z "$pref" ]; then xc=""; xl="";
+        else
+            pf=`prefix_flags "$pref"` || true
+            [ -z "$pf" ] && continue
+            xc=`printf "%s" "$pf" | cut -d'|' -f1`
+            xl=`printf "%s" "$pf" | cut -d'|' -f2`
+        fi
+        cat > conftest.c <<EOF
+#include <$header>
+int main(void){ return 0; }
+EOF
+        if $CC $CFLAGS $RCPPFLAGS $xc conftest.c -o conftest $xl -l$lib >/dev/null 2>&1; then
+            rm -f conftest conftest.c
+            printf "%s|%s -l%s" "$xc" "$xl" "$lib"
+            return 0
+        fi
+    done
+    rm -f conftest conftest.c
+    return 1
+}
+
+SHARD_CPP=""
+SHARD_LIBS=""
+
+if R=`probe_lib blosc.h blosc "$BLOSC_HOME" "$CONDA_PREFIX"`; then
+    SHARD_CPP="$SHARD_CPP -DHAVE_BLOSC `printf %s "$R" | cut -d'|' -f1`"
+    SHARD_LIBS="$SHARD_LIBS `printf %s "$R" | cut -d'|' -f2`"
+    echo "configure: c-blosc found -> blosc-packed ZarrDaf read enabled"
+else
+    echo "configure: c-blosc NOT found -> blosc-packed read errors at runtime"
+fi
+
+if R=`probe_lib zstd.h zstd "$ZSTD_HOME" "$CONDA_PREFIX"`; then
+    SHARD_CPP="$SHARD_CPP -DHAVE_ZSTD `printf %s "$R" | cut -d'|' -f1`"
+    SHARD_LIBS="$SHARD_LIBS `printf %s "$R" | cut -d'|' -f2`"
+    echo "configure: libzstd found -> zstd-packed ZarrDaf read enabled"
+else
+    echo "configure: libzstd NOT found -> zstd-packed read errors at runtime"
+fi
+
+# Escape & for sed replacement safety (paths shouldn't contain it, but be safe).
+esc() { printf '%s' "$1" | sed -e 's/[&|]/\\&/g'; }
+sed -e "s|@DAFR_SHARD_CPPFLAGS@|`esc \"$SHARD_CPP\"`|" \
+    -e "s|@DAFR_SHARD_LIBS@|`esc \"$SHARD_LIBS\"`|" \
+    src/Makevars.in > src/Makevars
+echo "configure: wrote src/Makevars"
