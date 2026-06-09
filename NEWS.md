@@ -1,3 +1,33 @@
+# dafr 0.4.0
+
+## ZarrDaf: Zarr v3 (DataAxesFormats.jl 0.3.0 interop)
+
+* ZarrDaf now reads and writes the **Zarr v3** on-disk format used by
+  DataAxesFormats.jl 0.3.0 (a single `zarr.json` per node, `c/`-prefixed chunk
+  keys, the `daf` version marker as a root-group attribute, and inline
+  consolidated metadata). Flat (uncompressed) read and write are supported.
+* **Breaking:** the legacy Zarr v2 reader/writer is removed. Opening a Zarr v2
+  `.daf.zarr` now errors with a conversion hint (`python -m zarr v2_to_v3`),
+  matching DataAxesFormats.jl 0.3.0's own behaviour.
+* Reading packed/sharded (`packed=true`) v3 stores is not yet supported (a
+  follow-up); default DAF writes are flat and read fully.
+
+### Known limitations
+
+* **Reading a Zarr v3 `.daf.zarr` over HTTP is not yet supported.** Opening a
+  v3 store via `zarr_daf("http://...")` still routes through the `HttpStore`
+  backend, which expects the Zarr v2 `.zmetadata` consolidated-metadata index
+  for discoverability. v3 stores do not write `.zmetadata` (v3 inlines the
+  consolidated metadata into the root `zarr.json`), so the open fails with a
+  `.zmetadata not found` error. Porting `HttpStore` to the v3 layout is a
+  separate follow-up. What IS supported in this release:
+    * Local **directory** (`DirStore`) v3 stores - fully supported (read +
+      write).
+    * Local **zip** (`MmapZipStore`, `.daf.zarr.zip`) v3 stores - fully
+      supported (read + write).
+    * `HttpDaf` / `FilesDaf` over HTTP (the FilesFormat path, `http_daf()`) -
+      unaffected; this path does not use Zarr at all.
+
 # dafr 0.3.1
 
 ## Fix: read DataAxesFormats.jl 0.3.0 FilesFormat v1.1 directories

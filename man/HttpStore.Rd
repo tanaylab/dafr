@@ -27,4 +27,16 @@ are cached in process memory.
 }
 \details{
 Writes hard-error: HTTP-served Zarr is read-only.
+
+Zarr version: this backend currently targets the \strong{Zarr v2} on-disk
+layout, where discoverability hinges on a consolidated \code{.zmetadata}
+index at the store root. It has \strong{not} yet been ported to the Zarr v3
+format that the rest of \code{dafr} reads and writes locally. v3 stores do
+not write \code{.zmetadata} (v3 inlines the consolidated metadata into the
+root \code{zarr.json}), so opening a v3 \code{.daf.zarr} over HTTP via
+\code{\link[=zarr_daf]{zarr_daf()}} currently fails with a \verb{.zmetadata not found} error.
+Porting \code{HttpStore} to v3 is a separate follow-up; local directory
+(\code{DirStore}) and zip (\code{MmapZipStore}) v3 stores are fully supported, as
+is \code{http_daf()} (the FilesFormat-over-HTTP path, which does not use
+Zarr).
 }

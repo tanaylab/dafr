@@ -31,10 +31,17 @@ test_that("files_to_zarr converts a complete files_daf to zarr_daf", {
     dst <- tempfile(fileext = ".daf.zarr")
     files_to_zarr(src, dst)
     expect_true(dir.exists(dst))
-    # Upstream `daf` marker array (not the FilesDaf daf.json).
-    expect_true(file.exists(file.path(dst, "daf", ".zarray")))
+    # Zarr v3 daf marker: a root zarr.json group carrying the `daf` attribute
+    # plus inline consolidated metadata (not the FilesDaf daf.json).
+    expect_true(file.exists(file.path(dst, "zarr.json")))
     expect_false(file.exists(file.path(dst, "daf.json")))
-    expect_true(file.exists(file.path(dst, ".zmetadata")))
+    root <- jsonlite::fromJSON(
+        readChar(file.path(dst, "zarr.json"),
+                 file.info(file.path(dst, "zarr.json"))$size),
+        simplifyVector = FALSE
+    )
+    expect_false(is.null(root$attributes$daf))
+    expect_equal(root$consolidated_metadata$kind, "inline")
 
     d <- zarr_daf(dst, mode = "r")
     expect_setequal(scalars_set(d), c("n", "label"))
@@ -138,7 +145,7 @@ test_that("conversion preserves all-TRUE Bool sparse optimization", {
     d <- zarr_daf(dst, mode = "r")
     store <- S7::prop(d, "store")
     expect_false(
-        store_exists(store, "matrices/cell/gene/F/nzval/.zarray")
+        store_exists(store, "matrices/cell/gene/F/nzval/zarr.json")
     )
 
     out <- get_matrix(d, "cell", "gene", "F")

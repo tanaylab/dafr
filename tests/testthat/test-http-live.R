@@ -299,6 +299,29 @@ test_that("empty_cache(http_daf) is safe with prior reads still held", {
     zarr_path
 }
 
+# ---- Known limitation: zarr_daf() over HTTP can't read a v3 store ----------
+# `HttpStore` (the backend behind zarr_daf("http://...")) still expects the
+# Zarr v2 `.zmetadata` consolidated-metadata index. A v3 `.daf.zarr` does not
+# write `.zmetadata` (v3 inlines consolidated metadata into the root
+# `zarr.json`), so opening one over HTTP currently fails. This test pins that
+# behaviour as a live assertion so the limitation isn't silently "fixed" or
+# regressed without an explicit decision. When HttpStore is ported to v3,
+# flip this to a positive round-trip.
+
+test_that("zarr_daf() over HTTP rejects a v3 store (HttpStore still v2-only)", {
+    skip_if_no_http_harness()
+    root <- withr::local_tempdir("daf-http-zarr-v3-gap-")
+    .populate_served_zarr(root)  # writes a Zarr v3 .daf.zarr (no .zmetadata)
+    h <- start_http_server(root)
+    on.exit(stop_http_server(h), add = TRUE)
+
+    url <- paste0(h$url, "/served.daf.zarr")
+    # HttpStore fetches <url>/.zmetadata at open; the v3 store has none, so
+    # new_http_store() hard-errors before any data is read.
+    expect_error(zarr_daf(url, mode = "r"), ".zmetadata not found",
+                 fixed = TRUE)
+})
+
 test_that("dafr-published .daf.zarr served over HTTP is readable from numpy via urllib", {
     skip_if_no_http_harness()
     skip_if_not(nzchar(Sys.which("python3")) || nzchar(Sys.which("python")))
@@ -322,17 +345,20 @@ test_that("dafr-published .daf.zarr served over HTTP is readable from numpy via 
         "def fetch(rel):\n",
         "    with urllib.request.urlopen(base + '/' + rel) as r:\n",
         "        return r.read()\n",
-        # Consolidated metadata is the discoverability anchor — without it
-        # foreign consumers can't enumerate the tree over HTTP.
-        "zmeta = json.loads(fetch('.zmetadata'))\n",
-        "keys = sorted(zmeta['metadata'].keys())\n",
+        # Zarr v3 inline consolidated metadata is the discoverability anchor:
+        # the root zarr.json carries consolidated_metadata.metadata keyed by
+        # node path (no .zarray suffix). Without it foreign consumers can't
+        # enumerate the tree over HTTP.
+        "root = json.loads(fetch('zarr.json'))\n",
+        "md = root['consolidated_metadata']['metadata']\n",
+        "keys = sorted(md.keys())\n",
         "print('SCALARS_NAME_PRESENT=' + str(any(k.startswith('scalars/name') for k in keys)), flush=True)\n",
         # Pull the score vector's chunk and decode.
-        "score_meta = zmeta['metadata']['vectors/cell/score/.zarray']\n",
-        "print('SCORE_DTYPE=' + score_meta['dtype'], flush=True)\n",
-        "print('SCORE_SHAPE=' + str(score_meta['shape']), flush=True)\n",
-        "buf = fetch('vectors/cell/score/0')\n",
-        "score = np.frombuffer(buf, dtype=score_meta['dtype'])\n",
+        "score_meta = md['vectors/cell/score']\n",
+        "print('SCORE_DTYPE=' + score_meta['data_type'], flush=True)\n",
+        "print('SCORE_SHAPE=' + str(list(score_meta['shape'])), flush=True)\n",
+        "buf = fetch('vectors/cell/score/c/0')\n",
+        "score = np.frombuffer(buf, dtype='<f8')\n",
         "print('SCORE=' + ','.join(f'{v}' for v in score), flush=True)\n"
     )
     out <- system2(py, c("-c", shQuote(script)), stdout = TRUE, stderr = TRUE)
@@ -341,10 +367,10 @@ test_that("dafr-published .daf.zarr served over HTTP is readable from numpy via 
     if (!is.null(rc) && rc != 0L) {
         testthat::fail(paste0("python smoke failed: ", text))
     }
-    expect_match(text, "SCORE_DTYPE=<f8", fixed = TRUE)
+    expect_match(text, "SCORE_DTYPE=float64", fixed = TRUE)
     expect_match(text, "SCORE_SHAPE=[3]", fixed = TRUE)
     expect_match(text, "SCORE=1.5,2.5,3.5", fixed = TRUE)
-    # `.zmetadata` should expose every group dafr writes.
+    # The inline consolidated metadata should expose every group dafr writes.
     expect_match(text, "SCALARS_NAME_PRESENT=True", fixed = TRUE)
 })
 
@@ -383,7 +409,7 @@ test_that("dafr-published .daf.zarr served over HTTP opens via zarr.open + fsspe
     text <- paste(out, collapse = "\n")
     if (!is.null(rc) && rc != 0L) {
         # zarr-python releases vary in their HTTP support; some choke on
-        # the v2 layout dafr writes. Skip rather than fail so this stays a
+        # the v3 layout dafr writes. Skip rather than fail so this stays a
         # smoke, not a gate.
         testthat::skip(paste0("zarr.open over HTTP failed: ", text))
     }
