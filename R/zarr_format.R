@@ -323,7 +323,7 @@ S7::method(
 .zarr_write_scalar <- function(store, name, value) {
     base <- paste0("scalars/", name)
     .zarr_write_dense_array(store, base, value, length(value))
-    zarr_v3_write_consolidated(store)
+    zarr_v3_consolidate_upsert(store, base)
 }
 
 S7::method(
@@ -451,7 +451,7 @@ S7::method(
     store <- S7::prop(daf, "store")
     base <- paste0("axes/", axis)
     .zarr_write_dense_array(store, base, entries, length(entries))
-    zarr_v3_write_consolidated(store)
+    zarr_v3_consolidate_upsert(store, base)
     invisible()
 }
 S7::method(
@@ -710,7 +710,7 @@ S7::method(
 
 .zarr_write_dense_vector <- function(store, base, vec) {
     .zarr_write_dense_array(store, base, vec, length(vec))
-    zarr_v3_write_consolidated(store)
+    zarr_v3_consolidate_upsert(store, base)
 }
 
 .zarr_write_sparse_vector <- function(store, base, vec) {
@@ -738,7 +738,7 @@ S7::method(
         store_set_bytes(store, zarr_v3_chunk_path(nzval_base, 1L),
                         zarr_v3_encode_chunk(vec@x, nzval_dtype))
     }
-    zarr_v3_write_consolidated(store)
+    zarr_v3_consolidate_upsert(store, base)
 }
 
 S7::method(format_delete_vector,
@@ -1007,7 +1007,7 @@ S7::method(
     # field in v3). Chunk bytes are R/Julia column-major (as.vector flatten).
     dimnames(mat) <- NULL
     .zarr_write_dense_array(store, base, as.vector(mat), c(nc, nr))
-    zarr_v3_write_consolidated(store)
+    zarr_v3_consolidate_upsert(store, base)
 }
 
 .zarr_write_sparse_matrix <- function(store, base, mat) {
@@ -1042,7 +1042,7 @@ S7::method(
         store_set_bytes(store, zarr_v3_chunk_path(nzval_base, 1L),
                         zarr_v3_encode_chunk(mat@x, nzval_dtype))
     }
-    zarr_v3_write_consolidated(store)
+    zarr_v3_consolidate_upsert(store, base)
 }
 
 S7::method(format_delete_matrix,

@@ -32,7 +32,17 @@ ZarrStore <- S7::new_class("ZarrStore", abstract = TRUE)
 DirStore <- S7::new_class(
     "DirStore",
     parent = ZarrStore,
-    properties = list(root = S7::class_character)
+    properties = list(
+        root = S7::class_character,
+        # In-memory consolidated-metadata index (`$cmeta`), maintained
+        # incrementally by R/zarr_v3.R so set_* does not re-parse the whole
+        # store's root on every mutation. Per-instance; rebuilt from disk on
+        # first use if empty.
+        consolidate_cache = S7::new_property(
+            S7::class_environment,
+            default = quote(new.env(parent = emptyenv()))
+        )
+    )
 )
 
 #' @rdname ZarrStore
@@ -40,7 +50,14 @@ DirStore <- S7::new_class(
 DictStore <- S7::new_class(
     "DictStore",
     parent = ZarrStore,
-    properties = list(env = S7::class_any)
+    properties = list(
+        env = S7::class_any,
+        # See DirStore$consolidate_cache.
+        consolidate_cache = S7::new_property(
+            S7::class_environment,
+            default = quote(new.env(parent = emptyenv()))
+        )
+    )
 )
 
 #' @rdname ZarrStore

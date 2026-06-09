@@ -174,38 +174,103 @@ zarr_v3_daf_version <- function(store) {
     as.integer(unlist(node$attributes$daf))
 }
 
-# Rebuild root consolidated_metadata: index every non-root node by relative
-# path -> its full metadata (the root's own consolidated_metadata field is
-# stripped from any node before inlining). No-op on append-only zip stores
-# (DAF omits consolidated metadata there and uses the zip central directory).
-# Perf follow-up: this re-scans and reparses the whole store on every call, so
-# bulk writes are O(N^2). A future optimization is to consolidate lazily / at
-# close (as DAF does) rather than on every per-mutation refresh.
+# The store's in-memory consolidate cache env (holds `$cjson`, a path -> node
+# zarr.json string map), or NULL for stores that don't carry one. Only
+# DirStore/DictStore consolidate incrementally; zip no-ops and http is read-only.
+.zarr_v3_cache <- function(store) {
+    if (S7::S7_inherits(store, DirStore) || S7::S7_inherits(store, DictStore)) {
+        return(S7::prop(store, "consolidate_cache"))
+    }
+    NULL
+}
+
+# Minimal JSON-string escape for an object key (node path). daf paths are simple
+# ASCII, but guard backslash + double-quote for arbitrary axis/property names.
+.zarr_v3_escape_key <- function(s) {
+    s <- gsub("\\", "\\\\", s, fixed = TRUE)
+    gsub('"', '\\"', s, fixed = TRUE)
+}
+
+# Assemble the root group zarr.json from a path -> node-JSON-string map. A
+# non-root node's on-disk zarr.json IS exactly the text to inline (nodes never
+# carry their own consolidated_metadata), so the root is built by string
+# concatenation - no per-node parse / re-serialize, which is what made the full
+# rebuild O(N^2). Output is valid JSON, ordered by path; equivalent after a parse
+# to a full re-serialize.
+.zarr_v3_assemble_root <- function(node_json) {
+    paths <- sort(names(node_json), method = "radix")
+    body <- if (length(paths) == 0L) "" else paste0(
+        '"', .zarr_v3_escape_key(paths), '":',
+        unlist(node_json[paths], use.names = FALSE), collapse = ",")
+    tmpl <- as.character(jsonlite::toJSON(list(
+        zarr_format = 3L, node_type = "group",
+        attributes = list(daf = list(.ZARR_V3_DAF_MAJOR, .ZARR_V3_DAF_MINOR)),
+        consolidated_metadata = list(kind = "inline", must_understand = FALSE,
+                                     metadata = "__DAFR_MD__")),
+        auto_unbox = TRUE))
+    sub('"__DAFR_MD__"', paste0("{", body, "}"), tmpl, fixed = TRUE)
+}
+
+# Write the root group zarr.json from a path -> node-JSON-string map.
+.zarr_v3_write_root_json <- function(store, node_json) {
+    store_set_bytes(store, "zarr.json",
+                    charToRaw(.zarr_v3_assemble_root(node_json)))
+    invisible()
+}
+
+# Full rebuild of the root consolidated metadata: index every non-root node by
+# relative path -> its raw zarr.json string. O(N) per call -> O(N^2) over a bulk
+# write, so mutations call zarr_v3_consolidate_upsert() instead; this full scan
+# is kept for store init, deletes (which can cascade), reorder, and as the
+# incremental fallback. Refreshes the in-memory cache so a following upsert is in
+# sync. No-op on append-only zip stores (DAF omits consolidated metadata there
+# and uses the zip central directory).
 zarr_v3_write_consolidated <- function(store) {
     if (S7::S7_inherits(store, MmapZipStore)) return(invisible())
     keys <- store_list(store, "")
-    node_keys <- keys[keys == "zarr.json" | endsWith(keys, "/zarr.json")]
-    md <- list()
+    node_keys <- keys[endsWith(keys, "/zarr.json")]   # root "zarr.json" excluded
+    node_json <- list()
     for (k in node_keys) {
-        path <- if (k == "zarr.json") "" else sub("/zarr.json$", "", k)
-        if (path == "") next                      # root not listed in its index
-        node <- jsonlite::fromJSON(rawToChar(store_get_bytes(store, k)),
-                                   simplifyVector = FALSE)
-        node$consolidated_metadata <- NULL
-        md[[path]] <- node
+        node_json[[sub("/zarr.json$", "", k)]] <-
+            rawToChar(store_get_bytes(store, k))
     }
-    if (length(md) == 0L) md <- structure(list(), names = character(0L))
-    root <- list(
-        zarr_format = 3L,
-        node_type = "group",
-        attributes = list(daf = list(.ZARR_V3_DAF_MAJOR, .ZARR_V3_DAF_MINOR)),
-        consolidated_metadata = list(kind = "inline", must_understand = FALSE,
-                                     metadata = md)
-    )
-    json <- jsonlite::toJSON(root, auto_unbox = TRUE, null = "null",
-                             pretty = FALSE)
-    store_set_bytes(store, "zarr.json", charToRaw(as.character(json)))
-    invisible()
+    cache <- .zarr_v3_cache(store)
+    if (!is.null(cache)) cache$cjson <- node_json
+    .zarr_v3_write_root_json(store, node_json)
+}
+
+# Incrementally update the root index for the subtree at `base` (the node plus
+# any sparse children) and its ancestor groups, without re-scanning or
+# re-serializing the whole store - the O(N^2)-avoiding hot path for set_*. The
+# index (raw node JSON strings) is held in the store's in-memory cache (rebuilt
+# from disk on first use). Drops the prior subtree at `base` first so an
+# overwrite (e.g. sparse -> dense, where stale nzind/nzval must disappear) stays
+# consistent. No-op on zip stores.
+zarr_v3_consolidate_upsert <- function(store, base) {
+    if (S7::S7_inherits(store, MmapZipStore)) return(invisible())
+    cache <- .zarr_v3_cache(store)
+    node_json <- if (!is.null(cache)) cache$cjson else NULL
+    if (is.null(node_json)) return(zarr_v3_write_consolidated(store))  # warm it
+    prefix <- paste0(base, "/")
+    node_json <- node_json[!(names(node_json) == base |
+                                 startsWith(names(node_json), prefix))]
+    for (k in store_list(store, base)) {
+        if (!endsWith(k, "/zarr.json")) next
+        node_json[[sub("/zarr.json$", "", k)]] <-
+            rawToChar(store_get_bytes(store, k))
+    }
+    # Ancestor groups (e.g. "vectors", "vectors/<axis>") may be newly created by
+    # this write; pull each into the index if not already present.
+    parts <- strsplit(base, "/", fixed = TRUE)[[1L]]
+    for (i in seq_len(length(parts) - 1L)) {
+        anc <- paste(parts[seq_len(i)], collapse = "/")
+        if (is.null(node_json[[anc]])) {
+            raw <- store_get_bytes(store, paste0(anc, "/zarr.json"))
+            if (!is.null(raw)) node_json[[anc]] <- rawToChar(raw)
+        }
+    }
+    if (!is.null(cache)) cache$cjson <- node_json
+    .zarr_v3_write_root_json(store, node_json)
 }
 
 # ---- chunk encode (write) ------------------------------------------------
