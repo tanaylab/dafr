@@ -29,8 +29,16 @@ zarr_v2_dtype_for_r <- function(value) {
 zarr_v2_r_kind_for_dtype <- function(dtype) {
     switch(dtype,
         "<f8" = "double",
+        "<f4" = "double",
         "<i4" = "integer",
+        "|u1" = "integer",
+        "<u1" = "integer",
+        "<i1" = "integer",
+        "<u2" = "integer",
+        "<i2" = "integer",
+        "<u4" = "integer",
         "<i8" = "integer64",
+        "<u8" = "integer64",
         "|b1" = "logical",
         "|O"  = "character",
         stop(sprintf("zarr_v2: unsupported dtype %s", sQuote(dtype)),
@@ -43,8 +51,16 @@ zarr_v2_r_kind_for_dtype <- function(dtype) {
 zarr_v2_size_for_dtype <- function(dtype) {
     switch(dtype,
         "<f8" = 8L,
+        "<f4" = 4L,
         "<i4" = 4L,
+        "<u4" = 4L,
+        "|u1" = 1L,
+        "<u1" = 1L,
+        "<i1" = 1L,
+        "<u2" = 2L,
+        "<i2" = 2L,
         "<i8" = 8L,
+        "<u8" = 8L,
         "|b1" = 1L,
         "|O"  = NA_integer_,
         stop(sprintf("zarr_v2: unsupported dtype %s", sQuote(dtype)),
@@ -63,7 +79,7 @@ zarr_v2_zarray <- function(shape, dtype,
                            compressor = NULL,
                            filters = NULL,
                            order = "C",
-                           dimension_separator = "/") {
+                           dimension_separator = ".") {
     if (is.null(chunks)) {
         chunks <- if (length(shape) > 0L) shape else 1L
     }
@@ -82,10 +98,30 @@ zarr_v2_zarray <- function(shape, dtype,
 
 # Write .zarray + (optional) .zattrs for a single array under `path`.
 zarr_v2_write_zarray <- function(store, path, zarray) {
+    .zarr_v2_ensure_ancestor_groups(store, path)
     json <- jsonlite::toJSON(zarray, auto_unbox = TRUE, null = "null",
                              pretty = FALSE)
     store_set_bytes(store, paste0(path, "/.zarray"),
                     charToRaw(as.character(json)))
+    invisible()
+}
+
+# Ensure every ancestor group of `path` carries a real `.zgroup` marker.
+# Upstream (DataAxesFormats.jl) writes a `.zgroup` for every group, and
+# Julia's directory-store open relies on them to navigate the tree (it does
+# not consult the consolidated `.zmetadata`). Idempotent: the store_exists
+# guard keeps the append-only zip backend from accumulating duplicates.
+.zarr_v2_ensure_ancestor_groups <- function(store, path) {
+    parts <- strsplit(path, "/", fixed = TRUE)[[1L]]
+    if (length(parts) <= 1L) {
+        return(invisible())  # top-level array; only the root group, which exists.
+    }
+    for (i in seq_len(length(parts) - 1L)) {
+        key <- paste0(paste(parts[seq_len(i)], collapse = "/"), "/.zgroup")
+        if (!store_exists(store, key)) {
+            store_set_bytes(store, key, .ZARR_ZGROUP_BYTES)
+        }
+    }
     invisible()
 }
 
@@ -315,12 +351,44 @@ zarr_v2_decode_chunk <- function(bytes, dtype, n, compressor = NULL) {
     if (dtype == "<f8") {
         return(readBin(con, "double", n = n, size = 8L, endian = "little"))
     }
+    if (dtype == "<f4") {
+        # Float32 (common for single-cell expression matrices); R widens to double.
+        return(readBin(con, "double", n = n, size = 4L, endian = "little"))
+    }
     if (dtype == "<i4") {
         return(readBin(con, "integer", n = n, size = 4L, endian = "little"))
     }
-    if (dtype == "<i8") {
+    if (dtype %in% c("|u1", "<u1")) {
+        return(readBin(con, "integer", n = n, size = 1L, signed = FALSE))
+    }
+    if (dtype == "<i1") {
+        return(readBin(con, "integer", n = n, size = 1L, signed = TRUE))
+    }
+    if (dtype == "<u2") {
+        return(readBin(con, "integer", n = n, size = 2L, signed = FALSE,
+                       endian = "little"))
+    }
+    if (dtype == "<i2") {
+        return(readBin(con, "integer", n = n, size = 2L, signed = TRUE,
+                       endian = "little"))
+    }
+    if (dtype == "<u4") {
+        # R has no native unsigned 32-bit type: read signed, then lift any
+        # value >= 2^31 into a double (Julia uses <u4 for indices on the
+        # empty-fill path; values rarely exceed 2^31 in practice).
+        x <- readBin(con, "integer", n = n, size = 4L, endian = "little")
+        neg <- !is.na(x) & x < 0L
+        if (any(neg)) {
+            x <- as.double(x)
+            x[neg] <- x[neg] + 2^32
+        }
+        return(x)
+    }
+    if (dtype %in% c("<i8", "<u8")) {
         # Read as 8-byte doubles (R's only fixed-8-byte type without altrep tricks)
-        # and reinterpret as integer64 by setting the class.
+        # and reinterpret as integer64 by setting the class. For <u8 this is
+        # exact for the unsigned range below 2^63 (daf sizes/indices never
+        # approach it).
         d <- readBin(con, "double", n = n, size = 8L, endian = "little")
         class(d) <- "integer64"
         return(d)

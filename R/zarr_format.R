@@ -133,15 +133,18 @@ zarr_daf <- function(uri = NULL, mode = c("r", "r+", "w", "w+"),
         store_path <- uri
     }
 
-    if (mode %in% c("w", "w+") && !store_exists(store, "daf.json")) {
+    if (mode %in% c("w", "w+") && !.zarr_daf_marker_exists(store)) {
         .zarr_daf_init_store(store)
     }
 
-    if (mode %in% c("r", "r+") && !store_exists(store, "daf.json")) {
-        stop(sprintf(
-            "zarr_daf: store at %s missing daf.json; not a valid ZarrDaf store",
-            sQuote(store_path)
-        ), call. = FALSE)
+    if (mode %in% c("r", "r+")) {
+        if (!.zarr_daf_marker_exists(store)) {
+            stop(sprintf(
+                "zarr_daf: store at %s is not a valid ZarrDaf store (missing `daf` marker array)",
+                sQuote(store_path)
+            ), call. = FALSE)
+        }
+        .zarr_verify_daf(store, store_path)
     }
 
     final_name <- if (!is.null(name)) name else basename(store_path)
@@ -160,19 +163,59 @@ zarr_daf <- function(uri = NULL, mode = c("r", "r+", "w", "w+"),
     )
 }
 
-# Initialize an empty Zarr store with the daf.json marker. Also writes
-# the root `.zgroup` (so zarr-python v3's `zarr.open()` recognises the
-# directory as a Zarr v2 group) and an empty `.zmetadata` (consolidated
-# metadata, see zarr_v2.R) so both files exist from store creation and
-# the invariant "every ZarrDaf store has `.zgroup` + `.zmetadata` at
-# its root" holds unconditionally.
+# Daf-zarr format version. Upstream (DataAxesFormats.jl src/zarr_format.jl)
+# marks a store with a Zarr *array* named `daf` holding two UInt8 bytes
+# [MAJOR_VERSION, MINOR_VERSION]. We match it byte-for-byte so R- and
+# Julia-written `.daf.zarr` stores are mutually readable.
+.ZARR_DAF_MAJOR <- 1L
+.ZARR_DAF_MINOR <- 0L
+
+# Does the store carry the upstream `daf` marker array?
+.zarr_daf_marker_exists <- function(store) {
+    store_exists(store, "daf/.zarray")
+}
+
+# Read + validate the `daf` marker array's version bytes. Mirrors Julia's
+# `verify_daf` (src/zarr_format.jl): a newer major, or a newer minor than
+# this code supports, is rejected.
+.zarr_verify_daf <- function(store, store_path) {
+    marker <- store_get_bytes(store, "daf/0")
+    version <- if (is.null(marker)) integer(0L) else as.integer(marker)
+    if (length(version) != 2L) {
+        stop(sprintf(
+            "zarr_daf: store at %s has a malformed `daf` version marker",
+            sQuote(store_path)
+        ), call. = FALSE)
+    }
+    if (version[1L] != .ZARR_DAF_MAJOR || version[2L] > .ZARR_DAF_MINOR) {
+        stop(sprintf(paste0(
+            "zarr_daf: incompatible format version %d.%d for the daf zarr ",
+            "store at %s; this code supports version %d.%d"),
+            version[1L], version[2L], sQuote(store_path),
+            .ZARR_DAF_MAJOR, .ZARR_DAF_MINOR), call. = FALSE)
+    }
+    invisible()
+}
+
+# Initialize an empty Zarr store with upstream's `daf` marker array. Also
+# writes the root `.zgroup` (so zarr-python v3's `zarr.open()` recognises
+# the directory as a Zarr v2 group) and an empty `.zmetadata` (consolidated
+# metadata, see zarr_v2.R) so both files exist from store creation and the
+# invariant "every ZarrDaf store has `.zgroup` + `.zmetadata` at its root"
+# holds unconditionally.
 .zarr_daf_init_store <- function(store) {
-    daf_meta <- list(version = "0.2.0", format = "zarr_daf")
-    store_set_bytes(
-        store, "daf.json",
-        charToRaw(jsonlite::toJSON(daf_meta, auto_unbox = TRUE))
-    )
+    # `daf` Zarr array: dtype |u1, shape [2], one chunk, bytes [MAJOR, MINOR].
+    zarray <- zarr_v2_zarray(shape = 2L, dtype = "|u1")
+    zarr_v2_write_zarray(store, "daf", zarray)
+    store_set_bytes(store, "daf/0",
+                    as.raw(c(.ZARR_DAF_MAJOR, .ZARR_DAF_MINOR)))
     store_set_bytes(store, ".zgroup", .ZARR_ZGROUP_BYTES)
+    # Upstream create_daf eagerly creates the four container groups, each with
+    # a real `.zgroup` (Julia's directory-store open navigates the tree via
+    # actual `.zgroup` files, not the consolidated `.zmetadata`).
+    for (grp in c("scalars", "axes", "vectors", "matrices")) {
+        store_set_bytes(store, paste0(grp, "/.zgroup"), .ZARR_ZGROUP_BYTES)
+    }
     zarr_v2_write_zmetadata(store)
     invisible()
 }
@@ -721,7 +764,8 @@ S7::method(format_delete_vector,
 #
 # Layout (mirrors DataAxesFormats.jl/src/zarr_format.jl):
 #   matrices/{rows_axis}/{cols_axis}/{name}/
-#       Dense:  .zarray + 0/0   (shape = [n_cols, n_rows], order = "C")
+#       Dense:  .zarray + 0.0   (shape = [n_cols, n_rows], order = "C";
+#               chunk uses the Zarr-default "." separator for Julia interop)
 #       Sparse: .zgroup + colptr/, rowval/, [nzval/]
 #
 # Dense:   upstream stores `.zarray` shape REVERSED — [n_cols, n_rows] with
@@ -808,7 +852,7 @@ S7::method(format_matrices_set,
     on_disk_d1 <- as.integer(zarray$shape[[2L]])
     nr <- on_disk_d1
     nc <- on_disk_d0
-    chunk_path <- paste0(base, "/0/0")
+    chunk_path <- paste0(base, "/0.0")
     bytes <- store_get_bytes(store, chunk_path)
     if (is.null(bytes)) {
         stop(sprintf("matrix at %s missing chunk", sQuote(base)), call. = FALSE)
@@ -931,7 +975,7 @@ S7::method(
     exists_sparse <- store_exists(store, paste0(base, "/.zgroup"))
     if (exists_dense) {
         store_delete(store, paste0(base, "/.zarray"))
-        store_delete(store, paste0(base, "/0/0"))
+        store_delete(store, paste0(base, "/0.0"))
     }
     if (exists_sparse) {
         for (k in store_list(store, base)) store_delete(store, k)
@@ -966,7 +1010,7 @@ S7::method(
         chunk <- zarr_v2_encode_chunk(flat, dtype)
     }
     zarr_v2_write_zarray(store, base, zarray)
-    store_set_bytes(store, paste0(base, "/0/0"), chunk)
+    store_set_bytes(store, paste0(base, "/0.0"), chunk)
     zarr_v2_write_zmetadata(store)
 }
 
@@ -1020,7 +1064,7 @@ S7::method(format_delete_matrix,
         }
         if (exists_dense) {
             store_delete(store, paste0(base, "/.zarray"))
-            store_delete(store, paste0(base, "/0/0"))
+            store_delete(store, paste0(base, "/0.0"))
         }
         if (exists_sparse) {
             for (k in store_list(store, base)) store_delete(store, k)

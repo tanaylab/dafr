@@ -19,11 +19,17 @@ test_that("zarr_v2_r_kind_for_dtype reverse mapping", {
     expect_identical(dafr:::zarr_v2_r_kind_for_dtype("<i8"), "integer64")
     expect_identical(dafr:::zarr_v2_r_kind_for_dtype("|b1"), "logical")
     expect_identical(dafr:::zarr_v2_r_kind_for_dtype("|O"), "character")
+    # Julia-emitted dtypes (read-side parity, see test-zarr-julia-interop.R).
+    expect_identical(dafr:::zarr_v2_r_kind_for_dtype("<f4"), "double")
+    expect_identical(dafr:::zarr_v2_r_kind_for_dtype("|u1"), "integer")
+    expect_identical(dafr:::zarr_v2_r_kind_for_dtype("<u4"), "integer")
+    expect_identical(dafr:::zarr_v2_r_kind_for_dtype("<u8"), "integer64")
 })
 
 test_that("zarr_v2_r_kind_for_dtype rejects unsupported dtypes", {
-    expect_error(dafr:::zarr_v2_r_kind_for_dtype("<f4"), "unsupported")
+    # Big-endian is still unsupported (we only read little-endian).
     expect_error(dafr:::zarr_v2_r_kind_for_dtype(">i4"), "unsupported")
+    expect_error(dafr:::zarr_v2_r_kind_for_dtype(">f8"), "unsupported")
 })
 
 test_that("zarr_v2_size_for_dtype returns correct sizes", {
@@ -41,7 +47,8 @@ test_that("zarr_v2_zarray builds a 1D descriptor with default chunks", {
     expect_identical(z$chunks, list(100L))
     expect_identical(z$dtype, "<f8")
     expect_identical(z$order, "C")
-    expect_identical(z$dimension_separator, "/")
+    # Zarr v2 default separator, matching DataAxesFormats.jl (was "/").
+    expect_identical(z$dimension_separator, ".")
 })
 
 test_that("zarr_v2_zarray builds a 2D descriptor", {

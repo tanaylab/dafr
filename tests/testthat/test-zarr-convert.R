@@ -31,7 +31,9 @@ test_that("files_to_zarr converts a complete files_daf to zarr_daf", {
     dst <- tempfile(fileext = ".daf.zarr")
     files_to_zarr(src, dst)
     expect_true(dir.exists(dst))
-    expect_true(file.exists(file.path(dst, "daf.json")))
+    # Upstream `daf` marker array (not the FilesDaf daf.json).
+    expect_true(file.exists(file.path(dst, "daf", ".zarray")))
+    expect_false(file.exists(file.path(dst, "daf.json")))
     expect_true(file.exists(file.path(dst, ".zmetadata")))
 
     d <- zarr_daf(dst, mode = "r")
