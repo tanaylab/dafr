@@ -278,6 +278,49 @@ S7::method(
     .read_bin_dense(data_path, n, elt)
 }
 
+# Flat sparse components carry `"format":"dense"`; packed components (a `.zip`
+# payload, DataAxesFormats.jl 0.3.0 "packed" format) carry a `packed_format`
+# key. dafr does not read packed properties yet, so reject them clearly.
+.files_reject_packed_component <- function(comp, component_name) {
+    if (!is.null(comp$packed_format) ||
+        (!is.null(comp$format) && comp$format != "dense")) {
+        stop(sprintf(paste0(
+            "files_daf: packed sparse component %s is not supported ",
+            "(DataAxesFormats.jl 0.3.0 packed format); re-save with flat ",
+            "components"), sQuote(component_name)), call. = FALSE)
+    }
+    invisible()
+}
+
+# Extract (eltype, indtype) from a sparse property's JSON descriptor, handling
+# both the legacy v1.0 shape (top-level `eltype` + `indtype`) and the v1.1
+# shape (per-component descriptors). Mirrors DataAxesFormats.jl
+# `PackedFormat.parse_sparse_descriptor`: in v1.1 the element type comes from
+# the `nzval` component (or "Bool" when absent) and the index type from the
+# index component (`nzind` for vectors, `colptr` for matrices).
+.files_parse_sparse_descriptor <- function(desc, indtype_property) {
+    if (!is.null(desc$eltype)) {
+        return(list(
+            eltype  = desc$eltype,
+            indtype = if (is.null(desc$indtype)) "UInt32" else desc$indtype
+        ))
+    }
+    ind_desc <- desc[[indtype_property]]
+    if (is.null(ind_desc) || is.null(ind_desc$eltype)) {
+        stop(sprintf(
+            "files_daf: malformed v1.1 sparse descriptor (missing %s component)",
+            sQuote(indtype_property)), call. = FALSE)
+    }
+    .files_reject_packed_component(ind_desc, indtype_property)
+    eltype <- if (!is.null(desc$nzval)) {
+        .files_reject_packed_component(desc$nzval, "nzval")
+        desc$nzval$eltype
+    } else {
+        "Bool"
+    }
+    list(eltype = eltype, indtype = ind_desc$eltype)
+}
+
 .files_get_vector_sparse <- function(daf, axis, name, desc, n) {
     vdir <- .path_vector_dir(.files_root(daf), axis)
     ind_path <- file.path(vdir, paste0(name, ".nzind"))
@@ -286,10 +329,12 @@ S7::method(
             call. = FALSE
         )
     }
-    indtype <- desc$indtype %||% "UInt32"
+    sd <- .files_parse_sparse_descriptor(desc, "nzind")
+    indtype <- sd$indtype
+    eltype <- sd$eltype
     nnz <- file.size(ind_path) %/% .dtype_size(indtype)
     idx <- .read_bin_dense(ind_path, nnz, indtype)
-    if (desc$eltype == "Bool") {
+    if (eltype == "Bool") {
         val_path <- file.path(vdir, paste0(name, ".nzval"))
         vals <- if (file.exists(val_path)) {
             as.logical(.read_bin_dense(val_path, nnz, "Bool"))
@@ -300,7 +345,7 @@ S7::method(
         out[as.integer(idx)] <- vals
         return(out)
     }
-    if (desc$eltype == "String") {
+    if (eltype == "String") {
         nztxt <- file.path(vdir, paste0(name, ".nztxt"))
         vals <- readLines(nztxt, encoding = "UTF-8", warn = FALSE)
         if (length(vals) != nnz) {
@@ -320,10 +365,10 @@ S7::method(
             sQuote(name)
         ), call. = FALSE)
     }
-    vals <- .read_bin_dense(val_path, nnz, desc$eltype)
-    out <- if (desc$eltype %in% c("Int8", "Int16", "Int32", "UInt8", "UInt16", "UInt32")) {
+    vals <- .read_bin_dense(val_path, nnz, eltype)
+    out <- if (eltype %in% c("Int8", "Int16", "Int32", "UInt8", "UInt16", "UInt32")) {
         integer(n)
-    } else if (desc$eltype %in% c("Int64", "UInt64")) {
+    } else if (eltype %in% c("Int64", "UInt64")) {
         bit64::as.integer64(integer(n))
     } else {
         numeric(n)
@@ -523,7 +568,9 @@ S7::method(
 .files_get_matrix_sparse <- function(daf, rows_axis, columns_axis, name,
                                      desc, nr, nc) {
     mdir <- .path_matrix_dir(.files_root(daf), rows_axis, columns_axis)
-    indtype <- desc$indtype %||% "UInt32"
+    sd <- .files_parse_sparse_descriptor(desc, "colptr")
+    indtype <- sd$indtype
+    eltype <- sd$eltype
     colptr_path <- file.path(mdir, paste0(name, ".colptr"))
     rowval_path <- file.path(mdir, paste0(name, ".rowval"))
     nzval_path <- file.path(mdir, paste0(name, ".nzval"))
@@ -540,7 +587,7 @@ S7::method(
     } else {
         integer(0L)
     }
-    if (desc$eltype == "Bool") {
+    if (eltype == "Bool") {
         vals <- if (file.exists(nzval_path)) {
             as.logical(.read_bin_dense(nzval_path, nnz, "Bool"))
         } else {
@@ -561,7 +608,7 @@ S7::method(
         ), call. = FALSE)
     }
     vals <- if (nnz > 0L) {
-        .read_bin_dense(nzval_path, nnz, desc$eltype)
+        .read_bin_dense(nzval_path, nnz, eltype)
     } else {
         double(0L)
     }

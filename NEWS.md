@@ -1,5 +1,27 @@
 # dafr (development version)
 
+## Fix: read DataAxesFormats.jl 0.3.0 FilesFormat v1.1 directories
+
+`DataAxesFormats.jl` 0.3.0 bumped the FilesDaf on-disk format from 1.0 to
+1.1. The binary blobs are byte-identical, but a **sparse** property's JSON
+sidecar moved from top-level `eltype`/`indtype` keys to per-component
+descriptors (`nzind`/`nzval` for vectors; `colptr`/`rowval`/`nzval` for
+matrices). dafr was a 1.0-only reader and rejected 1.1 directories outright
+(`incompatible format version: 1.1`). dafr now:
+
+- accepts FilesFormat minor version 1 (it still *writes* 1.0, and reads both
+  1.0 and 1.1);
+- parses both the legacy top-level and the v1.1 per-component sparse
+  descriptors - deriving the element type from the `nzval` component (or
+  `Bool` when it is absent) and the index type from the index component -
+  mirroring `DataAxesFormats.jl`'s `parse_sparse_descriptor`;
+- raises a clear error on 0.3.0 "packed" (`.zip`, chunked + compressed)
+  sparse components, which are not yet supported (re-save with flat
+  components).
+
+This covers reading flat FilesFormat 1.1 repos only, not the rest of 0.3.0
+(the zarr/zip/http and "packed view of a directory as Zarr" machinery).
+
 ## Fix: ZarrDaf on-disk format now interoperates with DataAxesFormats.jl
 
 `.daf.zarr` stores written by dafr and by `DataAxesFormats.jl` were
