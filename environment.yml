@@ -15,5 +15,5 @@ dependencies:
   - python             # zarr-python cross-language read tests
   - zarr
   - numcodecs
-  # - c-blosc          # uncomment to enable reading packed/sharded ZarrDaf (v3);
-  #                    # required by the future blosc/crc32c flat+sharded reader.
+  - c-blosc            # read blosc-packed/sharded ZarrDaf (v3); configure probes it
+  - zstd               # read plain-zstd-packed ZarrDaf (v3)
