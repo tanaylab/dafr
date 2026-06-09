@@ -1000,11 +1000,14 @@ S7::method(
     }
     store <- S7::prop(daf, "store")
     base <- paste0("matrices/", rows_axis, "/", columns_axis, "/", name)
-    exists_dense <- store_exists(store, paste0(base, "/.zarray"))
-    exists_sparse <- store_exists(store, paste0(base, "/.zgroup"))
+    existing <- zarr_v3_read_node(store, base)
+    exists_dense <- !is.null(existing) &&
+        identical(existing$node_type, "array")
+    exists_sparse <- !is.null(existing) &&
+        identical(existing$node_type, "group")
     if (exists_dense) {
-        store_delete(store, paste0(base, "/.zarray"))
-        store_delete(store, paste0(base, "/0.0"))
+        store_delete(store, paste0(base, "/zarr.json"))
+        store_delete(store, zarr_v3_chunk_path(base, 2L))
     }
     if (exists_sparse) {
         for (k in store_list(store, base)) store_delete(store, k)
@@ -1029,52 +1032,53 @@ S7::method(
 .zarr_write_dense_matrix <- function(store, base, mat, nr, nc) {
     dimnames(mat) <- NULL
     flat <- as.vector(mat)  # R column-major flatten — bytes match Julia.
-    dtype <- zarr_v2_dtype_for_r(flat)
-    # Shape on disk is REVERSED [n_cols, n_rows]; order = "C". Matches upstream.
-    zarray <- zarr_v2_zarray(shape = c(nc, nr), dtype = dtype, order = "C")
-    if (dtype == "|O") {
-        zarray$filters <- list(list(id = "vlen-utf8"))
-        chunk <- zarr_v2_encode_strings(flat)
+    dtype <- zarr_v3_dtype_for_r(flat)
+    # On-disk shape is REVERSED [n_cols, n_rows] (matches DAF; no `order`
+    # field in v3). Chunk bytes are R/Julia column-major.
+    meta <- zarr_v3_array_meta(shape = c(nc, nr), dtype = dtype)
+    zarr_v3_write_array(store, base, meta)
+    chunk <- if (dtype == "string") {
+        zarr_v3_encode_strings(flat)
     } else {
-        chunk <- zarr_v2_encode_chunk(flat, dtype)
+        zarr_v3_encode_chunk(flat, dtype)
     }
-    zarr_v2_write_zarray(store, base, zarray)
-    store_set_bytes(store, paste0(base, "/0.0"), chunk)
-    zarr_v2_write_zmetadata(store)
+    store_set_bytes(store, zarr_v3_chunk_path(base, 2L), chunk)
+    zarr_v3_write_consolidated(store)
 }
 
 .zarr_write_sparse_matrix <- function(store, base, mat) {
-    store_set_bytes(store, paste0(base, "/.zgroup"), .ZARR_ZGROUP_BYTES)
+    zarr_v3_write_group(store, base)
     is_lg <- methods::is(mat, "lgCMatrix")
     is_all_true_bool <- is_lg && length(mat@x) > 0L &&
                         all(mat@x, na.rm = FALSE)
-    # No .zattrs for sparse matrices — upstream-compatible.
-    # colptr (Matrix's @p is 0-based; on disk we want 1-based per upstream).
-    colptr_1 <- as.integer(mat@p) + 1L
-    colptr_dtype <- "<i4"
-    colptr_zarray <- zarr_v2_zarray(shape = length(colptr_1),
-                                    dtype = colptr_dtype)
-    zarr_v2_write_zarray(store, paste0(base, "/colptr"), colptr_zarray)
-    store_set_bytes(store, paste0(base, "/colptr/0"),
-                    zarr_v2_encode_chunk(colptr_1, colptr_dtype))
-    # rowval (Matrix's @i is 0-based; on disk 1-based).
-    rowval_1 <- as.integer(mat@i) + 1L
-    rowval_dtype <- "<i4"
-    rowval_zarray <- zarr_v2_zarray(shape = length(rowval_1),
-                                    dtype = rowval_dtype)
-    zarr_v2_write_zarray(store, paste0(base, "/rowval"), rowval_zarray)
-    store_set_bytes(store, paste0(base, "/rowval/0"),
-                    zarr_v2_encode_chunk(rowval_1, rowval_dtype))
+    # No attributes for sparse matrices — upstream-compatible.
+    # colptr + rowval: int64, 1-based (DAF SparseMatrixCSC convention).
+    # Matrix's @p / @i are 0-based, so +1L on write.
+    colptr_1 <- bit64::as.integer64(mat@p + 1L)
+    colptr_base <- paste0(base, "/colptr")
+    zarr_v3_write_array(store, colptr_base,
+                        zarr_v3_array_meta(shape = length(colptr_1),
+                                           dtype = "int64"))
+    store_set_bytes(store, zarr_v3_chunk_path(colptr_base, 1L),
+                    zarr_v3_encode_chunk(colptr_1, "int64"))
+    rowval_1 <- bit64::as.integer64(mat@i + 1L)
+    rowval_base <- paste0(base, "/rowval")
+    zarr_v3_write_array(store, rowval_base,
+                        zarr_v3_array_meta(shape = length(rowval_1),
+                                           dtype = "int64"))
+    store_set_bytes(store, zarr_v3_chunk_path(rowval_base, 1L),
+                    zarr_v3_encode_chunk(rowval_1, "int64"))
     # nzval (skip for all-TRUE Bool — upstream-compatible compaction).
     if (!is_all_true_bool) {
-        nzval_dtype <- if (is_lg) "|b1" else zarr_v2_dtype_for_r(mat@x)
-        nzval_zarray <- zarr_v2_zarray(shape = length(mat@x),
-                                       dtype = nzval_dtype)
-        zarr_v2_write_zarray(store, paste0(base, "/nzval"), nzval_zarray)
-        store_set_bytes(store, paste0(base, "/nzval/0"),
-                        zarr_v2_encode_chunk(mat@x, nzval_dtype))
+        nzval_dtype <- if (is_lg) "bool" else zarr_v3_dtype_for_r(mat@x)
+        nzval_base <- paste0(base, "/nzval")
+        zarr_v3_write_array(store, nzval_base,
+                            zarr_v3_array_meta(shape = length(mat@x),
+                                               dtype = nzval_dtype))
+        store_set_bytes(store, zarr_v3_chunk_path(nzval_base, 1L),
+                        zarr_v3_encode_chunk(mat@x, nzval_dtype))
     }
-    zarr_v2_write_zmetadata(store)
+    zarr_v3_write_consolidated(store)
 }
 
 S7::method(format_delete_matrix,

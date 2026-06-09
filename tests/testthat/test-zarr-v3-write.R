@@ -36,3 +36,32 @@ test_that("v3 dense + sparse vector write round-trips in-process", {
                                              "sparse_v", "nzind", "zarr.json"))
   expect_equal(nzind_meta$data_type, "int64")
 })
+
+test_that("v3 dense + sparse matrix write round-trips in-process", {
+  dir <- tempfile(fileext = ".daf.zarr")
+  d <- zarr_daf(dir, mode = "w")
+  add_axis(d, "cell", c("c1", "c2", "c3"))
+  add_axis(d, "gene", c("g1", "g2"))
+  set_matrix(d, "cell", "gene", "expr", matrix(c(1, 3, 5, 2, 4, 6), nrow = 3))
+  set_matrix(d, "cell", "gene", "sp",
+             Matrix::sparseMatrix(i = c(3, 1), j = c(1, 2), x = c(5, 2),
+                                  dims = c(3, 2)))
+  d2 <- zarr_daf(dir, mode = "r")
+  expect_equal(unname(as.matrix(get_matrix(d2, "cell", "gene", "expr"))),
+               matrix(c(1, 3, 5, 2, 4, 6), nrow = 3))
+  expect_equal(unname(as.matrix(get_matrix(d2, "cell", "gene", "sp"))),
+               matrix(c(0, 0, 5, 2, 0, 0), nrow = 3))
+  # on-disk shape is reversed [n_cols, n_rows]
+  m <- jsonlite::fromJSON(file.path(dir, "matrices", "cell", "gene", "expr",
+                                    "zarr.json"))
+  expect_equal(as.integer(m$shape), c(2L, 3L))
+  expect_true(file.exists(file.path(dir, "matrices", "cell", "gene", "expr",
+                                    "c", "0", "0")))
+  # sparse CSC colptr/rowval are int64
+  colptr_meta <- jsonlite::fromJSON(file.path(dir, "matrices", "cell", "gene",
+                                              "sp", "colptr", "zarr.json"))
+  rowval_meta <- jsonlite::fromJSON(file.path(dir, "matrices", "cell", "gene",
+                                              "sp", "rowval", "zarr.json"))
+  expect_equal(colptr_meta$data_type, "int64")
+  expect_equal(rowval_meta$data_type, "int64")
+})
