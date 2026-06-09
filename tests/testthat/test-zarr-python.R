@@ -2,9 +2,9 @@
 # Gated on python3 + zarr + numcodecs availability; skipped otherwise.
 #
 # NOTE: tested against zarr-python 3.x (installed on the dev system).
-# The zarr.open() call requires a root .zgroup file (written by
-# _zarr_daf_init_store) and consolidated .zmetadata with intermediate
-# .zgroup entries (synthesised by zarr_v2_consolidated_metadata).
+# dafr writes the Zarr v3 format (single zarr.json per node, c/-prefixed
+# chunk keys, the daf version marker as a root-group attribute, inline
+# consolidated metadata) that zarr.open() reads directly.
 #
 # Implementation note: system2() passes args to sh -c, so Python code
 # must be wrapped in shQuote() to survive shell metacharacters.
@@ -137,92 +137,3 @@ test_that("dafr-written zarr_daf opens in Python — sparse matrix", {
     expect_match(cat_out, "NZVAL=\\[10\\.0, 20\\.0\\]")
 })
 
-# ---- Foreign-codec error on read ----------------------------------------
-
-test_that("dafr rejects foreign Zarr with blosc compressor on read", {
-    skip_on_cran()
-    py <- .python3_with_zarr_available()
-    skip_if(is.na(py), "python3 + zarr + numcodecs not available locally")
-
-    tmp <- tempfile(fileext = ".zarr")
-    # Create a Zarr v2 store with blosc-compressed data via Python.
-    # Write raw bytes directly rather than using zarr.open() (zarr-python
-    # 3.x changed the create API for v2 stores).
-    py_setup <- paste0(
-        'import os, json, numpy, numcodecs\n',
-        'tmp = ', shQuote(tmp), '\n',
-        'os.makedirs(os.path.join(tmp, "foo"), exist_ok=True)\n',
-        'with open(os.path.join(tmp, ".zgroup"), "w") as f:\n',
-        '    json.dump({"zarr_format": 2}, f)\n',
-        'data = numpy.zeros(10, dtype="<f8")\n',
-        'blosc = numcodecs.Blosc()\n',
-        'encoded = blosc.encode(data.tobytes())\n',
-        'with open(os.path.join(tmp, "foo", "0"), "wb") as f:\n',
-        '    f.write(encoded)\n',
-        'zarray = {\n',
-        '    "chunks": [10],\n',
-        '    "compressor": {"id": "blosc", "cname": "lz4", "clevel": 5,\n',
-        '                   "shuffle": 1, "blocksize": 0},\n',
-        '    "dtype": "<f8", "fill_value": 0, "filters": None,\n',
-        '    "order": "C", "shape": [10], "zarr_format": 2\n',
-        '}\n',
-        'with open(os.path.join(tmp, "foo", ".zarray"), "w") as f:\n',
-        '    json.dump(zarray, f)\n',
-        'print("OK", flush=True)\n'
-    )
-    setup_out <- .py_run(py, py_setup)
-    skip_if(
-        isTRUE(attr(setup_out, "status") != 0L),
-        paste("python setup failed:", paste(setup_out, collapse = "\n"))
-    )
-
-    # Open the foreign-blosc array via dafr's low-level zarr reader.
-    store  <- new_dir_store(tmp)
-    zarray <- dafr:::zarr_v2_read_zarray(store, "foo")
-    expect_identical(zarray$compressor$id, "blosc")
-    chunk_bytes <- store_get_bytes(store, "foo/0")
-    expect_error(
-        dafr:::zarr_v2_decode_chunk(chunk_bytes, zarray$dtype, n = 10L,
-                                    compressor = zarray$compressor),
-        "blosc.*not supported"
-    )
-})
-
-# ---- Round-trip via Python (write through Python, read in dafr) ---------
-
-test_that("Python-written zarr opens cleanly in dafr if uncompressed", {
-    skip_on_cran()
-    py <- .python3_with_zarr_available()
-    skip_if(is.na(py), "python3 + zarr + numcodecs not available locally")
-
-    tmp <- tempfile(fileext = ".zarr")
-    # Create an uncompressed Zarr v2 array manually via Python.
-    py_setup <- paste0(
-        'import os, json, numpy\n',
-        'tmp = ', shQuote(tmp), '\n',
-        'os.makedirs(os.path.join(tmp, "foo"), exist_ok=True)\n',
-        'with open(os.path.join(tmp, ".zgroup"), "w") as f:\n',
-        '    json.dump({"zarr_format": 2}, f)\n',
-        'data = numpy.array([1.5, 2.5, 3.5], dtype="<f8")\n',
-        'with open(os.path.join(tmp, "foo", "0"), "wb") as f:\n',
-        '    f.write(data.tobytes())\n',
-        'zarray = {"chunks": [3], "compressor": None, "dtype": "<f8",\n',
-        '          "fill_value": 0, "filters": None, "order": "C",\n',
-        '          "shape": [3], "zarr_format": 2}\n',
-        'with open(os.path.join(tmp, "foo", ".zarray"), "w") as f:\n',
-        '    json.dump(zarray, f)\n',
-        'print("OK", flush=True)\n'
-    )
-    setup_out <- .py_run(py, py_setup)
-    skip_if(
-        isTRUE(attr(setup_out, "status") != 0L),
-        paste("python setup failed:", paste(setup_out, collapse = "\n"))
-    )
-
-    store   <- new_dir_store(tmp)
-    zarray  <- dafr:::zarr_v2_read_zarray(store, "foo")
-    chunk   <- store_get_bytes(store, "foo/0")
-    decoded <- dafr:::zarr_v2_decode_chunk(chunk, zarray$dtype, n = 3L,
-                                            compressor = zarray$compressor)
-    expect_equal(decoded, c(1.5, 2.5, 3.5))
-})

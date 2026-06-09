@@ -248,10 +248,11 @@ test_that("ZarrDaf sparse numeric vector round-trip (densified on read)", {
     add_axis(d, "cell", paste0("c", 1:5))
     sp <- Matrix::sparseVector(x = c(10, 20), i = c(2L, 4L), length = 5L)
     set_vector(d, "cell", "x", sp)
-    # Stored sparse but read densified — matches FilesDaf contract
+    # Stored sparse but read densified - matches FilesDaf contract
     # (api convention is named atomic vector, not S4 sparseVector).
     store <- S7::prop(d, "store")
-    expect_true(store_exists(store, "vectors/cell/x/.zgroup"))
+    node <- zarr_v3_read_node(store, "vectors/cell/x")
+    expect_equal(node$node_type, "group")  # sparse layout is a v3 group
     out <- get_vector(d, "cell", "x")
     expect_equal(unname(out), c(0, 10, 0, 20, 0))
 })
@@ -273,10 +274,10 @@ test_that("ZarrDaf sparse Bool all-TRUE skips nzval (storage compaction)", {
     sp <- Matrix::sparseVector(x = c(TRUE, TRUE, TRUE),
                                i = c(1L, 3L, 5L), length = 5L)
     set_vector(d, "cell", "flag", sp)
-    # Verify nzval/.zarray does NOT exist in the store.
+    # Verify the nzval array node does NOT exist in the store.
     store <- S7::prop(d, "store")
-    expect_false(store_exists(store, "vectors/cell/flag/nzval/.zarray"))
-    expect_true(store_exists(store, "vectors/cell/flag/nzind/.zarray"))
+    expect_false(store_exists(store, "vectors/cell/flag/nzval/zarr.json"))
+    expect_true(store_exists(store, "vectors/cell/flag/nzind/zarr.json"))
     # Round-trip preserves all-TRUE meaning.
     out <- get_vector(d, "cell", "flag")
     expect_identical(unname(out), c(TRUE, FALSE, TRUE, FALSE, TRUE))
@@ -322,10 +323,10 @@ test_that("ZarrDaf set_vector overwrite=TRUE replaces dense with sparse", {
     set_vector(d, "cell", "x", c(1, 2, 3))
     sp <- Matrix::sparseVector(x = c(10), i = c(2L), length = 3L)
     set_vector(d, "cell", "x", sp, overwrite = TRUE)
-    # On disk the layout flipped to sparse subgroup.
+    # On disk the layout flipped from a dense array node to a sparse group node.
     store <- S7::prop(d, "store")
-    expect_true(store_exists(store, "vectors/cell/x/.zgroup"))
-    expect_false(store_exists(store, "vectors/cell/x/.zarray"))
+    node <- zarr_v3_read_node(store, "vectors/cell/x")
+    expect_equal(node$node_type, "group")
     out <- get_vector(d, "cell", "x")
     expect_equal(unname(out), c(0, 10, 0))
 })
@@ -363,18 +364,17 @@ test_that("ZarrDaf dense logical matrix round-trip", {
 })
 
 test_that("ZarrDaf dense matrix shape on disk is reversed (upstream-compatible)", {
-    # Upstream stores .zarray shape as [n_cols, n_rows] with order = "C".
-    # Pin this so cross-language reads work.
+    # DAF 0.3.0 stores the v3 array shape as [n_cols, n_rows] (column-major,
+    # no `order` field in Zarr v3). Pin this so cross-language reads work.
     d <- .fresh_zarr_daf()
     add_axis(d, "cell", c("A", "B", "C"))
     add_axis(d, "gene", c("X", "Y"))
     m <- matrix(c(1, 2, 3, 4, 5, 6), nrow = 3)
     set_matrix(d, "cell", "gene", "M", m)
     store <- S7::prop(d, "store")
-    zarray <- zarr_v2_read_zarray(store, "matrices/cell/gene/M")
-    expect_identical(zarray$order, "C")
-    expect_equal(as.integer(zarray$shape[[1L]]), 2L)  # n_cols (gene)
-    expect_equal(as.integer(zarray$shape[[2L]]), 3L)  # n_rows (cell)
+    meta <- zarr_v3_read_array(store, "matrices/cell/gene/M")
+    expect_equal(as.integer(meta$shape[[1L]]), 2L)  # n_cols (gene)
+    expect_equal(as.integer(meta$shape[[2L]]), 3L)  # n_rows (cell)
 })
 
 test_that("ZarrDaf matrices_set returns sorted names", {
@@ -476,9 +476,9 @@ test_that("ZarrDaf sparse Bool all-TRUE skips nzval", {
     )
     set_matrix(d, "cell", "gene", "F", sp)
     store <- S7::prop(d, "store")
-    expect_false(store_exists(store, "matrices/cell/gene/F/nzval/.zarray"))
-    expect_true(store_exists(store, "matrices/cell/gene/F/colptr/.zarray"))
-    expect_true(store_exists(store, "matrices/cell/gene/F/rowval/.zarray"))
+    expect_false(store_exists(store, "matrices/cell/gene/F/nzval/zarr.json"))
+    expect_true(store_exists(store, "matrices/cell/gene/F/colptr/zarr.json"))
+    expect_true(store_exists(store, "matrices/cell/gene/F/rowval/zarr.json"))
     out <- get_matrix(d, "cell", "gene", "F")
     expect_s4_class(out, "lgCMatrix")
     expect_identical(as.matrix(unname(out)), as.matrix(sp))
@@ -495,20 +495,22 @@ test_that("ZarrDaf sparse matrix on-disk indices are 1-based (upstream-compatibl
     )
     set_matrix(d, "cell", "gene", "S", sp)
     store <- S7::prop(d, "store")
-    # rowval on disk should be 1-based.
-    rowval_zarray <- zarr_v2_read_zarray(store, "matrices/cell/gene/S/rowval")
-    rowval <- zarr_v2_decode_chunk(
-        store_get_bytes(store, "matrices/cell/gene/S/rowval/0"),
-        rowval_zarray$dtype,
-        n = as.integer(rowval_zarray$shape[[1L]])
+    # rowval on disk should be 1-based int64 (DAF 0.3.0 CSC index type).
+    rowval_meta <- zarr_v3_read_array(store, "matrices/cell/gene/S/rowval")
+    expect_equal(rowval_meta$data_type, "int64")
+    rowval <- zarr_v3_decode_chunk(
+        store_get_bytes(store, zarr_v3_chunk_path("matrices/cell/gene/S/rowval", 1L)),
+        rowval_meta$data_type,
+        n = as.integer(rowval_meta$shape[[1L]])
     )
     expect_identical(as.integer(rowval), c(1L, 3L))
     # colptr on disk should be 1-based: starts at 1.
-    colptr_zarray <- zarr_v2_read_zarray(store, "matrices/cell/gene/S/colptr")
-    colptr <- zarr_v2_decode_chunk(
-        store_get_bytes(store, "matrices/cell/gene/S/colptr/0"),
-        colptr_zarray$dtype,
-        n = as.integer(colptr_zarray$shape[[1L]])
+    colptr_meta <- zarr_v3_read_array(store, "matrices/cell/gene/S/colptr")
+    expect_equal(colptr_meta$data_type, "int64")
+    colptr <- zarr_v3_decode_chunk(
+        store_get_bytes(store, zarr_v3_chunk_path("matrices/cell/gene/S/colptr", 1L)),
+        colptr_meta$data_type,
+        n = as.integer(colptr_meta$shape[[1L]])
     )
     expect_equal(as.integer(colptr[[1L]]), 1L)
 })
