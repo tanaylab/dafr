@@ -524,7 +524,7 @@ S7::method(format_vectors_set,
     if (length(keys) == 0L) return(character(0L))
     rel <- sub(paste0("^", prefix, "/"), "", keys)
     # A property (dense array or sparse group) is "<name>/zarr.json" (one
-    # slash). Sparse children ("<name>/nzind/zarr.json") are deeper — skipped.
+    # slash). Sparse children ("<name>/nzind/zarr.json") are deeper - skipped.
     names <- sub("/zarr.json$", "", rel[grepl("^[^/]+/zarr.json$", rel)])
     sort(unique(names), method = "radix")
 }
@@ -600,10 +600,11 @@ S7::method(format_vectors_set,
     # layout is still sparse; densification happens on read.
     #
     # Upstream parity (matches sparse-matrix layout):
-    #   - No `.zattrs` is written. The vector's full length comes from
-    #     the axis length, not from a stored `n`.
+    #   - On disk the vector is a group holding `nzind`/`nzval` arrays. No
+    #     length is stored; the vector's full length comes from the axis
+    #     length.
     #   - The all-TRUE Bool case is inferred from the ABSENCE of
-    #     `nzval/.zarray` in the store.
+    #     `nzval/zarr.json` in the store.
     store <- S7::prop(daf, "store")
     base <- paste0("vectors/", axis, "/", name)
     n <- as.integer(format_axis_length(daf, axis))
@@ -840,7 +841,7 @@ S7::method(format_matrices_set,
     if (length(keys) == 0L) return(character(0L))
     rel <- sub(paste0("^", prefix, "/"), "", keys)
     # A property (dense array or sparse group) is "<name>/zarr.json" (one
-    # slash). Sparse children ("<name>/colptr/zarr.json") are deeper — skipped.
+    # slash). Sparse children ("<name>/colptr/zarr.json") are deeper - skipped.
     names <- sub("/zarr.json$", "", rel[grepl("^[^/]+/zarr.json$", rel)])
     sort(unique(names), method = "radix")
 }
