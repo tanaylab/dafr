@@ -34,6 +34,20 @@
   path is unchanged and a blosc/zstd-packed read raises an actionable
   "install c-blosc/libzstd" error. `crc32c` is always compiled (no dependency).
 
+## FilesFormat: packed/sharded read (FilesDaf, HttpDaf)
+
+* Reading packed (chunked + compressed) `FilesDaf` / `HttpDaf` properties is now
+  supported (read-only; dafr still writes flat). A packed property is a
+  dual-format shard (`<name>.zip`, or `<name>.<component>.zip` for an
+  independently-packed sparse component) that carries the same start-located
+  Zarr v3 shard index as a packed `ZarrDaf` array. dafr reads it through that
+  index, reusing the crc32c + `gzip` / `c-blosc` / `libzstd` decode backend (so
+  the same optional-library rules and CRAN-safety apply). Dense and sparse
+  matrices/vectors and `vlen-utf8` strings are covered; flat sub-threshold
+  components (small `colptr`, scalars, short vectors) in the same store read as
+  before. A foreign `"zipped"`-only shard (a ZIP archive with no leading Zarr
+  index) is rejected with an actionable message.
+
 ## ZarrDaf over HTTP: Zarr v3 read
 
 * **Reading a Zarr v3 `.daf.zarr` over HTTP now works.**
