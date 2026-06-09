@@ -75,22 +75,28 @@
     readBin(zip_path, "raw", n = file.size(zip_path))
 }
 
-# Read a packed 1-D array (dense vector or a sparse component) to an R vector of
-# length n. 1-D tiling is identical to the Zarr case, so reuse the core.
-.files_read_packed_vector <- function(zip_path, desc, n, name = zip_path) {
+# Decode a packed 1-D array from its shard bytes to an R vector of length n.
+# 1-D tiling is identical to the Zarr case, so reuse the core. (Bytes-based so
+# HttpDaf, which fetches the whole .zip over HTTP, shares this path.)
+.files_packed_decode_vector <- function(shard, desc, n, name) {
     .files_packed_require_indexed(desc, name)
-    shard <- .files_packed_read_shard(zip_path)
     node <- .files_packed_node(desc, shape = n,
                                chunk_shape = unlist(desc$chunk_shape))
     .shard_decode_vector(shard, node)
 }
 
-# Read a packed dense matrix to an R nr x nc matrix (column-major). The inner
-# chunk grid is C-order over the natural [n_row_chunks, n_col_chunks]; scatter
-# each chunk's column-major slice into the column-major output buffer.
-.files_read_packed_matrix <- function(zip_path, desc, nr, nc, name = zip_path) {
+# Read a packed 1-D array (dense vector or a sparse component) from its shard
+# file to an R vector of length n.
+.files_read_packed_vector <- function(zip_path, desc, n, name = zip_path) {
+    .files_packed_decode_vector(.files_packed_read_shard(zip_path), desc, n, name)
+}
+
+# Decode a packed dense matrix from its shard bytes to an R nr x nc matrix
+# (column-major). The inner chunk grid is C-order over the natural
+# [n_row_chunks, n_col_chunks]; scatter each chunk's column-major slice into the
+# column-major output buffer.
+.files_packed_decode_matrix <- function(shard, desc, nr, nc, name) {
     .files_packed_require_indexed(desc, name)
-    shard <- .files_packed_read_shard(zip_path)
     cs <- as.integer(unlist(desc$chunk_shape))            # [i_rows, i_cols]
     node <- .files_packed_node(desc, shape = c(nr, nc), chunk_shape = cs)
     cfg <- .zarr_sharding_config(node)
@@ -122,4 +128,9 @@
     }
     dim(out) <- c(nr, nc)
     out
+}
+
+# Read a packed dense matrix from its shard file to an R nr x nc matrix.
+.files_read_packed_matrix <- function(zip_path, desc, nr, nc, name = zip_path) {
+    .files_packed_decode_matrix(.files_packed_read_shard(zip_path), desc, nr, nc, name)
 }

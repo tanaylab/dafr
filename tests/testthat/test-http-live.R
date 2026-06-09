@@ -54,6 +54,32 @@ test_that("http_daf opens a populated FilesDaf served over HTTP", {
     expect_equal(complete_path(daf), paste0(h$url, "/served.daf"))
 })
 
+test_that("http_daf reads a packed (gzip) FilesFormat store served over HTTP", {
+    skip_if_no_http_harness()
+    # Serve a committed packed fixture (gzip needs no optional codec lib). The
+    # http path fetches each `<name>.zip` shard whole and decodes through the
+    # same packed core as local FilesDaf; compare the two reads.
+    root <- withr::local_tempdir("daf-http-packed-")
+    src <- testthat::test_path("fixtures/daf030-files-packed/gzip.files")
+    file.copy(src, root, recursive = TRUE)
+    dst <- file.path(root, "packed.files")
+    file.rename(file.path(root, "gzip.files"), dst)
+    pack_files_daf_metadata(dst)            # build the metadata.zip http_daf needs
+    h <- start_http_server(root)
+    on.exit(stop_http_server(h), add = TRUE)
+
+    hd <- http_daf(paste0(h$url, "/packed.files"))
+    fd <- files_daf(dst, mode = "r")
+    expect_equal(as.numeric(get_vector(hd, "cell", "score")),
+                 as.numeric(get_vector(fd, "cell", "score")))
+    expect_identical(unname(get_vector(hd, "cell", "label")),
+                     unname(get_vector(fd, "cell", "label")))
+    expect_equal(as.matrix(get_matrix(hd, "cell", "gene", "dense")),
+                 as.matrix(get_matrix(fd, "cell", "gene", "dense")))
+    expect_equal(as.matrix(get_matrix(hd, "cell", "gene", "sparse")),
+                 as.matrix(get_matrix(fd, "cell", "gene", "sparse")))
+})
+
 test_that("http_daf default name is taken from `name` scalar", {
     skip_if_no_http_harness()
     root <- withr::local_tempdir("daf-http-name-")
