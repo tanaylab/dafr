@@ -61,7 +61,7 @@ test_that("open_daf routes http(s):// to http_daf or zarr_daf based on suffix", 
     expect_error(open_daf("http://localhost:1/served"),
                  "HTTP GET failed for: http://localhost:1/served/metadata.zip")
     expect_error(open_daf("http://localhost:1/foo.daf.zarr/", mode = "r"),
-                 "HTTP GET failed for: http://localhost:1/foo.daf.zarr/.zmetadata")
+                 "HTTP GET failed for: http://localhost:1/foo.daf.zarr/zarr.json")
 })
 
 test_that("open_daf validates uri shape", {

@@ -281,8 +281,9 @@ test_that("empty_cache(http_daf) is safe with prior reads still held", {
 # ---- A3: HttpStore cross-language smoke ------------------------------------
 # Verify that a Python consumer can read a dafr-published .daf.zarr served
 # over HTTP. Uses zarr-python via fsspec/aiohttp when available; falls back
-# to a urllib-only smoke that fetches `.zmetadata` and a vector chunk and
-# parses them with numpy. Both paths skip cleanly when prerequisites are
+# to a urllib-only smoke that fetches the root `zarr.json` (v3 inline
+# consolidated metadata) and a vector chunk and parses them with numpy. Both
+# paths skip cleanly when prerequisites are
 # missing (CRAN, no Python, no zarr/fsspec, etc.).
 
 .populate_served_zarr <- function(parent_dir) {
@@ -292,34 +293,73 @@ test_that("empty_cache(http_daf) is safe with prior reads still held", {
     add_axis(d, "gene", c("g1", "g2"))
     set_scalar(d, "name", "served-zarr!")
     set_scalar(d, "organism", "human")
+    set_scalar(d, "version", 1.5)
+    set_scalar(d, "ok", TRUE)
     set_vector(d, "cell", "score", c(1.5, 2.5, 3.5))
+    set_vector(d, "cell", "label", c("a", "b", "c"))
+    set_vector(d, "gene", "is_marker", c(TRUE, FALSE))
+    set_vector(d, "cell", "sv",
+               Matrix::sparseVector(c(7.0, 9.0), i = c(1L, 3L), length = 3L))
     set_matrix(d, "cell", "gene", "dense",
                matrix(c(10, 20, 30, 40, 50, 60), nrow = 3))
+    set_matrix(d, "cell", "gene", "expr",
+               Matrix::sparseMatrix(i = c(1L, 3L), j = c(1L, 2L),
+                                    x = c(1.0, 2.0), dims = c(3L, 2L)))
     rm(d); gc()
     zarr_path
 }
 
-# ---- Known limitation: zarr_daf() over HTTP can't read a v3 store ----------
-# `HttpStore` (the backend behind zarr_daf("http://...")) still expects the
-# Zarr v2 `.zmetadata` consolidated-metadata index. A v3 `.daf.zarr` does not
-# write `.zmetadata` (v3 inlines consolidated metadata into the root
-# `zarr.json`), so opening one over HTTP currently fails. This test pins that
-# behaviour as a live assertion so the limitation isn't silently "fixed" or
-# regressed without an explicit decision. When HttpStore is ported to v3,
-# flip this to a positive round-trip.
+# ---- zarr_daf() over HTTP reads a v3 store (HttpStore v3 port) --------------
+# `HttpStore` (the backend behind zarr_daf("http://...")) reads the Zarr v3
+# inline consolidated metadata from the root `zarr.json` as its node index
+# (v3 does not write the v2 `.zmetadata` file). The round-trip below exercises
+# every component kind dafr writes: scalars, axes, dense/sparse vectors,
+# strings, bools, and dense/sparse matrices, plus the *_set enumeration paths
+# that drive `store_list` off the consolidated index.
 
-test_that("zarr_daf() over HTTP rejects a v3 store (HttpStore still v2-only)", {
+test_that("zarr_daf() over HTTP round-trips a v3 store across all component kinds", {
     skip_if_no_http_harness()
-    root <- withr::local_tempdir("daf-http-zarr-v3-gap-")
+    root <- withr::local_tempdir("daf-http-zarr-v3-rt-")
     .populate_served_zarr(root)  # writes a Zarr v3 .daf.zarr (no .zmetadata)
     h <- start_http_server(root)
     on.exit(stop_http_server(h), add = TRUE)
 
     url <- paste0(h$url, "/served.daf.zarr")
-    # HttpStore fetches <url>/.zmetadata at open; the v3 store has none, so
-    # new_http_store() hard-errors before any data is read.
-    expect_error(zarr_daf(url, mode = "r"), ".zmetadata not found",
-                 fixed = TRUE)
+    daf <- zarr_daf(url, mode = "r")
+
+    # scalars (string / double / bool) + enumeration
+    expect_identical(get_scalar(daf, "name"), "served-zarr!")
+    expect_identical(get_scalar(daf, "organism"), "human")
+    expect_equal(get_scalar(daf, "version"), 1.5)
+    expect_identical(get_scalar(daf, "ok"), TRUE)
+    expect_setequal(scalars_set(daf), c("name", "organism", "version", "ok"))
+
+    # axes + enumeration
+    expect_identical(axis_vector(daf, "cell"), c("c1", "c2", "c3"))
+    expect_identical(axis_vector(daf, "gene"), c("g1", "g2"))
+    expect_identical(axis_length(daf, "cell"), 3L)
+    expect_setequal(axes_set(daf), c("cell", "gene"))
+
+    # vectors: dense numeric / string / bool / sparse + enumeration
+    expect_equal(as.numeric(get_vector(daf, "cell", "score")), c(1.5, 2.5, 3.5))
+    expect_identical(unname(get_vector(daf, "cell", "label")), c("a", "b", "c"))
+    expect_identical(unname(get_vector(daf, "gene", "is_marker")),
+                     c(TRUE, FALSE))
+    expect_equal(as.numeric(get_vector(daf, "cell", "sv")), c(7.0, 0.0, 9.0))
+    expect_setequal(vectors_set(daf, "cell"), c("score", "label", "sv"))
+    expect_setequal(vectors_set(daf, "gene"), "is_marker")
+
+    # matrices: dense + sparse CSC + enumeration
+    md <- get_matrix(daf, "cell", "gene", "dense")
+    expect_equal(dim(md), c(3L, 2L))
+    expect_equal(as.numeric(as.matrix(md)), c(10, 20, 30, 40, 50, 60))
+    ms <- get_matrix(daf, "cell", "gene", "expr")
+    expect_s4_class(ms, "dgCMatrix")
+    expect_equal(dim(ms), c(3L, 2L))
+    expect_equal(ms[1, 1], 1.0)
+    expect_equal(ms[3, 2], 2.0)
+    expect_equal(ms[2, 1], 0)
+    expect_setequal(matrices_set(daf, "cell", "gene"), c("dense", "expr"))
 })
 
 test_that("dafr-published .daf.zarr served over HTTP is readable from numpy via urllib", {

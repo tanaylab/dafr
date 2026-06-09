@@ -12,21 +12,25 @@
 * Reading packed/sharded (`packed=true`) v3 stores is not yet supported (a
   follow-up); default DAF writes are flat and read fully.
 
+## ZarrDaf over HTTP: Zarr v3 read
+
+* **Reading a Zarr v3 `.daf.zarr` over HTTP now works.**
+  `zarr_daf("http://...")` parses the v3 inline consolidated metadata from the
+  root `zarr.json` (v3 does not write the v2 `.zmetadata` file) as its node
+  index, serves node metadata from that index, and fetches chunks lazily over
+  HTTP. Scalars, axes, dense and sparse vectors, strings, bools, and dense and
+  sparse matrices all round-trip. A legacy Zarr v2 store served over HTTP is
+  rejected with the same `python -m zarr v2_to_v3` conversion hint as the local
+  path.
+* `HttpDaf` / `FilesDaf` over HTTP (the FilesFormat path, `http_daf()`) is
+  unaffected; that path does not use Zarr at all.
+
 ### Known limitations
 
-* **Reading a Zarr v3 `.daf.zarr` over HTTP is not yet supported.** Opening a
-  v3 store via `zarr_daf("http://...")` still routes through the `HttpStore`
-  backend, which expects the Zarr v2 `.zmetadata` consolidated-metadata index
-  for discoverability. v3 stores do not write `.zmetadata` (v3 inlines the
-  consolidated metadata into the root `zarr.json`), so the open fails with a
-  `.zmetadata not found` error. Porting `HttpStore` to the v3 layout is a
-  separate follow-up. What IS supported in this release:
-    * Local **directory** (`DirStore`) v3 stores - fully supported (read +
-      write).
-    * Local **zip** (`MmapZipStore`, `.daf.zarr.zip`) v3 stores - fully
-      supported (read + write).
-    * `HttpDaf` / `FilesDaf` over HTTP (the FilesFormat path, `http_daf()`) -
-      unaffected; this path does not use Zarr at all.
+* Reading packed/sharded (`packed=true`) v3 stores is not yet supported, either
+  locally or over HTTP (a follow-up). Default DataAxesFormats.jl writes are flat
+  and read fully. Local **directory** (`DirStore`) and **zip** (`MmapZipStore`,
+  `.daf.zarr.zip`) v3 stores are fully supported for read and write.
 
 # dafr 0.3.1
 
