@@ -1,5 +1,15 @@
 # dafr 0.4.0
 
+## ZarrDaf: faster bulk writes
+
+* Writing many properties to a directory/in-memory ZarrDaf is now
+  near-linear instead of O(N^2). `set_*` updates the root consolidated metadata
+  incrementally (editing an in-memory index of node `zarr.json` strings and
+  re-assembling the root by string concatenation) rather than re-scanning and
+  re-parsing the whole store on every mutation. Writing 400 vectors dropped from
+  ~45 s to ~1.7 s. The store stays consistent on disk after every write (no
+  flush/close step), and the output is unchanged.
+
 ## ZarrDaf: Zarr v3 (DataAxesFormats.jl 0.3.0 interop)
 
 * ZarrDaf now reads and writes the **Zarr v3** on-disk format used by
