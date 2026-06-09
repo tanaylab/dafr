@@ -621,6 +621,9 @@ S7::method(format_vectors_set,
     }
     nzval_meta <- zarr_v3_read_array(store, paste0(base, "/nzval"))
     nzval_n <- as.integer(nzval_meta$shape[[1L]])
+    # Non-bool sparse values are read as double here (DAF sparse values are
+    # realistically float/bool); a genuine int64 sparse nzval would narrow to
+    # double, lossy above 2^53 - future follow-up if needed.
     nzval <- zarr_v3_decode_chunk(
         store_get_bytes(store, zarr_v3_chunk_path(paste0(base, "/nzval"), 1L)),
         nzval_meta$data_type, n = nzval_n
@@ -918,6 +921,10 @@ S7::method(format_matrices_set,
     }
     nzval_meta <- zarr_v3_read_array(store, paste0(base, "/nzval"))
     nzval_n <- as.integer(nzval_meta$shape[[1L]])
+    # Non-bool sparse values are read as double below (via as.double() into the
+    # dgCMatrix); DAF sparse values are realistically float/bool, but a genuine
+    # int64 sparse nzval would narrow to double, lossy above 2^53 - future
+    # follow-up if needed.
     nzval <- if (nzval_n == 0L) {
         if (nzval_meta$data_type == "bool") logical(0L) else double(0L)
     } else {
