@@ -1,3 +1,6 @@
+#' @include zarr_v3.R
+NULL
+
 # R/zarr_sharded.R
 # Read-only Zarr v3 packed/sharded arrays (ZEP-0002 "sharding_indexed" codec,
 # written by DataAxesFormats.jl `packed=true`). Pure R except for inner-chunk

@@ -1,3 +1,6 @@
+#' @include zarr_sharded.R
+NULL
+
 # R/files_packed.R
 # Read-only support for packed (chunked + compressed) FilesDaf / ZipDaf /
 # HttpDaf properties (DataAxesFormats.jl 0.3.0 "packed" format). A packed

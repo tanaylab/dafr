@@ -23,6 +23,11 @@
 #' @param xptr (`MmapZipStore`) Internal external pointer to the C++
 #'   store; set by [new_mmap_zip_store()] and not intended for direct
 #'   use.
+#' @param consolidate_cache (`DirStore`/`DictStore`) Internal environment
+#'   holding the in-memory consolidated-metadata index, maintained
+#'   incrementally across writes so `set_*` need not re-parse the whole
+#'   store root on every mutation. Created automatically; not intended for
+#'   direct use.
 #' @name ZarrStore
 #' @export
 ZarrStore <- S7::new_class("ZarrStore", abstract = TRUE)
