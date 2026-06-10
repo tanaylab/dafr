@@ -1137,3 +1137,20 @@ python3 diff.py
 ```
 
 To add a query: append a line to `queries_all.txt` and re-run.
+
+## E. 2026-06-10 re-sweep (post 0.3.0 packed/1.1 work)
+
+Re-ran adversarial R-vs-Julia probes against current dafr. Confirmed FIXED (no
+regression): A2 (`% Round type Int8` on integer64 now returns correct values),
+A5 (`>> Median` with NaN returns NaN, not NA). Validated the NEW packed reader
+across every dtype (Int8..UInt64, Float32/64), all-true Bool sparse, NaN/Inf/
+-Inf, and vlen-utf8 unicode/control-char strings - all correct.
+
+### E1. `>> Median` of a vector with BOTH NaN and +-Inf  (NEW, narrow)
+`Median([1, NaN, 3, Inf, -Inf])`: dafr = **NaN**, DAF.jl = **-Inf**. Every other
+reduction (Mean/Sum/Max/Min/Var/Std) on this input is NaN in BOTH; all-Inf,
+NaN-only, and ordinary inputs match exactly. R's NaN-propagating median vs
+Julia's sort-based median kernel diverge only on the NaN+Inf mix. R's NaN is
+arguably the more correct answer; matching -Inf needs reimplementing Julia's
+exact median ordering in the C kernel - deferred (same class as prior median/
+quantile kernel divergences). Pinned by tests/testthat/test-reductions-special-values.R.
