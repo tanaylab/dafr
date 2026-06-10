@@ -1,3 +1,22 @@
+# dafr 0.4.4
+
+## Parity
+
+* **Singleton chains return their input unwrapped (C1).** `chain_reader(list(d))`
+  now delegates to `read_only(d)`, `chain_writer(list(d))` (with no explicit
+  name) returns `d` itself, and `read_only()` is the identity on data that is
+  already read-only unless a `name` forces a fresh wrapper - matching
+  `DataAxesFormats.jl` `chains.jl` / `read_only.jl`. Previously every singleton
+  chain allocated a redundant wrapper.
+
+* **`concatenate()` `MERGE_COLLECT_AXIS` preserves sparse vectors (M2).** A
+  collect-axis vector merge now applies Julia's storage-savings heuristic
+  (`sparse_if_saves_storage_fraction`, default 0.25): when sparse storage would
+  save at least that fraction, the collected `(axis x dataset)` result is built
+  as a `Matrix::sparseMatrix` instead of always materializing dense. Sparse
+  sources contribute their nnz, dense sources their full length; string and
+  `bit64` columns stay dense.
+
 # dafr 0.4.3
 
 ## Compatibility
