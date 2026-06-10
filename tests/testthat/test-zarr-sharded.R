@@ -5,8 +5,10 @@
 # exercised on every build.
 
 .packed_fixture <- function(codec) {
+    short <- c(gzip = "gz", zstd = "zs",
+               blosc_zstd_bitshuffle = "bz", blosc_lz4_bitshuffle = "bl")[[codec]]
     new_dir_store(testthat::test_path(
-        sprintf("fixtures/daf030-packed/%s.daf.zarr", codec)))
+        sprintf("fixtures/zpk/%s.daf.zarr", short)))
 }
 
 test_that("a packed dense vector is detected as sharded", {

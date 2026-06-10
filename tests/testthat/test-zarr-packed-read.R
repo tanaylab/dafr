@@ -3,8 +3,12 @@
 # optional library was compiled in (skip otherwise). Flat sub-threshold
 # components in the same packed store must still read.
 
+# Short fixture dir names keep tarball paths under the 100-byte portable limit
+# (R's internal tar, used by R CMD build on Windows, errors otherwise).
+.PACKED_DIR <- c(gzip = "gz", zstd = "zs",
+                 blosc_zstd_bitshuffle = "bz", blosc_lz4_bitshuffle = "bl")
 .packed_path <- function(codec) {
-    testthat::test_path(sprintf("fixtures/daf030-packed/%s.daf.zarr", codec))
+    testthat::test_path(sprintf("fixtures/zpk/%s.daf.zarr", .PACKED_DIR[[codec]]))
 }
 
 .skip_if_no_codec <- function(codec) {

@@ -9,7 +9,9 @@ using DataAxesFormats
 using SparseArrays
 import DataAxesFormats.PackedFormat as PF
 
-out = length(ARGS) >= 1 ? ARGS[1] : "tests/testthat/fixtures/daf030-files-packed"
+# Short dir/codec names keep tarball paths under the 100-byte portable limit
+# (R's internal tar, used by R CMD build on Windows, errors above it).
+out = length(ARGS) >= 1 ? ARGS[1] : "tests/testthat/fixtures/fpk"
 rm(out; force=true, recursive=true); mkpath(out)
 
 # SMALL but above the 8 KiB pack threshold so the dense vector, the dense
@@ -35,9 +37,9 @@ function populate!(d)
     set_matrix!(d, "cell", "gene", "sparse", sparse(I, J, V, ncell, ngene))
 end
 
-for (codec, label) in [(:blosc_zstd_bitshuffle,"blosc_zstd_bitshuffle"),
-                       (:blosc_lz4_bitshuffle,"blosc_lz4_bitshuffle"),
-                       (:zstd,"zstd"), (:gzip,"gzip")]
+for (codec, label) in [(:blosc_zstd_bitshuffle,"bz"),
+                       (:blosc_lz4_bitshuffle,"bl"),
+                       (:zstd,"zs"), (:gzip,"gz")]
     PF.DAF_PACKED_COMPRESSION = codec
     d = FilesDaf(joinpath(out, "$(label).files"), "w"; name=label, packed=true)
     populate!(d)

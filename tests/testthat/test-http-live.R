@@ -60,10 +60,10 @@ test_that("http_daf reads a packed (gzip) FilesFormat store served over HTTP", {
     # http path fetches each `<name>.zip` shard whole and decodes through the
     # same packed core as local FilesDaf; compare the two reads.
     root <- withr::local_tempdir("daf-http-packed-")
-    src <- testthat::test_path("fixtures/daf030-files-packed/gzip.files")
+    src <- testthat::test_path("fixtures/fpk/gz.files")
     file.copy(src, root, recursive = TRUE)
     dst <- file.path(root, "packed.files")
-    file.rename(file.path(root, "gzip.files"), dst)
+    file.rename(file.path(root, "gz.files"), dst)
     pack_files_daf_metadata(dst)            # build the metadata.zip http_daf needs
     h <- start_http_server(root)
     on.exit(stop_http_server(h), add = TRUE)
