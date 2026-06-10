@@ -68,7 +68,7 @@
       <h1>Zarr and HTTP storage</h1>
             
       
-      <small class="dont-index">Source: <a href="https://github.com/tanaylab/dafr/blob/main/vignettes/zarr.Rmd" class="external-link"><code>vignettes/zarr.Rmd</code></a></small>
+      <small class="dont-index">Source: <a href="https://github.com/tanaylab/dafr/blob/v0.4.2/vignettes/zarr.Rmd" class="external-link"><code>vignettes/zarr.Rmd</code></a></small>
       <div class="d-none name"><code>zarr.Rmd</code></div>
     </div>
 
@@ -96,15 +96,15 @@ tree on the local filesystem. The path conventionally ends in
 <span>           <span class="fu"><a href="https://rdrr.io/r/base/matrix.html" class="external-link">matrix</a></span><span class="op">(</span><span class="fu"><a href="https://rdrr.io/r/base/c.html" class="external-link">c</a></span><span class="op">(</span><span class="fl">1</span>, <span class="fl">0</span>, <span class="fl">0</span>, <span class="fl">0</span>, <span class="fl">1</span>, <span class="fl">0</span>, <span class="fl">0</span>, <span class="fl">0</span>, <span class="fl">1</span><span class="op">)</span>, <span class="fl">3</span>, <span class="fl">3</span><span class="op">)</span><span class="op">)</span></span>
 <span><span class="fu"><a href="https://rdrr.io/r/base/rm.html" class="external-link">rm</a></span><span class="op">(</span><span class="va">d</span><span class="op">)</span>; <span class="fu"><a href="https://rdrr.io/r/base/gc.html" class="external-link">gc</a></span><span class="op">(</span><span class="op">)</span></span>
 <span><span class="co">#&gt;           used  (Mb) gc trigger  (Mb) max used  (Mb)</span></span>
-<span><span class="co">#&gt; Ncells 2515977 134.4    5053815 270.0  3279760 175.2</span></span>
-<span><span class="co">#&gt; Vcells 4322087  33.0   10146329  77.5  7151234  54.6</span></span>
+<span><span class="co">#&gt; Ncells 2515977 134.4    5053812 270.0  3279765 175.2</span></span>
+<span><span class="co">#&gt; Vcells 4322087  33.0   10146329  77.5  7151232  54.6</span></span>
 <span></span>
 <span><span class="co"># Reopen read-only and inspect.</span></span>
 <span><span class="va">d</span> <span class="op">&lt;-</span> <span class="fu"><a href="../reference/zarr_daf.html">zarr_daf</a></span><span class="op">(</span><span class="va">path</span>, mode <span class="op">=</span> <span class="st">"r"</span><span class="op">)</span></span>
 <span><span class="fu"><a href="https://rdrr.io/r/base/cat.html" class="external-link">cat</a></span><span class="op">(</span><span class="fu"><a href="../reference/description.html">description</a></span><span class="op">(</span><span class="va">d</span><span class="op">)</span><span class="op">)</span></span>
-<span><span class="co">#&gt; name: file2a8776db9907.daf.zarr</span></span>
+<span><span class="co">#&gt; name: file2a7c480968ae.daf.zarr</span></span>
 <span><span class="co">#&gt; type: ZarrDaf</span></span>
-<span><span class="co">#&gt; path: /tmp/RtmphxmRE8/file2a8776db9907.daf.zarr</span></span>
+<span><span class="co">#&gt; path: /tmp/RtmpTivWBi/file2a7c480968ae.daf.zarr</span></span>
 <span><span class="co">#&gt; mode: r</span></span>
 <span><span class="co">#&gt; scalars:</span></span>
 <span><span class="co">#&gt;   organism: "human"</span></span>
@@ -140,8 +140,8 @@ protocol.</p>
 <span><span class="fu"><a href="../reference/set_vector.html">set_vector</a></span><span class="op">(</span><span class="va">d</span>, <span class="st">"gene"</span>, <span class="st">"is_marker"</span>, <span class="fu"><a href="https://rdrr.io/r/base/c.html" class="external-link">c</a></span><span class="op">(</span><span class="cn">TRUE</span>, <span class="cn">FALSE</span><span class="op">)</span><span class="op">)</span></span>
 <span><span class="fu"><a href="https://rdrr.io/r/base/rm.html" class="external-link">rm</a></span><span class="op">(</span><span class="va">d</span><span class="op">)</span>; <span class="fu"><a href="https://rdrr.io/r/base/gc.html" class="external-link">gc</a></span><span class="op">(</span><span class="op">)</span></span>
 <span><span class="co">#&gt;           used  (Mb) gc trigger  (Mb) max used  (Mb)</span></span>
-<span><span class="co">#&gt; Ncells 2741060 146.4    5053815 270.0  3279760 175.2</span></span>
-<span><span class="co">#&gt; Vcells 4697033  35.9   10146329  77.5  7151234  54.6</span></span>
+<span><span class="co">#&gt; Ncells 2741060 146.4    5053812 270.0  3279765 175.2</span></span>
+<span><span class="co">#&gt; Vcells 4697033  35.9   10146329  77.5  7151232  54.6</span></span>
 <span></span>
 <span><span class="co"># Reopen.</span></span>
 <span><span class="va">d</span> <span class="op">&lt;-</span> <span class="fu"><a href="../reference/zarr_daf.html">zarr_daf</a></span><span class="op">(</span><span class="va">zip_path</span>, mode <span class="op">=</span> <span class="st">"r"</span><span class="op">)</span></span>
