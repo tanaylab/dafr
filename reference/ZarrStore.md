@@ -1,4 +1,4 @@
-# Zarr v2 Store abstract base class.
+# Zarr Store abstract base class.
 
 Uniform read/write API for byte content keyed by path strings. Concrete
 implementations: DirStore, DictStore, MmapZipStore.
@@ -8,9 +8,9 @@ implementations: DirStore, DictStore, MmapZipStore.
 ``` r
 ZarrStore()
 
-DirStore(root = character(0))
+DirStore(root = character(0), consolidate_cache = new.env(parent = emptyenv()))
 
-DictStore(env = NULL)
+DictStore(env = NULL, consolidate_cache = new.env(parent = emptyenv()))
 
 MmapZipStore(path = character(0), mode = character(0), xptr = NULL)
 ```
@@ -20,6 +20,13 @@ MmapZipStore(path = character(0), mode = character(0), xptr = NULL)
 - root:
 
   (`DirStore`) Filesystem root path; created if missing.
+
+- consolidate_cache:
+
+  (`DirStore`/`DictStore`) Internal environment holding the in-memory
+  consolidated-metadata index, maintained incrementally across writes so
+  `set_*` need not re-parse the whole store root on every mutation.
+  Created automatically; not intended for direct use.
 
 - env:
 

@@ -7,7 +7,7 @@
 
     <a class="navbar-brand me-2" href="../index.html">dafr</a>
 
-    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">0.3.1</small>
+    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">0.4.1</small>
 
 
     <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbar" aria-controls="navbar" aria-expanded="false" aria-label="Toggle navigation">
@@ -42,9 +42,50 @@
   <main id="main" class="col-md-9"><div class="page-header">
 
       <h1>Changelog</h1>
-      <small>Source: <a href="https://github.com/tanaylab/dafr/blob/v0.3.1/NEWS.md" class="external-link"><code>NEWS.md</code></a></small>
+      <small>Source: <a href="https://github.com/tanaylab/dafr/blob/main/NEWS.md" class="external-link"><code>NEWS.md</code></a></small>
     </div>
 
+    <div class="section level2">
+<h2 class="pkg-version" data-toc-text="0.4.1" id="dafr-041">dafr 0.4.1<a class="anchor" aria-label="anchor" href="#dafr-041"></a></h2>
+<div class="section level3">
+<h3 id="packaging-0-4-1">Packaging<a class="anchor" aria-label="anchor" href="#packaging-0-4-1"></a></h3>
+<ul><li>Shorten the committed packed-fixture directory names (<code>tests/testthat/fixtures/{zpk,fpk}/...</code>) so every path in the source tarball stays under the 100-byte portable limit. R’s internal <code>tar</code> (used by <code>R CMD build</code> on Windows) emits a “storing paths of more than 100 bytes is not portable” warning above it, which the CI’s <code>error-on: warning</code> turned into a failure. No functional change.</li>
+</ul></div>
+</div>
+    <div class="section level2">
+<h2 class="pkg-version" data-toc-text="0.4.0" id="dafr-040">dafr 0.4.0<a class="anchor" aria-label="anchor" href="#dafr-040"></a></h2>
+<div class="section level3">
+<h3 id="filesformat-writes-v11-dataaxesformatsjl-default-0-4-0">FilesFormat: writes v1.1 (DataAxesFormats.jl 0.3.0 default)<a class="anchor" aria-label="anchor" href="#filesformat-writes-v11-dataaxesformatsjl-default-0-4-0"></a></h3>
+<ul><li>
+<code>FilesDaf</code> now writes the <strong>v1.1</strong> on-disk format (<code>{"version":[1,1]}</code>), matching DataAxesFormats.jl 0.3.0. The only change from v1.0 is the sparse property JSON descriptor: it now carries a per-component object (<code>nzind</code> / <code>nzval</code> for vectors, <code>colptr</code> / <code>rowval</code> / <code>nzval</code> for matrices), each shaped like a stand-alone dense descriptor with its <code>eltype</code> and <code>n_elements</code>. The binary payload files are byte-identical to v1.0, and the reader accepts both shapes, so existing v1.0 repos still read. Verified round-trip in both directions against DAF 0.3.0 (dafr reads Julia’s v1.1; Julia reads dafr’s).</li>
+</ul></div>
+<div class="section level3">
+<h3 id="zarrdaf-faster-bulk-writes-0-4-0">ZarrDaf: faster bulk writes<a class="anchor" aria-label="anchor" href="#zarrdaf-faster-bulk-writes-0-4-0"></a></h3>
+<ul><li>Writing many properties to a directory/in-memory ZarrDaf is now near-linear instead of O(N^2). <code>set_*</code> updates the root consolidated metadata incrementally (editing an in-memory index of node <code>zarr.json</code> strings and re-assembling the root by string concatenation) rather than re-scanning and re-parsing the whole store on every mutation. Writing 400 vectors dropped from ~45 s to ~1.7 s. The store stays consistent on disk after every write (no flush/close step), and the output is unchanged.</li>
+</ul></div>
+<div class="section level3">
+<h3 id="zarrdaf-zarr-v3-dataaxesformatsjl-interop-0-4-0">ZarrDaf: Zarr v3 (DataAxesFormats.jl 0.3.0 interop)<a class="anchor" aria-label="anchor" href="#zarrdaf-zarr-v3-dataaxesformatsjl-interop-0-4-0"></a></h3>
+<ul><li><p>ZarrDaf now reads and writes the <strong>Zarr v3</strong> on-disk format used by DataAxesFormats.jl 0.3.0 (a single <code>zarr.json</code> per node, <code>c/</code>-prefixed chunk keys, the <code>daf</code> version marker as a root-group attribute, and inline consolidated metadata). Flat (uncompressed) read and write are supported.</p></li>
+<li><p><strong>Breaking:</strong> the legacy Zarr v2 reader/writer is removed. Opening a Zarr v2 <code>.daf.zarr</code> now errors with a conversion hint (<code>python -m zarr v2_to_v3</code>), matching DataAxesFormats.jl 0.3.0’s own behaviour. ## ZarrDaf: packed/sharded v3 read</p></li>
+<li><p>Reading packed/sharded (<code>packed=true</code>) Zarr v3 <code>.daf.zarr</code> stores is now supported (read-only; dafr still writes flat). Each packed array’s start-located shard index (ZEP-0002, crc32c-checked) is parsed in R, and its inner chunks decode via <code>gzip</code> (base R, always available) or - when the optional system library is present - <code>c-blosc</code> (the default <code>blosc_zstd_bitshuffle</code> / <code>blosc_lz4_bitshuffle</code> codecs) and <code>libzstd</code> (plain <code>zstd</code>). Dense and sparse matrices/vectors, including <code>vlen-utf8</code> strings, are covered; flat sub-threshold components in a packed store read as before.</p></li>
+<li><p><strong>CRAN-safe:</strong> <code>configure</code> probes for <code>c-blosc</code>/<code>libzstd</code> (honouring <code>BLOSC_HOME</code> / <code>ZSTD_HOME</code> / <code>CONDA_PREFIX</code>). With neither present the flat path is unchanged and a blosc/zstd-packed read raises an actionable “install c-blosc/libzstd” error. <code>crc32c</code> is always compiled (no dependency).</p></li>
+</ul></div>
+<div class="section level3">
+<h3 id="filesformat-packedsharded-read-filesdaf-httpdaf-0-4-0">FilesFormat: packed/sharded read (FilesDaf, HttpDaf)<a class="anchor" aria-label="anchor" href="#filesformat-packedsharded-read-filesdaf-httpdaf-0-4-0"></a></h3>
+<ul><li>Reading packed (chunked + compressed) <code>FilesDaf</code> / <code>HttpDaf</code> properties is now supported (read-only; dafr still writes flat). A packed property is a dual-format shard (<code>&lt;name&gt;.zip</code>, or <code>&lt;name&gt;.&lt;component&gt;.zip</code> for an independently-packed sparse component) that carries the same start-located Zarr v3 shard index as a packed <code>ZarrDaf</code> array. dafr reads it through that index, reusing the crc32c + <code>gzip</code> / <code>c-blosc</code> / <code>libzstd</code> decode backend (so the same optional-library rules and CRAN-safety apply). Dense and sparse matrices/vectors and <code>vlen-utf8</code> strings are covered; flat sub-threshold components (small <code>colptr</code>, scalars, short vectors) in the same store read as before. A foreign <code>"zipped"</code>-only shard (a ZIP archive with no leading Zarr index) is rejected with an actionable message.</li>
+</ul></div>
+<div class="section level3">
+<h3 id="zarrdaf-over-http-zarr-v3-read-0-4-0">ZarrDaf over HTTP: Zarr v3 read<a class="anchor" aria-label="anchor" href="#zarrdaf-over-http-zarr-v3-read-0-4-0"></a></h3>
+<ul><li>
+<strong>Reading a Zarr v3 <code>.daf.zarr</code> over HTTP now works.</strong> <code>zarr_daf("http://...")</code> parses the v3 inline consolidated metadata from the root <code>zarr.json</code> (v3 does not write the v2 <code>.zmetadata</code> file) as its node index, serves node metadata from that index, and fetches chunks lazily over HTTP. Scalars, axes, dense and sparse vectors, strings, bools, and dense and sparse matrices all round-trip. A legacy Zarr v2 store served over HTTP is rejected with the same <code>python -m zarr v2_to_v3</code> conversion hint as the local path.</li>
+<li>
+<code>HttpDaf</code> / <code>FilesDaf</code> over HTTP (the FilesFormat path, <code><a href="../reference/HttpDaf.html">http_daf()</a></code>) is unaffected; that path does not use Zarr at all.</li>
+</ul><div class="section level4">
+<h4 id="known-limitations-0-4-0">Known limitations<a class="anchor" aria-label="anchor" href="#known-limitations-0-4-0"></a></h4>
+<ul><li>dafr reads packed/sharded v3 stores but only ever <strong>writes flat</strong> (the common default). Reading blosc/zstd-packed stores needs the optional <code>c-blosc</code> / <code>libzstd</code> system libraries (see above); <code>gzip</code>-packed and all flat stores read with no extra dependency. Local <strong>directory</strong> (<code>DirStore</code>), <strong>zip</strong> (<code>MmapZipStore</code>, <code>.daf.zarr.zip</code>), and <strong>HTTP</strong> v3 stores are all supported.</li>
+</ul></div>
+</div>
+</div>
     <div class="section level2">
 <h2 class="pkg-version" data-toc-text="0.3.1" id="dafr-031">dafr 0.3.1<a class="anchor" aria-label="anchor" href="#dafr-031"></a></h2>
 <div class="section level3">

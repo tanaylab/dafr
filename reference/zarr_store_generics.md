@@ -1,8 +1,8 @@
-# Zarr v2 store generics.
+# Zarr store generics.
 
 Low-level byte-level operations on a
 [ZarrStore](https://tanaylab.github.io/dafr/reference/ZarrStore.md). All
-Zarr v2 I/O goes through these five generics so the storage backend is
+Zarr I/O goes through these five generics so the storage backend is
 interchangeable.
 
 ## Usage

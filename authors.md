@@ -12,15 +12,15 @@
 ## Citation
 
 Source:
-[`DESCRIPTION`](https://github.com/tanaylab/dafr/blob/v0.3.1/DESCRIPTION)
+[`DESCRIPTION`](https://github.com/tanaylab/dafr/blob/main/DESCRIPTION)
 
 Lifshitz A, Ben-Kiki O (2026). *dafr: Data in Axes in Formats (DAF) for
-R*. R package version 0.3.1, <https://tanaylab.github.io/dafr/>.
+R*. R package version 0.4.1, <https://tanaylab.github.io/dafr/>.
 
     @Manual{,
       title = {dafr: Data in Axes in Formats (DAF) for R},
       author = {Aviezer Lifshitz and Oren Ben-Kiki},
       year = {2026},
-      note = {R package version 0.3.1},
+      note = {R package version 0.4.1},
       url = {https://tanaylab.github.io/dafr/},
     }

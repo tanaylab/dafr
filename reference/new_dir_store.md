@@ -1,4 +1,4 @@
-# Create a directory-backed Zarr v2 store.
+# Create a directory-backed Zarr store.
 
 Each key maps to a regular file under `root`. Directories are created as
 needed. The root must be writable.

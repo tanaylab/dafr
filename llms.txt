@@ -934,23 +934,23 @@ auto-capped to two cores on package load.
   [`DirStore()`](https://tanaylab.github.io/dafr/reference/ZarrStore.md)
   [`DictStore()`](https://tanaylab.github.io/dafr/reference/ZarrStore.md)
   [`MmapZipStore()`](https://tanaylab.github.io/dafr/reference/ZarrStore.md)
-  : Zarr v2 Store abstract base class.
+  : Zarr Store abstract base class.
 - [`new_dict_store()`](https://tanaylab.github.io/dafr/reference/new_dict_store.md)
-  : Create an in-memory Zarr v2 store.
+  : Create an in-memory Zarr store.
 - [`new_dir_store()`](https://tanaylab.github.io/dafr/reference/new_dir_store.md)
-  : Create a directory-backed Zarr v2 store.
+  : Create a directory-backed Zarr store.
 - [`new_mmap_zip_store()`](https://tanaylab.github.io/dafr/reference/new_mmap_zip_store.md)
-  : Create a zip-archive-backed Zarr v2 store (mmap, append-only).
+  : Create a zip-archive-backed Zarr store (mmap, append-only).
 - [`new_http_store()`](https://tanaylab.github.io/dafr/reference/new_http_store.md)
-  : Construct a read-only ZarrStore over HTTP.
+  : Construct a read-only ZarrStore over HTTP (Zarr v3).
 - [`HttpStore()`](https://tanaylab.github.io/dafr/reference/HttpStore.md)
-  : Read-only HTTP-served Zarr store.
+  : Read-only HTTP-served Zarr v3 store.
 - [`store_get_bytes()`](https://tanaylab.github.io/dafr/reference/zarr_store_generics.md)
   [`store_set_bytes()`](https://tanaylab.github.io/dafr/reference/zarr_store_generics.md)
   [`store_delete()`](https://tanaylab.github.io/dafr/reference/zarr_store_generics.md)
   [`store_exists()`](https://tanaylab.github.io/dafr/reference/zarr_store_generics.md)
   [`store_list()`](https://tanaylab.github.io/dafr/reference/zarr_store_generics.md)
-  : Zarr v2 store generics.
+  : Zarr store generics.
 
 ## Reconstruction & completion
 

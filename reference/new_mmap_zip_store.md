@@ -1,7 +1,7 @@
-# Create a zip-archive-backed Zarr v2 store (mmap, append-only).
+# Create a zip-archive-backed Zarr store (mmap, append-only).
 
-Opens (or creates) a single ZIP archive at `path` as a Zarr v2 store.
-Reads use a shared mmap of the archive (zero-copy for stored entries via
+Opens (or creates) a single ZIP archive at `path` as a Zarr store. Reads
+use a shared mmap of the archive (zero-copy for stored entries via
 ALTREP RAW); writes append entries with a crash-safe two-step commit
 protocol. Mirrors upstream `DataAxesFormats.MmapZipStores.MmapZipStore`.
 

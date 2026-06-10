@@ -1,4 +1,4 @@
-# Create an in-memory Zarr v2 store.
+# Create an in-memory Zarr store.
 
 Backed by an R environment keyed by path strings. Useful for tests and
 for ZarrDaf instances that don't need persistence.
