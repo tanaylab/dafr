@@ -1,3 +1,18 @@
+# dafr 0.4.3
+
+## Performance
+
+* **ZarrDaf axis-name decode is now memoized.** `format_axis_array` /
+  `axis_vector` previously re-decoded the vlen-utf8 axis-name strings from the
+  store on every call, so every *distinct* query over an axis re-paid that
+  decode (only an exact-repeat query hit the result cache). On a 4000+2500
+  fixture this was ~45% of a dense matrix-query's time. The decoded entries are
+  now cached at the `"memory"` tier keyed by `axis` + the axis version stamp
+  (invalidated by `delete_axis`, same contract as the vector/matrix caches), so
+  distinct queries over the same axes decode once. Measured ~1.6x on a
+  `>| Sum` query; `% Log` and any axis-touching query benefit identically.
+  Chains/views over a ZarrDaf inherit the cache automatically.
+
 # dafr 0.4.2
 
 ## Test coverage + parity

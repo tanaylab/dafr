@@ -99,6 +99,64 @@ preserves the exact DomainError + reported value).
 | full `% Log base 2 eps 1` matrix query | ~166 ms | 81 ms |
 
 `% Log` is now ~81 ms vs DataAxesFormats.jl's ~61 ms (1.3x) - effectively at
-parity. The dense `>| Sum` (2.3x) and `% Abs` (3.7x) gaps are the genuine
-single-threaded-R vs parallel-Julia kernel gaps (no analogous overhead lever)
-and remain the separate dense-kernel follow-up.
+parity. The dense `>| Sum` (2.3x) and `% Abs` (3.7x) gaps were *assumed* to be
+the genuine single-threaded-R vs parallel-Julia kernel gaps. Phase 4 profiled
+them and found that assumption was wrong - see below.
+
+## Phase 4 - the `>| Sum` gap was the axis-name decode, not the kernel (2026-06-10)
+
+Profiling the `>| Sum` query (not just the raw reduction) overturned the
+Phase-1 attribution. On a 4000x2500 fixture the raw `rowSums` is ~24 ms, but
+the full `@ cell @ gene :: expr >| Sum` query is ~170 ms. An `Rprof` of the
+query loop showed `zarr_v3_decode_strings` + `readBin` (axis-name vlen-utf8
+decode) at **~45%** of the time and `rowSums` at ~34%. The axis names were
+re-decoded from the store on *every distinct query*: `.zarr_axis_entries`
+(`R/zarr_format.R`) always called `zarr_v3_decode_strings`, and the
+`.cache_group_value` wrapper only tags the tier - it does not memoize. Only an
+exact-repeat query hit the `QueryData` result cache. (The Phase-2 note's "cached
+after first touch" was inaccurate across distinct queries.)
+
+**Fix:** memoize the decode in `.zarr_axis_entries` at the `"memory"` tier keyed
+by `cache_key_axis` + `axis_stamp` - the exact invalidation contract the
+vector/matrix caches already use (`axis_stamp` bumps on `delete_axis`, so a
+deleted+recreated axis invalidates). Chains/views over a ZarrDaf delegate
+`format_axis_array` down to here, so they inherit the cache. Guards in
+`tests/testthat/test-zarr-axis-cache.R`.
+
+Reliable comparison is **within one process** (this box is a shared 128-core
+NUMA host; cross-process medians swing 2-5x from page-cache/core placement -
+the same R `abs()` path measured 33 ms and 168 ms in two runs). Within one
+process, toggling the axis cache by clearing the `memory` tier vs the `query`
+tier:
+
+| `>| Sum` query (4000x2500, warm matrix) | axis decode re-run | axis cached |
+|-----------------------------------------|-------------------:|------------:|
+| median                                  |             107 ms |       67 ms |
+
+~40 ms saved per distinct query (1.6x). In MCView, where many distinct queries
+run over the same axes, every query pays that decode without the cache. `% Log`
+benefits identically (its matrix-load path decodes the same axis names).
+
+### Dense parallel compute kernels - measured and REJECTED
+
+With the decode removed, the residual compute (`rowSums` ~24 ms, `abs` ~28 ms
+on 10M elements) is single-threaded. A dense parallel **`% Abs`** kernel
+(`kernel_abs_dense_*`, OpenMP, mirroring `kernel_log_dense.cpp`) was built and
+benchmarked. In **isolation** it is 5-6x faster than R's `abs` (5 ms vs 28 ms).
+But wired into the query it **regressed** `% Abs` from 33 ms to 82 ms
+(within-process, reproducible across rounds, single- *and* multi-threaded). The
+cpp11 `doubles_matrix<>` conversion of the query's in-scope ALTREP matrix copies
+in that context, and the cost is not recovered by parallelising a
+memory-bandwidth-bound op. **Reverted.**
+
+A dense reduction kernel was not pursued: `rowSums` is ~24 ms of the now-67 ms
+`>| Sum` query, the headline gap is already closed by the decode cache, and the
+`% Abs` result shows in-query kernel dispatch can cost more than it saves for
+cheap per-element ops. The `% Log` kernel stays (its per-element cost is high
+enough that parallelism wins despite the conversion: 90 ms vs 216 ms with the
+fast path off).
+
+**Takeaway:** the Phase-1 baseline (282/291 ms) over-attributed the `>| Sum` /
+`% Abs` gaps to single-threaded compute. The real lever for reduction/scalar
+queries was the per-query axis-name decode; the parallel kernels the kickoff
+called for are net-neutral-to-negative for these cheap ops on this stack.

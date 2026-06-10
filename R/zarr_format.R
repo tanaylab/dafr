@@ -380,6 +380,21 @@ S7::method(format_axes_set, ZarrDafReadOnly) <- function(daf) .zarr_axes_set(daf
 }
 
 .zarr_axis_entries <- function(daf, axis) {
+    # Memoize the vlen-utf8 decode. Decoding the axis-name strings from the
+    # store is ~45% of a dense matrix-query's time on a 4000+2500 fixture and
+    # was paid afresh for every distinct query (only an exact-repeat query hit
+    # the QueryData result cache). Cache the decoded vector at the "memory"
+    # tier keyed by cache_key_axis + axis_stamp: distinct queries over the same
+    # axes now decode once. axis_stamp bumps on delete_axis, so a deleted +
+    # recreated axis invalidates correctly (the exact contract the vector /
+    # matrix caches already use). Chains/views over a ZarrDaf delegate
+    # format_axis_array down to here, so they inherit the cache too.
+    cache_env <- S7::prop(daf, "cache")
+    key <- cache_key_axis(axis)
+    stamp_now <- axis_stamp(daf, axis)
+    hit <- cache_lookup(cache_env, "memory", key, stamp_now)
+    if (!is.null(hit)) return(hit)
+
     store <- S7::prop(daf, "store")
     base <- paste0("axes/", axis)
     meta <- zarr_v3_read_array(store, base)
@@ -391,7 +406,10 @@ S7::method(format_axes_set, ZarrDafReadOnly) <- function(daf) .zarr_axes_set(daf
         stop(sprintf("axis %s missing chunk", sQuote(axis)), call. = FALSE)
     }
     n <- as.integer(meta$shape[[1L]])
-    zarr_v3_decode_strings(chunk_bytes, n = n)
+    entries <- zarr_v3_decode_strings(chunk_bytes, n = n)
+    cache_store(cache_env, "memory", key, entries, stamp_now,
+        size_bytes = as.numeric(utils::object.size(entries)))
+    entries
 }
 
 S7::method(format_axis_array, list(ZarrDaf, S7::class_character)) <-
