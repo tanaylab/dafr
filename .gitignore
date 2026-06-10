@@ -8,6 +8,10 @@
 src/symbols.rds
 .DS_Store
 
+# R CMD build / check artifacts
+/*.tar.gz
+/*.Rcheck/
+
 # dev/ is tracked on the `dev` branch and stripped by the ship script
 # before promotion to `main`. The outer .gitignore intentionally does
 # not hide dev/ here so its contents live alongside package sources on
