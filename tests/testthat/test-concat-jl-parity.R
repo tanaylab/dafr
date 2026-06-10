@@ -517,18 +517,19 @@ test_that("concat / merge / vector / last", {
 })
 
 test_that("concat / merge / vector / collect / dense / full", {
-    # Translate Julia's ALL_VECTORS wildcard to the explicit gene|weight key.
-    # The semantics tested (collect-axis produces a (gene x dataset) matrix)
-    # do work via explicit keys.
+    # Julia: merge = [ALL_VECTORS => CollectAxis] (M1 wildcard).
     s <- .merge_vector_setup()
     concatenate(s$destination, "cell", s$sources,
-                merge = list("gene|weight" = MERGE_COLLECT_AXIS))
+                merge = setNames(list(MERGE_COLLECT_AXIS),
+                                 paste(ALL_VECTORS, collapse = "|")))
     expect_false(has_vector(s$destination, "gene", "weight"))
     actual <- get_matrix(s$destination, "gene", "dataset", "weight")
     expected <- matrix(c(1L, 2L, 3L, 4L), nrow = 2L, ncol = 2L,
                        dimnames = list(c("X", "Y"),
                                        c("source.1!", "source.2!")))
     expect_equal(unname(as.matrix(actual)), unname(expected))
+    # All sources dense-stored: the sparse heuristic must keep it dense.
+    expect_false(methods::is(actual, "sparseMatrix"))
 })
 
 test_that("concat / merge / vector / collect / dense / empty / zero", {
@@ -545,6 +546,9 @@ test_that("concat / merge / vector / collect / dense / empty / zero", {
                        dimnames = list(c("X", "Y"),
                                        c("source.1!", "source.2!")))
     expect_equal(unname(as.matrix(actual)), unname(expected))
+    # Julia: a zero empty-fill keeps the missing column sparse, so the
+    # storage-savings heuristic produces a sparse result here.
+    expect_true(methods::is(actual, "sparseMatrix"))
 })
 
 test_that("concat / merge / vector / collect / dense / empty / !zero", {
@@ -561,10 +565,28 @@ test_that("concat / merge / vector / collect / dense / empty / !zero", {
                        dimnames = list(c("X", "Y"),
                                        c("source.1!", "source.2!")))
     expect_equal(unname(as.matrix(actual)), unname(expected))
+    # Julia: a nonzero empty-fill makes the missing column dense, so the
+    # heuristic keeps the whole result dense.
+    expect_false(methods::is(actual, "sparseMatrix"))
 })
 
 test_that("concat / merge / vector / collect / sparse", {
-    skip("R divergence M2: concatenate vector collect-axis path always allocates dense matrix")
+    # Julia: two sparse-input vectors collected along the dataset axis
+    # produce a SparseMatrixCSC. dafr stores them as Matrix::sparseVector
+    # and the collect path returns a dgCMatrix.
+    s <- .merge_vector_setup()
+    set_vector(s$sources[[1L]], "gene", "weight",
+               Matrix::sparseVector(1, 1L, length = 2L), overwrite = TRUE)
+    set_vector(s$sources[[2L]], "gene", "weight",
+               Matrix::sparseVector(2, 2L, length = 2L), overwrite = TRUE)
+    concatenate(s$destination, "cell", s$sources,
+                merge = setNames(list(MERGE_COLLECT_AXIS),
+                                 paste(ALL_VECTORS, collapse = "|")))
+    expect_false(has_vector(s$destination, "gene", "weight"))
+    actual <- get_matrix(s$destination, "gene", "dataset", "weight")
+    expect_true(methods::is(actual, "sparseMatrix"))
+    expect_equal(unname(as.matrix(actual)),
+                 matrix(c(1, 0, 0, 2), nrow = 2L, ncol = 2L))
 })
 
 test_that("concat / merge / vector / !collect", {
