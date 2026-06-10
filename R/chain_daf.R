@@ -70,12 +70,19 @@ chain_reader <- function(dafs, name = NULL) {
             stop("chain entries must all be DafReaders", call. = FALSE)
         }
     }
+    if (length(dafs) == 1L) {
+        return(read_only(dafs[[1L]], name = name))
+    }
     if (is.null(name)) {
         name <- paste(vapply(dafs, function(d) S7::prop(d, "name"), character(1)),
             collapse = ";"
         )
     }
     .validate_chain_axes(dafs, name)
+    .new_read_only_chain(dafs, name)
+}
+
+.new_read_only_chain <- function(dafs, name) {
     ReadOnlyChainDaf(
         name                   = name,
         internal               = new_internal_env(),
@@ -90,24 +97,33 @@ chain_reader <- function(dafs, name = NULL) {
 #' Wrap a writer into a read-only view via a 1-element chain.
 #'
 #' Returns a `ReadOnlyChainDaf` that reads from `daf` but rejects
-#' writes. Implementation delegates to [chain_reader()] with a single
-#' entry; there is no separate read-only class.
+#' writes; there is no separate read-only wrapper class. As in Julia,
+#' `read_only` is the identity on data that is already read-only: if
+#' `daf` is a [DafReadOnly] and no `name` is given, `daf` itself is
+#' returned; passing a `name` always forces a fresh wrapper.
 #'
 #' @param daf A [DafReader] (typically a [DafWriter]).
 #' @param name Optional chain name; defaults to `daf_name(daf)`.
-#' @return A [ReadOnlyChainDaf].
+#' @return `daf` itself if it is already read-only and `name` is
+#'   `NULL`; otherwise a [ReadOnlyChainDaf].
 #' @examples
 #' d <- memory_daf(name = "inner")
 #' add_axis(d, "cell", c("c1", "c2"))
 #' ro <- read_only(d)
 #' daf_name(ro)
+#' identical(read_only(ro), ro)
 #' @seealso [chain_reader()], [is_daf()]
 #' @export
 read_only <- function(daf, name = NULL) {
     if (!is_daf(daf)) {
         stop("`daf` must be a DafReader", call. = FALSE)
     }
-    chain_reader(list(daf), name = name %||% S7::prop(daf, "name"))
+    if (is.null(name) && S7::S7_inherits(daf, DafReadOnly)) {
+        return(daf)
+    }
+    name <- name %||% S7::prop(daf, "name")
+    .validate_chain_axes(list(daf), name)
+    .new_read_only_chain(list(daf), name)
 }
 
 #' Create a chain of DafReaders with a final DafWriter.
@@ -131,6 +147,11 @@ chain_writer <- function(dafs, name = NULL) {
         if (!S7::S7_inherits(d, DafReader)) {
             stop("chain entries must all be DafReaders", call. = FALSE)
         }
+    }
+    # Julia parity: a singleton chain with no explicit name is the input
+    # itself (chains.jl chain_writer fast-path, ahead of the writer check).
+    if (length(dafs) == 1L && is.null(name)) {
+        return(dafs[[1L]])
     }
     writer <- dafs[[length(dafs)]]
     if (!S7::S7_inherits(writer, DafWriter)) {

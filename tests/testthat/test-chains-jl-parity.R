@@ -55,15 +55,22 @@ test_that("chains / empty / !name / writer", {
 # ---------------------------------------------------------------------------
 
 test_that("chains / one / reader", {
-    # Julia: chain_reader([read_only(d)]) returns the same object.
-    # dafr divergence C1: chain_reader always wraps in a new
-    # ReadOnlyChainDaf, even for a singleton list. The wrapper has the
-    # same readable contents but is not identical to the input.
-    skip("R divergence C1: chain_reader/chain_writer always wrap singleton inputs (no identity optimization)")
+    # Julia: chain_reader([read_only(d)]) returns the same object
+    # (chains.jl singleton fast-path delegates to read_only, which is
+    # the identity on an already-read-only daf when no name is given).
+    # complete_path assertions from the Julia leaf are skipped: C5
+    # divergence (dafr errors on memory-backed paths instead of NULL).
+    s <- .fresh()
+    read_first <- read_only(s$first)
+    read_chain <- chain_reader(list(read_first))
+    expect_identical(read_chain, read_first)
 })
 
 test_that("chains / one / writer", {
-    skip("R divergence C1: chain_reader/chain_writer always wrap singleton inputs (no identity optimization)")
+    # Julia: chain_writer([d]) === d when no name is given.
+    s <- .fresh()
+    write_chain <- chain_writer(list(s$first))
+    expect_identical(write_chain, s$first)
 })
 
 # ---------------------------------------------------------------------------
@@ -77,16 +84,20 @@ test_that("chains / two", {
         regexp = "read-only final data.*chain!|chain!.*read-only final data"
     )
     read_chain <- chain_reader(list(s$first, s$second))
-    # Julia: read_only(read_chain) === read_chain (idempotent on read
-    # chain). dafr wraps; covered by C1, but the named-rewrap case still
-    # differs object identity.
+    # Julia: read_only(read_chain) === read_chain (idempotent on a read
+    # chain); a fresh name forces a rewrap; a write chain always wraps.
     # complete_path Julia-vs-dafr divergence (C5): Julia returns nothing
     # for memory-backed chains, dafr errors "no filesystem path".
-    # Skipped here; the substantive `read-only final data` assertion above
-    # is the test's main point.
+    # Skipped here.
     expect_true(is_daf(read_chain))
+    expect_identical(read_only(read_chain), read_chain)
+    expect_false(identical(
+        read_only(read_chain, name = "read-only first!;second!"),
+        read_chain
+    ))
     write_chain <- chain_writer(list(s$first, s$second))
     expect_true(is_daf(write_chain))
+    expect_false(identical(read_only(write_chain), write_chain))
 })
 
 # ---------------------------------------------------------------------------
