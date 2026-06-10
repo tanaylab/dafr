@@ -7,7 +7,7 @@
 
     <a class="navbar-brand me-2" href="../index.html">dafr</a>
 
-    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">0.4.1</small>
+    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">0.4.2</small>
 
 
     <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbar" aria-controls="navbar" aria-expanded="false" aria-label="Toggle navigation">
@@ -45,6 +45,19 @@
       <small>Source: <a href="https://github.com/tanaylab/dafr/blob/main/NEWS.md" class="external-link"><code>NEWS.md</code></a></small>
     </div>
 
+    <div class="section level2">
+<h2 class="pkg-version" data-toc-text="0.4.2" id="dafr-042">dafr 0.4.2<a class="anchor" aria-label="anchor" href="#dafr-042"></a></h2>
+<div class="section level3">
+<h3 id="test-coverage--parity-0-4-2">Test coverage + parity<a class="anchor" aria-label="anchor" href="#test-coverage--parity-0-4-2"></a></h3>
+<ul><li>Expanded test coverage against the DataAxesFormats.jl test suite after a full coverage audit + adversarial R-vs-Julia sweep:
+<ul><li>Packed FilesDaf read is now exercised across <strong>every</strong> numeric dtype (<code>Int8</code>..<code>UInt64</code>, <code>Float32</code>/<code>64</code>) plus all-true <code>Bool</code> sparse, <code>NaN</code>/<code>Inf</code>, and <code>vlen-utf8</code> unicode/control strings (previously only <code>Float64</code>/<code>Int64</code>).</li>
+<li>Vector <code>&gt;&gt;</code> reductions on <code>NaN</code>/<code>±Inf</code> inputs are pinned against DAF.jl.</li>
+<li>Sparse <code>Float</code>/<code>Bool</code>/<code>Int</code> vector round-trips (memory + files), <code>copy_vector</code> superset <code>empty</code> fill, and <code>group_names</code> determinism.</li>
+</ul></li>
+<li>
+<strong>Documented divergence:</strong> <code>&gt;&gt; Median</code> of a vector containing both <code>NaN</code> and <code>±Inf</code> returns <code>NaN</code> in dafr vs <code>-Inf</code> in DataAxesFormats.jl (every other reduction on such input is <code>NaN</code> in both). R’s <code>NaN</code> is arguably the more correct answer; matching Julia would require reimplementing its median kernel. See <code>dev/adversarial-parity/FINDINGS.md</code> (E1).</li>
+</ul></div>
+</div>
     <div class="section level2">
 <h2 class="pkg-version" data-toc-text="0.4.1" id="dafr-041">dafr 0.4.1<a class="anchor" aria-label="anchor" href="#dafr-041"></a></h2>
 <div class="section level3">
