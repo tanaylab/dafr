@@ -2,7 +2,7 @@
 % Please edit documentation in R/zarr_store.R
 \name{new_dir_store}
 \alias{new_dir_store}
-\title{Create a directory-backed Zarr v2 store.}
+\title{Create a directory-backed Zarr store.}
 \usage{
 new_dir_store(root)
 }

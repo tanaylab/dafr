@@ -2,7 +2,7 @@
 % Please edit documentation in R/zarr_store.R
 \name{new_mmap_zip_store}
 \alias{new_mmap_zip_store}
-\title{Create a zip-archive-backed Zarr v2 store (mmap, append-only).}
+\title{Create a zip-archive-backed Zarr store (mmap, append-only).}
 \usage{
 new_mmap_zip_store(path, mode = "r", max_file_size = 2^40)
 }
@@ -18,7 +18,7 @@ bytes. Ignored for read-only opens. Defaults to 1 TiB.}
 A \code{MmapZipStore}.
 }
 \description{
-Opens (or creates) a single ZIP archive at \code{path} as a Zarr v2 store.
+Opens (or creates) a single ZIP archive at \code{path} as a Zarr store.
 Reads use a shared mmap of the archive (zero-copy for stored entries
 via ALTREP RAW); writes append entries with a crash-safe two-step
 commit protocol. Mirrors upstream

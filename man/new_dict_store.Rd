@@ -2,7 +2,7 @@
 % Please edit documentation in R/zarr_store.R
 \name{new_dict_store}
 \alias{new_dict_store}
-\title{Create an in-memory Zarr v2 store.}
+\title{Create an in-memory Zarr store.}
 \usage{
 new_dict_store()
 }

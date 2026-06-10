@@ -257,6 +257,41 @@ extern "C" SEXP _dafr_dafr_mmap_zip_set_crash_counter(SEXP xptr, SEXP counter, S
     return cpp11::as_sexp(dafr_mmap_zip_set_crash_counter(cpp11::as_cpp<cpp11::decay_t<SEXP>>(xptr), cpp11::as_cpp<cpp11::decay_t<SEXP>>(counter), cpp11::as_cpp<cpp11::decay_t<SEXP>>(ns_env)));
   END_CPP11
 }
+// shard_codecs.cpp
+double dafr_crc32c_cpp(cpp11::raws x);
+extern "C" SEXP _dafr_dafr_crc32c_cpp(SEXP x) {
+  BEGIN_CPP11
+    return cpp11::as_sexp(dafr_crc32c_cpp(cpp11::as_cpp<cpp11::decay_t<cpp11::raws>>(x)));
+  END_CPP11
+}
+// shard_codecs.cpp
+cpp11::raws dafr_blosc_decompress_cpp(cpp11::raws src, double out_nbytes);
+extern "C" SEXP _dafr_dafr_blosc_decompress_cpp(SEXP src, SEXP out_nbytes) {
+  BEGIN_CPP11
+    return cpp11::as_sexp(dafr_blosc_decompress_cpp(cpp11::as_cpp<cpp11::decay_t<cpp11::raws>>(src), cpp11::as_cpp<cpp11::decay_t<double>>(out_nbytes)));
+  END_CPP11
+}
+// shard_codecs.cpp
+cpp11::raws dafr_zstd_decompress_cpp(cpp11::raws src, double out_nbytes);
+extern "C" SEXP _dafr_dafr_zstd_decompress_cpp(SEXP src, SEXP out_nbytes) {
+  BEGIN_CPP11
+    return cpp11::as_sexp(dafr_zstd_decompress_cpp(cpp11::as_cpp<cpp11::decay_t<cpp11::raws>>(src), cpp11::as_cpp<cpp11::decay_t<double>>(out_nbytes)));
+  END_CPP11
+}
+// shard_codecs.cpp
+bool dafr_have_blosc_cpp();
+extern "C" SEXP _dafr_dafr_have_blosc_cpp() {
+  BEGIN_CPP11
+    return cpp11::as_sexp(dafr_have_blosc_cpp());
+  END_CPP11
+}
+// shard_codecs.cpp
+bool dafr_have_zstd_cpp();
+extern "C" SEXP _dafr_dafr_have_zstd_cpp() {
+  BEGIN_CPP11
+    return cpp11::as_sexp(dafr_have_zstd_cpp());
+  END_CPP11
+}
 // thread_control.cpp
 void dafr_set_num_threads(int n);
 extern "C" SEXP _dafr_dafr_set_num_threads(SEXP n) {
@@ -282,8 +317,12 @@ extern "C" SEXP _dafr_dafr_has_openmp() {
 
 extern "C" {
 static const R_CallMethodDef CallEntries[] = {
+    {"_dafr_dafr_blosc_decompress_cpp",       (DL_FUNC) &_dafr_dafr_blosc_decompress_cpp,        2},
+    {"_dafr_dafr_crc32c_cpp",                 (DL_FUNC) &_dafr_dafr_crc32c_cpp,                  1},
     {"_dafr_dafr_get_max_threads",            (DL_FUNC) &_dafr_dafr_get_max_threads,             0},
     {"_dafr_dafr_has_openmp",                 (DL_FUNC) &_dafr_dafr_has_openmp,                  0},
+    {"_dafr_dafr_have_blosc_cpp",             (DL_FUNC) &_dafr_dafr_have_blosc_cpp,              0},
+    {"_dafr_dafr_have_zstd_cpp",              (DL_FUNC) &_dafr_dafr_have_zstd_cpp,               0},
     {"_dafr_dafr_mmap_zip_close",             (DL_FUNC) &_dafr_dafr_mmap_zip_close,              1},
     {"_dafr_dafr_mmap_zip_data_offsets",      (DL_FUNC) &_dafr_dafr_mmap_zip_data_offsets,       1},
     {"_dafr_dafr_mmap_zip_delete",            (DL_FUNC) &_dafr_dafr_mmap_zip_delete,             2},
@@ -296,6 +335,7 @@ static const R_CallMethodDef CallEntries[] = {
     {"_dafr_dafr_mmap_zip_set_bytes",         (DL_FUNC) &_dafr_dafr_mmap_zip_set_bytes,          3},
     {"_dafr_dafr_mmap_zip_set_crash_counter", (DL_FUNC) &_dafr_dafr_mmap_zip_set_crash_counter,  3},
     {"_dafr_dafr_set_num_threads",            (DL_FUNC) &_dafr_dafr_set_num_threads,             1},
+    {"_dafr_dafr_zstd_decompress_cpp",        (DL_FUNC) &_dafr_dafr_zstd_decompress_cpp,         2},
     {"_dafr_is_altrep_cpp",                   (DL_FUNC) &_dafr_is_altrep_cpp,                    1},
     {"_dafr_kernel_csc_colsums_cpp",          (DL_FUNC) &_dafr_kernel_csc_colsums_cpp,           4},
     {"_dafr_kernel_geomean_csc_cpp",          (DL_FUNC) &_dafr_kernel_geomean_csc_cpp,           8},

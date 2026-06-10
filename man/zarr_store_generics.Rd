@@ -7,7 +7,7 @@
 \alias{store_delete}
 \alias{store_exists}
 \alias{store_list}
-\title{Zarr v2 store generics.}
+\title{Zarr store generics.}
 \usage{
 store_get_bytes(store, path, ...)
 
@@ -34,7 +34,7 @@ store_list(store, prefix, ...)
 See individual descriptions above.
 }
 \description{
-Low-level byte-level operations on a \link{ZarrStore}. All Zarr v2 I/O
+Low-level byte-level operations on a \link{ZarrStore}. All Zarr I/O
 goes through these five generics so the storage backend is
 interchangeable.
 }

@@ -1,0 +1,6 @@
+#!/bin/sh
+# Stock Windows has no system c-blosc/libzstd; emit empty substitutions so the
+# flat ZarrDaf path builds. Packed/sharded read errors actionably at runtime.
+sed -e "s|@DAFR_SHARD_CPPFLAGS@||" \
+    -e "s|@DAFR_SHARD_LIBS@||" \
+    src/Makevars.in > src/Makevars.win

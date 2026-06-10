@@ -2,29 +2,43 @@
 % Please edit documentation in R/http_store.R
 \name{HttpStore}
 \alias{HttpStore}
-\title{Read-only HTTP-served Zarr store.}
+\title{Read-only HTTP-served Zarr v3 store.}
 \usage{
 HttpStore(
   url = character(0),
-  zmetadata = list(),
+  index = list(),
   chunk_cache = new.env(parent = emptyenv())
 )
 }
 \arguments{
-\item{url}{Root URL of the served Zarr v2 directory.}
+\item{url}{Root URL of the served Zarr v3 directory.}
 
-\item{zmetadata}{Parsed consolidated \code{.zmetadata} content.}
+\item{index}{Named list: the v3 node metadata index parsed from the root
+\code{zarr.json} \code{consolidated_metadata.metadata} (keyed by node path, with no
+\verb{/zarr.json} suffix).}
 
-\item{chunk_cache}{Environment caching fetched chunk bytes by path.}
+\item{chunk_cache}{Environment caching fetched chunk bytes (and the root
+\code{zarr.json}) by path.}
 }
 \description{
 Implements the \link{ZarrStore} interface over HTTP(S). Used by
 \code{\link[=zarr_daf]{zarr_daf()}} when given an \verb{http(s)://} URL pointing at a \code{.daf.zarr}
-directory served by a static web server. Reads \code{.zmetadata}
-(consolidated metadata) once at open; subsequent \code{store_exists} /
-\code{store_list} resolve against the parsed dictionary, and chunk fetches
-are cached in process memory.
+directory served by a static web server. Reads the \strong{Zarr v3} inline
+consolidated metadata from the root \code{zarr.json} once at open: v3 stores
+carry \code{consolidated_metadata.metadata} (a dict keyed by node path) in the
+root group instead of the v2 \code{.zmetadata} file. Subsequent \code{store_exists}
+and \code{store_list} resolve against that index, node \code{zarr.json} reads are
+served from it (re-serialized to the bytes the reader would otherwise have
+fetched per node), and chunk fetches are cached in process memory.
 }
 \details{
 Writes hard-error: HTTP-served Zarr is read-only.
+
+Zarr version: this backend targets the \strong{Zarr v3} on-disk layout that
+\code{dafr} reads and writes locally (DataAxesFormats.jl 0.3.0). A legacy v2
+store (root \code{.zmetadata}, no root \code{zarr.json}) is rejected on open with a
+\verb{python -m zarr v2_to_v3} conversion hint, mirroring the local \code{DirStore} /
+\code{MmapZipStore} v2 rejection. Note this is distinct from \code{http_daf()} (the
+FilesFormat-over-HTTP path in \code{\link[=http_daf]{http_daf()}}), which uses \code{metadata.zip} and
+is unaffected.
 }

@@ -120,18 +120,20 @@ test_that("Python's zipfile lists every entry of a dafr-written zarr_daf", {
     rm(d); gc()
 
     out <- read_zip_via_python(path)
-    # Every dafr-written zarr_daf has these structural members; the upstream
-    # `daf` marker array plus root .zgroup must be present (not daf.json).
-    expect_true("daf/.zarray" %in% names(out))
-    expect_true("daf/0" %in% names(out))
+    # Every dafr-written zarr_daf has these Zarr v3 structural members: a root
+    # zarr.json group (carrying the `daf` version attribute, not a `daf` array)
+    # and per-node zarr.json + c/-prefixed chunks (not daf.json, no .zgroup).
+    expect_true("zarr.json" %in% names(out))
     expect_false("daf.json" %in% names(out))
-    expect_true(".zgroup" %in% names(out))
+    expect_false(".zgroup" %in% names(out))
     # The axis array under axes/cell.
-    expect_true("axes/cell/.zarray" %in% names(out))
-    expect_true("axes/cell/0" %in% names(out))
+    expect_true("axes/cell/zarr.json" %in% names(out))
+    expect_true("axes/cell/c/0" %in% names(out))
     # The scalar.
-    expect_true("scalars/k/.zarray" %in% names(out))
-    expect_true("scalars/k/0" %in% names(out))
-    # The `daf` marker chunk holds the two version bytes [MAJOR, MINOR] = [1, 0].
-    expect_identical(as.integer(out[["daf/0"]]), c(1L, 0L))
+    expect_true("scalars/k/zarr.json" %in% names(out))
+    expect_true("scalars/k/c/0" %in% names(out))
+    # The root zarr.json carries the daf version attribute [MAJOR, MINOR] = [1, 0].
+    root <- jsonlite::fromJSON(rawToChar(out[["zarr.json"]]),
+                               simplifyVector = FALSE)
+    expect_identical(as.integer(unlist(root$attributes$daf)), c(1L, 0L))
 })

@@ -5,18 +5,24 @@
 \alias{DirStore}
 \alias{DictStore}
 \alias{MmapZipStore}
-\title{Zarr v2 Store abstract base class.}
+\title{Zarr Store abstract base class.}
 \usage{
 ZarrStore()
 
-DirStore(root = character(0))
+DirStore(root = character(0), consolidate_cache = new.env(parent = emptyenv()))
 
-DictStore(env = NULL)
+DictStore(env = NULL, consolidate_cache = new.env(parent = emptyenv()))
 
 MmapZipStore(path = character(0), mode = character(0), xptr = NULL)
 }
 \arguments{
 \item{root}{(\code{DirStore}) Filesystem root path; created if missing.}
+
+\item{consolidate_cache}{(\code{DirStore}/\code{DictStore}) Internal environment
+holding the in-memory consolidated-metadata index, maintained
+incrementally across writes so \verb{set_*} need not re-parse the whole
+store root on every mutation. Created automatically; not intended for
+direct use.}
 
 \item{env}{(\code{DictStore}) Internal environment used as the key-value
 backing store; typically created by \code{\link[=new_dict_store]{new_dict_store()}}.}

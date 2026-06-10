@@ -279,8 +279,10 @@ test_that("set_vector auto-sparsifies a vector dominated by zeros", {
     set_vector(d, "cell", "x", v)
     j <- jsonlite::fromJSON(file.path(dir, "vectors", "cell", "x.json"))
     expect_equal(j$format, "sparse")
-    expect_equal(j$eltype, "Float64")
-    expect_equal(j$indtype, "UInt32")
+    # v1.1 per-component descriptor: eltype/indtype live in nzval/nzind.
+    expect_equal(j$nzval$eltype, "Float64")
+    expect_equal(j$nzind$eltype, "UInt32")
+    expect_equal(j$nzind$n_elements, 3L)
     idx <- readBin(file.path(dir, "vectors", "cell", "x.nzind"),
         what = "integer", n = 3L, size = 4L, endian = "little"
     )
@@ -308,7 +310,9 @@ test_that("set_vector sparse Bool all-TRUE omits .nzval", {
     set_vector(d, "cell", "b", v)
     j <- jsonlite::fromJSON(file.path(dir, "vectors", "cell", "b.json"))
     expect_equal(j$format, "sparse")
-    expect_equal(j$eltype, "Bool")
+    # v1.1: all-true Bool omits the nzval payload AND its component descriptor.
+    expect_false(is.null(j$nzind))
+    expect_null(j$nzval)
     expect_true(file.exists(file.path(dir, "vectors", "cell", "b.nzind")))
     expect_false(file.exists(file.path(dir, "vectors", "cell", "b.nzval")))
     d2 <- files_daf(dir, mode = "r")
@@ -324,7 +328,7 @@ test_that("set_vector sparse string writes .nztxt with only non-empty values", {
     set_vector(d, "cell", "s", v)
     j <- jsonlite::fromJSON(file.path(dir, "vectors", "cell", "s.json"))
     expect_equal(j$format, "sparse")
-    expect_equal(j$eltype, "String")
+    expect_equal(j$nzval$eltype, "String")   # v1.1 per-component descriptor
     expect_equal(readLines(file.path(dir, "vectors", "cell", "s.nztxt")), "hello")
     d2 <- files_daf(dir, mode = "r")
     expect_equal(unname(get_vector(d2, "cell", "s")), v)

@@ -303,11 +303,27 @@ S7::method(
         # via .files_parse_sparse_descriptor.
         return(j)
     }
+    if (!is.null(j$packed_format)) {
+        # Packed (chunked + compressed) dense property: keep the full descriptor
+        # (packed_format / chunk_shape / compression / eltype) so the packed
+        # readers can route and decode the fetched `.zip` shard.
+        return(j)
+    }
     list(
         format  = fmt,
         eltype  = .dtype_canonical(j$eltype),
         indtype = if (is.null(j$indtype)) NULL else .dtype_canonical(j$indtype)
     )
+}
+
+# Fetch + decode a sparse component (colptr/rowval/nzind/nzval) over HTTP, flat
+# or packed (a `<base>.<comp>.zip` dual-format shard).
+.http_read_sparse_component <- function(base, comp, comp_desc, count, type) {
+    if (!is.null(comp_desc) && .files_is_packed(comp_desc)) {
+        return(.files_packed_decode_vector(
+            .dafr_http_get(paste0(base, ".", comp, ".zip")), comp_desc, count, comp))
+    }
+    .http_bytes_to_dense(.dafr_http_get(paste0(base, ".", comp)), type, count)
 }
 
 # ---- Vectors ---------------------------------------------------------------
@@ -343,6 +359,12 @@ S7::method(
     base <- paste0(.http_url(daf), "/vectors/", axis, "/", name)
 
     if (desc$format == "dense") {
+        if (.files_is_packed(desc)) {
+            v <- .files_packed_decode_vector(
+                .dafr_http_get(paste0(base, ".zip")), desc, n, name)
+            return(.cache_group_value(
+                .attach_vector_axis_names(daf, axis, v), MEMORY_DATA))
+        }
         if (desc$eltype == "String") {
             bytes <- .dafr_http_get(paste0(base, ".txt"))
             lines <- .http_split_text_lines(bytes)
@@ -363,9 +385,15 @@ S7::method(
     sd <- .files_parse_sparse_descriptor(desc, "nzind")
     indtype <- sd$indtype
     eltype <- sd$eltype
-    nzind_bytes <- .dafr_http_get(paste0(base, ".nzind"))
-    nnz <- length(nzind_bytes) %/% .dtype_size(indtype)
-    idx <- .http_bytes_to_dense(nzind_bytes, indtype, nnz)
+    if (!is.null(desc$nzind) && .files_is_packed(desc$nzind)) {
+        nnz <- as.integer(desc$nzind$n_elements)
+        idx <- .files_packed_decode_vector(
+            .dafr_http_get(paste0(base, ".nzind.zip")), desc$nzind, nnz, "nzind")
+    } else {
+        nzind_bytes <- .dafr_http_get(paste0(base, ".nzind"))
+        nnz <- length(nzind_bytes) %/% .dtype_size(indtype)
+        idx <- .http_bytes_to_dense(nzind_bytes, indtype, nnz)
+    }
 
     if (eltype == "String") {
         nztxt_bytes <- .dafr_http_get(paste0(base, ".nztxt"))
@@ -380,20 +408,30 @@ S7::method(
             .attach_vector_axis_names(daf, axis, out), MEMORY_DATA))
     }
     if (eltype == "Bool") {
-        nzval_bytes <- .dafr_http_get(paste0(base, ".nzval"), allow_404 = TRUE)
         out <- logical(n)
-        if (is.null(nzval_bytes)) {
-            # All-true Bool optimization: .nzval absent → every nzind is TRUE.
-            out[as.integer(idx)] <- TRUE
-        } else {
-            vals <- as.logical(.http_bytes_to_dense(nzval_bytes, "Bool", nnz))
+        if (!is.null(desc$nzval) && .files_is_packed(desc$nzval)) {
+            vals <- as.logical(.files_packed_decode_vector(
+                .dafr_http_get(paste0(base, ".nzval.zip")), desc$nzval, nnz, "nzval"))
             out[as.integer(idx)] <- vals
+        } else {
+            nzval_bytes <- .dafr_http_get(paste0(base, ".nzval"), allow_404 = TRUE)
+            if (is.null(nzval_bytes)) {
+                # All-true Bool optimization: .nzval absent → every nzind is TRUE.
+                out[as.integer(idx)] <- TRUE
+            } else {
+                out[as.integer(idx)] <- as.logical(
+                    .http_bytes_to_dense(nzval_bytes, "Bool", nnz))
+            }
         }
         return(.cache_group_value(
             .attach_vector_axis_names(daf, axis, out), MEMORY_DATA))
     }
-    nzval_bytes <- .dafr_http_get(paste0(base, ".nzval"))
-    vals <- .http_bytes_to_dense(nzval_bytes, eltype, nnz)
+    vals <- if (!is.null(desc$nzval) && .files_is_packed(desc$nzval)) {
+        .files_packed_decode_vector(
+            .dafr_http_get(paste0(base, ".nzval.zip")), desc$nzval, nnz, "nzval")
+    } else {
+        .http_bytes_to_dense(.dafr_http_get(paste0(base, ".nzval")), eltype, nnz)
+    }
     out <- .http_zero_vector(eltype, n)
     out[as.integer(idx)] <- vals
     .cache_group_value(.attach_vector_axis_names(daf, axis, out), MEMORY_DATA)
@@ -435,6 +473,14 @@ S7::method(
                    "/", name)
 
     if (desc$format == "dense") {
+        if (.files_is_packed(desc)) {
+            v <- .files_packed_decode_matrix(
+                .dafr_http_get(paste0(base, ".zip")), desc,
+                as.integer(nr), as.integer(nc), name)
+            return(.cache_group_value(
+                .attach_matrix_axis_dimnames(daf, rows_axis, columns_axis, v),
+                MEMORY_DATA))
+        }
         if (desc$eltype == "String") {
             bytes <- .dafr_http_get(paste0(base, ".txt"))
             vals <- .http_split_text_lines(bytes)
@@ -461,23 +507,25 @@ S7::method(
     sd <- .files_parse_sparse_descriptor(desc, "colptr")
     indtype <- sd$indtype
     eltype <- sd$eltype
-    colptr_bytes <- .dafr_http_get(paste0(base, ".colptr"))
-    colptr <- .http_bytes_to_dense(colptr_bytes, indtype,
-                                   as.integer(nc) + 1L)
+    colptr <- .http_read_sparse_component(base, "colptr", desc$colptr,
+                                          as.integer(nc) + 1L, indtype)
     nnz <- as.integer(colptr[length(colptr)]) - 1L
     rowval <- if (nnz > 0L) {
-        rowval_bytes <- .dafr_http_get(paste0(base, ".rowval"))
-        .http_bytes_to_dense(rowval_bytes, indtype, nnz)
+        .http_read_sparse_component(base, "rowval", desc$rowval, nnz, indtype)
     } else {
         integer(0L)
     }
 
     if (eltype == "Bool") {
-        nzval_bytes <- .dafr_http_get(paste0(base, ".nzval"), allow_404 = TRUE)
-        vals <- if (is.null(nzval_bytes)) {
-            rep(TRUE, nnz)
+        vals <- if (!is.null(desc$nzval) && .files_is_packed(desc$nzval)) {
+            as.logical(.http_read_sparse_component(base, "nzval", desc$nzval, nnz, "Bool"))
         } else {
-            as.logical(.http_bytes_to_dense(nzval_bytes, "Bool", nnz))
+            nzval_bytes <- .dafr_http_get(paste0(base, ".nzval"), allow_404 = TRUE)
+            if (is.null(nzval_bytes)) {
+                rep(TRUE, nnz)
+            } else {
+                as.logical(.http_bytes_to_dense(nzval_bytes, "Bool", nnz))
+            }
         }
         m <- methods::new("lgCMatrix",
             x = vals,
@@ -515,9 +563,8 @@ S7::method(
             MEMORY_DATA))
     }
 
-    nzval_bytes <- .dafr_http_get(paste0(base, ".nzval"))
     vals <- if (nnz > 0L) {
-        .http_bytes_to_dense(nzval_bytes, eltype, nnz)
+        .http_read_sparse_component(base, "nzval", desc$nzval, nnz, eltype)
     } else {
         double(0L)
     }

@@ -250,6 +250,10 @@ S7::method(
     root <- .files_root(daf)
     dir <- .path_vector_dir(root, axis)
     elt <- desc$eltype
+    if (.files_is_packed(desc)) {
+        return(.files_read_packed_vector(
+            file.path(dir, paste0(name, ".zip")), desc, n, name = name))
+    }
     if (elt == "String") {
         return(.files_get_vector_dense_string(daf, axis, name, n))
     }
@@ -278,18 +282,40 @@ S7::method(
     .read_bin_dense(data_path, n, elt)
 }
 
-# Flat sparse components carry `"format":"dense"`; packed components (a `.zip`
-# payload, DataAxesFormats.jl 0.3.0 "packed" format) carry a `packed_format`
-# key. dafr does not read packed properties yet, so reject them clearly.
-.files_reject_packed_component <- function(comp, component_name) {
-    if (!is.null(comp$packed_format) ||
-        (!is.null(comp$format) && comp$format != "dense")) {
-        stop(sprintf(paste0(
-            "files_daf: packed sparse component %s is not supported ",
-            "(DataAxesFormats.jl 0.3.0 packed format); re-save with flat ",
-            "components"), sQuote(component_name)), call. = FALSE)
+# Number of nonzeros for a sparse index component: from its descriptor's
+# `n_elements` when packed (no flat file to size), else from the flat file size.
+.files_sparse_nnz <- function(dir, name, comp, comp_desc, indtype) {
+    if (!is.null(comp_desc) && .files_is_packed(comp_desc)) {
+        return(as.integer(comp_desc$n_elements))
     }
-    invisible()
+    flat <- file.path(dir, paste0(name, ".", comp))
+    if (!file.exists(flat)) {
+        stop(sprintf("files_daf: sparse property %s missing .%s",
+                     sQuote(name), comp), call. = FALSE)
+    }
+    as.integer(file.size(flat) %/% .dtype_size(indtype))
+}
+
+# TRUE if a sparse component's payload exists on disk (the `.zip` shard when
+# packed, else the flat component file).
+.files_component_exists <- function(dir, name, comp, comp_desc) {
+    if (!is.null(comp_desc) && .files_is_packed(comp_desc)) {
+        file.exists(file.path(dir, paste0(name, ".", comp, ".zip")))
+    } else {
+        file.exists(file.path(dir, paste0(name, ".", comp)))
+    }
+}
+
+# Read a sparse component (colptr/rowval/nzind/nzval) flat or packed. The
+# per-component descriptor `comp_desc` (v1.1) carries `packed_format` when the
+# component is a `.zip` shard; v1.0 descriptors are NULL and always flat.
+.files_read_sparse_component <- function(dir, name, comp, comp_desc, count, type) {
+    flat <- file.path(dir, paste0(name, ".", comp))
+    if (!is.null(comp_desc) && .files_is_packed(comp_desc)) {
+        return(.files_read_packed_vector(paste0(flat, ".zip"), comp_desc, count,
+                                         name = paste0(name, ".", comp)))
+    }
+    .read_bin_dense(flat, count, type)
 }
 
 # Extract (eltype, indtype) from a sparse property's JSON descriptor, handling
@@ -311,9 +337,7 @@ S7::method(
             "files_daf: malformed v1.1 sparse descriptor (missing %s component)",
             sQuote(indtype_property)), call. = FALSE)
     }
-    .files_reject_packed_component(ind_desc, indtype_property)
     eltype <- if (!is.null(desc$nzval)) {
-        .files_reject_packed_component(desc$nzval, "nzval")
         desc$nzval$eltype
     } else {
         "Bool"
@@ -323,20 +347,17 @@ S7::method(
 
 .files_get_vector_sparse <- function(daf, axis, name, desc, n) {
     vdir <- .path_vector_dir(.files_root(daf), axis)
-    ind_path <- file.path(vdir, paste0(name, ".nzind"))
-    if (!file.exists(ind_path)) {
-        stop(sprintf("files_daf: sparse vector %s missing .nzind", sQuote(name)),
-            call. = FALSE
-        )
-    }
     sd <- .files_parse_sparse_descriptor(desc, "nzind")
     indtype <- sd$indtype
     eltype <- sd$eltype
-    nnz <- file.size(ind_path) %/% .dtype_size(indtype)
-    idx <- .read_bin_dense(ind_path, nnz, indtype)
+    nnz <- .files_sparse_nnz(vdir, name, "nzind", desc$nzind, indtype)
+    idx <- .files_read_sparse_component(vdir, name, "nzind", desc$nzind, nnz, indtype)
     if (eltype == "Bool") {
+        nzd <- desc$nzval
         val_path <- file.path(vdir, paste0(name, ".nzval"))
-        vals <- if (file.exists(val_path)) {
+        vals <- if (!is.null(nzd) && .files_is_packed(nzd)) {
+            as.logical(.files_read_sparse_component(vdir, name, "nzval", nzd, nnz, "Bool"))
+        } else if (file.exists(val_path)) {
             as.logical(.read_bin_dense(val_path, nnz, "Bool"))
         } else {
             rep(TRUE, nnz)
@@ -358,14 +379,7 @@ S7::method(
         out[as.integer(idx)] <- vals
         return(out)
     }
-    val_path <- file.path(vdir, paste0(name, ".nzval"))
-    if (!file.exists(val_path)) {
-        stop(sprintf(
-            "files_daf: sparse vector %s missing .nzval for non-Bool eltype",
-            sQuote(name)
-        ), call. = FALSE)
-    }
-    vals <- .read_bin_dense(val_path, nnz, eltype)
+    vals <- .files_read_sparse_component(vdir, name, "nzval", desc$nzval, nnz, eltype)
     out <- if (eltype %in% c("Int8", "Int16", "Int32", "UInt8", "UInt16", "UInt32")) {
         integer(n)
     } else if (eltype %in% c("Int64", "UInt64")) {
@@ -510,6 +524,11 @@ S7::method(
     root <- .files_root(daf)
     mdir <- .path_matrix_dir(root, rows_axis, columns_axis)
     elt <- desc$eltype
+    if (.files_is_packed(desc)) {
+        return(.files_read_packed_matrix(
+            file.path(mdir, paste0(name, ".zip")), desc,
+            as.integer(nr), as.integer(nc), name = name))
+    }
     if (elt == "String") {
         return(.files_get_matrix_dense_string(mdir, name, nr, nc))
     }
@@ -571,24 +590,27 @@ S7::method(
     sd <- .files_parse_sparse_descriptor(desc, "colptr")
     indtype <- sd$indtype
     eltype <- sd$eltype
-    colptr_path <- file.path(mdir, paste0(name, ".colptr"))
-    rowval_path <- file.path(mdir, paste0(name, ".rowval"))
     nzval_path <- file.path(mdir, paste0(name, ".nzval"))
-    if (!file.exists(colptr_path) || !file.exists(rowval_path)) {
+    if (!.files_component_exists(mdir, name, "colptr", desc$colptr) ||
+        !.files_component_exists(mdir, name, "rowval", desc$rowval)) {
         stop(sprintf(
             "files_daf: sparse matrix %s missing colptr/rowval",
             sQuote(name)
         ), call. = FALSE)
     }
-    colptr <- .read_bin_dense(colptr_path, as.integer(nc) + 1L, indtype)
+    colptr <- .files_read_sparse_component(mdir, name, "colptr", desc$colptr,
+                                           as.integer(nc) + 1L, indtype)
     nnz <- as.integer(colptr[length(colptr)]) - 1L
     rowval <- if (nnz > 0L) {
-        .read_bin_dense(rowval_path, nnz, indtype)
+        .files_read_sparse_component(mdir, name, "rowval", desc$rowval, nnz, indtype)
     } else {
         integer(0L)
     }
     if (eltype == "Bool") {
-        vals <- if (file.exists(nzval_path)) {
+        nzd <- desc$nzval
+        vals <- if (!is.null(nzd) && .files_is_packed(nzd)) {
+            as.logical(.files_read_sparse_component(mdir, name, "nzval", nzd, nnz, "Bool"))
+        } else if (file.exists(nzval_path)) {
             as.logical(.read_bin_dense(nzval_path, nnz, "Bool"))
         } else {
             rep(TRUE, nnz)
@@ -601,14 +623,14 @@ S7::method(
             Dimnames = list(NULL, NULL)
         ))
     }
-    if (!file.exists(nzval_path)) {
+    if (!.files_component_exists(mdir, name, "nzval", desc$nzval)) {
         stop(sprintf(
             "files_daf: sparse matrix %s missing .nzval for non-Bool",
             sQuote(name)
         ), call. = FALSE)
     }
     vals <- if (nnz > 0L) {
-        .read_bin_dense(nzval_path, nnz, eltype)
+        .files_read_sparse_component(mdir, name, "nzval", desc$nzval, nnz, eltype)
     } else {
         double(0L)
     }

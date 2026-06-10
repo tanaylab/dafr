@@ -1,14 +1,15 @@
-# Zarr v2 Store interface: a uniform read/write API for byte content
-# keyed by path strings. Concrete impls in this file:
+# Zarr Store interface: a uniform read/write API for byte content
+# keyed by path strings. Format-version-agnostic (the v3 metadata/chunk
+# codec in R/zarr_v3.R is layered on top). Concrete impls in this file:
 #   - DirStore (filesystem)
 #   - DictStore (in-memory, env-backed)
 #   - MmapZipStore (zip archive, mmap-backed; C++ in src/mmap_zip_store.cpp)
 #
-# Every Zarr v2 operation in R/zarr_v2.R goes through this interface.
+# Every Zarr metadata/chunk operation goes through this interface.
 # Mirrors zarr-python's MutableMapping store: get / set / delete /
 # exists / list-with-prefix.
 
-#' Zarr v2 Store abstract base class.
+#' Zarr Store abstract base class.
 #'
 #' Uniform read/write API for byte content keyed by path strings.
 #' Concrete implementations: [DirStore], [DictStore], [MmapZipStore].
@@ -22,6 +23,11 @@
 #' @param xptr (`MmapZipStore`) Internal external pointer to the C++
 #'   store; set by [new_mmap_zip_store()] and not intended for direct
 #'   use.
+#' @param consolidate_cache (`DirStore`/`DictStore`) Internal environment
+#'   holding the in-memory consolidated-metadata index, maintained
+#'   incrementally across writes so `set_*` need not re-parse the whole
+#'   store root on every mutation. Created automatically; not intended for
+#'   direct use.
 #' @name ZarrStore
 #' @export
 ZarrStore <- S7::new_class("ZarrStore", abstract = TRUE)
@@ -31,7 +37,17 @@ ZarrStore <- S7::new_class("ZarrStore", abstract = TRUE)
 DirStore <- S7::new_class(
     "DirStore",
     parent = ZarrStore,
-    properties = list(root = S7::class_character)
+    properties = list(
+        root = S7::class_character,
+        # In-memory consolidated-metadata index (`$cmeta`), maintained
+        # incrementally by R/zarr_v3.R so set_* does not re-parse the whole
+        # store's root on every mutation. Per-instance; rebuilt from disk on
+        # first use if empty.
+        consolidate_cache = S7::new_property(
+            S7::class_environment,
+            default = quote(new.env(parent = emptyenv()))
+        )
+    )
 )
 
 #' @rdname ZarrStore
@@ -39,7 +55,14 @@ DirStore <- S7::new_class(
 DictStore <- S7::new_class(
     "DictStore",
     parent = ZarrStore,
-    properties = list(env = S7::class_any)
+    properties = list(
+        env = S7::class_any,
+        # See DirStore$consolidate_cache.
+        consolidate_cache = S7::new_property(
+            S7::class_environment,
+            default = quote(new.env(parent = emptyenv()))
+        )
+    )
 )
 
 #' @rdname ZarrStore
@@ -56,7 +79,7 @@ MmapZipStore <- S7::new_class(
 
 # Constructors.
 
-#' Create a directory-backed Zarr v2 store.
+#' Create a directory-backed Zarr store.
 #'
 #' Each key maps to a regular file under `root`. Directories are
 #' created as needed. The root must be writable.
@@ -74,7 +97,7 @@ new_dir_store <- function(root) {
     DirStore(root = normalizePath(root, mustWork = TRUE))
 }
 
-#' Create an in-memory Zarr v2 store.
+#' Create an in-memory Zarr store.
 #'
 #' Backed by an R environment keyed by path strings. Useful for tests
 #' and for ZarrDaf instances that don't need persistence.
@@ -87,9 +110,9 @@ new_dict_store <- function() {
     DictStore(env = new.env(parent = emptyenv()))
 }
 
-#' Create a zip-archive-backed Zarr v2 store (mmap, append-only).
+#' Create a zip-archive-backed Zarr store (mmap, append-only).
 #'
-#' Opens (or creates) a single ZIP archive at `path` as a Zarr v2 store.
+#' Opens (or creates) a single ZIP archive at `path` as a Zarr store.
 #' Reads use a shared mmap of the archive (zero-copy for stored entries
 #' via ALTREP RAW); writes append entries with a crash-safe two-step
 #' commit protocol. Mirrors upstream
@@ -125,9 +148,9 @@ new_mmap_zip_store <- function(path, mode = "r", max_file_size = 2^40) {
 
 # Generics.
 
-#' Zarr v2 store generics.
+#' Zarr store generics.
 #'
-#' Low-level byte-level operations on a [ZarrStore]. All Zarr v2 I/O
+#' Low-level byte-level operations on a [ZarrStore]. All Zarr I/O
 #' goes through these five generics so the storage backend is
 #' interchangeable.
 #'

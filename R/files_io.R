@@ -81,11 +81,19 @@
     cat(sprintf('{"format":"dense","eltype":"%s"}\n', dtype), file = path)
 }
 
-.write_descriptor_sparse <- function(path, dtype, indtype) {
-    cat(sprintf(
-        '{"format":"sparse","eltype":"%s","indtype":"%s"}\n',
-        dtype, indtype
-    ), file = path)
+# Write a FilesFormat v1.1 sparse property descriptor: a per-component object
+# for each index/value component, in the given order. `components` is a list of
+# list(key=, eltype=, n_elements=) - e.g. nzind/nzval for a vector or
+# colptr/rowval/nzval for a matrix. Each component is shaped like a stand-alone
+# dense vector descriptor (matching DataAxesFormats.jl 0.3.0); the binary
+# payload files are unchanged from v1.0.
+.write_descriptor_sparse <- function(path, components) {
+    parts <- vapply(components, function(c) {
+        sprintf('"%s":{"format":"dense","eltype":"%s","n_elements":%d}',
+                c$key, c$eltype, as.integer(c$n_elements))
+    }, character(1L))
+    cat(sprintf('{"format":"sparse",%s}\n', paste(parts, collapse = ",")),
+        file = path)
 }
 
 # Fast-path regex for the two fixed descriptor schemas dafr emits:
@@ -135,6 +143,13 @@
         # per-component descriptors (nzind/nzval or colptr/rowval/nzval) carry
         # the dtypes. Return the full descriptor so the sparse readers derive
         # eltype/indtype via .files_parse_sparse_descriptor.
+        return(j)
+    }
+    if (!is.null(j$packed_format)) {
+        # Packed (chunked + compressed) dense property (DataAxesFormats.jl
+        # 0.3.0): return the full descriptor (packed_format / chunk_shape /
+        # compression / eltype) so the packed readers in R/files_packed.R can
+        # route and decode the `.zip` shard.
         return(j)
     }
     if (is.null(elt)) {

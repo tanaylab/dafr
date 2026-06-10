@@ -1,0 +1,20 @@
+# Conda environment for dafr-native development and cross-language tests.
+#
+# dafr-native is a pure-R package (no conda install step is required to use
+# it); this environment provides the optional toolchain used by the
+# Julia/Python interop test suites (DataAxesFormats.jl 0.3.0 round-trips,
+# zarr-python reads) and a C++17 build toolchain for the mmap zip store.
+name: dafr-mcview
+channels:
+  - conda-forge
+dependencies:
+  - r-base
+  - compilers          # C++17 toolchain for src/mmap_zip_store.cpp
+  - zlib
+  - julia              # DataAxesFormats.jl 0.3.0 interop round-trips
+  - python             # zarr-python cross-language read tests
+  - zarr
+  - numcodecs
+  - c-blosc2           # read blosc-packed/sharded ZarrDaf (v3); configure probes it
+                       # (classic c-blosc v1 also works if present)
+  - zstd               # read plain-zstd-packed ZarrDaf (v3)

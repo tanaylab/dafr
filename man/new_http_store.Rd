@@ -2,16 +2,22 @@
 % Please edit documentation in R/http_store.R
 \name{new_http_store}
 \alias{new_http_store}
-\title{Construct a read-only \link{ZarrStore} over HTTP.}
+\title{Construct a read-only \link{ZarrStore} over HTTP (Zarr v3).}
 \usage{
 new_http_store(url)
 }
 \arguments{
-\item{url}{Root URL of a Zarr v2 directory served over HTTP(S).}
+\item{url}{Root URL of a Zarr v3 directory served over HTTP(S).}
 }
 \value{
 An \code{HttpStore}.
 }
 \description{
-Construct a read-only \link{ZarrStore} over HTTP.
+GETs the root \code{zarr.json} and parses its inline
+\code{consolidated_metadata.metadata} as the node index, so it targets the
+\strong{Zarr v3} layout that \code{dafr} writes. A legacy v2 store (root \code{.zmetadata},
+no \code{zarr.json}) is rejected with a \verb{python -m zarr v2_to_v3} conversion
+hint; a v3 store that lacks inline consolidated metadata cannot be
+enumerated over HTTP and is likewise rejected. See \link{HttpStore} for the
+supported alternatives.
 }

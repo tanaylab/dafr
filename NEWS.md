@@ -1,3 +1,85 @@
+# dafr 0.4.0
+
+## FilesFormat: writes v1.1 (DataAxesFormats.jl 0.3.0 default)
+
+* `FilesDaf` now writes the **v1.1** on-disk format (`{"version":[1,1]}`),
+  matching DataAxesFormats.jl 0.3.0. The only change from v1.0 is the sparse
+  property JSON descriptor: it now carries a per-component object (`nzind` /
+  `nzval` for vectors, `colptr` / `rowval` / `nzval` for matrices), each shaped
+  like a stand-alone dense descriptor with its `eltype` and `n_elements`. The
+  binary payload files are byte-identical to v1.0, and the reader accepts both
+  shapes, so existing v1.0 repos still read. Verified round-trip in both
+  directions against DAF 0.3.0 (dafr reads Julia's v1.1; Julia reads dafr's).
+
+## ZarrDaf: faster bulk writes
+
+* Writing many properties to a directory/in-memory ZarrDaf is now
+  near-linear instead of O(N^2). `set_*` updates the root consolidated metadata
+  incrementally (editing an in-memory index of node `zarr.json` strings and
+  re-assembling the root by string concatenation) rather than re-scanning and
+  re-parsing the whole store on every mutation. Writing 400 vectors dropped from
+  ~45 s to ~1.7 s. The store stays consistent on disk after every write (no
+  flush/close step), and the output is unchanged.
+
+## ZarrDaf: Zarr v3 (DataAxesFormats.jl 0.3.0 interop)
+
+* ZarrDaf now reads and writes the **Zarr v3** on-disk format used by
+  DataAxesFormats.jl 0.3.0 (a single `zarr.json` per node, `c/`-prefixed chunk
+  keys, the `daf` version marker as a root-group attribute, and inline
+  consolidated metadata). Flat (uncompressed) read and write are supported.
+* **Breaking:** the legacy Zarr v2 reader/writer is removed. Opening a Zarr v2
+  `.daf.zarr` now errors with a conversion hint (`python -m zarr v2_to_v3`),
+  matching DataAxesFormats.jl 0.3.0's own behaviour.
+## ZarrDaf: packed/sharded v3 read
+
+* Reading packed/sharded (`packed=true`) Zarr v3 `.daf.zarr` stores is now
+  supported (read-only; dafr still writes flat). Each packed array's
+  start-located shard index (ZEP-0002, crc32c-checked) is parsed in R, and its
+  inner chunks decode via `gzip` (base R, always available) or - when the
+  optional system library is present - `c-blosc` (the default
+  `blosc_zstd_bitshuffle` / `blosc_lz4_bitshuffle` codecs) and `libzstd` (plain
+  `zstd`). Dense and sparse matrices/vectors, including `vlen-utf8` strings,
+  are covered; flat sub-threshold components in a packed store read as before.
+* **CRAN-safe:** `configure` probes for `c-blosc`/`libzstd` (honouring
+  `BLOSC_HOME` / `ZSTD_HOME` / `CONDA_PREFIX`). With neither present the flat
+  path is unchanged and a blosc/zstd-packed read raises an actionable
+  "install c-blosc/libzstd" error. `crc32c` is always compiled (no dependency).
+
+## FilesFormat: packed/sharded read (FilesDaf, HttpDaf)
+
+* Reading packed (chunked + compressed) `FilesDaf` / `HttpDaf` properties is now
+  supported (read-only; dafr still writes flat). A packed property is a
+  dual-format shard (`<name>.zip`, or `<name>.<component>.zip` for an
+  independently-packed sparse component) that carries the same start-located
+  Zarr v3 shard index as a packed `ZarrDaf` array. dafr reads it through that
+  index, reusing the crc32c + `gzip` / `c-blosc` / `libzstd` decode backend (so
+  the same optional-library rules and CRAN-safety apply). Dense and sparse
+  matrices/vectors and `vlen-utf8` strings are covered; flat sub-threshold
+  components (small `colptr`, scalars, short vectors) in the same store read as
+  before. A foreign `"zipped"`-only shard (a ZIP archive with no leading Zarr
+  index) is rejected with an actionable message.
+
+## ZarrDaf over HTTP: Zarr v3 read
+
+* **Reading a Zarr v3 `.daf.zarr` over HTTP now works.**
+  `zarr_daf("http://...")` parses the v3 inline consolidated metadata from the
+  root `zarr.json` (v3 does not write the v2 `.zmetadata` file) as its node
+  index, serves node metadata from that index, and fetches chunks lazily over
+  HTTP. Scalars, axes, dense and sparse vectors, strings, bools, and dense and
+  sparse matrices all round-trip. A legacy Zarr v2 store served over HTTP is
+  rejected with the same `python -m zarr v2_to_v3` conversion hint as the local
+  path.
+* `HttpDaf` / `FilesDaf` over HTTP (the FilesFormat path, `http_daf()`) is
+  unaffected; that path does not use Zarr at all.
+
+### Known limitations
+
+* dafr reads packed/sharded v3 stores but only ever **writes flat** (the common
+  default). Reading blosc/zstd-packed stores needs the optional `c-blosc` /
+  `libzstd` system libraries (see above); `gzip`-packed and all flat stores read
+  with no extra dependency. Local **directory** (`DirStore`), **zip**
+  (`MmapZipStore`, `.daf.zarr.zip`), and **HTTP** v3 stores are all supported.
+
 # dafr 0.3.1
 
 ## Fix: read DataAxesFormats.jl 0.3.0 FilesFormat v1.1 directories
