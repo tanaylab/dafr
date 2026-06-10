@@ -1,3 +1,21 @@
+# dafr 0.4.2
+
+## Test coverage + parity
+
+* Expanded test coverage against the DataAxesFormats.jl test suite after a
+  full coverage audit + adversarial R-vs-Julia sweep:
+  - Packed FilesDaf read is now exercised across **every** numeric dtype
+    (`Int8`..`UInt64`, `Float32`/`64`) plus all-true `Bool` sparse, `NaN`/`Inf`,
+    and `vlen-utf8` unicode/control strings (previously only `Float64`/`Int64`).
+  - Vector `>>` reductions on `NaN`/`±Inf` inputs are pinned against DAF.jl.
+  - Sparse `Float`/`Bool`/`Int` vector round-trips (memory + files),
+    `copy_vector` superset `empty` fill, and `group_names` determinism.
+* **Documented divergence:** `>> Median` of a vector containing both `NaN` and
+  `±Inf` returns `NaN` in dafr vs `-Inf` in DataAxesFormats.jl (every other
+  reduction on such input is `NaN` in both). R's `NaN` is arguably the more
+  correct answer; matching Julia would require reimplementing its median kernel.
+  See `dev/adversarial-parity/FINDINGS.md` (E1).
+
 # dafr 0.4.1
 
 ## Packaging
