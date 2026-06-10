@@ -14,7 +14,11 @@ MAIN_REMOTE="origin"        # tanaylab/dafr
 DEV_BRANCH="dev"
 MAIN_BRANCH="main"
 # Paths that exist on dev but are stripped from main.
-DEV_ONLY_PATHS=("dev/" "CLAUDE.md" "AGENTS.md" ".a5c/" ".claude/")
+# docs/ is pkgdown's build-output dir on main (generated fresh + deployed to
+# gh-pages by the pkgdown workflow); committing anything there - e.g. the
+# superpowers specs/plans kept on dev - makes pkgdown's check_dest_is_pkgdown()
+# refuse to build. Keep such docs on dev, strip from main.
+DEV_ONLY_PATHS=("dev/" "docs/" "CLAUDE.md" "AGENTS.md" ".a5c/" ".claude/")
 
 die()  { echo "ERROR: $*" >&2; exit 1; }
 info() { echo "==> $*"; }
