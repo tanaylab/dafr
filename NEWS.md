@@ -1,5 +1,17 @@
 # dafr 0.4.3
 
+## Compatibility
+
+* **FilesFormat v1.1 read is now pinned against real Julia output.** Reading
+  `DataAxesFormats.jl` 0.3.0 v1.1 `FilesDaf` stores has worked since 0.4.0, but
+  the only test against a *real* Julia-written v1.1 repo skipped without a live
+  Julia env. Added a committed Julia-0.3.0-written flat v1.1 fixture
+  (`tests/testthat/fixtures/jf11`: scalar + dense/sparse vector + dense/sparse
+  matrix) and an always-on test that reads it - confirming v1.1 interop needs
+  **no c-blosc/zstd** (Julia writes flat by default; only explicitly
+  blosc-packed components require c-blosc, which fails with an actionable
+  "install c-blosc" message).
+
 ## Performance
 
 * **ZarrDaf axis-name decode is now memoized.** `format_axis_array` /
