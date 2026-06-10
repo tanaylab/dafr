@@ -132,6 +132,10 @@ test_that("files_daf rejects a 'zipped'-only packed component (no Zarr index)", 
 
 test_that("http_daf reads a FilesFormat v1.1 repo served over HTTP", {
     skip_on_cran()
+    # http_daf serving needs metadata.zip, which .metadata_zip_rebuild only
+    # writes on POSIX (MmapZipStore is POSIX-only); without this guard the test
+    # runs on Windows CI whenever python is available and 404s on metadata.zip.
+    skip_if_no_mmap_zip()
     p <- tempfile(fileext = ".daf")
     on.exit(unlink(p, recursive = TRUE, force = TRUE), add = TRUE)
     d <- files_daf(p, "w")
