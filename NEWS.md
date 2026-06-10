@@ -1,3 +1,14 @@
+# dafr 0.4.1
+
+## Packaging
+
+* Shorten the committed packed-fixture directory names
+  (`tests/testthat/fixtures/{zpk,fpk}/...`) so every path in the source
+  tarball stays under the 100-byte portable limit. R's internal `tar`
+  (used by `R CMD build` on Windows) emits a "storing paths of more than
+  100 bytes is not portable" warning above it, which the CI's
+  `error-on: warning` turned into a failure. No functional change.
+
 # dafr 0.4.0
 
 ## FilesFormat: writes v1.1 (DataAxesFormats.jl 0.3.0 default)
