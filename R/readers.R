@@ -235,7 +235,8 @@ has_vector <- function(daf, axis, name) {
     .assert_name(axis, "axis")
     .assert_name(name, "name")
     .require_axis(daf, sprintf("for has_vector: %s", name), axis)
-    format_has_vector(daf, axis, name)
+    # Julia parity: the reserved virtual vectors "name"/"index" always exist.
+    name == "name" || name == "index" || format_has_vector(daf, axis, name)
 }
 
 #' Names of vectors on an axis, sorted.
@@ -278,6 +279,14 @@ get_vector <- function(daf, axis, name, default) {
     .assert_name(name, "name")
     .require_axis(daf, sprintf("for the vector: %s", name), axis)
     entries <- format_axis_array(daf, axis)$value
+    # Julia parity (readers.jl): the reserved virtual vectors "name" (axis entry
+    # names) and "index" (1..N), each named by the axis entries.
+    if (name == "name") {
+        out <- entries; names(out) <- entries; return(out)
+    }
+    if (name == "index") {
+        out <- seq_along(entries); names(out) <- entries; return(out)
+    }
     if (!format_has_vector(daf, axis, name)) {
         if (missing(default)) {
             .require_vector(daf, axis, name)
