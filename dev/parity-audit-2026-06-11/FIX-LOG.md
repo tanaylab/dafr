@@ -80,3 +80,9 @@ reorder-float32-widen, files-int-sparse-matrix-eltype-loss).
 - **http/files metadata.json interop: DESIGN DECISION needed** (which on-disk layout
   is canonical — dafr metadata.zip vs Julia root metadata.json). Large; defer to a
   dedicated pass.
+
+## UPDATE 3 — contracts decision
+DECISION (user): KEEP dafr's stricter Optional/GuaranteedOutput enforcement. Do NOT
+loosen to match Julia 0.3.0 (which lets a never-created GuaranteedOutput pass
+verify_output — a likely DAF.jl bug). Document as "dafr intentionally stricter"
+and raise upstream. CTR-P1..P4 are thus WONTFIX-by-design, not open bugs.
