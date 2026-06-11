@@ -132,7 +132,7 @@ test_that("description() reports axes, scalars, and matrix shapes", {
     add_axis(d, "cell", c("A", "B"))
     add_axis(d, "gene", c("X", "Y", "Z"))
     set_vector(d, "cell", "donor", c("d1", "d2"))
-    set_matrix(d, "cell", "gene", "UMIs", matrix(seq_len(6), 2, 3))
+    set_matrix(d, "cell", "gene", "UMIs", matrix(seq_len(6), 2, 3), relayout = FALSE)
     expected <- paste(
         "name: test!",
         "type: MemoryDaf",

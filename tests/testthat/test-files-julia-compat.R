@@ -146,9 +146,9 @@ test_that("R -> Julia copy -> R preserves dense + sparse bytes", {
     v <- numeric(50)
     v[c(5, 25, 45)] <- c(1, 2, 3)
     set_vector(d, "cell", "x", v)
-    set_matrix(d, "cell", "gene", "dm", matrix(seq_len(500), nrow = 50))
+    set_matrix(d, "cell", "gene", "dm", matrix(seq_len(500), nrow = 50), relayout = FALSE)
     sp <- Matrix::rsparsematrix(50, 10, density = 0.05)
-    set_matrix(d, "cell", "gene", "sm", sp)
+    set_matrix(d, "cell", "gene", "sm", sp, relayout = FALSE)
 
     script <- c(
         "using DataAxesFormats",
