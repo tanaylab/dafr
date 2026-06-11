@@ -150,7 +150,10 @@ reconstruct_axis <- function(daf, existing_axis, implicit_axis,
                       FUN.VALUE = values[[1L]])
         format_set_vector(daf, new_axis, prop, out, overwrite = FALSE)
         format_delete_vector(daf, existing_axis, prop, must_exist = TRUE)
-        empty_values[[prop]] <- empty_v
+        # Julia parity: always record a key for the migrated property, even when
+        # there were no empty entries (empty_v is NULL). `[[<- NULL` would DELETE
+        # the key; `[<- list(NULL)` keeps it with a NULL value.
+        empty_values[prop] <- list(empty_v)
     }
     empty_values
 }
