@@ -155,5 +155,15 @@ reconstruct_axis <- function(daf, existing_axis, implicit_axis,
         # the key; `[<- list(NULL)` keeps it with a NULL value.
         empty_values[prop] <- list(empty_v)
     }
+    # Julia parity (overwrite_implicit_values): rewrite the implicit property on
+    # the existing axis to its string form (a foreign key into the new axis, with
+    # "" for empty entries) when it was not already a string, or when a non-empty
+    # `empty_implicit` was given. `impl_str` already holds exactly this.
+    overwrite_implicit <- !is.character(impl_vec) ||
+        (!is.null(empty_implicit) && !identical(as.character(empty_implicit), ""))
+    if (overwrite_implicit) {
+        format_set_vector(daf, existing_axis, implicit_axis, impl_str,
+                          overwrite = TRUE)
+    }
     empty_values
 }
