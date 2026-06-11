@@ -307,6 +307,11 @@ copy_matrix <- function(destination, source,
     # Resolve source matrix or default.
     if (format_has_matrix(source, rows_axis, columns_axis, name)) {
         value <- format_get_matrix(source, rows_axis, columns_axis, name)$value
+    } else if (format_has_matrix(source, columns_axis, rows_axis, name)) {
+        # Julia parity: the source stores only the flipped layout - transpose-read
+        # it (copy_matrix! reads via get_matrix(...; relayout = true)) rather than
+        # erroring "missing matrix".
+        value <- t(format_get_matrix(source, columns_axis, rows_axis, name)$value)
     } else if (.is_undef(default)) {
         .require_matrix(source, rows_axis, columns_axis, name, relayout = FALSE)
     } else if (is.null(default)) {
