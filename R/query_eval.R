@@ -3054,7 +3054,7 @@ NULL
     # the group value, which is also used as the name in the
     # NamedArray).
     g_labels <- .lc_bool_labels(g)
-    gfac <- factor(g_labels, levels = sort(unique(g_labels)))
+    gfac <- factor(g_labels, levels = sort(unique(g_labels), method = "radix"))
     gi <- as.integer(gfac)
     ngroups <- nlevels(gfac)
     lvls <- levels(gfac)
@@ -3439,7 +3439,7 @@ NULL
         g <- if (is_g2) state$pending_row_groups else state$pending_col_groups
         g <- .lc_bool_labels(g)
         # Julia DAF sorts group levels alphabetically (queries.jl ~3935).
-        gfac <- factor(g, levels = sort(unique(g)))
+        gfac <- factor(g, levels = sort(unique(g), method = "radix"))
         gi <- as.integer(gfac)
         ngroups <- nlevels(gfac)
         lvls <- levels(gfac)
@@ -3557,7 +3557,7 @@ NULL
             # inner$value is ngroups x ncol with rownames = group levels.
             mat <- inner$value
             g <- .lc_bool_labels(state$pending_row_groups)
-            gfac <- factor(g, levels = sort(unique(g)))
+            gfac <- factor(g, levels = sort(unique(g), method = "radix"))
             lvls <- levels(gfac)
             ngroups <- nlevels(gfac)
             # Type-sniff on the first group's row so character/logical/integer
@@ -3580,7 +3580,7 @@ NULL
             by = "cols")
         mat <- inner$value
         g <- .lc_bool_labels(state$pending_col_groups)
-        gfac <- factor(g, levels = sort(unique(g)))
+        gfac <- factor(g, levels = sort(unique(g), method = "radix"))
         lvls <- levels(gfac)
         ngroups <- nlevels(gfac)
         # Type-sniff on the first group's column so character/logical/integer
@@ -4152,21 +4152,22 @@ NULL
             b_lvls <- format_axis_array(daf, ax)$value
         }
     }
+    # Bytewise (radix) ordering of group labels to match Julia's
+    # sort!(unique(values)); plain sort()/factor() would honor LC_COLLATE.
+    a_levels <- sort(unique(a), method = "radix")
     if (!is.null(b_lvls)) {
         b_factor <- factor(b, levels = b_lvls)
-        a_factor <- factor(a, levels = sort(unique(a)))
+        a_factor <- factor(a, levels = a_levels)
         t <- table(a_factor, b_factor)
+        col_levels <- b_lvls
     } else {
-        t <- table(a, b)
+        col_levels <- sort(unique(b), method = "radix")
+        t <- table(factor(a, levels = a_levels), factor(b, levels = col_levels))
     }
     m <- as.matrix(t)
     dimnames(m) <- unname(dimnames(m))
-    rownames(m) <- if (!is.null(t)) levels(if (!is.null(b_lvls)) factor(a, levels = sort(unique(a))) else factor(a)) else NULL
-    if (!is.null(b_lvls)) {
-        colnames(m) <- b_lvls
-    } else {
-        colnames(m) <- levels(factor(b))
-    }
+    rownames(m) <- a_levels
+    colnames(m) <- col_levels
     list(
         kind = "matrix",
         value = m,

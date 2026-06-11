@@ -1,0 +1,226 @@
+"query_id","query_text","category","fixture","mode","median_time_ns_r","min_time_ns_r","n_iter_r","median_time_ns_j","min_time_ns_j","n_iter_j","ratio"
+"julia_queries_001",". ?","light","cells_daf","warm",53511.1175850034,47942.1578347683,7533,29880,25919,50,1.79086738905634
+"julia_queries_001",". ?","light","cells_daf","compute",516735.017299652,331127.08479166,877,251066.5,244447,50,2.05815995881431
+"julia_queries_001",". ?","light","cells_daf","cold",495839.049108326,345959.095284343,938,435803.5,387291,50,1.13775829957384
+"julia_queries_002",". organism","light","cells_daf","warm",66179.0836602449,61211.9911238551,7057,25047,22033,50,2.64219601789615
+"julia_queries_002",". organism","light","cells_daf","compute",617536.657955498,475053.093396127,774,293590.5,287341,50,2.10339455110263
+"julia_queries_002",". organism","light","cells_daf","cold",629650.603514165,479478.971101344,746,530951.5,468493,50,1.18589099666196
+"julia_queries_003",". reference","light","cells_daf","warm",65799.1040498018,60962.0474278927,7095,25258,21682,50,2.60507973908472
+"julia_queries_003",". reference","light","cells_daf","compute",640401.034615934,491869.170218706,725,293049.5,286409,50,2.18529987123654
+"julia_queries_003",". reference","light","cells_daf","cold",671448.069624603,503436.080180108,701,533565.5,476876,50,1.25841732575401
+"julia_queries_004","@ ?","light","cells_daf","warm",47962.0648548007,43956.097215414,7090,31357,27952,50,1.5295488999203
+"julia_queries_004","@ ?","light","cells_daf","compute",434262.095950544,295213.074423373,1099,242324,234011,50,1.79207216763731
+"julia_queries_004","@ ?","light","cells_daf","cold",444427.074398845,307031.092233956,1074,465388.5,372598,50,0.954959296155459
+"julia_queries_005","@ cell","light","cells_daf","warm",66550.0992909074,62283.0120846629,7252,26259,25448,50,2.53437294988032
+"julia_queries_005","@ cell","light","cells_daf","compute",195428.61264199,179910.100996494,2468,551377.5,536294,50,0.354437046564269
+"julia_queries_005","@ cell","light","cells_daf","cold",205258.023925126,193060.026504099,2377,585312.5,568883,50,0.350681087325362
+"julia_queries_006","@ donor","light","cells_daf","warm",67742.0757710934,63455.0815448165,7070,27075.5,26069,50,2.50196952119419
+"julia_queries_006","@ donor","light","cells_daf","compute",172219.006344676,158808.077685535,2607,495503,489143,50,0.34756400333535
+"julia_queries_006","@ donor","light","cells_daf","cold",183029.565960169,172318.075783551,2646,524932,514472,50,0.348672906129116
+"julia_queries_007","@ cell : ?","light","cells_daf","warm",77145.9890529513,71698.1012374163,6267,27781.5,26790,50,2.77688350351678
+"julia_queries_007","@ cell : ?","light","cells_daf","compute",618733.582086861,437607.057392597,780,225037.5,219509,50,2.74946878669938
+"julia_queries_007","@ cell : ?","light","cells_daf","cold",612979.987636209,430125.04465878,803,443590,381943,50,1.3818616011096
+"julia_queries_008","@ donor : age","light","cells_daf","warm",94376.620836556,87091.1171659827,5084,28783.5,27492,50,3.27884450593416
+"julia_queries_008","@ donor : age","light","cells_daf","compute",347080.640494823,322894.076816738,1370,675843,665267,50,0.513552171872495
+"julia_queries_008","@ donor : age","light","cells_daf","cold",1034402.05566585,833220.081403852,459,1052438,944296,50,0.982862701333333
+"julia_queries_009","@ donor : sex","light","cells_daf","warm",95534.0219661593,88182.0451468229,4803,29414,27792,50,3.24790990569658
+"julia_queries_009","@ donor : sex","light","cells_daf","compute",349159.119650722,324517.022818327,1344,787060.5,773260,50,0.443624244452265
+"julia_queries_009","@ donor : sex","light","cells_daf","cold",1004197.16909528,908954.069018364,489,1127626,1049744,50,0.890540985304773
+"julia_queries_010","@ gene : is_lateral","light","cells_daf","warm",96144.1546678543,89284.0325832367,5005,33815.5,29104,50,2.84319778408878
+"julia_queries_010","@ gene : is_lateral","light","cells_daf","compute",355914.002284408,330095.994286239,1355,771181.5,747782,50,0.461517816862059
+"julia_queries_010","@ gene : is_lateral","light","cells_daf","cold",932925.089728087,845018.07577908,522,1385953.5,1288883,50,0.673128708667417
+"julia_queries_011","@ cell : donor","light","cells_daf","warm",95123.0758801103,88692.9919943213,5068,33155,29104,50,2.86904164922667
+"julia_queries_011","@ cell : donor","light","cells_daf","compute",381747.55172804,354191.055521369,1266,894371.5,875032,50,0.426833314487369
+"julia_queries_011","@ cell : donor","light","cells_daf","cold",1059234.60796475,980491.051450372,464,1506709.5,1378837,50,0.703011833379128
+"julia_queries_012","@ donor [ age > 60 ]","light","cells_daf","warm",114092.079456896,105178.100056946,4190,30250.5,29474,50,3.77157665020069
+"julia_queries_012","@ donor [ age > 60 ]","light","cells_daf","compute",426144.048105925,401914.119720459,1130,1128943,1118307,50,0.377471713014674
+"julia_queries_012","@ donor [ age > 60 ]","light","cells_daf","cold",988418.469205499,912529.8820436,466,1541035.5,1450635,50,0.641398896524771
+"julia_queries_013","@ donor [ sex = M ]","light","cells_daf","warm",109174.055978656,101722.07839787,4320,30555.5,29604,50,3.57297560107529
+"julia_queries_013","@ donor [ sex = M ]","light","cells_daf","compute",404377.118684351,379419.070668519,1185,1220841,1208533,50,0.331228324314428
+"julia_queries_013","@ donor [ sex = M ]","light","cells_daf","cold",1069064.01924789,973690.999671817,457,1631872,1534000,50,0.655115118862196
+"julia_queries_014","@ cell @ gene :: UMIs","light","cells_daf","warm",115263.042971492,107511.063106358,4093,30711,29475,50,3.75315173623431
+"julia_queries_014","@ cell @ gene :: UMIs","light","cells_daf","compute",534517.108462751,503095.099702477,898,745187,730575,50,0.717292583556545
+"julia_queries_014","@ cell @ gene :: UMIs","light","cells_daf","cold",1111919.06034946,1045829.03441042,435,1518607.5,1408763,50,0.732196476278077
+"julia_queries_015","@ cell @ gene :: UMIs >| Sum","light","cells_daf","warm",135282.98586607,125990.132801235,3525,33560.5,31787,50,4.03101818703744
+"julia_queries_015","@ cell @ gene :: UMIs >| Sum","light","cells_daf","compute",2357853.63474861,2328764.18158412,132,1262208,1246549,50,1.86803889275667
+"julia_queries_015","@ cell @ gene :: UMIs >| Sum","light","cells_daf","cold",3214474.12716225,3074764.04123008,110,2086113.5,1955402,50,1.54089129242596
+"julia_queries_016","@ cell @ gene :: UMIs >- Sum","light","cells_daf","warm",132884.53919813,121603.021398187,3652,32924,31617,50,4.03609947752794
+"julia_queries_016","@ cell @ gene :: UMIs >- Sum","light","cells_daf","compute",1841964.60759267,1801033.1550613,190,933054,913921,50,1.9741243353468
+"julia_queries_016","@ cell @ gene :: UMIs >- Sum","light","cells_daf","cold",2568419.09140348,2488945.14515996,136,1709749.5,1620841,50,1.50221953064088
+"julia_queries_017","@ donor : age % Log base 2.0 eps 1.0","light","cells_daf","warm",167586.607858539,154512.119479477,2712,40671,36855,50,4.12054308619259
+"julia_queries_017","@ donor : age % Log base 2.0 eps 1.0","light","cells_daf","compute",518999.120686203,488864.025101066,932,889624.5,879299,50,0.583391218077069
+"julia_queries_017","@ donor : age % Log base 2.0 eps 1.0","light","cells_daf","cold",1069645.04811913,1010426.08730495,456,1245258,1188512,50,0.858974644707466
+"julia_queries_018","@ donor : age % Clamp min 20 max 60","light","cells_daf","warm",162539.072334766,153361.121192575,2974,41502.5,37386,50,3.91636822684817
+"julia_queries_018","@ donor : age % Clamp min 20 max 60","light","cells_daf","compute",524762.086570263,497667.118906975,908,904526.5,889484,50,0.580151147114278
+"julia_queries_018","@ donor : age % Clamp min 20 max 60","light","cells_daf","cold",1111699.03539121,1030667.10289568,439,1266609.5,1215382,50,0.877696745043528
+"julia_queries_019","@ donor : age % Fraction","light","cells_daf","warm",111928.093247116,105238.170363009,4290,34316,31156,50,3.2616882284391
+"julia_queries_019","@ donor : age % Fraction","light","cells_daf","compute",421222.066506743,398649.135604501,1147,875032.5,852829,50,0.481378767653479
+"julia_queries_019","@ donor : age % Fraction","light","cells_daf","cold",1035007.58996233,910116.010345519,466,1243940.5,1182013,50,0.832039466487609
+"julia_queries_020","@ donor : age % Log base 2.0 eps 1.0 % Significant high 6","light","cells_daf","warm",215904.088690877,197727.116756141,2213,44842,42093,50,4.8147738435145
+"julia_queries_020","@ donor : age % Log base 2.0 eps 1.0 % Significant high 6","light","cells_daf","compute",686020.008288324,640481.011942029,703,1072536,1059131,50,0.639624225469657
+"julia_queries_020","@ donor : age % Log base 2.0 eps 1.0 % Significant high 6","light","cells_daf","cold",1249109.04560238,1179940.99855423,384,1458832,1379803,50,0.856239132129251
+"julia_queries_021","@ cell @ gene :: UMIs >| Var","light","cells_daf","warm",133560.62117964,124417.128972709,3574,32489,31938,50,4.11094897287205
+"julia_queries_021","@ cell @ gene :: UMIs >| Var","light","cells_daf","compute",2215475.54247081,2136887.0511651,142,3987386,3967000,50,0.555621036556483
+"julia_queries_021","@ cell @ gene :: UMIs >| Var","light","cells_daf","cold",2930913.52796182,2822536.04382277,120,4782024,4680321,50,0.612902304120979
+"julia_queries_022","@ cell @ gene :: UMIs >| Std","light","cells_daf","warm",133590.074256063,125118.065625429,3621,32974.5,31668,50,4.05131462967029
+"julia_queries_022","@ cell @ gene :: UMIs >| Std","light","cells_daf","compute",2241444.0754801,2131939.16715682,195,3995012,3974461,50,0.561060661514934
+"julia_queries_022","@ cell @ gene :: UMIs >| Std","light","cells_daf","cold",2932490.08245766,2835785.03876925,111,4812775.5,4717978,50,0.609313707331177
+"julia_queries_023","@ cell @ gene :: UMIs >| VarN eps 1","light","cells_daf","warm",159139.046445489,149294.035509229,2992,39574.5,36475,50,4.02125223175249
+"julia_queries_023","@ cell @ gene :: UMIs >| VarN eps 1","light","cells_daf","compute",3832962.01471239,3781064.18065727,127,4090119.5,4050034,50,0.937127146214772
+"julia_queries_023","@ cell @ gene :: UMIs >| VarN eps 1","light","cells_daf","cold",4651240.07314444,4503949.07966256,77,4917983,4806070,50,0.945761722467206
+"julia_queries_024","@ cell @ gene :: UMIs >| StdN eps 1","light","cells_daf","warm",157266.156747937,148203.107528389,3073,36765,34753,50,4.27760524270194
+"julia_queries_024","@ cell @ gene :: UMIs >| StdN eps 1","light","cells_daf","compute",3824689.07628208,3779742.1682626,127,4097861.5,4057496,50,0.933337809558005
+"julia_queries_024","@ cell @ gene :: UMIs >| StdN eps 1","light","cells_daf","cold",4665712.59312332,4529498.05185199,104,4955940.5,4805410,50,0.941438379480811
+"julia_queries_025","@ cell @ gene :: UMIs >| Median","light","cells_daf","warm",132459.099404514,124177.080579102,3634,33275,31988,50,3.98073927586819
+"julia_queries_025","@ cell @ gene :: UMIs >| Median","light","cells_daf","compute",4356528.05026621,4198631.15530461,79,5255616,4022252,50,0.828928150433025
+"julia_queries_025","@ cell @ gene :: UMIs >| Median","light","cells_daf","cold",5115888.08149099,4994866.08896405,96,4935064,4795204,50,1.03664067608667
+"julia_queries_026","@ cell @ gene :: UMIs >| Quantile p 0.5","light","cells_daf","warm",158112.55434528,149254.105053842,3060,34948,33841,50,4.52422325584525
+"julia_queries_026","@ cell @ gene :: UMIs >| Quantile p 0.5","light","cells_daf","compute",5055878.078565,4995176.10296607,99,4217065.5,4050305,50,1.19890907043417
+"julia_queries_026","@ cell @ gene :: UMIs >| Quantile p 0.5","light","cells_daf","cold",6001928.12271416,5851302.06309259,83,4999560.5,4765209,50,1.20049114771472
+"julia_queries_027","@ cell @ gene :: UMIs >| GeoMean eps 1","light","cells_daf","warm",156906.084157526,148393.09733361,3081,36184.5,34322,50,4.336278908304
+"julia_queries_027","@ cell @ gene :: UMIs >| GeoMean eps 1","light","cells_daf","compute",10626658.0987722,9389041.10807925,47,6623345.5,6524052,50,1.60442454629193
+"julia_queries_027","@ cell @ gene :: UMIs >| GeoMean eps 1","light","cells_daf","cold",11471570.5858544,11240168.1253687,42,7322310.5,7210482,50,1.56665994782035
+"julia_queries_028","@ cell @ gene :: UMIs >| Mode","light","cells_daf","warm",131638.080347329,124437.152408063,3654,32448.5,31688,50,4.0568309890235
+"julia_queries_028","@ cell @ gene :: UMIs >| Mode","light","cells_daf","compute",9546317.04371423,9493998.13544005,53,7979818,7839277,50,1.19630761550128
+"julia_queries_028","@ cell @ gene :: UMIs >| Mode","light","cells_daf","cold",10405325.0397556,10284405.0852582,48,8904552.5,8585579,50,1.16853991705429
+"julia_queries_029","@ donor : age / sex >> Sum","light","cells_daf","warm",133660.62194109,124367.070384324,3388,32614,31287,50,4.09825908938155
+"julia_queries_029","@ donor : age / sex >> Sum","light","cells_daf","compute",628513.51685822,589375.03490597,770,1223553,1204219,50,0.513679028908613
+"julia_queries_029","@ donor : age / sex >> Sum","light","cells_daf","cold",1809325.06918907,1700542.05227643,271,1938587.5,1783469,50,0.933321332768869
+"julia_queries_030","@ donor : age / sex >> Mean","light","cells_daf","warm",132649.089209735,125348.102301359,3648,37125,32980,50,3.57303943999286
+"julia_queries_030","@ donor : age / sex >> Mean","light","cells_daf","compute",629565.096460283,594953.075051308,764,1265461.5,1228987,50,0.497498419715087
+"julia_queries_030","@ donor : age / sex >> Mean","light","cells_daf","cold",2008184.09211934,1872690.04527479,243,1900195,1779824,50,1.05683053166614
+"julia_queries_031","@ donor : age / sex >> Min","light","cells_daf","warm",133009.103592485,124547.048471868,3610,32048,30877,50,4.15030902372956
+"julia_queries_031","@ donor : age / sex >> Min","light","cells_daf","compute",680476.60170123,640041.078440845,712,1187279,1179142,50,0.573139592043008
+"julia_queries_031","@ donor : age / sex >> Min","light","cells_daf","cold",1924678.04299667,1727172.05714434,254,1852878,1701707,50,1.03875055076301
+"julia_queries_032","@ donor : age / sex >> Max","light","cells_daf","warm",133209.978230298,126089.085824788,3625,32353.5,31067,50,4.11732820963104
+"julia_queries_032","@ donor : age / sex >> Max","light","cells_daf","compute",678298.063576221,642955.070361495,496,1204710,1188255,50,0.563038460356618
+"julia_queries_032","@ donor : age / sex >> Max","light","cells_daf","cold",1880282.07048774,1735375.14638156,261,1825713,1713294,50,1.0298891832877
+"julia_queries_033","@ donor : age / sex >> Median","light","cells_daf","warm",133240.129798651,125357.997603714,3615,36951,33831,50,3.60585991715112
+"julia_queries_033","@ donor : age / sex >> Median","light","cells_daf","compute",734913.162887096,694813.090376556,661,1257990,1219341,50,0.584196347258004
+"julia_queries_033","@ donor : age / sex >> Median","light","cells_daf","cold",2037983.56233165,1833272.05013484,242,2030250.5,1833615,50,1.00380892029415
+"julia_queries_034","@ donor : age / sex >> Quantile p 0.25","light","cells_daf","warm",159628.922119737,151166.92520678,3033,37011,35103,50,4.31301294533347
+"julia_queries_034","@ donor : age / sex >> Quantile p 0.25","light","cells_daf","compute",770691.549405456,738428.090699017,624,1220894.5,1206883,50,0.631251553189449
+"julia_queries_034","@ donor : age / sex >> Quantile p 0.25","light","cells_daf","cold",2055916.00388288,1837618.06692928,241,2039469,1881317,50,1.00806435590974
+"julia_queries_035","@ donor : age / sex >> Var","light","cells_daf","warm",133590.190671384,126059.050671756,3591,32489,31257,50,4.11185911143415
+"julia_queries_035","@ donor : age / sex >> Var","light","cells_daf","compute",665359.082631767,628924.113698304,728,1196938.5,1183979,50,0.555884101507109
+"julia_queries_035","@ donor : age / sex >> Var","light","cells_daf","cold",1925815.07144496,1731308.06069821,254,1908632,1747525,50,1.00900282057775
+"julia_queries_036","@ donor : age / sex >> Std","light","cells_daf","warm",133505.556732416,124868.121929467,3584,31938,30846,50,4.1801476840258
+"julia_queries_036","@ donor : age / sex >> Std","light","cells_daf","compute",669219.123665243,631698.057986796,720,1194574.5,1183528,50,0.560215477281026
+"julia_queries_036","@ donor : age / sex >> Std","light","cells_daf","cold",1889556.18068576,1731288.03726286,259,1856333.5,1703359,50,1.01789693537598
+"julia_queries_037","@ donor : age / sex >> VarN eps 0.1","light","cells_daf","warm",162173.52822423,153100.118041039,2952,34632,33661,50,4.68276531023995
+"julia_queries_037","@ donor : age / sex >> VarN eps 0.1","light","cells_daf","compute",722975.12087971,674812.123179436,619,1204109,1188375,50,0.600423317888754
+"julia_queries_037","@ donor : age / sex >> VarN eps 0.1","light","cells_daf","cold",1981544.07553375,1809826.00431889,247,1871422,1756919,50,1.05884406378345
+"julia_queries_038","@ donor : age / sex >> StdN eps 0.1","light","cells_daf","warm",162664.102390409,152859.021909535,2959,35693.5,34071,50,4.557247184793
+"julia_queries_038","@ donor : age / sex >> StdN eps 0.1","light","cells_daf","compute",717627.117410302,673931.092023849,669,1214900,1194945,50,0.590688219121164
+"julia_queries_038","@ donor : age / sex >> StdN eps 0.1","light","cells_daf","cold",1909220.06731853,1797878.06700915,256,1915723.5,1760785,50,0.996605234167942
+"julia_queries_039","@ donor : age / sex >> GeoMean","light","cells_daf","warm",134782.16715157,126800.150610507,3543,33055,31737,50,4.07751224176585
+"julia_queries_039","@ donor : age / sex >> GeoMean","light","cells_daf","compute",679710.181429982,645259.045995772,709,1206307.5,1189998,50,0.563463446451242
+"julia_queries_039","@ donor : age / sex >> GeoMean","light","cells_daf","cold",1870707.55055174,1714373.12383205,260,1897300.5,1745762,50,0.985983796742656
+"julia_queries_040","@ cell : experiment / donor >> Mode","light","cells_daf","warm",136284.157633781,128784.100525081,3500,31802.5,30516,50,4.28532843750589
+"julia_queries_040","@ cell : experiment / donor >> Mode","light","cells_daf","compute",1486370.57282031,1424458.11070502,310,2122503.5,2103170,50,0.700291223463382
+"julia_queries_040","@ cell : experiment / donor >> Mode","light","cells_daf","cold",2889712.05009148,2696036.12832725,170,3055380,2827779,50,0.945778282927649
+"julia_queries_041","@ cell @ gene :: UMIs -/ experiment >- Sum","light","cells_daf","warm",159610.062837601,150516.047142446,3005,36415,33581,50,4.38308561959635
+"julia_queries_041","@ cell @ gene :: UMIs -/ experiment >- Sum","light","cells_daf","compute",2741168.13670844,2658109.18062925,178,4216795,2919286,50,0.650059615586824
+"julia_queries_041","@ cell @ gene :: UMIs -/ experiment >- Sum","light","cells_daf","cold",4179577.57599652,4028907.16213733,118,3986564.5,3812477,50,1.04841589192813
+"julia_queries_042","@ cell @ gene :: UMIs -/ experiment >- Mean","light","cells_daf","warm",160231.022164226,151167.041622102,2942,36380,33450,50,4.40437114250209
+"julia_queries_042","@ cell @ gene :: UMIs -/ experiment >- Mean","light","cells_daf","compute",2813492.55237728,2679170.10933161,178,3579132,2935830,50,0.786082366444512
+"julia_queries_042","@ cell @ gene :: UMIs -/ experiment >- Mean","light","cells_daf","cold",4197194.06636432,4052993.02656203,118,4176053.5,3866369,50,1.00506233130498
+"julia_queries_043","@ cell @ gene :: UMIs -/ experiment >- Max","light","cells_daf","warm",159550.10894686,149745.028465986,2948,36430,33430,50,4.37963516186824
+"julia_queries_043","@ cell @ gene :: UMIs -/ experiment >- Max","light","cells_daf","compute",2917638.57239857,2868926.15258694,170,2858715,2743011,50,1.02061190863677
+"julia_queries_043","@ cell @ gene :: UMIs -/ experiment >- Max","light","cells_daf","cold",4388055.06564677,4212292.02765971,111,3918121.5,3684785,50,1.11993848726916
+"julia_queries_044","@ cell @ gene :: UMIs -/ experiment >- Var","light","cells_daf","warm",160951.574798673,151247.135363519,2966,37240.5,34862,50,4.32194988785524
+"julia_queries_044","@ cell @ gene :: UMIs -/ experiment >- Var","light","cells_daf","compute",3405280.58586642,3266843.15223247,142,5443209.5,5392759,50,0.62560160248589
+"julia_queries_044","@ cell @ gene :: UMIs -/ experiment >- Var","light","cells_daf","cold",4786408.04067254,4601476.01552308,102,6603950,6379409,50,0.72477956990476
+"julia_queries_045","@ gene @ cell :: UMIs |/ experiment >| Sum","light","cells_daf","warm",159890.041686594,149814.06275183,2066,36474.5,33591,50,4.38361161048387
+"julia_queries_045","@ gene @ cell :: UMIs |/ experiment >| Sum","light","cells_daf","compute",2631204.08635587,2558950.10195673,186,3198397,3038618,50,0.822663379923089
+"julia_queries_045","@ gene @ cell :: UMIs |/ experiment >| Sum","light","cells_daf","cold",3999703.0980885,3851220.12812644,123,4531286.5,4010185,50,0.882685987321371
+"julia_queries_046","@ gene @ cell :: UMIs |/ experiment >| Mean","light","cells_daf","warm",159299.001097679,150455.976836383,3020,34191.5,32950,50,4.65902347360247
+"julia_queries_046","@ gene @ cell :: UMIs |/ experiment >| Mean","light","cells_daf","compute",2695645.61313018,2625510.09654999,182,3232738.5,3159539,50,0.833858232928578
+"julia_queries_046","@ gene @ cell :: UMIs |/ experiment >| Mean","light","cells_daf","cold",4154333.96119624,3935385.96108556,117,4360805.5,4055152,50,0.952652889746227
+"julia_queries_047","@ gene @ cell :: UMIs |/ experiment >| Max","light","cells_daf","warm",158868.031576276,150114.996358752,3051,34021,32789,50,4.66970493448976
+"julia_queries_047","@ gene @ cell :: UMIs |/ experiment >| Max","light","cells_daf","compute",2813092.0836702,2779501.02463365,175,3096189,3011888,50,0.908566009268233
+"julia_queries_047","@ gene @ cell :: UMIs |/ experiment >| Max","light","cells_daf","cold",4477645.03769577,4090228.11800241,110,4112328.5,3922484,50,1.08883447363112
+"julia_queries_048","@ gene @ cell :: UMIs % Convert type Int32","light","cells_daf","warm",161372.008733451,152389.169670641,2949,35212.5,34212,50,4.58280464986726
+"julia_queries_048","@ gene @ cell :: UMIs % Convert type Int32","light","cells_daf","compute",15668975.0729129,14049845.0491577,29,1601803,983545,50,9.78208623214771
+"julia_queries_048","@ gene @ cell :: UMIs % Convert type Int32","light","cells_daf","cold",16996427.0899072,14994633.1512183,26,1729329,1629484,50,9.82833636046536
+"julia_queries_049","@ donor : age % Convert type Int64","light","cells_daf","warm",140981.050208211,133110.09388417,3423,33625.5,32870,50,4.19268264288147
+"julia_queries_049","@ donor : age % Convert type Int64","light","cells_daf","compute",576400.139834732,546741.182915866,834,848532,837657,50,0.679290987063225
+"julia_queries_049","@ donor : age % Convert type Int64","light","cells_daf","cold",1143315.10849297,1074222.03291208,425,1205278,1112739,50,0.948590373750263
+"julia_queries_050","@ gene : is_lateral % Convert type Int32","light","cells_daf","warm",142374.134156853,132809.043861926,2320,34091,32989,50,4.17629679847623
+"julia_queries_050","@ gene : is_lateral % Convert type Int32","light","cells_daf","compute",582288.54322806,552159.03557837,830,905788.5,896245,50,0.642852656252602
+"julia_queries_050","@ gene : is_lateral % Convert type Int32","light","cells_daf","cold",1144588.11003715,1087201.99204981,425,1406234,1362043,50,0.813938583505412
+"julia_queries_051","@ gene @ cell :: UMIs % Convert type Int64","light","cells_daf","warm",160606.054123491,152639.113366604,2998,35448,34511,50,4.53075079337314
+"julia_queries_051","@ gene @ cell :: UMIs % Convert type Int64","light","cells_daf","compute",16314629.1160956,14478148.0776146,20,1045393,1010886,50,15.606216146555
+"julia_queries_051","@ gene @ cell :: UMIs % Convert type Int64","light","cells_daf","cold",17338540.0557891,15345490.0719225,21,2798222.5,1678378,50,6.19626925871302
+"kernel_sum_row","@ row @ col :: value >| Sum","kernel","big_sparse","warm",133290.071971714,125579.070299864,2562,34206.5,31757,50,3.89662993792741
+"kernel_sum_row","@ row @ col :: value >| Sum","kernel","big_sparse","compute",4232562.03066558,4148837.17894554,117,2695250376,2693798959,2,0.00157037805034911
+"kernel_sum_row","@ row @ col :: value >| Sum","kernel","big_sparse","cold",74135067.1160035,54468362.1264994,8,2699199054,2697710857,2,0.0274655798378935
+"kernel_sum_col","@ row @ col :: value >- Sum","kernel","big_sparse","warm",133400.084450841,124527.141451836,3576,38487.5,34331,50,3.46606260346453
+"kernel_sum_col","@ row @ col :: value >- Sum","kernel","big_sparse","compute",15622970.9973559,15584959.0664729,32,660003609,644686710,8,0.0236710387402683
+"kernel_sum_col","@ row @ col :: value >- Sum","kernel","big_sparse","cold",66924371.0581213,62488999.1013333,8,654022853.5,641902975,8,0.102327266853101
+"kernel_mean_row","@ row @ col :: value >| Mean","kernel","big_sparse","warm",133255.089167506,125669.059343636,3590,38227.5,33741,50,3.48584367713049
+"kernel_mean_row","@ row @ col :: value >| Mean","kernel","big_sparse","compute",4316999.11132455,4189377.06854194,115,2707118376.5,2707005627,2,0.00159468427712642
+"kernel_mean_row","@ row @ col :: value >| Mean","kernel","big_sparse","cold",60124356.1250158,46493515.1394457,8,2714013698,2712972634,2,0.0221532986990163
+"kernel_mean_col","@ row @ col :: value >- Mean","kernel","big_sparse","warm",132900.080643594,125428.079627454,3596,34417,31267,50,3.86146615462109
+"kernel_mean_col","@ row @ col :: value >- Mean","kernel","big_sparse","compute",15518629.1085556,15490086.0507041,33,627324947,621169660,8,0.0247377841145469
+"kernel_mean_col","@ row @ col :: value >- Mean","kernel","big_sparse","cold",71161699.5977238,61427055.0431684,8,629187754,626854375,8,0.113100897379709
+"kernel_var_row","@ row @ col :: value >| Var","kernel","big_sparse","warm",133190.071210265,126100.028865039,3582,34692,31548,50,3.83921570420457
+"kernel_var_row","@ row @ col :: value >| Var","kernel","big_sparse","compute",7330256.10679761,7126225.04215688,68,2768770888,2754416521,2,0.00264747658918523
+"kernel_var_row","@ row @ col :: value >| Var","kernel","big_sparse","cold",63765054.102987,56497107.0270985,8,2758186161,2755220577,2,0.0231184736565673
+"kernel_max_row","@ row @ col :: value >| Max","kernel","big_sparse","warm",130305.590573698,123345.060274005,2638,37897,33000,50,3.43841440150139
+"kernel_max_row","@ row @ col :: value >| Max","kernel","big_sparse","compute",7091016.56684652,6960837.05406636,70,2767463432,2765421629,2,0.00256228013163735
+"kernel_max_row","@ row @ col :: value >| Max","kernel","big_sparse","cold",59362487.5764363,37938496.0979223,8,2760144288.5,2756161078,2,0.0215070233189501
+"kernel_max_col","@ row @ col :: value >- Max","kernel","big_sparse","warm",133445.137180388,125528.080388904,3582,35508,31697,50,3.75817103696035
+"kernel_max_col","@ row @ col :: value >- Max","kernel","big_sparse","compute",2983778.13305706,2894784.09104049,167,721042481,720445846,7,0.00413814471640966
+"kernel_max_col","@ row @ col :: value >- Max","kernel","big_sparse","cold",56278800.0097498,50722601.1250168,8,726337424,721187459,7,0.0774829964010636
+"kernel_median_row","@ row @ col :: value >| Median","kernel","big_sparse","warm",134152.011014521,126951.024867594,3541,34727,32709,50,3.86304636203879
+"kernel_median_row","@ row @ col :: value >| Median","kernel","big_sparse","compute",30062244.1573068,28929213.9932513,17,1556508164.5,1487082424,4,0.0193139007188978
+"kernel_median_row","@ row @ col :: value >| Median","kernel","big_sparse","cold",82390007.5047277,66417362.075299,8,1503835488,1502837629,4,0.054786582815851
+"kernel_mode_row","@ row @ col :: value >| Mode","kernel","big_sparse","warm",132649.089209735,124888.028949499,2606,35348,33140,50,3.75266179726533
+"kernel_mode_row","@ row @ col :: value >| Mode","kernel","big_sparse","compute",695520885.579754,688632568.111643,8,6051780998,6051780998,1,0.114928297274738
+"kernel_mode_row","@ row @ col :: value >| Mode","kernel","big_sparse","cold",741240091.039799,728597213.164903,8,6061805904,6061805904,1,0.122280406660774
+"kernel_geomean_row","@ row @ col :: value >| GeoMean eps 1","kernel","big_sparse","warm",159079.092554748,150876.119732857,3005,34917.5,33940,50,4.55585573293472
+"kernel_geomean_row","@ row @ col :: value >| GeoMean eps 1","kernel","big_sparse","compute",76161776.0872468,75989958.1316859,8,3425447346.5,3420870037,2,0.0222341108716986
+"kernel_geomean_row","@ row @ col :: value >| GeoMean eps 1","kernel","big_sparse","cold",130294312.140904,119103999.109939,8,3429583303.5,3422306201,2,0.0379912953296496
+"kernel_std_row","@ row @ col :: value >| Std","kernel","big_sparse","warm",132689.136080444,124687.096104026,2587,32839.5,31287,50,4.0405346025501
+"kernel_std_row","@ row @ col :: value >| Std","kernel","big_sparse","compute",7390571.58352807,7161337.0673731,66,2778986507.5,2777556903,2,0.00265944853045605
+"kernel_std_row","@ row @ col :: value >| Std","kernel","big_sparse","cold",52753592.0846276,39675280.1025286,8,2786578216.5,2784442162,2,0.0189313157521511
+"kernel_quantile_row","@ row @ col :: value >| Quantile p 0.5","kernel","big_sparse","warm",160110.590513796,151087.064296007,2140,41341.5,35793,50,3.87287811312594
+"kernel_quantile_row","@ row @ col :: value >| Quantile p 0.5","kernel","big_sparse","compute",30077266.8560967,29133680.9750646,17,1499153973,1492452680,4,0.0200628270329753
+"kernel_quantile_row","@ row @ col :: value >| Quantile p 0.5","kernel","big_sparse","cold",86283190.1176833,63580415.0952026,8,1508617756,1506327762,4,0.0571935400962385
+"grouped_g2_sum_100","@ row @ col :: value -/ group_100 >- Sum","grouped","big_sparse","warm",159590.155817568,151217.100210488,2983,34642,33370,50,4.60684013098459
+"grouped_g2_sum_100","@ row @ col :: value -/ group_100 >- Sum","grouped","big_sparse","compute",67774314.0840903,63300465.1172087,8,2983274873,2978179817,2,0.0227180923546398
+"grouped_g2_sum_100","@ row @ col :: value -/ group_100 >- Sum","grouped","big_sparse","cold",121454045.58396,96394118.0380061,8,2972565660,2958323106,2,0.0408583222292758
+"grouped_g2_mean_100","@ row @ col :: value -/ group_100 >- Mean","grouped","big_sparse","warm",159609.131515026,149935.13468653,2131,34542,33340,50,4.6207264059703
+"grouped_g2_mean_100","@ row @ col :: value -/ group_100 >- Mean","grouped","big_sparse","compute",67502671.6198772,63108287.0531827,8,3054828276.5,3039848012,2,0.0220970429464588
+"grouped_g2_mean_100","@ row @ col :: value -/ group_100 >- Mean","grouped","big_sparse","cold",121574271.062855,115881503.093988,8,3057140074,3056027270,2,0.0397673211302306
+"grouped_g2_mean_1000","@ row @ col :: value -/ group_1000 >- Mean","grouped","big_sparse","warm",159990.042448044,151637.010276318,2989,36274,34021,50,4.41059829211126
+"grouped_g2_mean_1000","@ row @ col :: value -/ group_1000 >- Mean","grouped","big_sparse","compute",141501515.46346,136426634.970121,8,3817796877,3813725478,2,0.0370636573977846
+"grouped_g2_mean_1000","@ row @ col :: value -/ group_1000 >- Mean","grouped","big_sparse","cold",331989330.064971,193858183.105476,8,3836623575,3816239531,2,0.0865316400150023
+"grouped_g2_max_100","@ row @ col :: value -/ group_100 >- Max","grouped","big_sparse","warm",159620.074555278,151087.064296007,2997,34652,33721,50,4.60637407812761
+"grouped_g2_max_100","@ row @ col :: value -/ group_100 >- Max","grouped","big_sparse","compute",68985381.1054491,63643359.1134846,8,3005757319.5,2971677201,2,0.0229510814655272
+"grouped_g2_max_100","@ row @ col :: value -/ group_100 >- Max","grouped","big_sparse","cold",116021228.081081,107011061.045341,8,3016354203.5,3012838715,2,0.0384640596739126
+"grouped_g3_sum_100","@ col @ row :: value |/ group_100 >| Sum","grouped","big_sparse","warm",159830.087795854,151026.06266737,2989,34737,33310,50,4.60114827981271
+"grouped_g3_sum_100","@ col @ row :: value |/ group_100 >| Sum","grouped","big_sparse","compute",100705909.077078,78886315.1101395,8,2036182509,1573984788,3,0.0494581937679723
+"grouped_g3_sum_100","@ col @ row :: value |/ group_100 >| Sum","grouped","big_sparse","cold",144684748.083819,132051690.132357,8,2066850580,1573798823,3,0.0700025195260216
+"grouped_g3_mean_100","@ col @ row :: value |/ group_100 >| Mean","grouped","big_sparse","warm",159880.029968917,151077.05257833,2969,35077.5,34081,50,4.55790834491959
+"grouped_g3_mean_100","@ col @ row :: value |/ group_100 >| Mean","grouped","big_sparse","compute",96456748.0841652,75494204.0657625,8,2154303404,2143324538,3,0.0447739849016017
+"grouped_g3_mean_100","@ col @ row :: value |/ group_100 >| Mean","grouped","big_sparse","cold",147812767.070718,127515412.168577,8,1688463953,1683742568,3,0.0875427436920343
+"grouped_g3_mean_1000","@ col @ row :: value |/ group_1000 >| Mean","grouped","big_sparse","warm",159589.573740959,150797.073729336,2996,36169.5,33490,50,4.41226928049763
+"grouped_g3_mean_1000","@ col @ row :: value |/ group_1000 >| Mean","grouped","big_sparse","compute",473693380.07411,464511741.069146,8,2041379668,2039414167,3,0.232045702962351
+"grouped_g3_mean_1000","@ col @ row :: value |/ group_1000 >| Mean","grouped","big_sparse","cold",526132535.596844,506750258.035026,8,2050684410,2038079525,3,0.256564361162157
+"grouped_g3_max_100","@ col @ row :: value |/ group_100 >| Max","grouped","big_sparse","warm",159259.070642292,149545.026943088,2091,34387,33460,50,4.63137437526658
+"grouped_g3_max_100","@ col @ row :: value |/ group_100 >| Max","grouped","big_sparse","compute",102113050.583284,101341914.152727,8,2131956419,2119456061,3,0.047896406170995
+"grouped_g3_max_100","@ col @ row :: value |/ group_100 >| Max","grouped","big_sparse","cold",155868491.565343,124971865.094267,8,2115779794,1645770535,3,0.0736695245920016
+"chain_read_scalar",". organism","chain","chain_triple","warm",64888.0377411842,61152.0372331142,7335,33355,31948,50,1.9453766374212
+"chain_read_scalar",". organism","chain","chain_triple","compute",565764.144994318,532319.187186658,840,328333,322725,50,1.72314127728348
+"chain_read_scalar",". organism","chain","chain_triple","cold",591568.066738546,552779.994904995,822,381868,375053,50,1.54914281044378
+"chain_read_vector","@ cell : donor","chain","chain_triple","warm",92549.1331145167,86489.1335368156,5120,39930,38408,50,2.31778445065156
+"chain_read_vector","@ cell : donor","chain","chain_triple","compute",719450.06493479,679530.086927116,663,1000096,981433,50,0.719381004358372
+"chain_read_vector","@ cell : donor","chain","chain_triple","cold",729224.062524736,691808.992996812,655,1097692.5,1080922,50,0.664324537632111
+"chain_read_matrix","@ cell @ gene :: UMIs","chain","chain_triple","warm",114752.096123993,108182.081021369,4149,41993,40881,50,2.73264820622468
+"chain_read_matrix","@ cell @ gene :: UMIs","chain","chain_triple","compute",1037777.05226094,989835.127256811,455,912729.5,894562,50,1.13700395600333
+"chain_read_matrix","@ cell @ gene :: UMIs","chain","chain_triple","cold",1050717.08094329,1006340.14233947,451,1052905,1035043,50,0.9979220166523
+"chain_reduce","@ cell @ gene :: UMIs >| Sum","chain","chain_triple","warm",134922.622237355,126120.052300394,3516,44572,43135,50,3.02707130569315
+"chain_reduce","@ cell @ gene :: UMIs >| Sum","chain","chain_triple","compute",3700073.10993969,2970728.09189558,95,1444342.5,1424778,50,2.56176987794771
+"chain_reduce","@ cell @ gene :: UMIs >| Sum","chain","chain_triple","cold",3714154.12519127,2921284.05999392,127,1591528.5,1563617,50,2.33370255398585
