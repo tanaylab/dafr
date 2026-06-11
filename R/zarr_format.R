@@ -599,8 +599,18 @@ S7::method(format_vectors_set,
     }
     chunk <- store_get_bytes(store, zarr_v3_chunk_path(base, 1L))
     if (is.null(chunk)) {
-        stop(sprintf("vector %s missing chunk", sQuote(name)),
-             call. = FALSE)
+        # Zarr omits a chunk that is entirely fill_value (the all-fill
+        # optimization). Reconstruct it from fill_value (matching Julia/Zarr.jl)
+        # rather than erroring "missing chunk".
+        fill <- node$fill_value
+        if (is.null(fill)) fill <- if (is_string) "" else 0
+        if (is_string) return(rep(as.character(fill), n))
+        return(switch(zarr_v3_r_kind_for_dtype(node$data_type),
+            double    = as.double(rep(fill, n)),
+            integer   = as.integer(rep(fill, n)),
+            integer64 = bit64::as.integer64(rep(fill, n)),
+            logical   = as.logical(rep(fill, n)),
+            rep(fill, n)))
     }
     if (is_string) {
         return(zarr_v3_decode_strings(chunk, n = n))
