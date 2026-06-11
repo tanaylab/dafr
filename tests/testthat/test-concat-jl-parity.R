@@ -482,6 +482,20 @@ test_that("concat / merge / scalar / !collect", {
     )
 })
 
+test_that("concat / merge / scalar / collect errors when a source lacks the scalar (Julia parity)", {
+    # Audit probe concat-scalar-collect-missing: Julia errors (eltype(nothing)
+    # in concatenate_merge_scalar) when CollectAxis hits a source without the
+    # scalar; dafr previously wrote a silent NA into the collected vector.
+    s <- .fresh()
+    set_scalar(s$sources[[1L]], "version", 1L)
+    # s$sources[[2L]] deliberately has no "version" scalar.
+    expect_error(
+        concatenate(s$destination, "cell", s$sources,
+                    merge = setNames(list(MERGE_COLLECT_AXIS), ALL_SCALARS)),
+        regexp = "version"
+    )
+})
+
 # ---------------------------------------------------------------------------
 # concat / merge / vector
 # ---------------------------------------------------------------------------

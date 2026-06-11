@@ -425,8 +425,17 @@ concatenate <- function(destination, axis, sources,
                 name, S7::prop(destination, "name")
             ), call. = FALSE)
         }
-        vals <- lapply(sources, function(s)
-            if (format_has_scalar(s, name)) format_get_scalar(s, name)$value else NA)
+        # Julia parity: concatenate_merge_scalar errors (eltype(nothing)) when
+        # a source lacks the scalar, rather than collecting a silent NA.
+        present <- vapply(sources, function(s) format_has_scalar(s, name),
+                          logical(1L))
+        if (!all(present)) {
+            stop(sprintf(
+                "can't collect axis for the scalar: %s\nof the daf data sets concatenated into the daf data: %s\nbecause it is missing from %d of the %d data sets",
+                name, S7::prop(destination, "name"), sum(!present), length(sources)
+            ), call. = FALSE)
+        }
+        vals <- lapply(sources, function(s) format_get_scalar(s, name)$value)
         format_set_vector(destination, dataset_axis, name,
                           do.call(c, vals), overwrite = overwrite)
     }
