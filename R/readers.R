@@ -286,6 +286,16 @@ get_vector <- function(daf, axis, name, default) {
         if (length(default) == 1L) {
             out <- rep(default, n)
         } else if (length(default) == n) {
+            # Julia parity (require_axis_names): a NAMED full-length default
+            # must match the axis entry names in order; do not silently relabel
+            # its values positionally onto the axis entries.
+            dn <- names(default)
+            if (!is.null(dn) && !identical(dn, entries)) {
+                stop(sprintf(
+                    "the entry names of the default mismatch the entry names of the axis: %s",
+                    axis
+                ), call. = FALSE)
+            }
             out <- default
         } else {
             stop(sprintf(
