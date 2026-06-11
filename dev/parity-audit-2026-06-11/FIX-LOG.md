@@ -86,3 +86,10 @@ DECISION (user): KEEP dafr's stricter Optional/GuaranteedOutput enforcement. Do 
 loosen to match Julia 0.3.0 (which lets a never-created GuaranteedOutput pass
 verify_output — a likely DAF.jl bug). Document as "dafr intentionally stricter"
 and raise upstream. CTR-P1..P4 are thus WONTFIX-by-design, not open bugs.
+
+## UPDATE 4 — clean batch (committed)
+- copy_matrix transpose-reads a flipped-only source (copy-flipped-matrix)
+- reader API exposes reserved 'name'/'index' virtual vectors (P1-name-index-reserved)
+- reconstruct_axis keeps the empties-mapping key for no-empties properties (recon-empties-keyset)
+Total parity fixes committed: 7 (groupby/countby order, concat missing-scalar, named-default
+order, relayout default, copy_matrix flipped, reserved name/index, reconstruct empties-key).
