@@ -100,3 +100,9 @@ order, relayout default, copy_matrix flipped, reserved name/index, reconstruct e
 8 parity fixes committed. Remaining are the harder/riskier ones (recon-int-rewrite behavior
 change, chain-relayout-writer-mutation, anndata X orientation round-trip, reorder index width
 partly-inherent, adapter insist, complete_daf view scope) - each needs careful per-item handling.
+
+## UPDATE 6 — fresh-attention fix
+- reconstruct_axis rewrites the implicit property as a string FK into the new axis
+  (recon-int-rewrite). Ported Julia's overwrite_implicit_values condition exactly
+  (rewrite when not-already-string OR non-empty empty_implicit); guard case tested.
+9 parity fixes committed total. Reconstruction subsystem now at full parity.
