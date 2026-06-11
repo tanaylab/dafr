@@ -93,3 +93,10 @@ and raise upstream. CTR-P1..P4 are thus WONTFIX-by-design, not open bugs.
 - reconstruct_axis keeps the empties-mapping key for no-empties properties (recon-empties-keyset)
 Total parity fixes committed: 7 (groupby/countby order, concat missing-scalar, named-default
 order, relayout default, copy_matrix flipped, reserved name/index, reconstruct empties-key).
+
+## UPDATE 5
+- zarr reader reconstructs an elided all-fill chunk from fill_value (zarr-all-zero-dense-missing-chunk).
+  NOTE: covers the dense-VECTOR path; the dense-matrix path likely wants the same guard (follow-up).
+8 parity fixes committed. Remaining are the harder/riskier ones (recon-int-rewrite behavior
+change, chain-relayout-writer-mutation, anndata X orientation round-trip, reorder index width
+partly-inherent, adapter insist, complete_daf view scope) - each needs careful per-item handling.
