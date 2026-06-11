@@ -60,3 +60,23 @@ write; int64/uint64 sparse nzval precision; (OPS-01, OPS-03, TKR-04/05, zarr-dty
 reorder-float32-widen, files-int-sparse-matrix-eltype-loss).
 
 ## DEFERRED FEATURES (user choice): h5df, ZipDaf, packed-write backends.
+
+## UPDATE 2 — big ones
+
+- **relayout default → TRUE: DONE** (commit c3ff8ac). Flipped set_matrix default;
+  updated the 7 tests that implicitly assumed single-layout to pass relayout=FALSE.
+  Full suite: 5923 pass / 0 fail after updates.
+- **contracts Optional/GuaranteedOutput strictness: ANALYSED, NOT YET DONE.**
+  The change is mechanically tiny — in R/contracts.R:
+    - `.is_mandatory` (723): output set should be `CreatedOutput` only (drop GuaranteedOutput).
+    - `.is_forbidden` (729): input set should be `CreatedOutput` only (drop GuaranteedOutput, OptionalOutput).
+  Julia semantics (contracts.jl:71-78): GuaranteedOutput = "created UNLESS it already
+  exists" (so pre-existing is fine, and CTR-P4 shows Julia does NOT enforce it on
+  output); OptionalOutput pre-existing is also accepted.
+  CAVEAT (why flagged, not auto-applied): this RELAXES dafr's stricter safety checks
+  to match Julia 0.3.0 behavior that is arguably a quirk (a GuaranteedOutput that is
+  never created passing verify_output is dubious). It also touches 9 test-*.R contract
+  files that encode the strict behavior. Recommend confirming before loosening.
+- **http/files metadata.json interop: DESIGN DECISION needed** (which on-disk layout
+  is canonical — dafr metadata.zip vs Julia root metadata.json). Large; defer to a
+  dedicated pass.
