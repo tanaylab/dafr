@@ -549,11 +549,22 @@ copy_all <- function(destination, source,
     }
     # Matrices — outer loops over axes.
     axes <- format_axes_set(source)
+    # When relayout=TRUE a single copy_matrix writes BOTH orientations, so a
+    # matrix the source stores in both layouts (or that is available in both via
+    # relayout) must be copied only ONCE - otherwise the second ordered axis pair
+    # collides ("existing matrix"). Mirror Julia's copy_matrices guard by
+    # deduplicating on the logical matrix (unordered axis pair + name).
+    seen_logical <- character(0)
     for (ra in axes) {
         for (ca in axes) {
             if (!format_has_axis(destination, ra) ||
                 !format_has_axis(destination, ca)) next
             for (mn in format_matrices_set(source, ra, ca)) {
+                if (relayout) {
+                    lkey <- paste(c(sort(c(ra, ca)), mn), collapse = "|")
+                    if (lkey %in% seen_logical) next
+                    seen_logical <- c(seen_logical, lkey)
+                }
                 key <- paste(ra, ca, mn, sep = "|")
                 alt_key <- paste(ca, ra, mn, sep = "|")
                 empty_m <- if (is.null(empty)) NULL else
