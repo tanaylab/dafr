@@ -130,9 +130,15 @@ zarr_to_files <- function(src, dst) {
     for (rows in axes) {
         for (cols in axes) {
             for (name in matrices_set(src_daf, rows, cols)) {
+                # Copy each PHYSICALLY-stored orientation as-is. set_matrix now
+                # defaults relayout=TRUE, which would pre-create the flip on the
+                # first orientation and make the second collide ("existing
+                # matrix"); relayout=FALSE preserves the source's exact layout
+                # structure through the conversion.
                 set_matrix(
                     dst_daf, rows, cols, name,
-                    get_matrix(src_daf, rows, cols, name)
+                    get_matrix(src_daf, rows, cols, name),
+                    relayout = FALSE
                 )
             }
         }

@@ -259,7 +259,7 @@ test_that("relayout_matrix stores transpose at flipped axis pair", {
     add_axis(d, "cell", c("A", "B", "C"))
     add_axis(d, "gene", c("X", "Y"))
     m <- matrix(c(1, 2, 3, 4, 5, 6), nrow = 3, ncol = 2)
-    set_matrix(d, "cell", "gene", "m", m)
+    set_matrix(d, "cell", "gene", "m", m, relayout = FALSE)
     relayout_matrix(d, "cell", "gene", "m")
     expect_true(file.exists(file.path(dir, "matrices", "gene", "cell", "m.json")))
     d2 <- files_daf(dir, mode = "r")
@@ -276,7 +276,7 @@ test_that("relayout_matrix on sparse matrix stores transposed CSC", {
         i = c(1, 3, 2), j = c(1, 1, 2), x = c(10, 20, 30),
         dims = c(3, 2)
     )
-    set_matrix(d, "cell", "gene", "sm", sp)
+    set_matrix(d, "cell", "gene", "sm", sp, relayout = FALSE)
     relayout_matrix(d, "cell", "gene", "sm")
     d2 <- files_daf(dir, mode = "r")
     m_flipped <- get_matrix(d2, "gene", "cell", "sm")

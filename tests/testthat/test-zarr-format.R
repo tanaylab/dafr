@@ -537,7 +537,7 @@ test_that("ZarrDaf relayout_matrix creates flipped layout", {
     add_axis(d, "cell", c("A", "B", "C"))
     add_axis(d, "gene", c("X", "Y"))
     m <- matrix(c(1, 2, 3, 4, 5, 6), nrow = 3)
-    set_matrix(d, "cell", "gene", "M", m)
+    set_matrix(d, "cell", "gene", "M", m, relayout = FALSE)
     relayout_matrix(d, "cell", "gene", "M")
     expect_true(has_matrix(d, "gene", "cell", "M"))
     out <- get_matrix(d, "gene", "cell", "M")
@@ -550,7 +550,7 @@ test_that("ZarrDafReadOnly rejects all matrix mutations", {
     add_axis(d, "cell", c("A", "B"))
     add_axis(d, "gene", c("X", "Y"))
     m <- matrix(c(1, 2, 3, 4), nrow = 2)
-    set_matrix(d, "cell", "gene", "M", m)
+    set_matrix(d, "cell", "gene", "M", m, relayout = FALSE)
     rm(d)
     d_ro <- zarr_daf(tmp, mode = "r")
     expect_error(set_matrix(d_ro, "cell", "gene", "M", m + 10,

@@ -66,7 +66,7 @@ test_that("MemoryDaf -> FilesDaf -> MemoryDaf round-trip preserves data", {
     add_axis(m, "cell", c("A", "B"))
     add_axis(m, "gene", c("X", "Y", "Z"))
     set_vector(m, "cell", "v", c(10.0, 20.0))
-    set_matrix(m, "cell", "gene", "m", matrix(1:6, 2, 3))
+    set_matrix(m, "cell", "gene", "m", matrix(1:6, 2, 3), relayout = FALSE)
     dir <- new_tempdir()
     f <- .copy_all_memory_to_files(m, dir)
     f2 <- files_daf(dir, mode = "r")
@@ -87,7 +87,7 @@ test_that("sparse dgCMatrix round-trip through FilesDaf", {
         i = c(1, 3, 2), j = c(1, 1, 2), x = c(10, 20, 30),
         dims = c(3, 2)
     )
-    set_matrix(m, "cell", "gene", "sm", sp)
+    set_matrix(m, "cell", "gene", "sm", sp, relayout = FALSE)
     dir <- new_tempdir()
     f <- .copy_all_memory_to_files(m, dir)
     f2 <- files_daf(dir, mode = "r")
