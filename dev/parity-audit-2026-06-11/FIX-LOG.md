@@ -128,3 +128,20 @@ RE-CLASSIFIED (flag, don't fix — like contracts, dafr's behavior is correct/sa
 14 parity fixes committed. Remaining: chain-relayout (FLAG, dafr correct), reorder/sparse-vec
 (inherent R types), anndata-X-orientation (needs scanpy/h5ad verification - dedicated pass),
 complete_daf view scope/rplus/json (complex multi-part).
+
+## UPDATE 10 — IMPORTANT correction (relayout-default fallout)
+The relayout-default->TRUE change (fix #4, c3ff8ac) had broader fallout than caught at
+the time, because every regression sweep summed only `df$failed` and NOT `df$error` -
+a thrown relayout_matrix("existing matrix") is an ERROR, not a failed assertion. A full
+suite counting BOTH surfaced 62 errors (all "existing matrix"):
+- ROOT CAUSE 1 (SOURCE BUG): R/example_data.R .load_matrix_file did set_matrix then
+  relayout_matrix; with relayout=TRUE default the flip pre-exists -> collide. This broke
+  example_cells_daf()/example_metacells_daf() FOR USERS (and ~53 tests via the fixture).
+  Fix: set_matrix(..., relayout=FALSE).
+- ROOT CAUSE 2 (SOURCE BUG): R/zarr_convert.R files<->zarr copy loop set_matrix-ed each
+  stored orientation -> second collides. Broke files_to_zarr()/zarr_to_files() for any
+  both-layout matrix. Fix: set_matrix(..., relayout=FALSE).
+- 6 relayout/round-trip tests (zarr-format, files-matrices, files-julia-compat) updated to
+  set_matrix(relayout=FALSE) to restore their single-layout premise.
+FULL SUITE NOW: 6137 pass / 0 failed / 0 error (verified counting BOTH).
+LESSON: always count df$error alongside df$failed.
