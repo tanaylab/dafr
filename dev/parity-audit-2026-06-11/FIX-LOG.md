@@ -106,3 +106,12 @@ partly-inherent, adapter insist, complete_daf view scope) - each needs careful p
   (recon-int-rewrite). Ported Julia's overwrite_implicit_values condition exactly
   (rewrite when not-already-string OR non-empty empty_implicit); guard case tested.
 9 parity fixes committed total. Reconstruction subsystem now at full parity.
+
+## UPDATE 7 — session 2026-06-14 (continuing)
+- zarr dense MATRIX reader reconstructs an elided all-fill chunk (follow-up to vector fix) — zarr-all-zero-dense-missing-chunk (matrix)
+- copy_all dedups a both-layouts matrix when relayout=TRUE (was 'existing matrix' collision) — copy-all-both-layouts
+- copy_tensor with empty=NULL skips a missing slice (was 'missing matrix' error) — copy-tensor-missing-slice-no-empty
+12 parity fixes committed.
+RE-CLASSIFIED (flag, don't fix — like contracts, dafr's behavior is correct/safer):
+- chain-relayout-writer-mutation: dafr's relayout_matrix on a write-chain succeeds with correct
+  values (both layouts); Julia ERRORS. Matching Julia would degrade dafr to a quirk.
