@@ -115,3 +115,8 @@ partly-inherent, adapter insist, complete_daf view scope) - each needs careful p
 RE-CLASSIFIED (flag, don't fix — like contracts, dafr's behavior is correct/safer):
 - chain-relayout-writer-mutation: dafr's relayout_matrix on a write-chain succeeds with correct
   values (both layouts); Julia ERRORS. Matching Julia would degrade dafr to a quirk.
+
+## UPDATE 8
+- copy_tensor empty=NULL skips missing slice (copy-tensor-missing-slice-no-empty)
+- adapter copy-back uses insist=TRUE: errors on collision instead of silent data loss (adapter-insist-collision-scalar)
+13 parity fixes committed (copy_all-caller regression green: concat/backend/copies/adapter/complete/chain).
