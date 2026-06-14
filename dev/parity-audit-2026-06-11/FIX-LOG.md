@@ -120,3 +120,11 @@ RE-CLASSIFIED (flag, don't fix — like contracts, dafr's behavior is correct/sa
 - copy_tensor empty=NULL skips missing slice (copy-tensor-missing-slice-no-empty)
 - adapter copy-back uses insist=TRUE: errors on collision instead of silent data loss (adapter-insist-collision-scalar)
 13 parity fixes committed (copy_all-caller regression green: concat/backend/copies/adapter/complete/chain).
+
+## UPDATE 9 — fresh-attention fix
+- computation() threads overwrite into contractor: idempotent re-run with overwrite=TRUE
+  now succeeds (COMP-01). The prior 'subtle' concern resolved: Julia keeps overwrite in the
+  inner fn's kwargs (which dafr already forwards), so only the contractor call needed it.
+14 parity fixes committed. Remaining: chain-relayout (FLAG, dafr correct), reorder/sparse-vec
+(inherent R types), anndata-X-orientation (needs scanpy/h5ad verification - dedicated pass),
+complete_daf view scope/rplus/json (complex multi-part).
