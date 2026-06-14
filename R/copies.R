@@ -471,7 +471,10 @@ copy_tensor <- function(destination, source,
     for (entry in format_axis_array(destination, main_axis)$value) {
         src_mat_name <- paste0(entry, "_", name)
         dest_mat_name <- paste0(entry, "_", base_rename)
-        default <- if (is.null(empty)) .DAFR_UNDEF else empty
+        # Julia parity: pass `empty` straight through as copy_matrix's `default`.
+        # empty=NULL (the default) -> default=NULL -> copy_matrix skips a missing
+        # slice (no-op), rather than .DAFR_UNDEF which errors "missing matrix".
+        default <- empty
         copy_matrix(destination, source,
             rows_axis = rows_axis, columns_axis = columns_axis,
             name = src_mat_name,
