@@ -902,10 +902,23 @@ S7::method(format_matrices_set,
         }
     }
     bytes <- store_get_bytes(store, chunk_path)
-    if (is.null(bytes)) {
-        stop(sprintf("matrix at %s missing chunk", sQuote(base)), call. = FALSE)
-    }
-    flat <- if (is_string) {
+    flat <- if (is.null(bytes)) {
+        # Zarr omits a chunk that is entirely fill_value (the all-fill
+        # optimization); reconstruct it from fill_value rather than erroring
+        # "missing chunk" (matching Julia/Zarr.jl). Mirrors the dense-vector path.
+        fill <- node$fill_value
+        if (is.null(fill)) fill <- if (is_string) "" else 0
+        if (is_string) {
+            rep(as.character(fill), total)
+        } else {
+            switch(zarr_v3_r_kind_for_dtype(node$data_type),
+                double    = as.double(rep(fill, total)),
+                integer   = as.integer(rep(fill, total)),
+                integer64 = bit64::as.integer64(rep(fill, total)),
+                logical   = as.logical(rep(fill, total)),
+                rep(fill, total))
+        }
+    } else if (is_string) {
         zarr_v3_decode_strings(bytes, n = total)
     } else {
         zarr_v3_decode_chunk(bytes, node$data_type, n = total)
