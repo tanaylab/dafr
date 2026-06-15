@@ -11,7 +11,7 @@ set_matrix(
   name,
   mat,
   overwrite = FALSE,
-  relayout = FALSE
+  relayout = TRUE
 )
 }
 \arguments{
@@ -28,10 +28,11 @@ shape \verb{axis_length(rows_axis) x axis_length(columns_axis)}.}
 
 \item{overwrite}{See \code{set_scalar}.}
 
-\item{relayout}{If \code{TRUE}, also store the flipped layout (so
-\code{get_matrix(columns_axis, rows_axis, name)} skips the
-transpose-on-the-fly path). Mirrors Julia \verb{set_matrix!(...; relayout)}.
-Default \code{FALSE}; set to \code{TRUE} to match Julia's default behavior.}
+\item{relayout}{If \code{TRUE} (the default, matching Julia
+\verb{set_matrix!(...; relayout = true)}), also store the flipped layout so
+\code{get_matrix(columns_axis, rows_axis, name)} is directly available and
+skips the transpose-on-the-fly path. Set \code{FALSE} to store only the given
+orientation (saving storage at the cost of on-the-fly transposes).}
 }
 \value{
 Invisibly the input \code{daf}.

@@ -12,18 +12,22 @@ read_only(daf, name = NULL)
 \item{name}{Optional chain name; defaults to \code{daf_name(daf)}.}
 }
 \value{
-A \link{ReadOnlyChainDaf}.
+\code{daf} itself if it is already read-only and \code{name} is
+\code{NULL}; otherwise a \link{ReadOnlyChainDaf}.
 }
 \description{
 Returns a \code{ReadOnlyChainDaf} that reads from \code{daf} but rejects
-writes. Implementation delegates to \code{\link[=chain_reader]{chain_reader()}} with a single
-entry; there is no separate read-only class.
+writes; there is no separate read-only wrapper class. As in Julia,
+\code{read_only} is the identity on data that is already read-only: if
+\code{daf} is a \link{DafReadOnly} and no \code{name} is given, \code{daf} itself is
+returned; passing a \code{name} always forces a fresh wrapper.
 }
 \examples{
 d <- memory_daf(name = "inner")
 add_axis(d, "cell", c("c1", "c2"))
 ro <- read_only(d)
 daf_name(ro)
+identical(read_only(ro), ro)
 }
 \seealso{
 \code{\link[=chain_reader]{chain_reader()}}, \code{\link[=is_daf]{is_daf()}}

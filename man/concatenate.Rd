@@ -47,8 +47,11 @@ or \code{"<axis>.*"} properties).}
 \item{merge}{Named list mapping property keys to a merge action
 (\code{"SkipProperty"}, \code{"LastValue"}, \code{"CollectAxis"}).}
 
-\item{sparse_if_saves_storage_fraction}{Numeric (default 0.25); reserved
-for a future sparse-promotion heuristic.}
+\item{sparse_if_saves_storage_fraction}{Numeric (default 0.25). A
+\code{MERGE_COLLECT_AXIS} vector merge produces a sparse (\code{dgCMatrix})
+result when sparse storage would save at least this fraction of the
+dense storage size (mirrors Julia's heuristic; sparse-stored sources
+count their nnz, dense-stored sources count their full length).}
 
 \item{overwrite}{If \code{TRUE}, allow replacing pre-existing destination
 entries.}
