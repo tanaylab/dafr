@@ -1,3 +1,96 @@
+# dafr 0.4.5
+
+Parity-audit release: an exhaustive differential sweep against
+`DataAxesFormats.jl` 0.3.0 (55 confirmed divergences triaged) produced the
+fixes below. Each is test-driven (failing-first test, minimal fix) and the full
+suite stays green. See `dev/parity-audit-2026-06-11/` for the audit trail.
+
+## AnnData interop
+
+* **Dense `/X` and dense layers use the canonical AnnData `(n_obs, n_var)`
+  orientation.** Previously the dense matrix was written and read with no
+  transpose, producing a `(n_var, n_obs)` on-disk `/X`: a real
+  `scanpy`/`anndata` file failed to load (dimension mismatch) and dafr-written
+  h5ad files were transposed relative to the ecosystem. The reader now reshapes
+  from the known axis lengths (robust to `hdf5r` dropping a singleton dimension
+  to a vector), and the writer emits the AnnData encoding attributes
+  (`array` on `/X` and layers; `dataframe` with `_index` + `column-order` on
+  `obs`/`var`) so row and column names round-trip instead of falling back to
+  `0..n-1`. Sparse `/X` (explicit `shape`/`indptr`/`indices`) was already
+  correct and is unchanged. Verified both directions against Python `anndata`.
+
+* **`obsm`/`varm` dense embeddings use the canonical `(n_axis, k)`
+  orientation,** the same fix as `/X`. Per-obs and per-var embeddings now
+  interoperate with the wider AnnData ecosystem.
+
+## Query
+
+* **`GroupBy`/`CountBy` order group labels bytewise** (`method = "radix"`),
+  matching Julia, instead of by the ambient `LC_COLLATE`. Group output is now
+  locale-independent.
+
+## Concatenation
+
+* **`concatenate()` errors when a collect-axis source lacks the scalar** being
+  collected, instead of silently producing `NA`.
+
+## Readers
+
+* **`get_vector()` errors on a named `default` whose names mismatch the axis
+  order,** rather than silently misaligning the values.
+
+* **The reader API exposes the reserved `name`/`index` virtual vectors** via
+  `has_vector()`/`get_vector()`, matching Julia.
+
+## Writers and layout
+
+* **`set_matrix()` defaults to `relayout = TRUE`,** matching Julia: storing a
+  matrix now also stores its transposed layout by default. This is a
+  behavior/storage-size change; pass `relayout = FALSE` to keep a single
+  layout. Internal call sites that immediately relayout (`example_*_daf()`, the
+  files/zarr converters) were updated so the default does not collide.
+
+## Copies
+
+* **`copy_matrix()` transpose-reads a flipped-only source** instead of erroring.
+
+* **`copy_all()` copies a both-layouts matrix once** (Julia's
+  `columns_axis >= rows_axis` guard) instead of hitting an "existing matrix"
+  collision when `relayout = TRUE`.
+
+* **`copy_tensor()` with `empty = NULL` skips a missing slice** instead of
+  erroring.
+
+## Reconstruction
+
+* **`reconstruct_axis()` rewrites the implicit property as a string foreign key**
+  into the new axis (Julia's `overwrite_implicit_values` condition), and keeps
+  the empties-mapping key for properties that have no empties.
+
+## Zarr
+
+* **The dense reader reconstructs an elided all-fill chunk from `fill_value`**
+  for both the vector and matrix paths, instead of reading zeros/garbage when a
+  writer omits an all-fill chunk.
+
+## Adapters and computations
+
+* **Adapter copy-back uses `insist = TRUE`:** a name collision on copy-back now
+  errors instead of silently dropping data.
+
+* **`computation()` threads `overwrite` into the contractor,** so an idempotent
+  re-run with `overwrite = TRUE` succeeds (COMP-01).
+
+## Documented deliberate deviations (intentionally not changed)
+
+* `group_names` uses an FNV-32 hash rather than Julia's simhash (shape-parity
+  only); `~`/`!~` regex match collects multi-token patterns to allow unescaped
+  metacharacters; contracts keep dafr's stricter `Optional`/`GuaranteedOutput`
+  enforcement (safer than DAF.jl 0.3.0, raised upstream); `relayout_matrix()`
+  on a write-chain succeeds with both layouts where Julia errors. Unsigned and
+  `Float32` widths and `UInt64` precision are bounded by R's native types
+  (documented; not a correctness regression).
+
 # dafr 0.4.4
 
 ## Parity
