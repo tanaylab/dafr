@@ -28,11 +28,11 @@ set_matrix(d, "cell", "gene", "UMIs",
 print(d)
 #> <dafr::MemoryDaf>
 #>  @ name                  : chr "demo"
-#>  @ internal              :<environment: 0x564b8c250ce0> 
-#>  @ cache                 :<environment: 0x564b8c28dcb0> 
-#>  @ axis_version_counter  :<environment: 0x564b8c292110> 
-#>  @ vector_version_counter:<environment: 0x564b8c291e38> 
-#>  @ matrix_version_counter:<environment: 0x564b8c291b60>
+#>  @ internal              :<environment: 0x5605c9438bc0> 
+#>  @ cache                 :<environment: 0x5605c9475b90> 
+#>  @ axis_version_counter  :<environment: 0x5605c9479fb8> 
+#>  @ vector_version_counter:<environment: 0x5605c9479ce0> 
+#>  @ matrix_version_counter:<environment: 0x5605c9479a08>
 ```
 
 `description(d)` produces a more detailed dump of axes, vectors,
@@ -53,6 +53,8 @@ cat(description(d))
 #>     donor
 #> matrices:
 #>   cell,gene:
+#>     UMIs
+#>   gene,cell:
 #>     UMIs
 ```
 

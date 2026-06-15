@@ -86,7 +86,9 @@ add_axis(d, "cell", c("c1", "c2", "c3"))
 set_vector(d, "cell", "donor", c("dA", "dB", "dA"))
 set_vector(d, "cell", "donor_age", c(30L, 40L, 30L))
 reconstruct_axis(d, existing_axis = "cell", implicit_axis = "donor")
-#> list()
+#> $donor_age
+#> NULL
+#> 
 get_vector(d, "donor", "donor_age")
 #> dA dB 
 #> 30 40 

@@ -7,7 +7,7 @@
 
     <a class="navbar-brand me-2" href="../index.html">dafr</a>
 
-    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">0.4.2</small>
+    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">0.4.5</small>
 
 
     <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbar" aria-controls="navbar" aria-expanded="false" aria-label="Toggle navigation">
@@ -42,9 +42,85 @@
   <main id="main" class="col-md-9"><div class="page-header">
 
       <h1>Changelog</h1>
-      <small>Source: <a href="https://github.com/tanaylab/dafr/blob/v0.4.2/NEWS.md" class="external-link"><code>NEWS.md</code></a></small>
+      <small>Source: <a href="https://github.com/tanaylab/dafr/blob/main/NEWS.md" class="external-link"><code>NEWS.md</code></a></small>
     </div>
 
+    <div class="section level2">
+<h2 class="pkg-version" data-toc-text="0.4.5" id="dafr-045">dafr 0.4.5<a class="anchor" aria-label="anchor" href="#dafr-045"></a></h2>
+<p>Parity-audit release: an exhaustive differential sweep against <code>DataAxesFormats.jl</code> 0.3.0 (55 confirmed divergences triaged) produced the fixes below. Each is test-driven (failing-first test, minimal fix) and the full suite stays green. See <code>dev/parity-audit-2026-06-11/</code> for the audit trail.</p>
+<div class="section level3">
+<h3 id="anndata-interop-0-4-5">AnnData interop<a class="anchor" aria-label="anchor" href="#anndata-interop-0-4-5"></a></h3>
+<ul><li><p><strong>Dense <code>/X</code> and dense layers use the canonical AnnData <code>(n_obs, n_var)</code> orientation.</strong> Previously the dense matrix was written and read with no transpose, producing a <code>(n_var, n_obs)</code> on-disk <code>/X</code>: a real <code>scanpy</code>/<code>anndata</code> file failed to load (dimension mismatch) and dafr-written h5ad files were transposed relative to the ecosystem. The reader now reshapes from the known axis lengths (robust to <code>hdf5r</code> dropping a singleton dimension to a vector), and the writer emits the AnnData encoding attributes (<code>array</code> on <code>/X</code> and layers; <code>dataframe</code> with <code>_index</code> + <code>column-order</code> on <code>obs</code>/<code>var</code>) so row and column names round-trip instead of falling back to <code>0..n-1</code>. Sparse <code>/X</code> (explicit <code>shape</code>/<code>indptr</code>/<code>indices</code>) was already correct and is unchanged. Verified both directions against Python <code>anndata</code>.</p></li>
+<li><p><strong><code>obsm</code>/<code>varm</code> dense embeddings use the canonical <code>(n_axis, k)</code> orientation,</strong> the same fix as <code>/X</code>. Per-obs and per-var embeddings now interoperate with the wider AnnData ecosystem.</p></li>
+</ul></div>
+<div class="section level3">
+<h3 id="query-0-4-5">Query<a class="anchor" aria-label="anchor" href="#query-0-4-5"></a></h3>
+<ul><li>
+<strong><code>GroupBy</code>/<code>CountBy</code> order group labels bytewise</strong> (<code>method = "radix"</code>), matching Julia, instead of by the ambient <code>LC_COLLATE</code>. Group output is now locale-independent.</li>
+</ul></div>
+<div class="section level3">
+<h3 id="concatenation-0-4-5">Concatenation<a class="anchor" aria-label="anchor" href="#concatenation-0-4-5"></a></h3>
+<ul><li>
+<strong><code><a href="../reference/concatenate.html">concatenate()</a></code> errors when a collect-axis source lacks the scalar</strong> being collected, instead of silently producing <code>NA</code>.</li>
+</ul></div>
+<div class="section level3">
+<h3 id="readers-0-4-5">Readers<a class="anchor" aria-label="anchor" href="#readers-0-4-5"></a></h3>
+<ul><li><p><strong><code><a href="../reference/get_vector.html">get_vector()</a></code> errors on a named <code>default</code> whose names mismatch the axis order,</strong> rather than silently misaligning the values.</p></li>
+<li><p><strong>The reader API exposes the reserved <code>name</code>/<code>index</code> virtual vectors</strong> via <code><a href="../reference/has_vector.html">has_vector()</a></code>/<code><a href="../reference/get_vector.html">get_vector()</a></code>, matching Julia.</p></li>
+</ul></div>
+<div class="section level3">
+<h3 id="writers-and-layout-0-4-5">Writers and layout<a class="anchor" aria-label="anchor" href="#writers-and-layout-0-4-5"></a></h3>
+<ul><li>
+<strong><code><a href="../reference/set_matrix.html">set_matrix()</a></code> defaults to <code>relayout = TRUE</code>,</strong> matching Julia: storing a matrix now also stores its transposed layout by default. This is a behavior/storage-size change; pass <code>relayout = FALSE</code> to keep a single layout. Internal call sites that immediately relayout (<code>example_*_daf()</code>, the files/zarr converters) were updated so the default does not collide.</li>
+</ul></div>
+<div class="section level3">
+<h3 id="copies-0-4-5">Copies<a class="anchor" aria-label="anchor" href="#copies-0-4-5"></a></h3>
+<ul><li><p><strong><code><a href="../reference/copy_matrix.html">copy_matrix()</a></code> transpose-reads a flipped-only source</strong> instead of erroring.</p></li>
+<li><p><strong><code><a href="../reference/copy_all.html">copy_all()</a></code> copies a both-layouts matrix once</strong> (Julia’s <code>columns_axis &gt;= rows_axis</code> guard) instead of hitting an “existing matrix” collision when <code>relayout = TRUE</code>.</p></li>
+<li><p><strong><code><a href="../reference/copy_tensor.html">copy_tensor()</a></code> with <code>empty = NULL</code> skips a missing slice</strong> instead of erroring.</p></li>
+</ul></div>
+<div class="section level3">
+<h3 id="reconstruction-0-4-5">Reconstruction<a class="anchor" aria-label="anchor" href="#reconstruction-0-4-5"></a></h3>
+<ul><li>
+<strong><code><a href="../reference/reconstruct_axis.html">reconstruct_axis()</a></code> rewrites the implicit property as a string foreign key</strong> into the new axis (Julia’s <code>overwrite_implicit_values</code> condition), and keeps the empties-mapping key for properties that have no empties.</li>
+</ul></div>
+<div class="section level3">
+<h3 id="zarr-0-4-5">Zarr<a class="anchor" aria-label="anchor" href="#zarr-0-4-5"></a></h3>
+<ul><li>
+<strong>The dense reader reconstructs an elided all-fill chunk from <code>fill_value</code></strong> for both the vector and matrix paths, instead of reading zeros/garbage when a writer omits an all-fill chunk.</li>
+</ul></div>
+<div class="section level3">
+<h3 id="adapters-and-computations-0-4-5">Adapters and computations<a class="anchor" aria-label="anchor" href="#adapters-and-computations-0-4-5"></a></h3>
+<ul><li><p><strong>Adapter copy-back uses <code>insist = TRUE</code>:</strong> a name collision on copy-back now errors instead of silently dropping data.</p></li>
+<li><p><strong><code><a href="../reference/computation.html">computation()</a></code> threads <code>overwrite</code> into the contractor,</strong> so an idempotent re-run with <code>overwrite = TRUE</code> succeeds (COMP-01).</p></li>
+</ul></div>
+<div class="section level3">
+<h3 id="documented-deliberate-deviations-intentionally-not-changed-0-4-5">Documented deliberate deviations (intentionally not changed)<a class="anchor" aria-label="anchor" href="#documented-deliberate-deviations-intentionally-not-changed-0-4-5"></a></h3>
+<ul><li>
+<code>group_names</code> uses an FNV-32 hash rather than Julia’s simhash (shape-parity only); <code>~</code>/<code>!~</code> regex match collects multi-token patterns to allow unescaped metacharacters; contracts keep dafr’s stricter <code>Optional</code>/<code>GuaranteedOutput</code> enforcement (safer than DAF.jl 0.3.0, raised upstream); <code><a href="../reference/relayout_matrix.html">relayout_matrix()</a></code> on a write-chain succeeds with both layouts where Julia errors. Unsigned and <code>Float32</code> widths and <code>UInt64</code> precision are bounded by R’s native types (documented; not a correctness regression).</li>
+</ul></div>
+</div>
+    <div class="section level2">
+<h2 class="pkg-version" data-toc-text="0.4.4" id="dafr-044">dafr 0.4.4<a class="anchor" aria-label="anchor" href="#dafr-044"></a></h2>
+<div class="section level3">
+<h3 id="parity-0-4-4">Parity<a class="anchor" aria-label="anchor" href="#parity-0-4-4"></a></h3>
+<ul><li><p><strong>Singleton chains return their input unwrapped (C1).</strong> <code>chain_reader(list(d))</code> now delegates to <code>read_only(d)</code>, <code>chain_writer(list(d))</code> (with no explicit name) returns <code>d</code> itself, and <code><a href="../reference/read_only.html">read_only()</a></code> is the identity on data that is already read-only unless a <code>name</code> forces a fresh wrapper - matching <code>DataAxesFormats.jl</code> <code>chains.jl</code> / <code>read_only.jl</code>. Previously every singleton chain allocated a redundant wrapper.</p></li>
+<li><p><strong><code><a href="../reference/concatenate.html">concatenate()</a></code> <code>MERGE_COLLECT_AXIS</code> preserves sparse vectors (M2).</strong> A collect-axis vector merge now applies Julia’s storage-savings heuristic (<code>sparse_if_saves_storage_fraction</code>, default 0.25): when sparse storage would save at least that fraction, the collected <code>(axis x dataset)</code> result is built as a <code><a href="https://rdrr.io/pkg/Matrix/man/sparseMatrix.html" class="external-link">Matrix::sparseMatrix</a></code> instead of always materializing dense. Sparse sources contribute their nnz, dense sources their full length; string and <code>bit64</code> columns stay dense.</p></li>
+</ul></div>
+</div>
+    <div class="section level2">
+<h2 class="pkg-version" data-toc-text="0.4.3" id="dafr-043">dafr 0.4.3<a class="anchor" aria-label="anchor" href="#dafr-043"></a></h2>
+<div class="section level3">
+<h3 id="compatibility-0-4-3">Compatibility<a class="anchor" aria-label="anchor" href="#compatibility-0-4-3"></a></h3>
+<ul><li>
+<strong>FilesFormat v1.1 read is now pinned against real Julia output.</strong> Reading <code>DataAxesFormats.jl</code> 0.3.0 v1.1 <code>FilesDaf</code> stores has worked since 0.4.0, but the only test against a <em>real</em> Julia-written v1.1 repo skipped without a live Julia env. Added a committed Julia-0.3.0-written flat v1.1 fixture (<code>tests/testthat/fixtures/jf11</code>: scalar + dense/sparse vector + dense/sparse matrix) and an always-on test that reads it - confirming v1.1 interop needs <strong>no c-blosc/zstd</strong> (Julia writes flat by default; only explicitly blosc-packed components require c-blosc, which fails with an actionable “install c-blosc” message).</li>
+</ul></div>
+<div class="section level3">
+<h3 id="performance-0-4-3">Performance<a class="anchor" aria-label="anchor" href="#performance-0-4-3"></a></h3>
+<ul><li>
+<strong>ZarrDaf axis-name decode is now memoized.</strong> <code>format_axis_array</code> / <code>axis_vector</code> previously re-decoded the vlen-utf8 axis-name strings from the store on every call, so every <em>distinct</em> query over an axis re-paid that decode (only an exact-repeat query hit the result cache). On a 4000+2500 fixture this was ~45% of a dense matrix-query’s time. The decoded entries are now cached at the <code>"memory"</code> tier keyed by <code>axis</code> + the axis version stamp (invalidated by <code>delete_axis</code>, same contract as the vector/matrix caches), so distinct queries over the same axes decode once. Measured ~1.6x on a <code>&gt;| Sum</code> query; <code>% Log</code> and any axis-touching query benefit identically. Chains/views over a ZarrDaf inherit the cache automatically.</li>
+</ul></div>
+</div>
     <div class="section level2">
 <h2 class="pkg-version" data-toc-text="0.4.2" id="dafr-042">dafr 0.4.2<a class="anchor" aria-label="anchor" href="#dafr-042"></a></h2>
 <div class="section level3">
