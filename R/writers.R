@@ -140,10 +140,11 @@ delete_vector <- function(daf, axis, name, must_exist = TRUE) {
 #' @param mat Dense `matrix`, or sparse `dgCMatrix` / `lgCMatrix`, of
 #'   shape `axis_length(rows_axis) x axis_length(columns_axis)`.
 #' @param overwrite See `set_scalar`.
-#' @param relayout If `TRUE`, also store the flipped layout (so
-#'   `get_matrix(columns_axis, rows_axis, name)` skips the
-#'   transpose-on-the-fly path). Mirrors Julia `set_matrix!(...; relayout)`.
-#'   Default `FALSE`; set to `TRUE` to match Julia's default behavior.
+#' @param relayout If `TRUE` (the default, matching Julia
+#'   `set_matrix!(...; relayout = true)`), also store the flipped layout so
+#'   `get_matrix(columns_axis, rows_axis, name)` is directly available and
+#'   skips the transpose-on-the-fly path. Set `FALSE` to store only the given
+#'   orientation (saving storage at the cost of on-the-fly transposes).
 #' @return Invisibly the input `daf`.
 #' @examples
 #' # Mirrors writers.jl jldoctest at line 686.
@@ -160,7 +161,7 @@ delete_vector <- function(daf, axis, name, must_exist = TRUE) {
 #' has_matrix(m, "metacell", "gene", "confidence", relayout = FALSE)    # TRUE
 #' @export
 set_matrix <- function(daf, rows_axis, columns_axis, name, mat,
-                       overwrite = FALSE, relayout = FALSE) {
+                       overwrite = FALSE, relayout = TRUE) {
     .assert_name(rows_axis, "rows_axis")
     .assert_name(columns_axis, "columns_axis")
     .assert_name(name, "name")

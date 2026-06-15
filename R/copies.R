@@ -307,6 +307,11 @@ copy_matrix <- function(destination, source,
     # Resolve source matrix or default.
     if (format_has_matrix(source, rows_axis, columns_axis, name)) {
         value <- format_get_matrix(source, rows_axis, columns_axis, name)$value
+    } else if (format_has_matrix(source, columns_axis, rows_axis, name)) {
+        # Julia parity: the source stores only the flipped layout - transpose-read
+        # it (copy_matrix! reads via get_matrix(...; relayout = true)) rather than
+        # erroring "missing matrix".
+        value <- t(format_get_matrix(source, columns_axis, rows_axis, name)$value)
     } else if (.is_undef(default)) {
         .require_matrix(source, rows_axis, columns_axis, name, relayout = FALSE)
     } else if (is.null(default)) {
@@ -466,7 +471,10 @@ copy_tensor <- function(destination, source,
     for (entry in format_axis_array(destination, main_axis)$value) {
         src_mat_name <- paste0(entry, "_", name)
         dest_mat_name <- paste0(entry, "_", base_rename)
-        default <- if (is.null(empty)) .DAFR_UNDEF else empty
+        # Julia parity: pass `empty` straight through as copy_matrix's `default`.
+        # empty=NULL (the default) -> default=NULL -> copy_matrix skips a missing
+        # slice (no-op), rather than .DAFR_UNDEF which errors "missing matrix".
+        default <- empty
         copy_matrix(destination, source,
             rows_axis = rows_axis, columns_axis = columns_axis,
             name = src_mat_name,
@@ -544,11 +552,22 @@ copy_all <- function(destination, source,
     }
     # Matrices — outer loops over axes.
     axes <- format_axes_set(source)
+    # When relayout=TRUE a single copy_matrix writes BOTH orientations, so a
+    # matrix the source stores in both layouts (or that is available in both via
+    # relayout) must be copied only ONCE - otherwise the second ordered axis pair
+    # collides ("existing matrix"). Mirror Julia's copy_matrices guard by
+    # deduplicating on the logical matrix (unordered axis pair + name).
+    seen_logical <- character(0)
     for (ra in axes) {
         for (ca in axes) {
             if (!format_has_axis(destination, ra) ||
                 !format_has_axis(destination, ca)) next
             for (mn in format_matrices_set(source, ra, ca)) {
+                if (relayout) {
+                    lkey <- paste(c(sort(c(ra, ca)), mn), collapse = "|")
+                    if (lkey %in% seen_logical) next
+                    seen_logical <- c(seen_logical, lkey)
+                }
                 key <- paste(ra, ca, mn, sep = "|")
                 alt_key <- paste(ca, ra, mn, sep = "|")
                 empty_m <- if (is.null(empty)) NULL else

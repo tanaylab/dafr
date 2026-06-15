@@ -59,7 +59,7 @@ test_that("query_requires_relayout TRUE when matrix axes swap", {
     d <- memory_daf(name = "relayout_test")
     add_axis(d, "cell", c("c1", "c2"))
     add_axis(d, "gene", c("g1", "g2", "g3"))
-    set_matrix(d, "cell", "gene", "UMIs", matrix(1:6L, nrow = 2L))
+    set_matrix(d, "cell", "gene", "UMIs", matrix(1:6L, nrow = 2L), relayout = FALSE)
     # (cell, gene) is the stored order → no relayout needed.
     expect_false(query_requires_relayout(d, "@ cell @ gene :: UMIs"))
     # (gene, cell) is the swapped order → relayout required.

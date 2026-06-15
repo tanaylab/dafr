@@ -83,7 +83,12 @@ NULL
         m <- readRDS(file_path)
         m <- .cast_matrix(m)
 
-        set_matrix(daf, vals_axis, lines_axis, prop, m)
+        # Store one orientation, then explicitly relayout integer matrices to
+        # also store the flip. set_matrix now defaults relayout=TRUE, which would
+        # pre-create the flip and make the relayout_matrix below collide
+        # ("existing matrix"); keep relayout=FALSE so the loader's intent (only
+        # integer matrices get both layouts) is preserved.
+        set_matrix(daf, vals_axis, lines_axis, prop, m, relayout = FALSE)
         if (is.integer(m)) {
             relayout_matrix(daf, vals_axis, lines_axis, prop)
         }

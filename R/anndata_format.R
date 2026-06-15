@@ -47,6 +47,16 @@ NULL
     }
 }
 
+# Read a dense AnnData (n_obs, n_var) C-order dataset into a dafr (obs, var)
+# matrix. hdf5r returns a (n_var, n_obs) matrix for 2-D data but DROPS a
+# singleton dimension to a plain vector, so rebuild the (n_obs, n_var) matrix
+# explicitly from the flat values rather than transposing (which mis-shapes the
+# singleton case). The hdf5r flat order is the C-order (row-major) of the
+# canonical (n_obs, n_var) matrix.
+.read_h5ad_dense_matrix <- function(dset, n_obs, n_var) {
+    matrix(as.vector(dset$read()), nrow = n_obs, ncol = n_var, byrow = TRUE)
+}
+
 # Write a sparseMatrix as an h5ad CSC group under `parent/name`.
 .write_h5ad_sparse <- function(parent, name, m) {
     if (!methods::is(m, "CsparseMatrix")) {
@@ -62,6 +72,38 @@ NULL
     grp$create_dataset("indices", robj = as.integer(m@i))  # 0-based row idx
     grp$create_dataset("indptr", robj = as.integer(m@p))   # col pointers
     invisible(NULL)
+}
+
+# ---- AnnData encoding-metadata helpers ------------------------------------
+# AnnData identifies elements by HDF5 attributes; without them readers fall back
+# to defaults (e.g. integer obs/var names instead of the stored _index).
+
+.h5ad_scalar_attr <- function(obj, name, value) {
+    obj$create_attr(name, robj = value, space = hdf5r::H5S$new("scalar"))
+}
+
+# Mark a dense dataset as an AnnData dense array.
+.h5ad_array_encoding <- function(dset) {
+    .h5ad_scalar_attr(dset, "encoding-type", "array")
+    .h5ad_scalar_attr(dset, "encoding-version", "0.2.0")
+}
+
+# Mark an obs/var group as an AnnData dataframe (index + column order) so a
+# reader recognises `_index` as the row names.
+.h5ad_dataframe_encoding <- function(grp, columns) {
+    .h5ad_scalar_attr(grp, "encoding-type", "dataframe")
+    .h5ad_scalar_attr(grp, "encoding-version", "0.2.0")
+    .h5ad_scalar_attr(grp, "_index", "_index")
+    # AnnData requires column-order even when empty. hdf5r cannot write a
+    # zero-length robj, so for the empty case create an empty float64 array
+    # attribute (matching AnnData's own empty column-order) with no buffer.
+    if (length(columns) > 0L) {
+        grp$create_attr("column-order", robj = as.character(columns))
+    } else {
+        grp$create_attr("column-order",
+            dtype = hdf5r::h5types$H5T_NATIVE_DOUBLE,
+            space = hdf5r::H5S$new("simple", dims = 0L, maxdims = 0L))
+    }
 }
 
 # ---- Categorical helpers --------------------------------------------------
@@ -211,10 +253,8 @@ h5ad_as_daf <- function(path, name = NULL, mode = "r",
                         enc %||% "<unknown>"))
             }
         } else {
-            X <- x_obj$read()
-            if (!is.matrix(X)) {
-                X <- as.matrix(X)
-            }
+            X <- .read_h5ad_dense_matrix(x_obj,
+                length(obs_names), length(var_names))
             set_matrix(d, "obs", "var", "UMIs", X)
         }
     }
@@ -319,7 +359,8 @@ h5ad_as_daf <- function(path, name = NULL, mode = "r",
                     sprintf("unreadable layer '%s'; skipping", nm))
                 next
             }
-            if (!is.matrix(m)) m <- as.matrix(m)
+            m <- .read_h5ad_dense_matrix(child,
+                length(obs_names), length(var_names))
             set_matrix(d, "obs", "var", nm, m)
         }
     }
@@ -339,20 +380,22 @@ h5ad_as_daf <- function(path, name = NULL, mode = "r",
                         group_name, nm))
                 next
             }
-            m <- tryCatch(child$read(), error = function(e) NULL)
-            if (is.null(m)) {
+            raw <- tryCatch(as.vector(child$read()), error = function(e) NULL)
+            n_axis <- length(format_axis_array(d, axis)$value)
+            if (is.null(raw) || length(raw) == 0L ||
+                length(raw) %% n_axis != 0L) {
                 emit_action("inefficient",
-                    sprintf("unreadable %s entry '%s'; skipping", group_name, nm))
+                    sprintf("unreadable/non-(%s, k) %s entry '%s'; skipping",
+                        axis, group_name, nm))
                 next
             }
-            if (!is.matrix(m)) {
-                emit_action("inefficient",
-                    sprintf("non-matrix %s entry '%s' not supported; skipping",
-                        group_name, nm))
-                next
-            }
+            # AnnData obsm/varm are (n_axis, k) C-order, like /X; rebuild that
+            # shape from the flat values (hdf5r reverses 2-D and drops a
+            # singleton dimension to a vector).
+            k <- length(raw) %/% n_axis
+            m <- matrix(raw, nrow = n_axis, ncol = k, byrow = TRUE)
             synth <- sprintf("%s_%s_dim", group_name, nm)
-            add_axis(d, synth, as.character(seq_len(ncol(m))))
+            add_axis(d, synth, as.character(seq_len(k)))
             set_matrix(d, axis, synth, nm, m)
         }
     }
@@ -445,7 +488,9 @@ daf_as_h5ad <- function(daf, path, obs_axis = NULL, var_axis = NULL,
         if (methods::is(X, "sparseMatrix")) {
             .write_h5ad_sparse(h5, "X", X)
         } else {
-            h5$create_dataset("X", robj = X)
+            # AnnData /X must be (n_obs, n_var) C-order. hdf5r writes an R matrix
+            # so h5py sees its transpose, so write t(X) to land canonical.
+            .h5ad_array_encoding(h5$create_dataset("X", robj = t(as.matrix(X))))
         }
     } else {
         emit_action("inefficient",
@@ -456,7 +501,8 @@ daf_as_h5ad <- function(daf, path, obs_axis = NULL, var_axis = NULL,
     # /obs
     obs_grp <- h5$create_group("obs")
     obs_grp$create_dataset("_index", robj = obs_names)
-    for (vn in format_vectors_set(daf, obs_axis)) {
+    obs_cols <- format_vectors_set(daf, obs_axis)
+    for (vn in obs_cols) {
         v <- format_get_vector(daf, obs_axis, vn)$value
         if (is.factor(v)) {
             .write_h5ad_categorical(obs_grp, vn, v)
@@ -464,11 +510,13 @@ daf_as_h5ad <- function(daf, path, obs_axis = NULL, var_axis = NULL,
             obs_grp$create_dataset(vn, robj = v)
         }
     }
+    .h5ad_dataframe_encoding(obs_grp, obs_cols)
 
     # /var
     var_grp <- h5$create_group("var")
     var_grp$create_dataset("_index", robj = var_names)
-    for (vn in format_vectors_set(daf, var_axis)) {
+    var_cols <- format_vectors_set(daf, var_axis)
+    for (vn in var_cols) {
         v <- format_get_vector(daf, var_axis, vn)$value
         if (is.factor(v)) {
             .write_h5ad_categorical(var_grp, vn, v)
@@ -476,6 +524,7 @@ daf_as_h5ad <- function(daf, path, obs_axis = NULL, var_axis = NULL,
             var_grp$create_dataset(vn, robj = v)
         }
     }
+    .h5ad_dataframe_encoding(var_grp, var_cols)
 
     # /layers — matrices on (obs_axis, var_axis) other than x_name.
     layers_grp <- h5$create_group("layers")
@@ -485,7 +534,9 @@ daf_as_h5ad <- function(daf, path, obs_axis = NULL, var_axis = NULL,
         if (methods::is(m, "sparseMatrix")) {
             .write_h5ad_sparse(layers_grp, nm, m)
         } else {
-            layers_grp$create_dataset(nm, robj = m)
+            # Dense layer: same (n_obs, n_var) C-order convention as /X.
+            .h5ad_array_encoding(
+                layers_grp$create_dataset(nm, robj = t(as.matrix(m))))
         }
     }
 
@@ -514,7 +565,10 @@ daf_as_h5ad <- function(daf, path, obs_axis = NULL, var_axis = NULL,
                 if (nrow(m) != format_axis_length(daf, axis)) {
                     m <- t(m)
                 }
-                grp$create_dataset(mname, robj = m)
+                # AnnData obsm/varm are (n_axis, k) C-order; write t(m) so h5py
+                # sees the canonical shape (like /X). Mark as a dense array.
+                .h5ad_array_encoding(
+                    grp$create_dataset(mname, robj = t(as.matrix(m))))
             }
         }
     }

@@ -41,8 +41,11 @@ MERGE_COLLECT_AXIS <- "CollectAxis"
 #' @param empty Named list of fill values for missing per-source properties.
 #' @param merge Named list mapping property keys to a merge action
 #'   (`"SkipProperty"`, `"LastValue"`, `"CollectAxis"`).
-#' @param sparse_if_saves_storage_fraction Numeric (default 0.25); reserved
-#'   for a future sparse-promotion heuristic.
+#' @param sparse_if_saves_storage_fraction Numeric (default 0.25). A
+#'   `MERGE_COLLECT_AXIS` vector merge produces a sparse (`dgCMatrix`)
+#'   result when sparse storage would save at least this fraction of the
+#'   dense storage size (mirrors Julia's heuristic; sparse-stored sources
+#'   count their nnz, dense-stored sources count their full length).
 #' @param overwrite If `TRUE`, allow replacing pre-existing destination
 #'   entries.
 #' @return Invisibly, the destination.
@@ -139,7 +142,8 @@ concatenate <- function(destination, axis, sources,
     # Merge pass for properties not on any concat axis.
     if (!is.null(merge)) {
         .concat_merge(destination, sources, dataset_names, dataset_axis,
-                      axes, merge, empty, overwrite)
+                      axes, merge, empty, overwrite,
+                      sparse_if_saves_storage_fraction)
     }
 
     invisible(destination)
@@ -302,7 +306,8 @@ concatenate <- function(destination, axis, sources,
 }
 
 .concat_merge <- function(destination, sources, dataset_names, dataset_axis,
-                          concat_axes, merge, empty, overwrite) {
+                          concat_axes, merge, empty, overwrite,
+                          sparse_if_saves_storage_fraction) {
     expanded <- .concat_expand_merge_wildcards(sources, concat_axes, merge)
     for (prop_key in base::names(expanded)) {
         action <- expanded[[prop_key]]
@@ -314,7 +319,8 @@ concatenate <- function(destination, axis, sources,
             if (parts[[1L]] %in% concat_axes) next
             .concat_merge_vector(destination, sources, dataset_names,
                                  dataset_axis, parts[[1L]], parts[[2L]],
-                                 action, empty, overwrite)
+                                 action, empty, overwrite,
+                                 sparse_if_saves_storage_fraction)
         } else if (length(parts) == 3L) {
             if (action == MERGE_COLLECT_AXIS) {
                 stop(sprintf(
@@ -419,8 +425,17 @@ concatenate <- function(destination, axis, sources,
                 name, S7::prop(destination, "name")
             ), call. = FALSE)
         }
-        vals <- lapply(sources, function(s)
-            if (format_has_scalar(s, name)) format_get_scalar(s, name)$value else NA)
+        # Julia parity: concatenate_merge_scalar errors (eltype(nothing)) when
+        # a source lacks the scalar, rather than collecting a silent NA.
+        present <- vapply(sources, function(s) format_has_scalar(s, name),
+                          logical(1L))
+        if (!all(present)) {
+            stop(sprintf(
+                "can't collect axis for the scalar: %s\nof the daf data sets concatenated into the daf data: %s\nbecause it is missing from %d of the %d data sets",
+                name, S7::prop(destination, "name"), sum(!present), length(sources)
+            ), call. = FALSE)
+        }
+        vals <- lapply(sources, function(s) format_get_scalar(s, name)$value)
         format_set_vector(destination, dataset_axis, name,
                           do.call(c, vals), overwrite = overwrite)
     }
@@ -428,7 +443,8 @@ concatenate <- function(destination, axis, sources,
 
 .concat_merge_vector <- function(destination, sources, dataset_names,
                                  dataset_axis, axis, name, action,
-                                 empty, overwrite) {
+                                 empty, overwrite,
+                                 sparse_if_saves_storage_fraction) {
     if (action == MERGE_SKIP) return(invisible())
     if (action == MERGE_LAST_VALUE) {
         for (i in rev(seq_along(sources))) {
@@ -452,41 +468,146 @@ concatenate <- function(destination, axis, sources,
                 sQuote(name), sQuote(axis)
             ), call. = FALSE)
         }
-        # Probe sources to determine the storage type and fill value for
-        # missing sources. Look up the per-property fill once.
+        # Look up the per-property fill once; a source missing the vector
+        # without a fill is an error (checked up front so the sparse path
+        # can treat NULL slots as zero columns).
         fill <- if (is.null(empty)) NULL else empty[[paste(axis, name, sep = "|")]]
-        # Pick a prototype value for matrix(prototype, ...) so column types
-        # cohere across present/absent sources.
-        proto <- NA
-        for (s in sources) {
-            if (format_has_vector(s, axis, name)) {
-                v <- format_get_vector(s, axis, name)$value
-                proto <- v[NA_integer_]
-                break
-            }
-        }
-        if (is.na(proto) && !is.null(fill)) proto <- fill[NA_integer_]
-        src_len <- format_axis_length(destination, axis)
-        n_src <- length(sources)
-        out <- matrix(proto, nrow = src_len, ncol = n_src,
-                      dimnames = list(format_axis_array(destination, axis)$value,
-                                      dataset_names))
+        vals <- vector("list", length(sources))
         for (i in seq_along(sources)) {
             s <- sources[[i]]
             if (format_has_vector(s, axis, name)) {
-                out[, i] <- format_get_vector(s, axis, name)$value
-            } else if (!is.null(fill)) {
-                out[, i] <- fill
-            } else {
+                vals[[i]] <- format_get_vector(s, axis, name)$value
+            } else if (is.null(fill)) {
                 stop(sprintf(
                     "no empty value for the vector: %s of the axis: %s which is missing from the daf data: %s",
                     sQuote(name), sQuote(axis), S7::prop(s, "name")
                 ), call. = FALSE)
             }
         }
+        src_len <- format_axis_length(destination, axis)
+        dimn <- list(format_axis_array(destination, axis)$value,
+                     dataset_names)
+        out <- .concat_collect_vector_matrix(
+            sources, vals, fill, axis, name, src_len, dimn,
+            sparse_if_saves_storage_fraction
+        )
         format_set_matrix(destination, axis, dataset_axis, name, out,
                           overwrite = overwrite)
     }
+}
+
+# nnz of the STORED form of a vector. Julia's sparse-savings heuristic
+# (concat.jl sparse_vectors_storage_fraction) counts a dense-stored
+# source at its full length even when its values are mostly zero; only
+# sparse STORAGE contributes its nnz. dafr densifies vectors at the
+# format_get_vector boundary (names contract), so sparsity is probed at
+# the raw storage layer here. Returns NA_integer_ for dense or unknown
+# storage (chains, views, zarr fall back to "dense", i.e. full length).
+.concat_stored_vector_nnz <- function(src, axis, name) {
+    if (S7::S7_inherits(src, MemoryDaf)) {
+        env <- .memory_axis_vectors(src, axis, create = FALSE)
+        if (!is.null(env) && exists(name, envir = env, inherits = FALSE)) {
+            v <- get(name, envir = env, inherits = FALSE)
+            if (methods::is(v, "sparseVector")) return(length(v@i))
+        }
+        return(NA_integer_)
+    }
+    if (S7::S7_inherits(src, FilesDaf) || S7::S7_inherits(src, FilesDafReadOnly)) {
+        v <- .files_get_vector_cached(src, axis, name)
+        if (methods::is(v, "sparseVector")) return(length(v@i))
+        return(NA_integer_)
+    }
+    NA_integer_
+}
+
+# Julia sizeof(eltype) for the merged dtype of the collected values.
+.concat_eltype_bytes <- function(vals, fill) {
+    has_double <- !is.null(fill) && is.double(fill)
+    has_int <- !is.null(fill) && is.integer(fill)
+    has_lgl <- !is.null(fill) && is.logical(fill)
+    for (v in vals) {
+        if (is.null(v)) next
+        if (is.double(v)) has_double <- TRUE
+        else if (is.integer(v)) has_int <- TRUE
+        else if (is.logical(v)) has_lgl <- TRUE
+    }
+    if (has_double) 8L else if (has_int) 4L else if (has_lgl) 1L else 8L
+}
+
+# Julia TanayLabUtilities.indtype_for_size: smallest uint type that
+# holds `size` (UInt16 / UInt32 / UInt64).
+.concat_indtype_bytes <- function(size) {
+    if (size <= 65535) 2L else if (size <= 4294967295) 4L else 8L
+}
+
+# COLLECT_AXIS materialization: decide sparse vs dense via Julia's
+# storage-savings heuristic (concat.jl concatenate_merge_vector), then
+# build the (axis x dataset) matrix. `vals[[i]]` is the named dense
+# value of source i, or NULL for a source missing the vector (only
+# reachable when `fill` is non-NULL).
+.concat_collect_vector_matrix <- function(sources, vals, fill, axis, name,
+                                          src_len, dimn,
+                                          sparse_if_saves_storage_fraction) {
+    n_src <- length(sources)
+    # Strings are never sparse (Julia: eltype != String guard). bit64
+    # integer64 is double-backed; Matrix can't represent it - keep dense.
+    never_sparse <-
+        (!is.null(fill) && (is.character(fill) || inherits(fill, "integer64"))) ||
+        any(vapply(vals, function(v) {
+            !is.null(v) && (is.character(v) || inherits(v, "integer64"))
+        }, logical(1)))
+    if (!never_sparse) {
+        dense_n <- src_len * n_src
+        nnz_n <- 0
+        for (i in seq_len(n_src)) {
+            if (!is.null(vals[[i]])) {
+                stored <- .concat_stored_vector_nnz(sources[[i]], axis, name)
+                nnz_n <- nnz_n + (if (is.na(stored)) src_len else stored)
+            } else if (!isTRUE(all(fill == 0))) {
+                # Missing source with a nonzero fill is a dense column.
+                nnz_n <- nnz_n + src_len
+            }
+        }
+        el_b <- .concat_eltype_bytes(vals, fill)
+        ind_b <- .concat_indtype_bytes(dense_n)
+        saves <- (dense_n * el_b - nnz_n * (el_b + ind_b)) / (dense_n * el_b)
+        if (saves >= sparse_if_saves_storage_fraction) {
+            parts_i <- vector("list", n_src)
+            parts_x <- vector("list", n_src)
+            for (i in seq_len(n_src)) {
+                if (is.null(vals[[i]])) next # fill == 0: zero column
+                col <- unname(vals[[i]])
+                nz <- which(col != 0)
+                parts_i[[i]] <- nz
+                parts_x[[i]] <- col[nz]
+            }
+            ii <- unlist(parts_i, use.names = FALSE)
+            if (is.null(ii)) ii <- integer(0)
+            jj <- rep.int(seq_len(n_src),
+                          vapply(parts_i, length, integer(1)))
+            xx <- unlist(parts_x, use.names = FALSE)
+            if (is.null(xx)) xx <- double(0)
+            return(Matrix::sparseMatrix(
+                i = ii, j = jj, x = xx,
+                dims = c(src_len, n_src), dimnames = dimn
+            ))
+        }
+    }
+    # Dense path: prototype value so column types cohere across
+    # present / absent sources.
+    proto <- NA
+    for (v in vals) {
+        if (!is.null(v)) {
+            proto <- v[NA_integer_]
+            break
+        }
+    }
+    if (is.na(proto) && !is.null(fill)) proto <- fill[NA_integer_]
+    out <- matrix(proto, nrow = src_len, ncol = n_src, dimnames = dimn)
+    for (i in seq_len(n_src)) {
+        out[, i] <- if (!is.null(vals[[i]])) vals[[i]] else fill
+    }
+    out
 }
 
 .concat_merge_matrix <- function(destination, sources, rows_axis, cols_axis,

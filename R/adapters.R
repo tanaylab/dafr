@@ -90,10 +90,12 @@ adapter <- function(daf, fn,
         name = paste0(base_name, name, ".output"),
         axes = output_axes, data = output_data
     )
+    # Julia parity: the adapter copy-back uses copy_all's default insist=TRUE, so
+    # an output that collides with a pre-existing base value (without overwrite)
+    # ERRORS rather than being silently dropped (silent data loss).
     copy_all(
         destination = daf, source = output,
-        empty = empty, relayout = relayout, overwrite = overwrite,
-        insist = FALSE
+        empty = empty, relayout = relayout, overwrite = overwrite
     )
     result
 }

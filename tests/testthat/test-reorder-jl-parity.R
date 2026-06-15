@@ -119,22 +119,18 @@
 }
 
 # The R analog of test_crash_recovery!: drive reorder_axes with
-# crash_counter that fires after `crash_after` ticks, then reset, then
-# re-run reorder cleanly and assert.
-.test_crash_recovery <- function(d, crash_after, can_recover) {
+# crash_counter that fires after `crash_after` ticks, then reset (must
+# roll back, returning TRUE — memory and files backends both restore
+# from their pre-reorder backup), then re-run reorder cleanly and
+# assert.
+.test_crash_recovery <- function(d, crash_after) {
     counter <- new.env(parent = emptyenv())
     counter$n <- crash_after
     expect_error(
         reorder_axes(d, cell = c(3L, 1L, 2L), gene = c(4L, 3L, 2L, 1L),
                      crash_counter = counter)
     )
-    if (can_recover) {
-        # Files backend: a reset rolls back, returning TRUE.
-        expect_true(reset_reorder_axes(d))
-    } else {
-        # Memory backend: reset is a no-op, returns FALSE.
-        reset_reorder_axes(d)
-    }
+    expect_true(reset_reorder_axes(d))
     .assert_original_data(d)
     reorder_axes(d, cell = c(3L, 1L, 2L), gene = c(4L, 3L, 2L, 1L))
     .assert_reorder_both_axes(d)
@@ -288,13 +284,13 @@ test_that("reorder / reorder_axes! / memory / identity", {
 test_that("reorder / reorder_axes! / memory / crash_recovery / after_1", {
     d <- memory_daf(name = "memory!")
     .populate_reorder_test_data(d)
-    .test_crash_recovery(d, crash_after = 1L, can_recover = TRUE)
+    .test_crash_recovery(d, crash_after = 1L)
 })
 
 test_that("reorder / reorder_axes! / memory / crash_recovery / after_4", {
     d <- memory_daf(name = "memory!")
     .populate_reorder_test_data(d)
-    .test_crash_recovery(d, crash_after = 4L, can_recover = TRUE)
+    .test_crash_recovery(d, crash_after = 4L)
 })
 
 test_that("reorder / reorder_axes! / memory / crash_recovery / no_pending", {
@@ -344,7 +340,7 @@ test_that("reorder / reorder_axes! / files / crash_recovery / after_1", {
     .populate_reorder_test_data(src)
     d <- files_daf(tmp, mode = "w", name = "files!")
     copy_all(d, src, relayout = FALSE)
-    .test_crash_recovery(d, crash_after = 1L, can_recover = TRUE)
+    .test_crash_recovery(d, crash_after = 1L)
 })
 
 test_that("reorder / reorder_axes! / files / crash_recovery / after_4", {
@@ -353,7 +349,7 @@ test_that("reorder / reorder_axes! / files / crash_recovery / after_4", {
     .populate_reorder_test_data(src)
     d <- files_daf(tmp, mode = "w", name = "files!")
     copy_all(d, src, relayout = FALSE)
-    .test_crash_recovery(d, crash_after = 4L, can_recover = TRUE)
+    .test_crash_recovery(d, crash_after = 4L)
 })
 
 test_that("reorder / reorder_axes! / files / crash_recovery / no_pending", {

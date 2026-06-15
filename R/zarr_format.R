@@ -380,6 +380,21 @@ S7::method(format_axes_set, ZarrDafReadOnly) <- function(daf) .zarr_axes_set(daf
 }
 
 .zarr_axis_entries <- function(daf, axis) {
+    # Memoize the vlen-utf8 decode. Decoding the axis-name strings from the
+    # store is ~45% of a dense matrix-query's time on a 4000+2500 fixture and
+    # was paid afresh for every distinct query (only an exact-repeat query hit
+    # the QueryData result cache). Cache the decoded vector at the "memory"
+    # tier keyed by cache_key_axis + axis_stamp: distinct queries over the same
+    # axes now decode once. axis_stamp bumps on delete_axis, so a deleted +
+    # recreated axis invalidates correctly (the exact contract the vector /
+    # matrix caches already use). Chains/views over a ZarrDaf delegate
+    # format_axis_array down to here, so they inherit the cache too.
+    cache_env <- S7::prop(daf, "cache")
+    key <- cache_key_axis(axis)
+    stamp_now <- axis_stamp(daf, axis)
+    hit <- cache_lookup(cache_env, "memory", key, stamp_now)
+    if (!is.null(hit)) return(hit)
+
     store <- S7::prop(daf, "store")
     base <- paste0("axes/", axis)
     meta <- zarr_v3_read_array(store, base)
@@ -391,7 +406,10 @@ S7::method(format_axes_set, ZarrDafReadOnly) <- function(daf) .zarr_axes_set(daf
         stop(sprintf("axis %s missing chunk", sQuote(axis)), call. = FALSE)
     }
     n <- as.integer(meta$shape[[1L]])
-    zarr_v3_decode_strings(chunk_bytes, n = n)
+    entries <- zarr_v3_decode_strings(chunk_bytes, n = n)
+    cache_store(cache_env, "memory", key, entries, stamp_now,
+        size_bytes = as.numeric(utils::object.size(entries)))
+    entries
 }
 
 S7::method(format_axis_array, list(ZarrDaf, S7::class_character)) <-
@@ -581,8 +599,18 @@ S7::method(format_vectors_set,
     }
     chunk <- store_get_bytes(store, zarr_v3_chunk_path(base, 1L))
     if (is.null(chunk)) {
-        stop(sprintf("vector %s missing chunk", sQuote(name)),
-             call. = FALSE)
+        # Zarr omits a chunk that is entirely fill_value (the all-fill
+        # optimization). Reconstruct it from fill_value (matching Julia/Zarr.jl)
+        # rather than erroring "missing chunk".
+        fill <- node$fill_value
+        if (is.null(fill)) fill <- if (is_string) "" else 0
+        if (is_string) return(rep(as.character(fill), n))
+        return(switch(zarr_v3_r_kind_for_dtype(node$data_type),
+            double    = as.double(rep(fill, n)),
+            integer   = as.integer(rep(fill, n)),
+            integer64 = bit64::as.integer64(rep(fill, n)),
+            logical   = as.logical(rep(fill, n)),
+            rep(fill, n)))
     }
     if (is_string) {
         return(zarr_v3_decode_strings(chunk, n = n))
@@ -874,10 +902,23 @@ S7::method(format_matrices_set,
         }
     }
     bytes <- store_get_bytes(store, chunk_path)
-    if (is.null(bytes)) {
-        stop(sprintf("matrix at %s missing chunk", sQuote(base)), call. = FALSE)
-    }
-    flat <- if (is_string) {
+    flat <- if (is.null(bytes)) {
+        # Zarr omits a chunk that is entirely fill_value (the all-fill
+        # optimization); reconstruct it from fill_value rather than erroring
+        # "missing chunk" (matching Julia/Zarr.jl). Mirrors the dense-vector path.
+        fill <- node$fill_value
+        if (is.null(fill)) fill <- if (is_string) "" else 0
+        if (is_string) {
+            rep(as.character(fill), total)
+        } else {
+            switch(zarr_v3_r_kind_for_dtype(node$data_type),
+                double    = as.double(rep(fill, total)),
+                integer   = as.integer(rep(fill, total)),
+                integer64 = bit64::as.integer64(rep(fill, total)),
+                logical   = as.logical(rep(fill, total)),
+                rep(fill, total))
+        }
+    } else if (is_string) {
         zarr_v3_decode_strings(bytes, n = total)
     } else {
         zarr_v3_decode_chunk(bytes, node$data_type, n = total)

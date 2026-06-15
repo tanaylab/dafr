@@ -54,8 +54,12 @@ computation <- function(name, contract, fn) {
                 sQuote(name)
             ), call. = FALSE)
         }
+        # Julia parity: thread the caller's `overwrite` into the contractor so a
+        # re-run can verify against pre-existing CreatedOutputs. `overwrite`
+        # stays in `...` so the inner fn applies it to its own writes.
         wrapped_daf <- contractor(
-            computation = name, contract = contract, daf = daf
+            computation = name, contract = contract, daf = daf,
+            overwrite = isTRUE(list(...)[["overwrite"]])
         )
         verify_input(wrapped_daf)
         result <- fn(wrapped_daf, ...)

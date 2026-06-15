@@ -299,7 +299,7 @@ test_that("relayout_matrix makes the flipped layout physical", {
     d <- memory_daf()
     add_axis(d, "cell", c("A", "B"))
     add_axis(d, "gene", c("X", "Y", "Z"))
-    set_matrix(d, "cell", "gene", "UMIs", matrix(seq_len(6), 2, 3))
+    set_matrix(d, "cell", "gene", "UMIs", matrix(seq_len(6), 2, 3), relayout = FALSE)
     expect_false(has_matrix(d, "gene", "cell", "UMIs", relayout = FALSE))
     relayout_matrix(d, "cell", "gene", "UMIs")
     expect_true(has_matrix(d, "gene", "cell", "UMIs", relayout = FALSE))

@@ -289,7 +289,8 @@ test_that("views / vector / matrix", {
     set_vector(d, "gene", "is_marker", c(TRUE, FALSE, TRUE))
     set_matrix(d, "cell", "gene", "UMIs",
                matrix(c(0, 3, 1, 4, 2, 5), nrow = 2L, ncol = 3L,
-                      dimnames = list(c("X", "Y"), c("A", "B", "C"))))
+                      dimnames = list(c("X", "Y"), c("A", "B", "C"))),
+               relayout = FALSE)
     d
 }
 

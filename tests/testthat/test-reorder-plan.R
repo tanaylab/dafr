@@ -41,7 +41,7 @@ test_that(".build_reorder_plan walks matrices on permuted-axis row+col", {
     add_axis(d, "cell", c("A", "B", "C"))
     add_axis(d, "gene", c("X", "Y"))
     set_matrix(d, "cell", "gene", "M",
-               matrix(c(1, 2, 3, 4, 5, 6), nrow = 3))
+               matrix(c(1, 2, 3, 4, 5, 6), nrow = 3), relayout = FALSE)
     plan <- dafr:::.build_reorder_plan(d, list(cell = c(2L, 3L, 1L)))
     expect_length(plan$planned_matrices, 1L)
     expect_identical(plan$planned_matrices[[1L]]$rows_axis, "cell")
@@ -68,7 +68,7 @@ test_that(".build_reorder_plan handles sparse matrix nnz correctly", {
     add_axis(d, "gene", c("X", "Y"))
     m <- Matrix::sparseMatrix(i = c(1L, 3L), j = c(1L, 2L),
                               x = c(1.0, 2.0), dims = c(3L, 2L))
-    set_matrix(d, "cell", "gene", "S", m)
+    set_matrix(d, "cell", "gene", "S", m, relayout = FALSE)
     plan <- dafr:::.build_reorder_plan(d, list(cell = c(3L, 2L, 1L)))
     expect_length(plan$planned_matrices, 1L)
     expect_identical(plan$planned_matrices[[1L]]$n_replacement_elements, 2L)

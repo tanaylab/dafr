@@ -158,6 +158,31 @@ test_that("http_daf reads a FilesFormat v1.1 repo served over HTTP", {
                  as.matrix(sm), ignore_attr = TRUE)
 })
 
+test_that("files_daf reads a committed Julia DAF 0.3.0 v1.1 repo (no blosc, no Julia env)", {
+    # Permanent regression guard for the exact interop case: a real flat v1.1
+    # FilesDaf store written by DataAxesFormats.jl 0.3.0 (the next test does the
+    # same but is skipped without a Julia env; this one runs everywhere).
+    # `fixtures/jf11` was produced by Julia 0.3.0 - scalar + dense/sparse vector
+    # + dense/sparse matrix, all FLAT (Julia does not pack by default), so the
+    # read needs no c-blosc/zstd. This is the layout MCView users get from the
+    # Julia toolchain; reading it here is what lets them drop the Julia wrapper.
+    p <- testthat::test_path("fixtures/jf11")
+    skip_if_not(dir.exists(p), "jf11 fixture missing")
+    expect_match(readLines(file.path(p, "daf.json"), warn = FALSE),
+                 "\\[1, ?1\\]", all = FALSE)
+
+    d <- files_daf(p, "r")
+    expect_identical(get_scalar(d, "title"), "amos")
+    expect_equal(unname(get_vector(d, "cell", "age")), c(10, 20, 30, 40))   # dense
+    expect_equal(unname(get_vector(d, "cell", "sv")), c(0, 5, 0, 7))        # sparse
+    expect_equal(as.matrix(get_matrix(d, "cell", "gene", "UMIs")),          # sparse
+                 matrix(c(1, 0, 0, 4, 0, 2, 0, 0, 0, 0, 3, 0), 4, 3),
+                 ignore_attr = TRUE)
+    expect_equal(as.matrix(get_matrix(d, "cell", "gene", "dm")),            # dense
+                 matrix(c(1, 4, 7, 10, 2, 5, 8, 11, 3, 6, 9, 12), 4, 3),
+                 ignore_attr = TRUE)
+})
+
 test_that("files_daf reads a real DataAxesFormats.jl 0.3.0-written v1.1 repo", {
     skip_on_cran()
     skip_if_not(.have_julia_env(), "dafr-mcview Julia env not available")
