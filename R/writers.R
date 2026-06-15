@@ -236,7 +236,8 @@ delete_matrix <- function(daf, rows_axis, columns_axis, name,
 #' add_axis(d, "cell", c("c1", "c2"))
 #' add_axis(d, "gene", c("g1", "g2", "g3"))
 #' m <- matrix(1:6, nrow = 2, ncol = 3)
-#' set_matrix(d, "cell", "gene", "counts", m)
+#' # store a single layout, then physically materialize the transpose
+#' set_matrix(d, "cell", "gene", "counts", m, relayout = FALSE)
 #' relayout_matrix(d, "cell", "gene", "counts")
 #' has_matrix(d, "gene", "cell", "counts")
 #' @export
