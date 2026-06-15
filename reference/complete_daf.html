@@ -46,7 +46,7 @@ chain_writer (mode = "r+", only the leaf is writable).'></head><body>
   <main id="main" class="col-md-9"><div class="page-header">
 
       <h1>Reopen a persistent chain from disk.</h1>
-      <small class="dont-index">Source: <a href="https://github.com/tanaylab/dafr/blob/main/R/complete.R" class="external-link"><code>R/complete.R</code></a></small>
+      <small class="dont-index">Source: <a href="https://github.com/tanaylab/dafr/blob/v0.4.5/R/complete.R" class="external-link"><code>R/complete.R</code></a></small>
       <div class="d-none name"><code>complete_daf.Rd</code></div>
     </div>
 
@@ -90,11 +90,11 @@ each level with <code><a href="open_daf.html">open_daf()</a></code>. Returns a <
 <span class="r-in"><span><span class="fu"><a href="files_daf.html">files_daf</a></span><span class="op">(</span><span class="va">base_dir</span>, name <span class="op">=</span> <span class="st">"base"</span>, mode <span class="op">=</span> <span class="st">"w+"</span><span class="op">)</span></span></span>
 <span class="r-out co"><span class="r-pr">#&gt;</span> &lt;dafr::FilesDaf&gt;</span>
 <span class="r-out co"><span class="r-pr">#&gt;</span>  @ name                  : chr "base"</span>
-<span class="r-out co"><span class="r-pr">#&gt;</span>  @ internal              :&lt;environment: 0x562b9bbcc870&gt; </span>
-<span class="r-out co"><span class="r-pr">#&gt;</span>  @ cache                 :&lt;environment: 0x562b9bbcfb78&gt; </span>
-<span class="r-out co"><span class="r-pr">#&gt;</span>  @ axis_version_counter  :&lt;environment: 0x562b9bbd1e88&gt; </span>
-<span class="r-out co"><span class="r-pr">#&gt;</span>  @ vector_version_counter:&lt;environment: 0x562b9bbd1bb0&gt; </span>
-<span class="r-out co"><span class="r-pr">#&gt;</span>  @ matrix_version_counter:&lt;environment: 0x562b9bbd18d8&gt; </span>
+<span class="r-out co"><span class="r-pr">#&gt;</span>  @ internal              :&lt;environment: 0x55816c686a18&gt; </span>
+<span class="r-out co"><span class="r-pr">#&gt;</span>  @ cache                 :&lt;environment: 0x55816c685ef0&gt; </span>
+<span class="r-out co"><span class="r-pr">#&gt;</span>  @ axis_version_counter  :&lt;environment: 0x55816c560ed0&gt; </span>
+<span class="r-out co"><span class="r-pr">#&gt;</span>  @ vector_version_counter:&lt;environment: 0x55816c560bf8&gt; </span>
+<span class="r-out co"><span class="r-pr">#&gt;</span>  @ matrix_version_counter:&lt;environment: 0x55816c560920&gt; </span>
 <span class="r-in"><span><span class="va">new</span> <span class="op">&lt;-</span> <span class="fu"><a href="files_daf.html">files_daf</a></span><span class="op">(</span><span class="va">new_dir</span>, name <span class="op">=</span> <span class="st">"new"</span>, mode <span class="op">=</span> <span class="st">"w+"</span><span class="op">)</span></span></span>
 <span class="r-in"><span><span class="fu"><a href="complete_chain.html">complete_chain</a></span><span class="op">(</span></span></span>
 <span class="r-in"><span>    base_daf <span class="op">=</span> <span class="fu"><a href="open_daf.html">open_daf</a></span><span class="op">(</span><span class="va">base_dir</span>, <span class="st">"r"</span><span class="op">)</span>,</span></span>
@@ -102,33 +102,33 @@ each level with <code><a href="open_daf.html">open_daf()</a></code>. Returns a <
 <span class="r-in"><span><span class="op">)</span></span></span>
 <span class="r-out co"><span class="r-pr">#&gt;</span> &lt;dafr::WriteChainDaf&gt;</span>
 <span class="r-out co"><span class="r-pr">#&gt;</span>  @ name                  : chr "new"</span>
-<span class="r-out co"><span class="r-pr">#&gt;</span>  @ internal              :&lt;environment: 0x562ba2a8abb8&gt; </span>
-<span class="r-out co"><span class="r-pr">#&gt;</span>  @ cache                 :&lt;environment: 0x562ba2a8a870&gt; </span>
-<span class="r-out co"><span class="r-pr">#&gt;</span>  @ axis_version_counter  :&lt;environment: 0x562ba2a8cb80&gt; </span>
-<span class="r-out co"><span class="r-pr">#&gt;</span>  @ vector_version_counter:&lt;environment: 0x562ba2a8c8a8&gt; </span>
-<span class="r-out co"><span class="r-pr">#&gt;</span>  @ matrix_version_counter:&lt;environment: 0x562ba2a8c5d0&gt; </span>
+<span class="r-out co"><span class="r-pr">#&gt;</span>  @ internal              :&lt;environment: 0x55816dba7590&gt; </span>
+<span class="r-out co"><span class="r-pr">#&gt;</span>  @ cache                 :&lt;environment: 0x55816dba7248&gt; </span>
+<span class="r-out co"><span class="r-pr">#&gt;</span>  @ axis_version_counter  :&lt;environment: 0x55816b380b48&gt; </span>
+<span class="r-out co"><span class="r-pr">#&gt;</span>  @ vector_version_counter:&lt;environment: 0x55816b380870&gt; </span>
+<span class="r-out co"><span class="r-pr">#&gt;</span>  @ matrix_version_counter:&lt;environment: 0x55816b380598&gt; </span>
 <span class="r-out co"><span class="r-pr">#&gt;</span>  @ dafs                  :List of 2</span>
 <span class="r-out co"><span class="r-pr">#&gt;</span>  .. $ : &lt;dafr::FilesDafReadOnly&gt;</span>
 <span class="r-out co"><span class="r-pr">#&gt;</span>  ..  ..@ name                  : chr "base"</span>
-<span class="r-out co"><span class="r-pr">#&gt;</span>  ..  ..@ internal              :&lt;environment: 0x562b9ccbe4f0&gt; </span>
-<span class="r-out co"><span class="r-pr">#&gt;</span>  ..  ..@ cache                 :&lt;environment: 0x562b9f4a7880&gt; </span>
-<span class="r-out co"><span class="r-pr">#&gt;</span>  ..  ..@ axis_version_counter  :&lt;environment: 0x562b9bd3c0f0&gt; </span>
-<span class="r-out co"><span class="r-pr">#&gt;</span>  ..  ..@ vector_version_counter:&lt;environment: 0x562b9bd3be18&gt; </span>
-<span class="r-out co"><span class="r-pr">#&gt;</span>  ..  ..@ matrix_version_counter:&lt;environment: 0x562b9bd3bb40&gt; </span>
+<span class="r-out co"><span class="r-pr">#&gt;</span>  ..  ..@ internal              :&lt;environment: 0x55816934bab8&gt; </span>
+<span class="r-out co"><span class="r-pr">#&gt;</span>  ..  ..@ cache                 :&lt;environment: 0x558169408bf8&gt; </span>
+<span class="r-out co"><span class="r-pr">#&gt;</span>  ..  ..@ axis_version_counter  :&lt;environment: 0x5581694070d8&gt; </span>
+<span class="r-out co"><span class="r-pr">#&gt;</span>  ..  ..@ vector_version_counter:&lt;environment: 0x55816940ac30&gt; </span>
+<span class="r-out co"><span class="r-pr">#&gt;</span>  ..  ..@ matrix_version_counter:&lt;environment: 0x55816940a958&gt; </span>
 <span class="r-out co"><span class="r-pr">#&gt;</span>  .. $ : &lt;dafr::FilesDaf&gt;</span>
 <span class="r-out co"><span class="r-pr">#&gt;</span>  ..  ..@ name                  : chr "new"</span>
-<span class="r-out co"><span class="r-pr">#&gt;</span>  ..  ..@ internal              :&lt;environment: 0x562b9af08640&gt; </span>
-<span class="r-out co"><span class="r-pr">#&gt;</span>  ..  ..@ cache                 :&lt;environment: 0x562b9b922758&gt; </span>
-<span class="r-out co"><span class="r-pr">#&gt;</span>  ..  ..@ axis_version_counter  :&lt;environment: 0x562b9b920c38&gt; </span>
-<span class="r-out co"><span class="r-pr">#&gt;</span>  ..  ..@ vector_version_counter:&lt;environment: 0x562b9b924790&gt; </span>
-<span class="r-out co"><span class="r-pr">#&gt;</span>  ..  ..@ matrix_version_counter:&lt;environment: 0x562b9b9244b8&gt; </span>
+<span class="r-out co"><span class="r-pr">#&gt;</span>  ..  ..@ internal              :&lt;environment: 0x55816cd0b0c8&gt; </span>
+<span class="r-out co"><span class="r-pr">#&gt;</span>  ..  ..@ cache                 :&lt;environment: 0x55816cd0a5a0&gt; </span>
+<span class="r-out co"><span class="r-pr">#&gt;</span>  ..  ..@ axis_version_counter  :&lt;environment: 0x55816cd0c8b0&gt; </span>
+<span class="r-out co"><span class="r-pr">#&gt;</span>  ..  ..@ vector_version_counter:&lt;environment: 0x55816cd0c5d8&gt; </span>
+<span class="r-out co"><span class="r-pr">#&gt;</span>  ..  ..@ matrix_version_counter:&lt;environment: 0x55816cd0c300&gt; </span>
 <span class="r-out co"><span class="r-pr">#&gt;</span>  @ writer                : &lt;dafr::FilesDaf&gt;</span>
 <span class="r-out co"><span class="r-pr">#&gt;</span>  .. @ name                  : chr "new"</span>
-<span class="r-out co"><span class="r-pr">#&gt;</span>  .. @ internal              :&lt;environment: 0x562b9af08640&gt; </span>
-<span class="r-out co"><span class="r-pr">#&gt;</span>  .. @ cache                 :&lt;environment: 0x562b9b922758&gt; </span>
-<span class="r-out co"><span class="r-pr">#&gt;</span>  .. @ axis_version_counter  :&lt;environment: 0x562b9b920c38&gt; </span>
-<span class="r-out co"><span class="r-pr">#&gt;</span>  .. @ vector_version_counter:&lt;environment: 0x562b9b924790&gt; </span>
-<span class="r-out co"><span class="r-pr">#&gt;</span>  .. @ matrix_version_counter:&lt;environment: 0x562b9b9244b8&gt; </span>
+<span class="r-out co"><span class="r-pr">#&gt;</span>  .. @ internal              :&lt;environment: 0x55816cd0b0c8&gt; </span>
+<span class="r-out co"><span class="r-pr">#&gt;</span>  .. @ cache                 :&lt;environment: 0x55816cd0a5a0&gt; </span>
+<span class="r-out co"><span class="r-pr">#&gt;</span>  .. @ axis_version_counter  :&lt;environment: 0x55816cd0c8b0&gt; </span>
+<span class="r-out co"><span class="r-pr">#&gt;</span>  .. @ vector_version_counter:&lt;environment: 0x55816cd0c5d8&gt; </span>
+<span class="r-out co"><span class="r-pr">#&gt;</span>  .. @ matrix_version_counter:&lt;environment: 0x55816cd0c300&gt; </span>
 <span class="r-in"><span><span class="va">chain</span> <span class="op">&lt;-</span> <span class="fu">complete_daf</span><span class="op">(</span><span class="va">new_dir</span>, <span class="st">"r"</span><span class="op">)</span></span></span>
 </code></pre></div>
     </div>
