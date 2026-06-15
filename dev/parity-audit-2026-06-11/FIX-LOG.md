@@ -145,3 +145,28 @@ suite counting BOTH surfaced 62 errors (all "existing matrix"):
   set_matrix(relayout=FALSE) to restore their single-layout premise.
 FULL SUITE NOW: 6137 pass / 0 failed / 0 error (verified counting BOTH).
 LESSON: always count df$error alongside df$failed.
+
+## UPDATE 11 — anndata X orientation (session 2026-06-15)
+Verified against REAL Python anndata (envs daf_env/borzoi-finetune/crested have it):
+- dense /X + dense layers were written/read WITHOUT transpose -> on-disk (n_var, n_obs).
+  A real scanpy/anndata file failed to load in dafr; dafr-written files were transposed.
+- FIX (R/anndata_format.R): write t(X) so on-disk /X is canonical (n_obs, n_var); read via
+  .read_h5ad_dense_matrix (robust reshape from known axis lengths - handles hdf5r dropping a
+  singleton dim to a vector, which a blanket t() mis-shaped). Emit AnnData encoding attrs
+  ('array' on /X+layers; 'dataframe' _index+column-order on obs/var so NAMES round-trip).
+- Sparse /X already correct (explicit shape/indptr/indices) - unchanged.
+- Regenerated inst/extdata/small_test.h5ad canonically; added committed Python-anndata fixture
+  tests/testthat/fixtures/anndata_canonical.h5ad + test-parity-anndata-x-orientation.R.
+- Verified: dafr reads canonical files correctly AND anndata reads dafr output correctly, for
+  shapes (3,2),(2,1),(1,3). Full suite 6145 pass / 0 failed / 0 ERROR.
+16 parity fixes committed.
+
+NEW FOLLOW-UPS discovered (NOT fixed):
+- obsm/varm dense embeddings have the SAME (n_obs,d)/(n_var,d) transpose bug as /X
+  (read path lines ~356, write ~517 untouched). Same fix pattern; scoped out here.
+- dafr cannot read anndata>=0.12 `nullable-string-array` categorical categories encoding
+  ("attempt to apply non-function" in .read_h5ad_categorical). Separate read-compat gap.
+
+METHODOLOGY FIX (this session): all regression sweeps now count df$error AND df$failed.
+Earlier sweeps counted only df$failed and MISSED the relayout-default fallout (62 errors,
+see UPDATE 10) and would have missed these. Always count both.
