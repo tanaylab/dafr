@@ -80,15 +80,17 @@ params$create_dataset("normalization", robj = "log1p")
 # /layers group (empty)
 h5$create_group("layers")
 
-# /obsm — per-obs embeddings. X_umap: (n_obs x 2) dense double.
+# /obsm — per-obs embeddings. X_umap: (n_obs x 2) dense double. Written as the
+# transpose so the on-disk dataset is canonical AnnData (n_obs, k) C-order
+# (hdf5r presents an R matrix to h5py as its transpose).
 obsm <- h5$create_group("obsm")
 X_umap <- matrix(rnorm(n_obs * 2L), nrow = n_obs, ncol = 2L)
-obsm$create_dataset("X_umap", robj = X_umap)
+obsm$create_dataset("X_umap", robj = t(X_umap))
 
-# /varm — per-var loadings. PCs: (n_var x 3) dense double.
+# /varm — per-var loadings. PCs: (n_var x 3) dense double (same convention).
 varm <- h5$create_group("varm")
 PCs <- matrix(rnorm(n_var * 3L), nrow = n_var, ncol = 3L)
-varm$create_dataset("PCs", robj = PCs)
+varm$create_dataset("PCs", robj = t(PCs))
 
 h5$close_all()
 cat("Wrote ", out_path, " (nnz=", nnz, ")\n", sep = "")

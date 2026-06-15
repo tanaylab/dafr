@@ -468,10 +468,13 @@ test_that("obsm/varm round-trip via daf_as_h5ad writes /obsm and /varm", {
     expect_true(h5$exists("varm"))
     expect_true("X_umap" %in% h5[["obsm"]]$names)
     expect_true("PCs" %in% h5[["varm"]]$names)
+    # On-disk /obsm and /varm are canonical AnnData (n_axis, k) C-order; hdf5r
+    # presents that to R reversed, so X_umap (50,2) reads back as 2x50 and PCs
+    # (20,3) as 3x20.
     u <- h5[["obsm"]][["X_umap"]]$read()
-    expect_identical(dim(u), c(50L, 2L))
+    expect_identical(dim(u), c(2L, 50L))
     pc <- h5[["varm"]][["PCs"]]$read()
-    expect_identical(dim(pc), c(20L, 3L))
+    expect_identical(dim(pc), c(3L, 20L))
     h5$close_all()
 
     # Round-trip value-stability.

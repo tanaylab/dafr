@@ -47,3 +47,28 @@ test_that("daf_as_h5ad round-trips dense /X in AnnData orientation", {
     on.exit(h$close_all(), add = TRUE)
     expect_identical(h[["X"]]$dims, c(2L, 3L))
 })
+
+test_that("obsm/varm round-trip in AnnData (n_axis, k) orientation", {
+    skip_if_not_installed("hdf5r")
+    d <- memory_daf()
+    add_axis(d, "cell", c("o1", "o2", "o3"))
+    add_axis(d, "gene", c("v1", "v2"))
+    set_matrix(d, "cell", "gene", "UMIs", matrix(seq_len(6), 3L, 2L),
+               relayout = FALSE)
+    add_axis(d, "obsm_emb_dim", c("1", "2"))
+    set_matrix(d, "cell", "obsm_emb_dim", "emb",
+               matrix(c(11, 21, 31, 12, 22, 32), 3L, 2L), relayout = FALSE)
+
+    p <- tempfile(fileext = ".h5ad")
+    daf_as_h5ad(d, p, obs_axis = "cell", var_axis = "gene", x_name = "UMIs")
+
+    d2 <- h5ad_as_daf(p)
+    expect_equal(
+        unname(as.matrix(get_matrix(d2, "obs", "obsm_emb_dim", "emb"))),
+        matrix(c(11, 21, 31, 12, 22, 32), 3L, 2L))
+
+    # on-disk /obsm/emb is canonical (n_obs=3, k=2); hdf5r reads it reversed 2x3
+    h <- hdf5r::H5File$new(p, "r")
+    on.exit(h$close_all(), add = TRUE)
+    expect_identical(h[["obsm/emb"]]$dims, c(2L, 3L))
+})

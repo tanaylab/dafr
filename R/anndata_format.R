@@ -380,20 +380,22 @@ h5ad_as_daf <- function(path, name = NULL, mode = "r",
                         group_name, nm))
                 next
             }
-            m <- tryCatch(child$read(), error = function(e) NULL)
-            if (is.null(m)) {
+            raw <- tryCatch(as.vector(child$read()), error = function(e) NULL)
+            n_axis <- length(format_axis_array(d, axis)$value)
+            if (is.null(raw) || length(raw) == 0L ||
+                length(raw) %% n_axis != 0L) {
                 emit_action("inefficient",
-                    sprintf("unreadable %s entry '%s'; skipping", group_name, nm))
+                    sprintf("unreadable/non-(%s, k) %s entry '%s'; skipping",
+                        axis, group_name, nm))
                 next
             }
-            if (!is.matrix(m)) {
-                emit_action("inefficient",
-                    sprintf("non-matrix %s entry '%s' not supported; skipping",
-                        group_name, nm))
-                next
-            }
+            # AnnData obsm/varm are (n_axis, k) C-order, like /X; rebuild that
+            # shape from the flat values (hdf5r reverses 2-D and drops a
+            # singleton dimension to a vector).
+            k <- length(raw) %/% n_axis
+            m <- matrix(raw, nrow = n_axis, ncol = k, byrow = TRUE)
             synth <- sprintf("%s_%s_dim", group_name, nm)
-            add_axis(d, synth, as.character(seq_len(ncol(m))))
+            add_axis(d, synth, as.character(seq_len(k)))
             set_matrix(d, axis, synth, nm, m)
         }
     }
@@ -563,7 +565,10 @@ daf_as_h5ad <- function(daf, path, obs_axis = NULL, var_axis = NULL,
                 if (nrow(m) != format_axis_length(daf, axis)) {
                     m <- t(m)
                 }
-                grp$create_dataset(mname, robj = m)
+                # AnnData obsm/varm are (n_axis, k) C-order; write t(m) so h5py
+                # sees the canonical shape (like /X). Mark as a dense array.
+                .h5ad_array_encoding(
+                    grp$create_dataset(mname, robj = t(as.matrix(m))))
             }
         }
     }
