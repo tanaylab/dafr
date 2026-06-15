@@ -11,7 +11,7 @@ identical across all sources and are copied once."></head><body>
 
     <a class="navbar-brand me-2" href="../index.html">dafr</a>
 
-    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">0.4.5</small>
+    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">0.4.6</small>
 
 
     <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbar" aria-controls="navbar" aria-expanded="false" aria-label="Toggle navigation">
@@ -46,7 +46,7 @@ identical across all sources and are copied once."></head><body>
   <main id="main" class="col-md-9"><div class="page-header">
 
       <h1>Concatenate multiple dafs along one or more axes.</h1>
-      <small class="dont-index">Source: <a href="https://github.com/tanaylab/dafr/blob/v0.4.5/R/concat.R" class="external-link"><code>R/concat.R</code></a></small>
+      <small class="dont-index">Source: <a href="https://github.com/tanaylab/dafr/blob/main/R/concat.R" class="external-link"><code>R/concat.R</code></a></small>
       <div class="d-none name"><code>concatenate.Rd</code></div>
     </div>
 
@@ -126,8 +126,11 @@ or <code>"&lt;axis&gt;.*"</code> properties).</p></dd>
 
 
 <dt id="arg-sparse-if-saves-storage-fraction">sparse_if_saves_storage_fraction<a class="anchor" aria-label="anchor" href="#arg-sparse-if-saves-storage-fraction"></a></dt>
-<dd><p>Numeric (default 0.25); reserved
-for a future sparse-promotion heuristic.</p></dd>
+<dd><p>Numeric (default 0.25). A
+<code>MERGE_COLLECT_AXIS</code> vector merge produces a sparse (<code>dgCMatrix</code>)
+result when sparse storage would save at least this fraction of the
+dense storage size (mirrors Julia's heuristic; sparse-stored sources
+count their nnz, dense-stored sources count their full length).</p></dd>
 
 
 <dt id="arg-overwrite">overwrite<a class="anchor" aria-label="anchor" href="#arg-overwrite"></a></dt>

@@ -1,5 +1,25 @@
 # Changelog
 
+## dafr 0.4.6
+
+Documentation hotfix on top of 0.4.5 (no functional change). The
+`relayout` default flip to `TRUE` in 0.4.5 left two `R CMD check` issues
+that the test suite does not exercise:
+
+- **[`relayout_matrix()`](https://tanaylab.github.io/dafr/reference/relayout_matrix.md)
+  example fixed.** Its `@examples` stored a matrix and then relayouted
+  it; with `relayout = TRUE` now the default,
+  [`set_matrix()`](https://tanaylab.github.io/dafr/reference/set_matrix.md)
+  already wrote both layouts, so the example errored with “existing
+  matrix”. The example now passes `relayout = FALSE` to the initial
+  [`set_matrix()`](https://tanaylab.github.io/dafr/reference/set_matrix.md),
+  so it still demonstrates physically materializing the transpose.
+
+- **Regenerated `man/*.Rd`.** `set_matrix.Rd` had a codoc mismatch
+  (`\usage` still showed `relayout = FALSE`); `concatenate.Rd` and
+  `read_only.Rd` were also re-synced to the 0.4.5 behavior (M2
+  sparse-collect heuristic, C1 read-only identity).
+
 ## dafr 0.4.5
 
 Parity-audit release: an exhaustive differential sweep against

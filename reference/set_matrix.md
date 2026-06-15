@@ -12,7 +12,7 @@ set_matrix(
   name,
   mat,
   overwrite = FALSE,
-  relayout = FALSE
+  relayout = TRUE
 )
 ```
 
@@ -45,11 +45,12 @@ set_matrix(
 
 - relayout:
 
-  If `TRUE`, also store the flipped layout (so
-  `get_matrix(columns_axis, rows_axis, name)` skips the
-  transpose-on-the-fly path). Mirrors Julia
-  `set_matrix!(...; relayout)`. Default `FALSE`; set to `TRUE` to match
-  Julia's default behavior.
+  If `TRUE` (the default, matching Julia
+  `set_matrix!(...; relayout = true)`), also store the flipped layout so
+  `get_matrix(columns_axis, rows_axis, name)` is directly available and
+  skips the transpose-on-the-fly path. Set `FALSE` to store only the
+  given orientation (saving storage at the cost of on-the-fly
+  transposes).
 
 ## Value
 

@@ -7,7 +7,7 @@
 
     <a class="navbar-brand me-2" href="../index.html">dafr</a>
 
-    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">0.4.5</small>
+    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">0.4.6</small>
 
 
     <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbar" aria-controls="navbar" aria-expanded="false" aria-label="Toggle navigation">
@@ -42,7 +42,7 @@
   <main id="main" class="col-md-9"><div class="page-header">
 
       <h1>Set a matrix indexed by a pair of axes.</h1>
-      <small class="dont-index">Source: <a href="https://github.com/tanaylab/dafr/blob/v0.4.5/R/writers.R" class="external-link"><code>R/writers.R</code></a></small>
+      <small class="dont-index">Source: <a href="https://github.com/tanaylab/dafr/blob/main/R/writers.R" class="external-link"><code>R/writers.R</code></a></small>
       <div class="d-none name"><code>set_matrix.Rd</code></div>
     </div>
 
@@ -59,7 +59,7 @@
 <span>  <span class="va">name</span>,</span>
 <span>  <span class="va">mat</span>,</span>
 <span>  overwrite <span class="op">=</span> <span class="cn">FALSE</span>,</span>
-<span>  relayout <span class="op">=</span> <span class="cn">FALSE</span></span>
+<span>  relayout <span class="op">=</span> <span class="cn">TRUE</span></span>
 <span><span class="op">)</span></span></code></pre></div>
     </div>
 
@@ -93,10 +93,11 @@ shape <code>axis_length(rows_axis) x axis_length(columns_axis)</code>.</p></dd>
 
 
 <dt id="arg-relayout">relayout<a class="anchor" aria-label="anchor" href="#arg-relayout"></a></dt>
-<dd><p>If <code>TRUE</code>, also store the flipped layout (so
-<code>get_matrix(columns_axis, rows_axis, name)</code> skips the
-transpose-on-the-fly path). Mirrors Julia <code>set_matrix!(...; relayout)</code>.
-Default <code>FALSE</code>; set to <code>TRUE</code> to match Julia's default behavior.</p></dd>
+<dd><p>If <code>TRUE</code> (the default, matching Julia
+<code>set_matrix!(...; relayout = true)</code>), also store the flipped layout so
+<code>get_matrix(columns_axis, rows_axis, name)</code> is directly available and
+skips the transpose-on-the-fly path. Set <code>FALSE</code> to store only the given
+orientation (saving storage at the cost of on-the-fly transposes).</p></dd>
 
 </dl></div>
     <div class="section level2">

@@ -1,9 +1,11 @@
 # Wrap a writer into a read-only view via a 1-element chain.
 
-Returns a `ReadOnlyChainDaf` that reads from `daf` but rejects writes.
-Implementation delegates to
-[`chain_reader()`](https://tanaylab.github.io/dafr/reference/chain_reader.md)
-with a single entry; there is no separate read-only class.
+Returns a `ReadOnlyChainDaf` that reads from `daf` but rejects writes;
+there is no separate read-only wrapper class. As in Julia, `read_only`
+is the identity on data that is already read-only: if `daf` is a
+[DafReadOnly](https://tanaylab.github.io/dafr/reference/DafReadOnly.md)
+and no `name` is given, `daf` itself is returned; passing a `name`
+always forces a fresh wrapper.
 
 ## Usage
 
@@ -25,7 +27,8 @@ read_only(daf, name = NULL)
 
 ## Value
 
-A
+`daf` itself if it is already read-only and `name` is `NULL`; otherwise
+a
 [ReadOnlyChainDaf](https://tanaylab.github.io/dafr/reference/ReadOnlyChainDaf.md).
 
 ## See also
@@ -41,4 +44,6 @@ add_axis(d, "cell", c("c1", "c2"))
 ro <- read_only(d)
 daf_name(ro)
 #> [1] "inner"
+identical(read_only(ro), ro)
+#> [1] TRUE
 ```

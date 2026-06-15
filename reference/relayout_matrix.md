@@ -44,12 +44,9 @@ d <- memory_daf()
 add_axis(d, "cell", c("c1", "c2"))
 add_axis(d, "gene", c("g1", "g2", "g3"))
 m <- matrix(1:6, nrow = 2, ncol = 3)
-set_matrix(d, "cell", "gene", "counts", m)
+# store a single layout, then physically materialize the transpose
+set_matrix(d, "cell", "gene", "counts", m, relayout = FALSE)
 relayout_matrix(d, "cell", "gene", "counts")
-#> Error: existing matrix: counts
-#> for the rows axis: gene
-#> and the columns axis: cell
-#> in the daf data: memory
 has_matrix(d, "gene", "cell", "counts")
 #> [1] TRUE
 ```

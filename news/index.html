@@ -7,7 +7,7 @@
 
     <a class="navbar-brand me-2" href="../index.html">dafr</a>
 
-    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">0.4.5</small>
+    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">0.4.6</small>
 
 
     <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbar" aria-controls="navbar" aria-expanded="false" aria-label="Toggle navigation">
@@ -42,9 +42,15 @@
   <main id="main" class="col-md-9"><div class="page-header">
 
       <h1>Changelog</h1>
-      <small>Source: <a href="https://github.com/tanaylab/dafr/blob/v0.4.5/NEWS.md" class="external-link"><code>NEWS.md</code></a></small>
+      <small>Source: <a href="https://github.com/tanaylab/dafr/blob/main/NEWS.md" class="external-link"><code>NEWS.md</code></a></small>
     </div>
 
+    <div class="section level2">
+<h2 class="pkg-version" data-toc-text="0.4.6" id="dafr-046">dafr 0.4.6<a class="anchor" aria-label="anchor" href="#dafr-046"></a></h2>
+<p>Documentation hotfix on top of 0.4.5 (no functional change). The <code>relayout</code> default flip to <code>TRUE</code> in 0.4.5 left two <code>R CMD check</code> issues that the test suite does not exercise:</p>
+<ul><li><p><strong><code><a href="../reference/relayout_matrix.html">relayout_matrix()</a></code> example fixed.</strong> Its <code>@examples</code> stored a matrix and then relayouted it; with <code>relayout = TRUE</code> now the default, <code><a href="../reference/set_matrix.html">set_matrix()</a></code> already wrote both layouts, so the example errored with “existing matrix”. The example now passes <code>relayout = FALSE</code> to the initial <code><a href="../reference/set_matrix.html">set_matrix()</a></code>, so it still demonstrates physically materializing the transpose.</p></li>
+<li><p><strong>Regenerated <code>man/*.Rd</code>.</strong> <code>set_matrix.Rd</code> had a codoc mismatch (<code>\usage</code> still showed <code>relayout = FALSE</code>); <code>concatenate.Rd</code> and <code>read_only.Rd</code> were also re-synced to the 0.4.5 behavior (M2 sparse-collect heuristic, C1 read-only identity).</p></li>
+</ul></div>
     <div class="section level2">
 <h2 class="pkg-version" data-toc-text="0.4.5" id="dafr-045">dafr 0.4.5<a class="anchor" aria-label="anchor" href="#dafr-045"></a></h2>
 <p>Parity-audit release: an exhaustive differential sweep against <code>DataAxesFormats.jl</code> 0.3.0 (55 confirmed divergences triaged) produced the fixes below. Each is test-driven (failing-first test, minimal fix) and the full suite stays green. See <code>dev/parity-audit-2026-06-11/</code> for the audit trail.</p>

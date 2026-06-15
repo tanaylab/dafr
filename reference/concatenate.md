@@ -74,8 +74,11 @@ concatenate(
 
 - sparse_if_saves_storage_fraction:
 
-  Numeric (default 0.25); reserved for a future sparse-promotion
-  heuristic.
+  Numeric (default 0.25). A `MERGE_COLLECT_AXIS` vector merge produces a
+  sparse (`dgCMatrix`) result when sparse storage would save at least
+  this fraction of the dense storage size (mirrors Julia's heuristic;
+  sparse-stored sources count their nnz, dense-stored sources count
+  their full length).
 
 - overwrite:
 
