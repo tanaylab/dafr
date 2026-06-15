@@ -170,3 +170,20 @@ NEW FOLLOW-UPS discovered (NOT fixed):
 METHODOLOGY FIX (this session): all regression sweeps now count df$error AND df$failed.
 Earlier sweeps counted only df$failed and MISSED the relayout-default fallout (62 errors,
 see UPDATE 10) and would have missed these. Always count both.
+
+## UPDATE 12 - obsm/varm done + SHIPPED (session 2026-06-15)
+- obsm/varm canonical orientation: DONE (commit 6831168). 17 parity fixes total.
+- RELEASED publicly: **dafr 0.4.5** (the 17 fixes) then **0.4.6** (a doc hotfix).
+  0.4.5's first CI went RED: the relayout=TRUE default broke the relayout_matrix
+  roxygen *example* (set_matrix now writes both layouts -> relayout_matrix errored
+  "existing matrix") and left set_matrix.Rd codoc-mismatched. The testthat suite
+  does not run examples/codoc and ship.sh's gate is only devtools::test, so it slipped
+  to main-branch CI. Fixed in 0.4.6 (example uses relayout=FALSE; devtools::document();
+  verified locally with rcmdcheck --as-cran = 0 err/0 warn). Broken v0.4.5 tag+release
+  deleted. LESSON: run `rcmdcheck --as-cran` before shipping, esp. after a signature/
+  default change. (Also fixed the src/Makevars build-infra NOTE separately.)
+- The remaining open gap is now tracked in **REMAINING-GAP.md** (this dir) - the
+  resumable backlog for the next session. 0.4.5/0.4.6 closed everything in the
+  "OPEN - genuinely fixable" set EXCEPT the 5 items listed there (anndata>=0.12
+  nullable-string-array read; complete_daf view scope/rplus/json; sparse-vector
+  densify-on-read; reorder index width; http/files metadata.json design).
