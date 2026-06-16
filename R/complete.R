@@ -152,23 +152,39 @@ complete_daf <- function(leaf, mode = "r", name = NULL) {
     leaf_daf <- stack[[1L]]
     readers <- rev(stack)
     chain_name <- name %||% basename(leaf)
-    chain <- if (length(readers) == 1L) {
+
+    # A `base_daf_view` (stored on the leaf) applies to the BASE only - the
+    # viewer wraps the base sub-chain and the leaf is chained ON TOP, so
+    # leaf-local data stays visible and overrides the viewed base (matching the
+    # write side `chain(list(viewer(base), new))` and Julia's collect_dafs,
+    # complete.jl:106-122). Wrapping the WHOLE chain in the viewer instead would
+    # reinterpret leaf data through the view and hide it.
+    has_view <- format_has_scalar(leaf_daf, "base_daf_view") &&
+        length(readers) >= 2L
+    if (has_view) {
+        spec <- jsonlite::fromJSON(
+            format_get_scalar(leaf_daf, "base_daf_view")$value,
+            simplifyVector = FALSE
+        )
+        base_readers <- readers[-length(readers)]
+        base_chain <- if (length(base_readers) == 1L) {
+            base_readers[[1L]]
+        } else {
+            chain_reader(base_readers, name = paste0(chain_name, ".base"))
+        }
+        viewed_base <- viewer(base_chain, name = paste0(chain_name, ".view"),
+            axes = .normalise_json_spec(spec$axes),
+            data = .normalise_json_spec(spec$data))
+        readers <- list(viewed_base, leaf_daf)
+    }
+
+    if (length(readers) == 1L) {
         readers[[1L]]
     } else if (identical(mode, "r")) {
         chain_reader(readers, name = chain_name)
     } else {
         chain_writer(readers, name = chain_name)
     }
-    if (format_has_scalar(leaf_daf, "base_daf_view")) {
-        spec <- jsonlite::fromJSON(
-            format_get_scalar(leaf_daf, "base_daf_view")$value,
-            simplifyVector = FALSE
-        )
-        chain <- viewer(chain, name = chain_name,
-            axes = .normalise_json_spec(spec$axes),
-            data = .normalise_json_spec(spec$data))
-    }
-    chain
 }
 
 # fromJSON with simplifyVector = FALSE returns JSON arrays of strings as R

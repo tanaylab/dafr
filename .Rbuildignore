@@ -3,6 +3,9 @@
 ^dev/.*
 ^AGENTS\.md$
 ^CLAUDE\.md$
+^src/Makevars$
+^conftest$
+^conftest\.c$
 (^|/)\.a5c$
 (^|/)\.a5c/
 ^.*\.Rproj$

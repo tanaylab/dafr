@@ -343,9 +343,17 @@
 }
 
 .indtype_for_size <- function(size) {
-    # R int32 caps at 2^31-1 = .Machine$integer.max. We conservatively pick
-    # UInt32 only when the axis fits R's native int.
-    if (size <= .Machine$integer.max) "UInt32" else "UInt64"
+    # Smallest unsigned int holding `size`, matching Julia's
+    # TanayLabUtilities.indtype_for_size (floor UInt16). dafr caps UInt32 at R's
+    # native integer.max (2^31-1) rather than Julia's typemax(UInt32) (2^32-1),
+    # because an index value >= 2^31 cannot be held in R's signed 32-bit int.
+    if (size <= 65535) {
+        "UInt16"
+    } else if (size <= .Machine$integer.max) {
+        "UInt32"
+    } else {
+        "UInt64"
+    }
 }
 
 # ---- sparsify heuristics (Julia spec §8 / §8.4) ----
