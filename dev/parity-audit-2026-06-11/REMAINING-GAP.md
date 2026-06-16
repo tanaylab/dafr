@@ -52,21 +52,30 @@ insist-on-collision; computation() overwrite (COMP-01); **anndata dense `/X` +
   fixture (extended with `n_umis`/`is_doublet`) + test file. Fully-populated
   numeric/bool columns still write as plain `array` datasets that already read.
 
+- **`complete_daf` view scope + `r+` writability** (probes `complete-view-scope`,
+  `complete-rplus-view-readonly`; was OPEN item 1, first two parts). Root cause:
+  on reopen `complete_daf` wrapped the WHOLE chain in `viewer(chain(base, leaf))`,
+  so leaf-local data on the (renamed) view axis was reinterpreted through the
+  view and vanished ("missing vector"), a leaf override returned the base value,
+  and under `r+` the read-only viewer hid the writable leaf. Fix (`R/complete.R`):
+  the view now wraps the BASE sub-chain only, with the leaf chained on top -
+  `chain(list(viewer(base), leaf))`, matching the write side and Julia's
+  `collect_dafs` (complete.jl:106-122). New tests in
+  `test-complete-view-roundtrip.R`; two existing tests updated (reopened is now a
+  chain, not a top-level ViewDaf). NB on `complete-rplus`: Julia itself CRASHES at
+  reopen of a viewed r+ chain; dafr now returns a correct writable chain (leaf
+  writable) - an intentional improvement over the Julia reference, not a gap.
+  STILL OPEN: `complete-view-json-xlang` (see DESIGN section below).
+
 ## OPEN - genuinely fixable (priority order)
 
-1. **`complete_daf` view scope / `r+` writability / cross-language view JSON.**
-   Probes: `complete-view-scope`, `complete-rplus-view-readonly`,
-   `complete-view-json-xlang`. File: `R/complete.R`. Multi-part; check each
-   against Julia `complete.jl`. Was deferred as "complex multi-part" - needs a
-   careful per-probe pass.
-
-2. **sparse VECTOR densified on read.** Probe: `mem-sparse-vec-read`.
+1. **sparse VECTOR densified on read.** Probe: `mem-sparse-vec-read`.
    File: `R/utils.R` `.attach_vector_axis_names` (and the read path that calls
    it). A vector stored sparse comes back dense instead of a `sparseVector`.
    Verify first whether this is truly fixable or an R-type constraint; UPDATE 9
    lumped it with inherent-type items but it is listed as "clean(ish)".
 
-3. **reorder sparse index width.** Probe: `reorder-uint16-indtype`.
+2. **reorder sparse index width.** Probe: `reorder-uint16-indtype`.
    File: `R/reorder.R`. Reorder widens the sparse index integer type. Partly
    inherent (R `dgCMatrix` uses `integer`/`double` indices, cannot hold
    `UInt16`), so the realistic outcome may be GUARD/document, not a full fix.
@@ -74,12 +83,23 @@ insist-on-collision; computation() overwrite (COMP-01); **anndata dense `/X` +
 
 ## OPEN - needs a DESIGN decision first (not a straight code fix)
 
-4. **http/files root `metadata.json` interop (cross-language serving).**
+3. **http/files root `metadata.json` interop (cross-language serving).**
    Probes: `files-meta-json-missing`, `files-http-client-cross`.
    Files: `R/files_*.R`, `R/http_*.R`. dafr writes a `metadata.zip`; Julia
    writes a root `metadata.json`. Pick the canonical on-disk layout so a dafr
    store can be served to / read by Julia and vice-versa. Decide layout before
    coding.
+
+4. **`complete_daf` `base_daf_view` JSON cross-language format.** Probe:
+   `complete-view-json-xlang`. File: `R/complete.R` (`complete_chain` writes
+   `jsonlite::toJSON(list(axes=, data=))` positional arrays;
+   `complete_daf`/`.normalise_json_spec` read it back). Julia
+   (`chains.jl:186-190`) serialises single-key objects with paren-tuple matrix
+   keys, e.g. `{"axes":[{"cell":"="}], "data":[{"(cell,gene,umi)":"="}]}`. The
+   two schemas are structurally incompatible, so a chain written by one language
+   cannot be reopened by the other. Same flavour as the metadata.json item:
+   pick a canonical view-spec JSON schema (adopt Julia's, most likely) before
+   coding. The intra-dafr round-trip works today; this is purely cross-language.
 
 ## CLOSED BY DESIGN - do NOT "fix" (dafr is intentionally correct/safer)
 

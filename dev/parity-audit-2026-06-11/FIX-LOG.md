@@ -228,4 +228,29 @@ see UPDATE 10) and would have missed these. Always count both.
   NA) + `is_doublet` (nullable boolean, masked NA); 2 new assertions
   (integer -> c(10L,NA,30L), logical -> c(TRUE,NA,FALSE)). All 6 anndata test
   files green (nullable-strings now 13 pass).
+- Committed to dev: bf206d2. Not shipped (release held); no version bump.
+
+## UPDATE 15 - complete_daf view scope + r+ writability (session 2026-06-16)
+- Closed 2 of the 3 parts of REMAINING-GAP item 1 (complete_daf). Probes
+  `complete-view-scope` + `complete-rplus-view-readonly`.
+- Root cause (R/complete.R `complete_daf`): on reopen it wrapped the WHOLE chain
+  in `viewer(chain(base, leaf))`. So a leaf-local vector written on the renamed
+  view axis was reinterpreted through the view and vanished ("missing vector"),
+  a leaf override of a base vector returned the BASE value, and under `r+` the
+  read-only viewer hid the writable leaf (set_scalar -> "can't find method for
+  format_set_scalar").
+- FIX: apply the view to the BASE sub-chain only, leaf chained on top -
+  `chain(list(viewer(base_chain), leaf))` - matching the write side
+  (`complete_chain` builds exactly this) and Julia `collect_dafs`
+  (complete.jl:106-122). Reopened object is now a chain, not a top-level ViewDaf.
+- Tests: 2 new in test-complete-view-roundtrip.R (leaf-local `flag` resolves +
+  leaf override wins; r+ leaf stays writable). Updated 2 existing tests whose
+  `inherits(reopened, ViewDaf)` assertion encoded the old whole-chain-wrap.
+  test-complete.R (21) + test-complete-view-roundtrip.R (15) green.
+- DIVERGENCE NOTE (`complete-rplus-view-readonly`): Julia's own complete_daf
+  CRASHES at reopen of a viewed r+ chain; dafr now returns a correct writable
+  chain. Intentional improvement over the reference, not a gap to "fix back".
+- STILL OPEN: `complete-view-json-xlang` - the base_daf_view JSON schema differs
+  cross-language (R positional arrays vs Julia single-key objects + paren-tuple
+  matrix keys). Moved to the DESIGN-decision section; intra-dafr round-trip works.
 - NOT shipped/committed yet (working tree only); no version bump.
