@@ -7,7 +7,7 @@
 
     <a class="navbar-brand me-2" href="../index.html">dafr</a>
 
-    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">0.4.6</small>
+    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">0.4.7</small>
 
 
     <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbar" aria-controls="navbar" aria-expanded="false" aria-label="Toggle navigation">
@@ -42,9 +42,28 @@
   <main id="main" class="col-md-9"><div class="page-header">
 
       <h1>Changelog</h1>
-      <small>Source: <a href="https://github.com/tanaylab/dafr/blob/v0.4.6/NEWS.md" class="external-link"><code>NEWS.md</code></a></small>
+      <small>Source: <a href="https://github.com/tanaylab/dafr/blob/v0.4.7/NEWS.md" class="external-link"><code>NEWS.md</code></a></small>
     </div>
 
+    <div class="section level2">
+<h2 class="pkg-version" data-toc-text="0.4.7" id="dafr-047">dafr 0.4.7<a class="anchor" aria-label="anchor" href="#dafr-047"></a></h2>
+<p>Continued parity-audit cleanup against <code>DataAxesFormats.jl</code>. Each change is test-driven and the full suite stays green. See <code>dev/parity-audit-2026-06-11/</code> for the audit trail.</p>
+<div class="section level3">
+<h3 id="anndata-interop-0-4-7">AnnData interop<a class="anchor" aria-label="anchor" href="#anndata-interop-0-4-7"></a></h3>
+<ul><li><p><strong>Read AnnData &gt;= 0.12 <code>nullable-string-array</code> data.</strong> AnnData 0.12 stores strings as a <code>{values, mask}</code> group rather than a plain string dataset. This encoding is used for the <code>obs</code>/<code>var</code> <code>_index</code>, for categorical <code>categories</code>, and for plain pandas <code>string</code> columns - so a real 0.12 <code>.h5ad</code> previously failed to load at the very first index read, and string columns were silently skipped. <code><a href="../reference/h5ad_as_daf.html">h5ad_as_daf()</a></code> now reads all three (masked entries become <code>NA</code>).</p></li>
+<li><p><strong>Read AnnData &gt;= 0.12 <code>nullable-integer</code> / <code>nullable-boolean</code> columns.</strong> NA-bearing pandas <code>Int64</code> / <code>boolean</code> columns use the same <code>{values, mask}</code> group encoding and are now read as integer / logical vectors with <code>NA</code> for masked entries.</p></li>
+</ul></div>
+<div class="section level3">
+<h3 id="persistent-chains-0-4-7">Persistent chains<a class="anchor" aria-label="anchor" href="#persistent-chains-0-4-7"></a></h3>
+<ul><li>
+<strong><code><a href="../reference/complete_daf.html">complete_daf()</a></code> scopes a stored <code>base_daf_view</code> to the base only.</strong> On reopen, the view now wraps just the base sub-chain with the leaf chained on top (matching how <code><a href="../reference/complete_chain.html">complete_chain()</a></code> writes it). Previously the whole chain was wrapped in the view, which hid leaf-local data on a renamed view axis (“missing vector”), made a leaf override return the base value, and left the leaf non-writable under <code>mode = "r+"</code>.</li>
+</ul></div>
+<div class="section level3">
+<h3 id="filesdaf-storage-0-4-7">FilesDaf storage<a class="anchor" aria-label="anchor" href="#filesdaf-storage-0-4-7"></a></h3>
+<ul><li>
+<strong>Sparse matrices/vectors write the narrowest on-disk index type.</strong> A small sparse store (index range &lt;= 65535) now writes <code>UInt16</code> <code>colptr</code>/<code>rowval</code> instead of always <code>UInt32</code>, matching Julia’s <code>indtype_for_size</code>. The in-memory representation is unchanged; only the on-disk descriptor narrows. Existing stores written with <code>UInt32</code> continue to read correctly.</li>
+</ul></div>
+</div>
     <div class="section level2">
 <h2 class="pkg-version" data-toc-text="0.4.6" id="dafr-046">dafr 0.4.6<a class="anchor" aria-label="anchor" href="#dafr-046"></a></h2>
 <p>Documentation hotfix on top of 0.4.5 (no functional change). The <code>relayout</code> default flip to <code>TRUE</code> in 0.4.5 left two <code>R CMD check</code> issues that the test suite does not exercise:</p>

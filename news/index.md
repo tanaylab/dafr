@@ -1,5 +1,48 @@
 # Changelog
 
+## dafr 0.4.7
+
+Continued parity-audit cleanup against `DataAxesFormats.jl`. Each change
+is test-driven and the full suite stays green. See
+`dev/parity-audit-2026-06-11/` for the audit trail.
+
+### AnnData interop
+
+- **Read AnnData \>= 0.12 `nullable-string-array` data.** AnnData 0.12
+  stores strings as a `{values, mask}` group rather than a plain string
+  dataset. This encoding is used for the `obs`/`var` `_index`, for
+  categorical `categories`, and for plain pandas `string` columns - so a
+  real 0.12 `.h5ad` previously failed to load at the very first index
+  read, and string columns were silently skipped.
+  [`h5ad_as_daf()`](https://tanaylab.github.io/dafr/reference/h5ad_as_daf.md)
+  now reads all three (masked entries become `NA`).
+
+- **Read AnnData \>= 0.12 `nullable-integer` / `nullable-boolean`
+  columns.** NA-bearing pandas `Int64` / `boolean` columns use the same
+  `{values, mask}` group encoding and are now read as integer / logical
+  vectors with `NA` for masked entries.
+
+### Persistent chains
+
+- **[`complete_daf()`](https://tanaylab.github.io/dafr/reference/complete_daf.md)
+  scopes a stored `base_daf_view` to the base only.** On reopen, the
+  view now wraps just the base sub-chain with the leaf chained on top
+  (matching how
+  [`complete_chain()`](https://tanaylab.github.io/dafr/reference/complete_chain.md)
+  writes it). Previously the whole chain was wrapped in the view, which
+  hid leaf-local data on a renamed view axis (“missing vector”), made a
+  leaf override return the base value, and left the leaf non-writable
+  under `mode = "r+"`.
+
+### FilesDaf storage
+
+- **Sparse matrices/vectors write the narrowest on-disk index type.** A
+  small sparse store (index range \<= 65535) now writes `UInt16`
+  `colptr`/`rowval` instead of always `UInt32`, matching Julia’s
+  `indtype_for_size`. The in-memory representation is unchanged; only
+  the on-disk descriptor narrows. Existing stores written with `UInt32`
+  continue to read correctly.
+
 ## dafr 0.4.6
 
 Documentation hotfix on top of 0.4.5 (no functional change). The
