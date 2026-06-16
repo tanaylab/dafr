@@ -106,13 +106,34 @@ NULL
     }
 }
 
+# ---- String-array helpers -------------------------------------------------
+
+# Read a string-valued h5ad node. anndata < 0.12 stores strings as a plain
+# `string-array` dataset; anndata >= 0.12 may store them as a
+# `nullable-string-array` GROUP holding `values` (a `string-array` dataset) and
+# `mask` (a boolean array, TRUE = missing). Masked entries become NA. Returns a
+# character vector either way. Used for the obs/var `_index`, categorical
+# `categories`, and plain string columns.
+.read_h5ad_string_array <- function(node) {
+    if (inherits(node, "H5Group")) {
+        vals <- as.character(node[["values"]]$read())
+        if (node$exists("mask")) {
+            mask <- as.logical(node[["mask"]]$read())
+            vals[mask] <- NA_character_
+        }
+        vals
+    } else {
+        as.character(node$read())
+    }
+}
+
 # ---- Categorical helpers --------------------------------------------------
 
 # Read a categorical obs/var column group. Returns a factor (ordered or
 # unordered depending on the `ordered` attr). NA codes (-1) become NA.
 .read_h5ad_categorical <- function(grp) {
     codes <- grp[["codes"]]$read()
-    categories <- grp[["categories"]]$read()
+    categories <- .read_h5ad_string_array(grp[["categories"]])
     ordered <- FALSE
     if (grp$attr_exists("ordered")) {
         ordered <- tryCatch(isTRUE(as.logical(hdf5r::h5attr(grp, "ordered"))[[1L]]),
@@ -220,7 +241,7 @@ h5ad_as_daf <- function(path, name = NULL, mode = "r",
     if (!obs_group$exists("_index")) {
         stop("h5ad /obs missing _index dataset", call. = FALSE)
     }
-    obs_names <- obs_group[["_index"]]$read()
+    obs_names <- .read_h5ad_string_array(obs_group[["_index"]])
     add_axis(d, "obs", as.character(obs_names))
 
     # --- var axis ---
@@ -231,7 +252,7 @@ h5ad_as_daf <- function(path, name = NULL, mode = "r",
     if (!var_group$exists("_index")) {
         stop("h5ad /var missing _index dataset", call. = FALSE)
     }
-    var_names <- var_group[["_index"]]$read()
+    var_names <- .read_h5ad_string_array(var_group[["_index"]])
     add_axis(d, "var", as.character(var_names))
 
     # --- /X matrix ---
@@ -275,6 +296,10 @@ h5ad_as_daf <- function(path, name = NULL, mode = "r",
                 set_vector(d, "obs", col, v)
                 next
             }
+            if (!is.null(enc) && enc == "nullable-string-array") {
+                set_vector(d, "obs", col, .read_h5ad_string_array(child))
+                next
+            }
             emit_action("inefficient",
                 sprintf("nested obs column '%s' (encoding=%s) not supported; skipping",
                     col, enc %||% "unknown"))
@@ -304,6 +329,10 @@ h5ad_as_daf <- function(path, name = NULL, mode = "r",
             if (!is.null(enc) && enc == "categorical") {
                 v <- .read_h5ad_categorical(child)
                 set_vector(d, "var", col, v)
+                next
+            }
+            if (!is.null(enc) && enc == "nullable-string-array") {
+                set_vector(d, "var", col, .read_h5ad_string_array(child))
                 next
             }
             emit_action("inefficient",

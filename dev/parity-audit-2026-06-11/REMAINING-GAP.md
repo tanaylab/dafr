@@ -25,18 +25,33 @@ copy_all both-layouts dedup; copy_tensor missing-slice skip; adapter
 insist-on-collision; computation() overwrite (COMP-01); **anndata dense `/X` +
 `obsm`/`varm` canonical (n_obs,n_var)/(n_axis,k) orientation**.
 
+## DONE (in working tree, not yet shipped) - do not redo
+
+- **anndata >= 0.12 `nullable-string-array` read** (was OPEN item 1). Real scope
+  was wider than the original note: the `{values, mask}` group encoding is used
+  not only for categorical `categories` but also for the obs/var `_index`
+  (so a 0.12 file failed at the very first `_index` read) and for plain pandas
+  `string`-dtype columns (silently skipped). Fix: a shared
+  `.read_h5ad_string_array()` helper (handles plain `string-array` dataset OR
+  `nullable-string-array` group, mask -> NA) applied at all three sites, plus a
+  `nullable-string-array` branch in the obs/var column loops. Real anndata 0.12.1
+  fixture `tests/testthat/fixtures/anndata_nullable_strings.h5ad` (generator:
+  `dev/fixtures/generate_anndata_nullable_strings.py`) + new
+  `test-parity-anndata-nullable-strings.R`. Probe: nullable-string-array.
+  NB anndata quirk: a `string` column that *contains* a missing value is written
+  as `categorical` (codes with -1), not nullable-string-array.
+
 ## OPEN - genuinely fixable (priority order)
 
-1. **anndata >= 0.12 `nullable-string-array` categorical read.**
-   Probe: (discovered during anndata-X-orientation work, UPDATE 11).
-   File: `R/anndata_format.R` `.read_h5ad_categorical`. Symptom: reading a real
-   anndata>=0.12 `.h5ad` whose `obs`/`var` categorical `categories` are stored
-   as a `nullable-string-array` group (not a plain string dataset) fails with
-   "attempt to apply non-function". Add a reader branch for that encoding.
-   Concrete + testable: write a fixture with Python `anndata` 0.12 (envs
-   `daf_env`/`borzoi-finetune`/`crested` have it) that includes a categorical
-   obs column, then read it. This is why `tests/testthat/fixtures/
-   anndata_canonical.h5ad` was committed WITHOUT obs columns - it is the gap.
+1. **anndata nullable-INTEGER / nullable-BOOLEAN column read** (follow-up from
+   the nullable-string work above). File: `R/anndata_format.R` obs/var column
+   loops. A pandas `Int64`/`boolean`-dtype column that *contains* NA is written
+   by anndata 0.12 as `nullable-integer-array` / `nullable-boolean-array`
+   (a `{values, mask}` group), which still hits the "nested column not
+   supported; skipping" branch. NB only NA-containing numeric/bool columns use
+   this; fully-populated ones write as a plain `array` dataset that already
+   reads. Same `{values, mask}` shape as the string case - generalise the
+   helper. Needs a fixture (extend the generator) + test.
 
 2. **`complete_daf` view scope / `r+` writability / cross-language view JSON.**
    Probes: `complete-view-scope`, `complete-rplus-view-readonly`,

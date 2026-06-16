@@ -187,3 +187,29 @@ see UPDATE 10) and would have missed these. Always count both.
   "OPEN - genuinely fixable" set EXCEPT the 5 items listed there (anndata>=0.12
   nullable-string-array read; complete_daf view scope/rplus/json; sparse-vector
   densify-on-read; reorder index width; http/files metadata.json design).
+
+## UPDATE 13 - anndata >= 0.12 nullable-string-array read (session 2026-06-16)
+- Closed REMAINING-GAP OPEN item 1. TDD against a REAL anndata 0.12.1 fixture
+  (generator `dev/fixtures/generate_anndata_nullable_strings.py`, committed
+  `tests/testthat/fixtures/anndata_nullable_strings.h5ad`).
+- The gap was WIDER than the original note (which named only categorical
+  `categories`): in 0.12 the `nullable-string-array` `{values, mask}` group
+  encoding is also used for the obs/var `_index` and for plain pandas
+  `string`-dtype columns. So a real 0.12 file died at the FIRST `_index` read
+  ("attempt to apply non-function"), never reaching the categorical; plain
+  string columns were silently skipped as "nested column not supported".
+- FIX (R/anndata_format.R): new `.read_h5ad_string_array(node)` - reads a plain
+  `string-array` dataset OR a `nullable-string-array` group (mask TRUE -> NA).
+  Applied at the obs/var `_index`, in `.read_h5ad_categorical` (`categories`),
+  and as a new `nullable-string-array` branch in both obs/var column loops.
+- Tests: `test-parity-anndata-nullable-strings.R` - real-file read (names,
+  categorical, plain string column, float control) + a hand-crafted hdf5r test
+  for the mask -> NA branch (anndata rewrites an NA-bearing string column as
+  categorical, so the True-mask path needs the synthetic fixture).
+- Verified green: all 6 anndata test files (format/facade/handlers/jl-parity/
+  x-orientation/nullable-strings), 0 fail.
+- NEW FOLLOW-UP (now REMAINING-GAP OPEN item 1): pandas `Int64`/`boolean`
+  columns containing NA write as `nullable-integer-array`/`nullable-boolean-array`
+  (same `{values, mask}` shape) and are still skipped. Generalise the helper +
+  add a fixture. Scoped out here to keep the fix to the string item under test.
+- NOT shipped/committed yet (working tree only); no version bump.
