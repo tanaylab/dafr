@@ -220,12 +220,14 @@ test_that("set_matrix + get_matrix sparse dgCMatrix round-trip", {
         dims = c(3, 2)
     )
     set_matrix(d, "cell", "gene", "sm", sp)
+    # Small matrix -> UInt16 index type (Julia indtype_for_size parity), so the
+    # raw colptr/rowval are 2-byte little-endian.
     cp <- readBin(file.path(dir, "matrices", "cell", "gene", "sm.colptr"),
-        what = "integer", n = 3L, size = 4L, endian = "little"
+        what = "integer", n = 3L, size = 2L, endian = "little"
     )
     expect_equal(cp, c(1L, 3L, 4L))
     rv <- readBin(file.path(dir, "matrices", "cell", "gene", "sm.rowval"),
-        what = "integer", n = 3L, size = 4L, endian = "little"
+        what = "integer", n = 3L, size = 2L, endian = "little"
     )
     expect_equal(rv, c(1L, 3L, 2L))
     d2 <- files_daf(dir, mode = "r")
@@ -282,4 +284,28 @@ test_that("relayout_matrix on sparse matrix stores transposed CSC", {
     m_flipped <- get_matrix(d2, "gene", "cell", "sm")
     expect_s4_class(m_flipped, "dgCMatrix")
     expect_equal(as.matrix(unname(m_flipped)), t(as.matrix(sp)))
+})
+
+test_that("small sparse matrix is written with UInt16 index type (Julia parity)", {
+    # Probe reorder-uint16-indtype: dafr writes the on-disk colptr/rowval index
+    # type by size (Julia TanayLabUtilities.indtype_for_size, floor UInt16),
+    # not always UInt32. The in-memory dgCMatrix still uses R integer indices.
+    skip_if_not_installed("jsonlite")
+    dir <- new_tempdir()
+    d <- files_daf(dir, mode = "w+")
+    add_axis(d, "cell", paste0("c", 1:4))
+    add_axis(d, "gene", paste0("g", 1:3))
+    sp <- Matrix::sparseMatrix(i = c(1L, 3L), j = c(1L, 2L), x = c(1.5, 2.5),
+                               dims = c(4L, 3L))
+    set_matrix(d, "cell", "gene", "sm", sp, relayout = FALSE)
+
+    desc <- jsonlite::fromJSON(
+        readLines(file.path(dir, "matrices", "cell", "gene", "sm.json")))
+    expect_identical(desc$format, "sparse")
+    expect_identical(desc$colptr$eltype, "UInt16")
+    expect_identical(desc$rowval$eltype, "UInt16")
+
+    d2 <- files_daf(dir, mode = "r")
+    expect_equal(as.matrix(unname(get_matrix(d2, "cell", "gene", "sm"))),
+                 as.matrix(sp))
 })

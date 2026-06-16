@@ -281,10 +281,11 @@ test_that("set_vector auto-sparsifies a vector dominated by zeros", {
     expect_equal(j$format, "sparse")
     # v1.1 per-component descriptor: eltype/indtype live in nzval/nzind.
     expect_equal(j$nzval$eltype, "Float64")
-    expect_equal(j$nzind$eltype, "UInt32")
+    # Axis length 100 -> UInt16 index type (Julia indtype_for_size parity).
+    expect_equal(j$nzind$eltype, "UInt16")
     expect_equal(j$nzind$n_elements, 3L)
     idx <- readBin(file.path(dir, "vectors", "cell", "x.nzind"),
-        what = "integer", n = 3L, size = 4L, endian = "little"
+        what = "integer", n = 3L, size = 2L, endian = "little"
     )
     expect_equal(idx, c(10L, 50L, 90L))
     d2 <- files_daf(dir, mode = "r")
@@ -295,7 +296,10 @@ test_that("set_vector keeps dense when threshold not met", {
     dir <- new_tempdir()
     d <- files_daf(dir, mode = "w+")
     add_axis(d, "cell", sprintf("e%d", 1:10))
-    v <- c(1, 2, 3, 4, 5, 6, 0, 0, 0, 0)
+    # 7 nnz / 10 (Float64), UInt16 index: sparse = 7*(8+2)=70 > 0.75*80=60 ->
+    # dense. (Was 6 nnz, which is dense only under the old UInt32 indtype: with
+    # the Julia-parity UInt16 index it would land exactly on the 0.75 boundary.)
+    v <- c(1, 2, 3, 4, 5, 6, 7, 0, 0, 0)
     set_vector(d, "cell", "x", v)
     j <- jsonlite::fromJSON(file.path(dir, "vectors", "cell", "x.json"))
     expect_equal(j$format, "dense")

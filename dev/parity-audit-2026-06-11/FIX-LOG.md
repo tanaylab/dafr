@@ -270,3 +270,26 @@ see UPDATE 10) and would have missed these. Always count both.
 - Remaining genuinely-fixable backlog: just `reorder-uint16-indtype` (itself
   partly inherent). The rest are DESIGN decisions (metadata.json,
   complete-view-json-xlang) or deferred backends.
+- Committed to dev: 8ead611.
+
+## UPDATE 17 - sparse on-disk index width narrows to UInt16 (session 2026-06-16)
+- Closed the LAST genuinely-fixable item (`reorder-uint16-indtype`). dafr's
+  `.indtype_for_size` (R/files_io.R) returned only UInt32/UInt64; the canonical
+  Julia `TanayLabUtilities.indtype_for_size` floors at UInt16.
+- VERSION SLEUTHING (important): two TanayLabUtilities depot copies disagree -
+  `xbDaH` (UInt32-only, older) vs `Puhfz` (UInt16, newer). The authoritative one
+  is the DEV PATH `~/src/TanayLabUtilities.jl` (DAF @ 80aee1d pins it via
+  `path = "../TanayLabUtilities.jl"`), which floors at UInt16. So narrowing is
+  correct parity, not a regression.
+- FIX: add the UInt16 branch (`size <= 65535`), keep UInt32->UInt64 boundary at
+  R's integer.max (2^31-1) not Julia's 2^32-1 (index >= 2^31 can't fit R signed
+  int - inherent). The in-memory dgCMatrix stays R-integer; only the on-disk
+  colptr/rowval dtype changes. IO layer already supported UInt16 read/write.
+- BLAST RADIUS (this is the "change + test sweep" kind): updated
+  test-files-matrices.R (raw colptr/rowval read size 4L->2L) + new UInt16
+  integration test; test-files-vectors.R (nzind eltype UInt32->UInt16, read
+  size 4L->2L, and recalibrated the "keeps dense" boundary case from 6 to 7 nnz
+  because the cheaper UInt16 index flips 6/10 onto the 0.75 sparsify boundary -
+  matches Julia's formula); test-files-io.R unit test extended for UInt16.
+- concat.R has its OWN `.concat_indtype_bytes` (already UInt16-aware) - unchanged.
+- NOT shipped/committed yet (working tree only); no version bump.

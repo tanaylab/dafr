@@ -117,8 +117,14 @@ test_that(".write_bin_dense for logicals writes one byte per element", {
     expect_equal(out, x)
 })
 
-test_that(".indtype_for_size picks UInt32 vs UInt64", {
+test_that(".indtype_for_size narrows to UInt16/UInt32/UInt64 by size (Julia parity)", {
+    # Julia (TanayLabUtilities.indtype_for_size) floors at UInt16.
+    expect_equal(dafr:::.indtype_for_size(100), "UInt16")
+    expect_equal(dafr:::.indtype_for_size(65535), "UInt16")   # typemax(UInt16)
+    expect_equal(dafr:::.indtype_for_size(65536), "UInt32")
     expect_equal(dafr:::.indtype_for_size(2^30L), "UInt32")
+    # dafr caps UInt32 at R's native integer.max (2^31-1) rather than Julia's
+    # 2^32-1: an index value >= 2^31 cannot be held in R's signed 32-bit int.
     expect_equal(dafr:::.indtype_for_size(2^32), "UInt64")
 })
 

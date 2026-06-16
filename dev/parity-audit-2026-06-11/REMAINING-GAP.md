@@ -67,24 +67,38 @@ insist-on-collision; computation() overwrite (COMP-01); **anndata dense `/X` +
   writable) - an intentional improvement over the Julia reference, not a gap.
   STILL OPEN: `complete-view-json-xlang` (see DESIGN section below).
 
+- **sparse index width: narrow to UInt16 on write** (probe `reorder-uint16-indtype`;
+  was the last OPEN genuinely-fixable item). The in-memory `dgCMatrix` uses R
+  integer indices (the inherent part), but the ON-DISK colptr/rowval index dtype
+  is a separate write-time choice. dafr's `.indtype_for_size` (R/files_io.R) only
+  ever returned UInt32/UInt64; the canonical Julia
+  `TanayLabUtilities.indtype_for_size` (dev path `~/src/TanayLabUtilities.jl`,
+  pinned by DAF @ 80aee1d) floors at UInt16 (`size <= typemax(UInt16)`). Fix: add
+  the UInt16 branch, keeping dafr's UInt32->UInt64 boundary at R's `integer.max`
+  (2^31-1) rather than Julia's 2^32-1 (an index value >= 2^31 can't fit R's
+  signed int - the genuinely-inherent residue). The IO layer already read/wrote
+  UInt16. Blast radius (handled): test-files-matrices/-vectors had write-then-
+  raw-read asserts hardcoding UInt32 (size=4L) + one sparsify-boundary case that
+  flips to sparse under the cheaper UInt16 index (matches Julia's 0.75 formula).
+  NB: there exist TWO TanayLabUtilities depot copies - an older `xbDaH` (UInt32-
+  only) and newer `Puhfz`/dev (UInt16); the dev path is canonical.
+
 ## OPEN - genuinely fixable (priority order)
 
-1. **reorder sparse index width.** Probe: `reorder-uint16-indtype`.
-   File: `R/reorder.R`. Reorder widens the sparse index integer type. Partly
-   inherent (R `dgCMatrix` uses `integer`/`double` indices, cannot hold
-   `UInt16`), so the realistic outcome may be GUARD/document, not a full fix.
-   Scope the non-inherent part.
+(none) - all genuinely-fixable, non-design-decision parity gaps are now closed.
+What remains is the two cross-language DESIGN decisions below, the INHERENT
+R-type limits, and the deferred backends.
 
 ## OPEN - needs a DESIGN decision first (not a straight code fix)
 
-3. **http/files root `metadata.json` interop (cross-language serving).**
+1. **http/files root `metadata.json` interop (cross-language serving).**
    Probes: `files-meta-json-missing`, `files-http-client-cross`.
    Files: `R/files_*.R`, `R/http_*.R`. dafr writes a `metadata.zip`; Julia
    writes a root `metadata.json`. Pick the canonical on-disk layout so a dafr
    store can be served to / read by Julia and vice-versa. Decide layout before
    coding.
 
-4. **`complete_daf` `base_daf_view` JSON cross-language format.** Probe:
+2. **`complete_daf` `base_daf_view` JSON cross-language format.** Probe:
    `complete-view-json-xlang`. File: `R/complete.R` (`complete_chain` writes
    `jsonlite::toJSON(list(axes=, data=))` positional arrays;
    `complete_daf`/`.normalise_json_spec` read it back). Julia
