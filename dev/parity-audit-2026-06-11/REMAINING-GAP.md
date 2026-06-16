@@ -69,13 +69,7 @@ insist-on-collision; computation() overwrite (COMP-01); **anndata dense `/X` +
 
 ## OPEN - genuinely fixable (priority order)
 
-1. **sparse VECTOR densified on read.** Probe: `mem-sparse-vec-read`.
-   File: `R/utils.R` `.attach_vector_axis_names` (and the read path that calls
-   it). A vector stored sparse comes back dense instead of a `sparseVector`.
-   Verify first whether this is truly fixable or an R-type constraint; UPDATE 9
-   lumped it with inherent-type items but it is listed as "clean(ish)".
-
-2. **reorder sparse index width.** Probe: `reorder-uint16-indtype`.
+1. **reorder sparse index width.** Probe: `reorder-uint16-indtype`.
    File: `R/reorder.R`. Reorder widens the sparse index integer type. Partly
    inherent (R `dgCMatrix` uses `integer`/`double` indices, cannot hold
    `UInt16`), so the realistic outcome may be GUARD/document, not a full fix.
@@ -116,7 +110,7 @@ Re-deciding these wastes a session. Document only; optionally raise upstream.
 - **chain `relayout_matrix` writer mutation** - dafr succeeds with both layouts;
   Julia errors. Matching Julia would degrade dafr to a quirk.
 
-## INHERENT R-TYPE LIMITS (9) - GUARD/document, not a clean fix
+## INHERENT R-TYPE LIMITS (10) - GUARD/document, not a clean fix
 
 Mapping DAF's full numeric tower onto R's types loses information:
 `Float32` reduction/`Convert` precision (OPS-01); unsigned overflow -
@@ -125,6 +119,16 @@ narrow/unsigned dtype width not preserved on write (TKR-04/05); int64/uint64
 sparse `nzval` precision; `zarr-dtype-*`; `reorder-float32-widen`;
 `files-int-sparse-matrix-eltype-loss`. Best move: a read/write-time overflow
 GUARD that warns/errors loudly instead of corrupting silently.
+
+- **sparse VECTOR densified on read** (`mem-sparse-vec-read`). VERIFIED 2026-06-16:
+  not cleanly fixable. `Matrix::sparseVector` is an S4 object with NO names slot -
+  `names<-` errors ("invalid to use names()<- on an S4 object"). The format API
+  contract requires named vectors ([[feedback_format_api_named]]), so
+  `.attach_vector_axis_names` (R/utils.R:112) deliberately densifies a sparse
+  vector to attach axis-entry names. R has no named-sparse-vector type equivalent
+  to Julia's `NamedArray{SparseVector}`. Names win over sparsity; densify-and-name
+  is the correct trade-off, already documented in the code. (Sparse MATRICES are
+  fine - `dgCMatrix` carries `@Dimnames`; only the VECTOR case is constrained.)
 
 ## DEFERRED BACKENDS (feature work, user-gated) - not started
 

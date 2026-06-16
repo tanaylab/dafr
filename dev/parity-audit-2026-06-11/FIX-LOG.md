@@ -253,4 +253,20 @@ see UPDATE 10) and would have missed these. Always count both.
 - STILL OPEN: `complete-view-json-xlang` - the base_daf_view JSON schema differs
   cross-language (R positional arrays vs Julia single-key objects + paren-tuple
   matrix keys). Moved to the DESIGN-decision section; intra-dafr round-trip works.
-- NOT shipped/committed yet (working tree only); no version bump.
+- Committed to dev: 51ff0dd. Not shipped (release held); no version bump.
+
+## UPDATE 16 - sparse-vector-densify VERIFIED inherent (session 2026-06-16)
+- Investigated `mem-sparse-vec-read` (the "verify first if fixable" item). VERDICT:
+  inherent R-type constraint, NOT a clean fix. Reclassified OPEN -> INHERENT.
+- `Matrix::sparseVector` is S4 with no names slot; `names(sv) <- ...` errors
+  ("invalid to use names()<- on an S4 object of class 'dsparseVector'"). The
+  format API contract requires named vectors (feedback_format_api_named), so
+  R/utils.R:112 `.attach_vector_axis_names` densifies a sparse vector to attach
+  axis names. No named-sparse-vector type exists in R (Julia uses
+  NamedArray{SparseVector}). Densify-and-name is the correct trade-off and is
+  already documented in the code comment. No code change.
+- Sparse MATRICES are unaffected (dgCMatrix carries @Dimnames); only the VECTOR
+  case hits this.
+- Remaining genuinely-fixable backlog: just `reorder-uint16-indtype` (itself
+  partly inherent). The rest are DESIGN decisions (metadata.json,
+  complete-view-json-xlang) or deferred backends.
