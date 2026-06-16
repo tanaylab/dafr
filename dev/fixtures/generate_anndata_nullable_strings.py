@@ -23,6 +23,8 @@ obs = pd.DataFrame(
     {
         "cell_type": pd.Categorical(["B", "T", "B"]),       # categorical: nullable-string categories
         "batch": pd.array(["x", "y", "z"], dtype="string"),  # plain nullable-string-array column
+        "n_umis": pd.array([10, None, 30], dtype="Int64"),   # nullable-integer column (masked NA)
+        "is_doublet": pd.array([True, None, False], dtype="boolean"),  # nullable-boolean column (masked NA)
         "score": np.array([1.5, 2.5, 3.5]),                 # plain float (control)
     },
     index=["o1", "o2", "o3"],
@@ -30,7 +32,10 @@ obs = pd.DataFrame(
 # NB: a `string` column that actually CONTAINS a missing value is written by
 # anndata 0.12 as `categorical` (codes with -1), not nullable-string-array, so
 # `batch` is kept fully populated to exercise the nullable-string-array column
-# path. The mask -> NA branch is covered by a hand-crafted hdf5r test instead.
+# path. Nullable `Int64`/`boolean` columns CAN carry an NA in-encoding (codes
+# with a mask), so `n_umis`/`is_doublet` exercise the mask -> NA path directly.
+# Encoding strings are asymmetric: `nullable-string-array` vs `nullable-integer`
+# / `nullable-boolean` (no `-array` suffix).
 var = pd.DataFrame(index=["v1", "v2"])
 X = np.array([[11.0, 12.0], [21.0, 22.0], [31.0, 32.0]], dtype=np.float64)
 

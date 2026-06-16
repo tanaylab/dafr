@@ -41,31 +41,32 @@ insist-on-collision; computation() overwrite (COMP-01); **anndata dense `/X` +
   NB anndata quirk: a `string` column that *contains* a missing value is written
   as `categorical` (codes with -1), not nullable-string-array.
 
+- **anndata >= 0.12 `nullable-integer` / `nullable-boolean` column read**
+  (was OPEN item 1). Generalised the above: an NA-bearing pandas `Int64`/
+  `boolean` column writes as a `nullable-integer` / `nullable-boolean` `{values,
+  mask}` group (NB the encoding strings are asymmetric - NO `-array` suffix,
+  unlike `nullable-string-array`; my earlier note guessing `...-array` was
+  wrong). Fix: a type-agnostic `.read_h5ad_nullable()` helper (reads `values`,
+  `x[mask] <- NA` promotes to the right NA flavour) + a `.H5AD_NULLABLE_ENCODINGS`
+  set covering all three; `.read_h5ad_string_array()` now delegates to it. Same
+  fixture (extended with `n_umis`/`is_doublet`) + test file. Fully-populated
+  numeric/bool columns still write as plain `array` datasets that already read.
+
 ## OPEN - genuinely fixable (priority order)
 
-1. **anndata nullable-INTEGER / nullable-BOOLEAN column read** (follow-up from
-   the nullable-string work above). File: `R/anndata_format.R` obs/var column
-   loops. A pandas `Int64`/`boolean`-dtype column that *contains* NA is written
-   by anndata 0.12 as `nullable-integer-array` / `nullable-boolean-array`
-   (a `{values, mask}` group), which still hits the "nested column not
-   supported; skipping" branch. NB only NA-containing numeric/bool columns use
-   this; fully-populated ones write as a plain `array` dataset that already
-   reads. Same `{values, mask}` shape as the string case - generalise the
-   helper. Needs a fixture (extend the generator) + test.
-
-2. **`complete_daf` view scope / `r+` writability / cross-language view JSON.**
+1. **`complete_daf` view scope / `r+` writability / cross-language view JSON.**
    Probes: `complete-view-scope`, `complete-rplus-view-readonly`,
    `complete-view-json-xlang`. File: `R/complete.R`. Multi-part; check each
    against Julia `complete.jl`. Was deferred as "complex multi-part" - needs a
    careful per-probe pass.
 
-3. **sparse VECTOR densified on read.** Probe: `mem-sparse-vec-read`.
+2. **sparse VECTOR densified on read.** Probe: `mem-sparse-vec-read`.
    File: `R/utils.R` `.attach_vector_axis_names` (and the read path that calls
    it). A vector stored sparse comes back dense instead of a `sparseVector`.
    Verify first whether this is truly fixable or an R-type constraint; UPDATE 9
    lumped it with inherent-type items but it is listed as "clean(ish)".
 
-4. **reorder sparse index width.** Probe: `reorder-uint16-indtype`.
+3. **reorder sparse index width.** Probe: `reorder-uint16-indtype`.
    File: `R/reorder.R`. Reorder widens the sparse index integer type. Partly
    inherent (R `dgCMatrix` uses `integer`/`double` indices, cannot hold
    `UInt16`), so the realistic outcome may be GUARD/document, not a full fix.
@@ -73,7 +74,7 @@ insist-on-collision; computation() overwrite (COMP-01); **anndata dense `/X` +
 
 ## OPEN - needs a DESIGN decision first (not a straight code fix)
 
-5. **http/files root `metadata.json` interop (cross-language serving).**
+4. **http/files root `metadata.json` interop (cross-language serving).**
    Probes: `files-meta-json-missing`, `files-http-client-cross`.
    Files: `R/files_*.R`, `R/http_*.R`. dafr writes a `metadata.zip`; Julia
    writes a root `metadata.json`. Pick the canonical on-disk layout so a dafr

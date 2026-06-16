@@ -212,4 +212,20 @@ see UPDATE 10) and would have missed these. Always count both.
   columns containing NA write as `nullable-integer-array`/`nullable-boolean-array`
   (same `{values, mask}` shape) and are still skipped. Generalise the helper +
   add a fixture. Scoped out here to keep the fix to the string item under test.
+- Committed to dev: 02443f0. Not shipped (release held); no version bump.
+
+## UPDATE 14 - nullable-integer / nullable-boolean columns (session 2026-06-16)
+- Closed the UPDATE 13 follow-up. An NA-bearing pandas `Int64`/`boolean` column
+  writes as a `nullable-integer` / `nullable-boolean` `{values, mask}` group.
+  CORRECTION: the encoding strings have NO `-array` suffix (unlike
+  `nullable-string-array`) - the UPDATE 13 follow-up note guessed wrong.
+- FIX (R/anndata_format.R): type-agnostic `.read_h5ad_nullable(grp)` (reads
+  `values`, `x[mask] <- NA` promotes to the right NA flavour - character /
+  integer / logical); `.H5AD_NULLABLE_ENCODINGS` set; the obs/var column loops
+  now read any of the three nullable encodings; `.read_h5ad_string_array()`
+  refactored to delegate to `.read_h5ad_nullable()` (DRY, stayed green).
+- Tests: extended the fixture generator with `n_umis` (nullable Int64, masked
+  NA) + `is_doublet` (nullable boolean, masked NA); 2 new assertions
+  (integer -> c(10L,NA,30L), logical -> c(TRUE,NA,FALSE)). All 6 anndata test
+  files green (nullable-strings now 13 pass).
 - NOT shipped/committed yet (working tree only); no version bump.
