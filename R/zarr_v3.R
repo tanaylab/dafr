@@ -273,6 +273,74 @@ zarr_v3_consolidate_upsert <- function(store, base) {
     .zarr_v3_write_root_json(store, node_json)
 }
 
+# ---- sharded array zarr.json (packed write) ------------------------------
+
+# Inner-codec list element for the sharding_indexed codec [pinned against zpk
+# fixtures]. Key observations from fixtures:
+#   - zstd: {level} only, no checksum key
+#   - gzip: name "gzip", {level} only
+#   - blosc: {blocksize, clevel, cname, shuffle, typesize} (Julia alphabetical,
+#     but R/jsonlite will serialize in insertion order - structure is equivalent)
+#   - crc32c: NO configuration key at all
+.zarr_v3_inner_codec_json <- function(codec, level, typesize) {
+    switch(codec,
+        gzip = list(name = "gzip", configuration = list(level = level)),
+        zstd = list(name = "zstd", configuration = list(level = level)),
+        blosc_zstd_bitshuffle = list(name = "blosc", configuration = list(
+            cname = "zstd", clevel = level, shuffle = "bitshuffle",
+            typesize = typesize, blocksize = 0L)),
+        blosc_lz4_bitshuffle = list(name = "blosc", configuration = list(
+            cname = "lz4", clevel = level, shuffle = "bitshuffle",
+            typesize = typesize, blocksize = 0L)),
+        stop(sprintf("zarr_v3: unknown packed codec %s", sQuote(codec)),
+             call. = FALSE))
+}
+
+# Zarr v3 array metadata for a packed (sharded) array. `shape` and `inner` are
+# in on-disk order (for matrices: reversed [ncol, nrow]). One outer chunk covers
+# the full shape. `codec` is one of: gzip, zstd, blosc_zstd_bitshuffle,
+# blosc_lz4_bitshuffle. `level` is the compressor level.
+zarr_v3_sharded_array_meta <- function(shape, dtype, inner, codec, level) {
+    shape <- as.integer(shape)
+    inner <- as.integer(inner)
+    typesize <- if (dtype == "string") 1L else zarr_v3_size_for_dtype(dtype)
+    # array->bytes step: vlen-utf8 for strings, bytes (little-endian) otherwise
+    array_step <- if (dtype == "string") {
+        list(name = "vlen-utf8",
+             configuration = structure(list(), names = character(0L)))
+    } else {
+        list(name = "bytes", configuration = list(endian = "little"))
+    }
+    fill_value <- if (dtype == "string") "" else
+        if (dtype == "bool") FALSE else
+        if (zarr_v3_r_kind_for_dtype(dtype) == "double") 0.0 else 0L
+    # crc32c carries no configuration key (pinned from fixtures)
+    list(
+        zarr_format = 3L,
+        node_type = "array",
+        shape = as.list(shape),
+        data_type = dtype,
+        chunk_grid = list(name = "regular",
+                          configuration = list(chunk_shape = as.list(shape))),
+        chunk_key_encoding = list(name = "default",
+                                  configuration = list(separator = "/")),
+        codecs = list(list(
+            name = "sharding_indexed",
+            configuration = list(
+                chunk_shape = as.list(inner),
+                codecs = list(
+                    array_step,
+                    .zarr_v3_inner_codec_json(codec, level, typesize)),
+                index_codecs = list(
+                    list(name = "bytes",
+                         configuration = list(endian = "little")),
+                    list(name = "crc32c")),
+                index_location = "start"))),
+        fill_value = fill_value,
+        attributes = list(daf_packed_format = "indexed+zipped")
+    )
+}
+
 # ---- chunk encode (write) ------------------------------------------------
 
 # Encode an R vector to raw little-endian bytes for a v3 numeric dtype.
