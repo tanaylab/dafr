@@ -28,3 +28,37 @@ NULL
     n_rows <- min(target_bytes %/% esz, shape[[1L]])
     if (length(shape) == 1L) as.integer(n_rows) else c(as.integer(n_rows), 1L)
 }
+
+# The compressor name in the inner pipeline (skip the array->bytes step).
+.shard_inner_compressor <- function(cfg) {
+    for (c in cfg$codecs) {
+        if (!c$name %in% c("bytes", "vlen-utf8")) return(c$name)
+    }
+    "none"
+}
+
+# Map a DAF compression symbol to (compressor name, blosc cname). The compressor
+# name is what the read core's .zarr_inner_compressor() returns.
+.SHARD_CODEC_TABLE <- list(
+    blosc_zstd_bitshuffle = list(compressor = "blosc", cname = "zstd"),
+    blosc_lz4_bitshuffle  = list(compressor = "blosc", cname = "lz4"),
+    zstd                  = list(compressor = "zstd",  cname = NA_character_),
+    gzip                  = list(compressor = "gzip",  cname = NA_character_)
+)
+
+# Compress one inner chunk's raw element bytes per the cfg's inner compressor.
+# `typesize` is the element width (for blosc bitshuffle); `level` the clevel.
+.shard_inner_compress <- function(raw_bytes, cfg, level, typesize = 1L) {
+    comp <- .shard_inner_compressor(cfg)
+    switch(comp,
+        "none"  = raw_bytes,
+        "gzip"  = memCompress(raw_bytes, type = "gzip"),
+        "zstd"  = dafr_zstd_compress_cpp(raw_bytes, as.integer(level)),
+        "blosc" = {
+            cname <- cfg$.blosc_cname %||% "zstd"
+            dafr_blosc_compress_cpp(raw_bytes, as.integer(level), cname,
+                                    2L, as.integer(typesize))  # 2 = bitshuffle
+        },
+        stop(sprintf("shard_encode: unsupported compressor %s", sQuote(comp)),
+             call. = FALSE))
+}
