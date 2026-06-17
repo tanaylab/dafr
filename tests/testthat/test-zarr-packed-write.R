@@ -171,3 +171,43 @@ test_that("zarr_v3_sharded_array_meta unknown codec errors cleanly", {
             codec = "lzma", level = 5L),
         "unknown packed codec")
 })
+
+test_that("zarr_daf(packed=TRUE) round-trips dense, matrix, sparse, strings", {
+    codec <- if (dafr:::dafr_have_blosc_cpp()) "blosc_zstd_bitshuffle" else "gzip"
+    withr::local_options(list(dafr.packed_compression = codec))
+    dir <- withr::local_tempdir(); path <- file.path(dir, "p.daf.zarr")
+    daf <- zarr_daf(path, "w", packed = TRUE)
+    add_axis(daf, "cell", paste0("c", 1:1200))
+    add_axis(daf, "gene", paste0("g", 1:8))
+    set_vector(daf, "cell", "score", as.numeric(1:1200))
+    set_vector(daf, "cell", "tag", rep("x", 1200))
+    set_matrix(daf, "cell", "gene", "dense", matrix(as.numeric(1:(1200*8)), 1200, 8))
+    sm <- Matrix::sparseMatrix(i = ((seq_len(2000) - 1) %% 1200) + 1,
+                               j = ((seq_len(2000) - 1) %% 8) + 1,
+                               x = as.numeric(1:2000), dims = c(1200, 8))
+    set_matrix(daf, "cell", "gene", "sparse", sm)
+
+    ro <- zarr_daf(path, "r")
+    expect_equal(as.numeric(get_vector(ro, "cell", "score")), as.numeric(1:1200))
+    expect_equal(as.numeric(get_matrix(ro, "cell", "gene", "dense")), as.numeric(1:(1200*8)))
+    expect_equal(unname(get_vector(ro, "cell", "tag"))[1], "x")
+    expect_equal(Matrix::nnzero(get_matrix(ro, "cell", "gene", "sparse")), Matrix::nnzero(sm))
+    # score must actually be sharded on disk
+    node <- dafr:::zarr_v3_read_array(S7::prop(ro, "store"), "vectors/cell/score")
+    expect_true(dafr:::.zarr_is_sharded(node))
+    # dense matrix inner chunk_shape must be [1,1024], shape [8,1200] (matches fixture)
+    mnode <- dafr:::zarr_v3_read_array(S7::prop(ro, "store"), "matrices/cell/gene/dense")
+    expect_equal(unlist(mnode$codecs[[1]]$configuration$chunk_shape), c(1L, 1024L))
+    expect_equal(unlist(mnode$shape), c(8L, 1200L))
+})
+
+test_that("zarr_daf(packed=FALSE) is unchanged (flat)", {
+    dir <- withr::local_tempdir(); path <- file.path(dir, "f.daf.zarr")
+    daf <- zarr_daf(path, "w")  # default packed=FALSE
+    add_axis(daf, "cell", paste0("c", 1:1200))
+    set_vector(daf, "cell", "score", as.numeric(1:1200))
+    ro <- zarr_daf(path, "r")
+    node <- dafr:::zarr_v3_read_array(S7::prop(ro, "store"), "vectors/cell/score")
+    expect_false(dafr:::.zarr_is_sharded(node))   # flat
+    expect_equal(as.numeric(get_vector(ro, "cell", "score")), as.numeric(1:1200))
+})

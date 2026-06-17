@@ -248,3 +248,45 @@ NULL
     index <- .shard_build_index(offsets, nbytes)
     c(index, do.call(c, bodies), cd, eocd)
 }
+
+# Write one array component to a zarr store, sharded if `packed` and over
+# threshold, else flat. `shape`/`values` are in ON-DISK order (the caller
+# reverses matrices). For a 2-D (matrix) component the on-disk shape is
+# [ncol, nrow] and the inner chunk tiles the fast nrow dim as [1, nrow_chunk]
+# (do NOT use .shard_inner_chunk_shape there - it chunks dim1). The flat branch
+# reproduces exactly what .zarr_write_dense_array did before packed support.
+.shard_write_zarr_component <- function(store, base, values, shape, dtype,
+                                        packed) {
+    opts <- .packed_opts()
+    shape <- as.integer(shape)
+    if (length(shape) == 1L) {
+        do_pack <- packed && .shard_should_pack(shape[[1L]], dtype, opts$target_kb)
+        inner <- if (do_pack)
+            .shard_inner_chunk_shape(shape, dtype, opts$target_kb) else NULL
+    } else {  # 2-D matrix, on-disk reversed [ncol, nrow]; tile nrow (fast dim)
+        nrow <- shape[[2L]]
+        do_pack <- packed && .shard_should_pack(nrow, dtype, opts$target_kb)
+        if (do_pack) {
+            esz <- .shard_effective_sizeof(dtype)
+            inner <- c(1L, as.integer(min(opts$target_kb * 1024L %/% esz, nrow)))
+        } else {
+            inner <- NULL
+        }
+    }
+    if (do_pack) {
+        .packed_validate_codec(opts$compression)
+        zarr_v3_write_array(store, base, zarr_v3_sharded_array_meta(
+            shape = shape, dtype = dtype, inner = inner,
+            codec = opts$compression, level = opts$level))
+        blob <- .shard_assemble(values, dtype, shape, inner,
+                                opts$compression, opts$level)
+        store_set_bytes(store, zarr_v3_chunk_path(base, length(shape)), blob)
+    } else {
+        zarr_v3_write_array(store, base,
+                            zarr_v3_array_meta(shape = shape, dtype = dtype))
+        chunk <- if (dtype == "string") zarr_v3_encode_strings(values) else
+            zarr_v3_encode_chunk(values, dtype)
+        store_set_bytes(store, zarr_v3_chunk_path(base, length(shape)), chunk)
+    }
+    invisible()
+}
