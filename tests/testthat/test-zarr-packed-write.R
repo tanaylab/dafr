@@ -211,3 +211,23 @@ test_that("zarr_daf(packed=FALSE) is unchanged (flat)", {
     expect_false(dafr:::.zarr_is_sharded(node))   # flat
     expect_equal(as.numeric(get_vector(ro, "cell", "score")), as.numeric(1:1200))
 })
+
+test_that("ZarrDaf packed write errors actionably when the zstd lib is absent", {
+    if (dafr:::dafr_have_zstd_cpp()) skip("libzstd present")
+    withr::local_options(list(dafr.packed_compression = "zstd"))
+    dir <- withr::local_tempdir(); path <- file.path(dir, "p.daf.zarr")
+    daf <- zarr_daf(path, "w", packed = TRUE)
+    add_axis(daf, "cell", paste0("c", 1:1200))
+    expect_error(set_vector(daf, "cell", "score", as.numeric(1:1200)),
+                 "requires libzstd")
+})
+
+test_that("ZarrDaf packed write with gzip works without any optional lib", {
+    withr::local_options(list(dafr.packed_compression = "gzip"))
+    dir <- withr::local_tempdir(); path <- file.path(dir, "p.daf.zarr")
+    daf <- zarr_daf(path, "w", packed = TRUE)
+    add_axis(daf, "cell", paste0("c", 1:1200))
+    set_vector(daf, "cell", "score", as.numeric(1:1200))
+    ro <- zarr_daf(path, "r")
+    expect_equal(as.numeric(get_vector(ro, "cell", "score")), as.numeric(1:1200))
+})

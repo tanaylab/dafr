@@ -14,3 +14,8 @@ test_that(".packed_validate_codec errors when the lib is absent", {
         expect_error(dafr:::.packed_validate_codec("zstd"), "requires libzstd")
     expect_silent(dafr:::.packed_validate_codec("gzip"))
 })
+
+test_that(".packed_validate_codec rejects an unknown codec", {
+    expect_error(dafr:::.packed_validate_codec("bogus_codec"),
+                 "unknown compression")
+})
