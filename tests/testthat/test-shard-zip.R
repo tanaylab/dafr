@@ -97,6 +97,88 @@ test_that("a dual-format zstd shard round-trips and is a legal ZIP", {
     expect_false("codec.json" %in% z$filename)   # zstd self-describes
 })
 
+test_that("a dual-format gzip shard round-trips and is a legal ZIP", {
+    vals <- as.numeric(1:1200)
+    blob <- dafr:::.shard_assemble(vals, "float64", 1200L, 1024L, "gzip", 5L)
+    node <- dafr:::.files_packed_node(
+        list(eltype = "Float64", compression = "gzip", chunk_shape = list(1024L)),
+        shape = 1200L, chunk_shape = 1024L)
+    expect_equal(dafr:::.shard_decode_vector(blob, node), vals)
+    tmp <- tempfile(fileext = ".zip"); writeBin(blob, tmp)
+    z <- zip::zip_list(tmp)
+    expect_equal(nrow(z), 2L)            # 2 DEFLATE entries, no codec.json
+    expect_false("codec.json" %in% z$filename)
+})
+
+test_that(".shard_gzip_name encodes the chunk index per the gz fixture", {
+    # b0..b3 = base64 of the big-endian 3-byte (k-1) chunk index; the rest is the
+    # fixed gzip header `1f 8b 08 01 ... 02 ff`.
+    expect_identical(dafr:::.shard_gzip_name(1L),
+                     as.raw(c(0x1f, 0x8b, 0x08, 0x01, 0x41, 0x41, 0x41, 0x41,
+                              0x02, 0xff)))               # chunk 0 -> "AAAA"
+    expect_identical(dafr:::.shard_gzip_name(2L),
+                     as.raw(c(0x1f, 0x8b, 0x08, 0x01, 0x41, 0x41, 0x41, 0x42,
+                              0x02, 0xff)))               # chunk 1 -> "AAAB"
+})
+
+test_that("gzip framing is byte-identical to the 1-D Julia gzip fixture", {
+    # The gz fixture is a gzip dual-format shard: score vector, 1200 float64,
+    # inner 1024 -> 2 chunks. The 10-byte gzip header is relocated into the ZIP
+    # filename so each chunk's Zarr range [name(10) | deflate | trailer(8)] is a
+    # valid gzip stream.
+    fx <- testthat::test_path("fixtures/zpk/gz.daf.zarr/vectors/cell/score/c/0")
+    fixture <- readBin(fx, "raw", n = 1e6)
+    node <- dafr:::.files_packed_node(
+        list(eltype = "Float64", compression = "gzip", chunk_shape = list(1024L)),
+        shape = 1200L, chunk_shape = 1024L)
+    cfg <- dafr:::.zarr_sharding_config(node)
+    idx <- dafr:::.zarr_shard_index(fixture, node, cfg)
+    n <- nrow(idx)
+    # Lift each chunk's OWN deflate payload (strip the 10-byte gzip-header name
+    # and the 8-byte gzip trailer) straight out of the fixture, then re-run only
+    # dafr's gzip framing around it. This isolates the FRAMING (LFH/CDE/index
+    # offsets, name encoding, trailer) from any DEFLATE-encoder difference
+    # between R's zlib and Julia's CodecZlib, so the test stays robust to a
+    # future zlib that emits different deflate bytes.
+    gz <- lapply(seq_len(n), function(k)
+        fixture[(idx$offset[[k]] + 1):(idx$offset[[k]] + idx$nbytes[[k]])])
+    plain <- lapply(gz, function(g) memDecompress(g, type = "gzip"))
+    deflate <- lapply(gz, function(g) g[11:(length(g) - 8L)])
+
+    idx_size <- as.numeric(n) * 16 + 4
+    bodies <- vector("list", n); offsets <- numeric(n); nbytes <- numeric(n)
+    centrals <- vector("list", n); cursor <- idx_size
+    for (k in seq_len(n)) {
+        p_k <- plain[[k]]; d_k <- deflate[[k]]
+        name_raw <- dafr:::.shard_gzip_name(k)
+        crc <- dafr:::dafr_crc32_cpp(p_k) %% 2^32
+        trailer <- c(dafr:::.shard_u32_raw(crc),
+                     dafr:::.shard_u32_raw(length(p_k) %% 2^32))
+        lfh <- dafr:::.shard_zip_local_header_raw(name_raw, crc, length(d_k),
+                                                  length(p_k), 8L)
+        offsets[[k]] <- cursor + (length(lfh) - length(name_raw))
+        nbytes[[k]] <- length(name_raw) + length(d_k) + length(trailer)
+        centrals[[k]] <- dafr:::.shard_zip_central_entry_raw(name_raw, crc,
+            length(d_k), length(p_k), cursor, 8L)
+        bodies[[k]] <- c(lfh, d_k, trailer)
+        cursor <- cursor + length(lfh) + length(d_k) + length(trailer)
+    }
+    cd <- do.call(c, centrals); cd_off <- cursor
+    eocd <- dafr:::.shard_zip_eocd(length(centrals), cd_off, length(cd))
+    index <- dafr:::.shard_build_index(offsets, nbytes)
+    reconstructed <- c(index, do.call(c, bodies), cd, eocd)
+    expect_identical(reconstructed, fixture)
+
+    # Bonus: on this box R's zlib deflate happens to match Julia/CodecZlib's
+    # byte-for-byte, so a fully dafr-written gzip blob (re-compressing the data,
+    # not reusing fixture deflate) is identical to the fixture in full. Guard it
+    # with skip_on_cran since it depends on the platform zlib's deflate output.
+    skip_on_cran()
+    blob <- dafr:::.shard_assemble(as.numeric(1:1200), "float64", 1200L, 1024L,
+                                   "gzip", 5L)
+    expect_identical(blob, fixture)
+})
+
 test_that("zstd framing is byte-identical to the 1-D Julia zstd fixture", {
     skip_if_not(dafr:::dafr_have_zstd_cpp(), "libzstd not built in")
     # The zs fixture is a zstd dual-format shard: score vector, 1200 float64,

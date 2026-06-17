@@ -199,6 +199,33 @@ NULL
         plain <- if (identical(dtype, "string"))
             zarr_v3_encode_strings(chunks[[k]]) else
             zarr_v3_encode_chunk(chunks[[k]], dtype)
+        if (method == 8L) {
+            # gzip dual-format: relocate the 10-byte gzip header into the ZIP
+            # filename so the Zarr range [name | deflate | trailer] is a valid
+            # gzip stream. The entry data is the RAW deflate payload; the index
+            # points at the name field (inside the LFH), nbytes = whole gzip
+            # stream. See R/shard_zip.R for the byte layout pinned against the gz
+            # fixture. NOTE: R's memCompress(type="gzip") actually emits ZLIB
+            # framing (2-byte 0x78 0x9c header + raw deflate + 4-byte Adler-32),
+            # NOT a gzip stream - so strip 2 leading + 4 trailing bytes to get the
+            # raw deflate (this matches Julia/CodecZlib's deflate byte-for-byte).
+            full <- memCompress(plain, type = "gzip")
+            deflate <- full[3:(length(full) - 4L)]
+            name_raw <- .shard_gzip_name(k)
+            crc <- dafr_crc32_cpp(plain) %% 2^32
+            trailer <- c(.shard_u32_raw(crc),
+                         .shard_u32_raw(length(plain) %% 2^32))
+            lfh <- .shard_zip_local_header_raw(name_raw, crc, length(deflate),
+                                               length(plain), 8L)
+            name_off <- cursor + (length(lfh) - length(name_raw))
+            offsets[[k]] <- name_off
+            nbytes[[k]] <- length(name_raw) + length(deflate) + length(trailer)
+            centrals[[k]] <- .shard_zip_central_entry_raw(name_raw, crc,
+                length(deflate), length(plain), cursor, 8L)
+            bodies[[k]] <- c(lfh, deflate, trailer)
+            cursor <- cursor + length(lfh) + length(deflate) + length(trailer)
+            next
+        }
         comp <- .shard_inner_compress(plain, cfg, level, typesize)
         name <- .shard_chunk_name(k, per_dim)
         meta <- .shard_zip_entry_meta(method, plain, comp)

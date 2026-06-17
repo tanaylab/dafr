@@ -93,6 +93,52 @@ NULL
       .U32MAX, nm, zip64)
 }
 
+# gzip dual-format chunk name: the 10-byte gzip header `1f 8b 08 01 <b0..b3> 02
+# ff` used as the ZIP entry filename so that [name | deflate | trailer] is a
+# valid gzip stream. b0..b3 = base64 of the big-endian 3-byte (k-1) chunk index
+# ("AAAA" for chunk 0, "AAAB" for chunk 1, ...). Pinned against the gz fixture
+# tests/testthat/fixtures/zpk/gz.daf.zarr/vectors/cell/score/c/0.
+.shard_gzip_name <- function(k) {
+    idx <- k - 1L
+    three <- as.raw(c((idx %/% 65536L) %% 256L, (idx %/% 256L) %% 256L, idx %% 256L))
+    b64 <- charToRaw(jsonlite::base64_enc(three))  # 4 chars (no padding for 3 bytes)
+    c(as.raw(c(0x1f, 0x8b, 0x08, 0x01)), b64, as.raw(c(0x02, 0xff)))
+}
+
+# Local file header for the gzip dual-format entry (method 8). Unlike the STORED
+# / zstd LFH (.shard_zip_local_header, ZIP64 extra + sentinel sizes), this LFH
+# carries INLINE u32 csize/usize and extra-len 0, so the raw gzip-header name is
+# immediately followed by the deflate payload (no ZIP64 extra interposed) - the
+# Zarr index points at the name field, making [name | deflate | trailer] a
+# contiguous gzip stream. version-needed=20 (no ZIP64 in the LFH). `name_raw` is
+# the 10-byte gzip header; csize=length(deflate), usize=length(plain). Pinned:
+# LFH = 50 4b 03 04 | 14 00 | 00 08 | 08 00 | 00 00 | 21 00 | crc | csize:u32 |
+#       usize:u32 | name-len(10):u16 | extra-len(0):u16 | name_raw.
+.shard_zip_local_header_raw <- function(name_raw, crc, csize, usize, method = 8L) {
+    c(.shard_u32_raw(.ZIP_LFH_SIG), .shard_u16_raw(20L), .shard_u16_raw(0x0800L),
+      .shard_u16_raw(method), .shard_u16_raw(0L), .shard_u16_raw(0x0021L),
+      .shard_u32_raw(crc), .shard_u32_raw(csize), .shard_u32_raw(usize),
+      .shard_u16_raw(length(name_raw)), .shard_u16_raw(0L), name_raw)
+}
+
+# Central-directory entry for a gzip dual-format chunk. Same ZIP64-extra layout
+# as .shard_zip_central_entry (sentinel u32 sizes; ZIP64 extra carries
+# usize/csize/lfh_off), but the name is the raw 10-byte gzip header (not a UTF-8
+# path) and method=8. Pinned against the gz fixture CDE (ver-need=45,
+# ZIP64 extra tag 1 size 24).
+.shard_zip_central_entry_raw <- function(name_raw, crc, csize, usize, lfh_off,
+                                         method = 8L) {
+    zip64 <- c(.shard_u16_raw(1L), .shard_u16_raw(24L),
+               .shard_u64_raw(usize), .shard_u64_raw(csize), .shard_u64_raw(lfh_off))
+    c(.shard_u32_raw(.ZIP_CDE_SIG), .shard_u16_raw(0x031eL), .shard_u16_raw(45L),
+      .shard_u16_raw(0x0800L), .shard_u16_raw(method), .shard_u16_raw(0L),
+      .shard_u16_raw(0x0021L), .shard_u32_raw(crc), .U32MAX, .U32MAX,
+      .shard_u16_raw(length(name_raw)), .shard_u16_raw(length(zip64)),
+      .shard_u16_raw(0L), .shard_u16_raw(0L), .shard_u16_raw(0L),
+      .shard_u32_raw(33188 * 65536),  # 0o100644 << 16 (Unix perms, u32)
+      .U32MAX, name_raw, zip64)
+}
+
 # ZIP64 EOCD record + ZIP64 locator + sentinel base EOCD.
 .shard_zip_eocd <- function(n_entries, cd_off, cd_size) {
     z64 <- c(.shard_u32_raw(.ZIP64_EOCD_SIG), .shard_u64_raw(44),
