@@ -4,6 +4,20 @@ Continued parity-audit cleanup against `DataAxesFormats.jl`. Each change is
 test-driven and the full suite stays green. See `dev/parity-audit-2026-06-11/`
 for the audit trail.
 
+## Packed/sharded WRITE (ZarrDaf + FilesDaf)
+
+* Writing packed/sharded stores is now supported: `zarr_daf(..., packed = TRUE)`
+  and `files_daf(..., packed = TRUE)` produce the same dual-format
+  ("indexed+zipped") shards DataAxesFormats.jl writes. Packing is per-component
+  and threshold-gated; tune with `options(dafr.packed_compression=,
+  dafr.packed_compression_level=, dafr.packed_target_chunk_kb=)` (defaults
+  `blosc_zstd_bitshuffle`, 5, 8). Verified byte-readable by DataAxesFormats.jl
+  0.3.0 in both directions for the gzip, zstd, and blosc codecs.
+* `gzip`-packed write needs no extra library (CRAN-safe); `zstd` / `blosc_*`
+  need the same optional system libzstd / c-blosc probed by `configure` for
+  packed reads. Requesting a codec whose library is absent raises an actionable
+  error. String properties are always written flat.
+
 ## AnnData interop
 
 * **Read AnnData >= 0.12 `nullable-string-array` data.** AnnData 0.12 stores

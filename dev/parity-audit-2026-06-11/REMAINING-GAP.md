@@ -83,6 +83,25 @@ insist-on-collision; computation() overwrite (COMP-01); **anndata dense `/X` +
   NB: there exist TWO TanayLabUtilities depot copies - an older `xbDaH` (UInt32-
   only) and newer `Puhfz`/dev (UInt16); the dev path is canonical.
 
+- **packed/sharded WRITE (ZarrDaf + FilesDaf)** (was the DEFERRED-BACKENDS
+  "packed/sharded WRITE" item; read already worked, write is now implemented).
+  Opt-in via `zarr_daf(..., packed = TRUE)` / `files_daf(..., packed = TRUE)`;
+  per-component and threshold-gated, so a store mixes flat and packed components.
+  Both produce DataAxesFormats.jl 0.3.0's dual-format ("indexed+zipped") shards,
+  byte-parity VERIFIED BIDIRECTIONALLY (Julia reads dafr-written packed stores
+  and vice versa) for the `gzip`, `zstd`, and `blosc_*` codecs. Codec/level/
+  chunk-size tunable via `options(dafr.packed_compression=,
+  dafr.packed_compression_level=, dafr.packed_target_chunk_kb=)` (defaults
+  `blosc_zstd_bitshuffle`, 5, 8). `gzip` needs no extra lib (CRAN-safe);
+  `zstd`/`blosc_*` need the same optional libzstd/c-blosc `configure` probes for
+  packed reads, and requesting an absent codec raises an actionable error.
+  TWO scope divergences, both correct/inherent (each component still
+  bidirectionally readable): (1) STRINGS always written FLAT - Julia packs them,
+  so dafr's packed output is a strict subset; (2) the UInt16 on-disk sparse-index
+  width (per `indtype_for_size`) means some small sparse-index components stay
+  flat where Julia's Int64 index packs them - correct per the byte-size threshold.
+  ZipDaf is NOT covered (dafr has no `zip_daf`/`ZipDaf` writer at all).
+
 ## OPEN - genuinely fixable (priority order)
 
 (none) - all genuinely-fixable, non-design-decision parity gaps are now closed.
@@ -146,5 +165,6 @@ GUARD that warns/errors loudly instead of corrupting silently.
 
 ## DEFERRED BACKENDS (feature work, user-gated) - not started
 
-`h5df` backend; `ZipDaf` backend; **packed/sharded WRITE** (blosc/zstd encode -
-read already works when a system c-blosc/libzstd is present via `configure`).
+`h5df` backend; `ZipDaf` backend (dafr has no `zip_daf`/`ZipDaf` writer; packed
+write below covers ZarrDaf + FilesDaf only - ZipDaf is out of scope here).
+(**packed/sharded WRITE** is now DONE - see the working-tree section above.)

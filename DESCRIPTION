@@ -56,9 +56,11 @@ Suggests:
     tibble,
     tidyr,
     tidyselect,
-    withr
+    withr,
+    zip
 SystemRequirements: C++17, zlib; optional libblosc and libzstd (to read
-    packed/sharded Zarr v3 ZarrDaf stores; the flat path needs neither)
+    and write packed/sharded Zarr v3 ZarrDaf and FilesDaf stores; gzip-packed
+    and the flat path need neither)
 VignetteBuilder: knitr
 Config/testthat/edition: 3
 Encoding: UTF-8

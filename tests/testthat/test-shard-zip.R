@@ -1,5 +1,6 @@
 test_that("a dual-format blosc shard is a legal ZIP and round-trips", {
     skip_if_not(dafr:::dafr_have_blosc_cpp(), "c-blosc not built in")
+    skip_if_not_installed("zip")
     vals <- as.numeric(1:1200)
     blob <- dafr:::.shard_assemble(vals, "float64", shape = 1200L, inner = 1024L,
                                    codec = "blosc_zstd_bitshuffle", level = 5L)
@@ -30,6 +31,7 @@ test_that(".shard_chunk_name uses C-order matching the 2-D Julia matrix fixture"
 
 test_that("dual-format framing is byte-identical to the 2-D Julia matrix fixture", {
     skip_if_not(dafr:::dafr_have_blosc_cpp(), "c-blosc not built in")
+    skip_if_not_installed("zip")
     fx <- testthat::test_path("fixtures/zpk/bz.daf.zarr/matrices/cell/gene/dense")
     fixture <- readBin(file.path(fx, "c/0/0"), "raw", n = 1e7)
     # On-disk shape + inner chunk_shape from the dense matrix zarr.json.
@@ -85,6 +87,7 @@ test_that("dual-format framing is byte-identical to the 2-D Julia matrix fixture
 
 test_that("a dual-format zstd shard round-trips and is a legal ZIP", {
     skip_if_not(dafr:::dafr_have_zstd_cpp(), "libzstd not built in")
+    skip_if_not_installed("zip")
     vals <- as.numeric(1:1200)
     blob <- dafr:::.shard_assemble(vals, "float64", 1200L, 1024L, "zstd", 5L)
     node <- dafr:::.files_packed_node(
@@ -98,6 +101,7 @@ test_that("a dual-format zstd shard round-trips and is a legal ZIP", {
 })
 
 test_that("a dual-format gzip shard round-trips and is a legal ZIP", {
+    skip_if_not_installed("zip")
     vals <- as.numeric(1:1200)
     blob <- dafr:::.shard_assemble(vals, "float64", 1200L, 1024L, "gzip", 5L)
     node <- dafr:::.files_packed_node(
@@ -181,6 +185,7 @@ test_that("gzip framing is byte-identical to the 1-D Julia gzip fixture", {
 
 test_that("zstd framing is byte-identical to the 1-D Julia zstd fixture", {
     skip_if_not(dafr:::dafr_have_zstd_cpp(), "libzstd not built in")
+    skip_if_not_installed("zip")
     # The zs fixture is a zstd dual-format shard: score vector, 1200 float64,
     # inner 1024 -> 2 chunks. We lift each chunk's compressed zstd frame straight
     # out of the fixture via its shard index (so zstd-encoder nondeterminism is
