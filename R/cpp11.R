@@ -168,6 +168,14 @@ dafr_have_zstd_cpp <- function() {
   .Call(`_dafr_dafr_have_zstd_cpp`)
 }
 
+dafr_zstd_compress_cpp <- function(src, level) {
+  .Call(`_dafr_dafr_zstd_compress_cpp`, src, level)
+}
+
+dafr_blosc_compress_cpp <- function(src, level, cname, doshuffle, typesize) {
+  .Call(`_dafr_dafr_blosc_compress_cpp`, src, level, cname, doshuffle, typesize)
+}
+
 dafr_set_num_threads <- function(n) {
   invisible(.Call(`_dafr_dafr_set_num_threads`, n))
 }
