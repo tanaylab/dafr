@@ -148,6 +148,10 @@ dafr_crc32c_cpp <- function(x) {
   .Call(`_dafr_dafr_crc32c_cpp`, x)
 }
 
+dafr_crc32_cpp <- function(x) {
+  .Call(`_dafr_dafr_crc32_cpp`, x)
+}
+
 dafr_blosc_decompress_cpp <- function(src, out_nbytes) {
   .Call(`_dafr_dafr_blosc_decompress_cpp`, src, out_nbytes)
 }

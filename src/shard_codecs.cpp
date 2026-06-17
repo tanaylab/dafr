@@ -10,6 +10,7 @@
 
 #include <cpp11.hpp>
 #include "crc32c.h"
+#include "crc32.h"
 #ifdef HAVE_BLOSC
   // Classic c-blosc (v1) exposes blosc.h + blosc_decompress; the modern c-blosc2
   // exposes blosc2.h + the always-available blosc1_* legacy API (which decodes
@@ -34,6 +35,14 @@ double dafr_crc32c_cpp(cpp11::raws x) {
     const unsigned char* p = (n > 0)
         ? reinterpret_cast<const unsigned char*>(RAW(x.data())) : nullptr;
     return static_cast<double>(dafr_crc32c(p, static_cast<size_t>(n)));
+}
+
+[[cpp11::register]]
+double dafr_crc32_cpp(cpp11::raws x) {
+    R_xlen_t n = x.size();
+    const unsigned char* p = (n > 0)
+        ? reinterpret_cast<const unsigned char*>(RAW(x.data())) : nullptr;
+    return static_cast<double>(dafr_crc32(p, static_cast<size_t>(n)));
 }
 
 // Decompress a classic blosc1 chunk. out_nbytes is the uncompressed size when

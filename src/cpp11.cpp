@@ -265,6 +265,13 @@ extern "C" SEXP _dafr_dafr_crc32c_cpp(SEXP x) {
   END_CPP11
 }
 // shard_codecs.cpp
+double dafr_crc32_cpp(cpp11::raws x);
+extern "C" SEXP _dafr_dafr_crc32_cpp(SEXP x) {
+  BEGIN_CPP11
+    return cpp11::as_sexp(dafr_crc32_cpp(cpp11::as_cpp<cpp11::decay_t<cpp11::raws>>(x)));
+  END_CPP11
+}
+// shard_codecs.cpp
 cpp11::raws dafr_blosc_decompress_cpp(cpp11::raws src, double out_nbytes);
 extern "C" SEXP _dafr_dafr_blosc_decompress_cpp(SEXP src, SEXP out_nbytes) {
   BEGIN_CPP11
@@ -318,6 +325,7 @@ extern "C" SEXP _dafr_dafr_has_openmp() {
 extern "C" {
 static const R_CallMethodDef CallEntries[] = {
     {"_dafr_dafr_blosc_decompress_cpp",       (DL_FUNC) &_dafr_dafr_blosc_decompress_cpp,        2},
+    {"_dafr_dafr_crc32_cpp",                  (DL_FUNC) &_dafr_dafr_crc32_cpp,                   1},
     {"_dafr_dafr_crc32c_cpp",                 (DL_FUNC) &_dafr_dafr_crc32c_cpp,                  1},
     {"_dafr_dafr_get_max_threads",            (DL_FUNC) &_dafr_dafr_get_max_threads,             0},
     {"_dafr_dafr_has_openmp",                 (DL_FUNC) &_dafr_dafr_has_openmp,                  0},
