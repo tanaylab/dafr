@@ -39,3 +39,26 @@ test_that(".shard_inner_compress inverts .zarr_inner_decompress (blosc)", {
     back <- dafr:::.zarr_inner_decompress(comp, cfg, out_nbytes = length(raw_bytes))
     expect_identical(back, raw_bytes)
 })
+
+test_that("plain shard blob round-trips a vector through the read core", {
+    vals <- as.numeric(1:1200)
+    blob <- dafr:::.shard_assemble_plain(vals, "float64", shape = 1200L,
+                                         inner = 1024L, codec = "gzip", level = 5L)
+    node <- dafr:::.files_packed_node(
+        list(eltype = "Float64", compression = "gzip", chunk_shape = list(1024L)),
+        shape = 1200L, chunk_shape = 1024L)
+    expect_equal(dafr:::.shard_decode_vector(blob, node), vals)
+})
+
+test_that("plain shard blob round-trips a matrix through the read core", {
+    m <- matrix(as.numeric(1:(1200 * 8)), nrow = 1200, ncol = 8)
+    # On-disk reversed shape [ncol, nrow]; inner column-slab [1, 1024] on disk.
+    blob <- dafr:::.shard_assemble_plain(as.vector(m), "float64",
+                                         shape = c(8L, 1200L), inner = c(1L, 1024L),
+                                         codec = "gzip", level = 5L)
+    node <- dafr:::.files_packed_node(
+        list(eltype = "Float64", compression = "gzip",
+             chunk_shape = list(1L, 1024L)),
+        shape = c(8L, 1200L), chunk_shape = c(1L, 1024L))
+    expect_equal(as.numeric(dafr:::.shard_decode_matrix(blob, node)), as.numeric(m))
+})
