@@ -231,3 +231,16 @@ test_that("ZarrDaf packed write with gzip works without any optional lib", {
     ro <- zarr_daf(path, "r")
     expect_equal(as.numeric(get_vector(ro, "cell", "score")), as.numeric(1:1200))
 })
+
+test_that("zarr_daf(packed=TRUE) keeps string vectors flat", {
+    codec <- if (dafr:::dafr_have_blosc_cpp()) "blosc_zstd_bitshuffle" else "gzip"
+    withr::local_options(list(dafr.packed_compression = codec))
+    dir <- withr::local_tempdir(); path <- file.path(dir, "p.daf.zarr")
+    daf <- zarr_daf(path, "w", packed = TRUE)
+    add_axis(daf, "cell", paste0("c", 1:5000))
+    set_vector(daf, "cell", "label", paste0("lab", 1:5000))   # large string vec
+    ro <- zarr_daf(path, "r")
+    node <- dafr:::zarr_v3_read_array(S7::prop(ro, "store"), "vectors/cell/label")
+    expect_false(dafr:::.zarr_is_sharded(node))   # strings stay flat
+    expect_equal(unname(get_vector(ro, "cell", "label"))[c(1, 5000)], c("lab1", "lab5000"))
+})

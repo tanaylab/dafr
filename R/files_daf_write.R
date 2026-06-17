@@ -186,7 +186,6 @@ S7::method(
 
 .files_write_vector_sparse_numeric <- function(vdir, name, nzind, nzval,
                                                eltype, indtype, packed = FALSE) {
-    nnz <- length(nzind)
     idx_desc <- .files_write_component(
         file.path(vdir, paste0(name, ".nzind")), "",
         as.integer(nzind), dtype = tolower(indtype), eltype = indtype,

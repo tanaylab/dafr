@@ -194,8 +194,7 @@
     nr <- nrow(mat)
     nc <- ncol(mat)
     .packed_validate_codec(opts$compression)
-    esz <- .shard_effective_sizeof(dtype)
-    nrowchunk <- as.integer(min(opts$target_kb * 1024L %/% esz, nr))
+    nrowchunk <- .shard_slab_rows(dtype, opts$target_kb, nr)
     blob <- .shard_assemble(as.vector(mat), dtype,
                             shape = c(as.integer(nc), as.integer(nr)),
                             inner = c(1L, nrowchunk),

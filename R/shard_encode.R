@@ -21,12 +21,15 @@ NULL
     as.numeric(dim1) * .shard_effective_sizeof(dtype) >= target_kb * 1024
 }
 
-# Inner chunk shape: n_chunk_rows over dim1 (column-slab for matrices).
+# Rows per column-slab inner chunk: as many dim-1 rows as fit in the target
+# chunk size, capped at the actual dim. Shared by the vector + both matrix paths.
+.shard_slab_rows <- function(dtype, target_kb, n_rows) {
+    as.integer(min(target_kb * 1024L %/% .shard_effective_sizeof(dtype), n_rows))
+}
+
+# Inner chunk shape: n_chunk_rows over dim1 (1-D vectors only).
 .shard_inner_chunk_shape <- function(shape, dtype, target_kb) {
-    target_bytes <- target_kb * 1024L
-    esz <- .shard_effective_sizeof(dtype)
-    n_rows <- min(target_bytes %/% esz, shape[[1L]])
-    if (length(shape) == 1L) as.integer(n_rows) else c(as.integer(n_rows), 1L)
+    as.integer(.shard_slab_rows(dtype, target_kb, shape[[1L]]))
 }
 
 # The compressor name in the inner pipeline (skip the array->bytes step).
@@ -129,9 +132,9 @@ NULL
              (x %/% 16777216) %% 256))
 }
 
-# Assemble a PLAIN (no ZIP framing) shard blob: serialize -> chunk -> compress ->
-# [index][chunk bytes...]. Used as the Phase-2 correctness pin; Task 6 swaps the
-# layout for the ZIP dual-format one.
+# Plain (no ZIP framing) shard blob: [index][chunk bytes]. Retained as a
+# ZIP-framing-independent regression harness for the index+chunk+compress core
+# (see test-shard-encode.R); production writes use .shard_assemble.
 .shard_assemble_plain <- function(values, dtype, shape, inner, codec, level,
                                   cname = NULL) {
     cfg <- list(codecs = list(list(name = "bytes"),
@@ -255,8 +258,11 @@ NULL
 # [ncol, nrow] and the inner chunk tiles the fast nrow dim as [1, nrow_chunk]
 # (do NOT use .shard_inner_chunk_shape there - it chunks dim1). The flat branch
 # reproduces exactly what .zarr_write_dense_array did before packed support.
+# Strings are always written flat regardless of `packed` (matches FilesDaf and
+# the documented contract that strings are never sharded).
 .shard_write_zarr_component <- function(store, base, values, shape, dtype,
                                         packed) {
+    if (identical(dtype, "string")) packed <- FALSE
     opts <- .packed_opts()
     shape <- as.integer(shape)
     if (length(shape) == 1L) {
@@ -267,8 +273,7 @@ NULL
         nrow <- shape[[2L]]
         do_pack <- packed && .shard_should_pack(nrow, dtype, opts$target_kb)
         if (do_pack) {
-            esz <- .shard_effective_sizeof(dtype)
-            inner <- c(1L, as.integer(min(opts$target_kb * 1024L %/% esz, nrow)))
+            inner <- c(1L, .shard_slab_rows(dtype, opts$target_kb, nrow))
         } else {
             inner <- NULL
         }

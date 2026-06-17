@@ -7,10 +7,12 @@ test_that(".shard_effective_sizeof and threshold match Julia", {
     expect_false(dafr:::.shard_should_pack(1000L, "float64", 8L))
 })
 
-test_that(".shard_inner_chunk_shape gives column-slab chunks", {
+test_that(".shard_slab_rows and .shard_inner_chunk_shape give column-slab row counts", {
+    # .shard_slab_rows: shared helper used by vector, ZarrDaf matrix, FilesDaf matrix paths
+    expect_equal(dafr:::.shard_slab_rows("float64", 8L, 1200L), 1024L)
+    expect_equal(dafr:::.shard_slab_rows("float64", 8L, 500L),   500L)  # capped at n_rows
+    # .shard_inner_chunk_shape: 1-D wrapper (scalar result)
     expect_equal(dafr:::.shard_inner_chunk_shape(c(1200L), "float64", 8L), 1024L)
-    expect_equal(dafr:::.shard_inner_chunk_shape(c(1200L, 8L), "float64", 8L),
-                 c(1024L, 1L))
 })
 
 test_that(".shard_inner_compress inverts .zarr_inner_decompress (gzip)", {
