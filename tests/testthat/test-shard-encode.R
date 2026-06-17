@@ -62,3 +62,29 @@ test_that("plain shard blob round-trips a matrix through the read core", {
         shape = c(8L, 1200L), chunk_shape = c(1L, 1024L))
     expect_equal(as.numeric(dafr:::.shard_decode_matrix(blob, node)), as.numeric(m))
 })
+
+test_that("plain shard blob round-trips an int64 vector through the read core", {
+    vals <- bit64::as.integer64(1:1200)
+    blob <- dafr:::.shard_assemble_plain(vals, "int64", shape = 1200L,
+                                         inner = 1024L, codec = "gzip", level = 5L)
+    node <- dafr:::.files_packed_node(
+        list(eltype = "Int64", compression = "gzip", chunk_shape = list(1024L)),
+        shape = 1200L, chunk_shape = 1024L)
+    expect_equal(dafr:::.shard_decode_vector(blob, node), vals)
+})
+
+test_that("plain shard blob round-trips an int64 matrix through the read core", {
+    # as.vector() drops the integer64 class on a bit64 matrix, so build the
+    # flat column-major vector directly (1:9600 column-major == sequential fill).
+    # Comparison baseline uses bit64::as.double.integer64 explicitly to avoid
+    # the unattached-bit64 trap where as.numeric() bit-reinterprets the matrix.
+    vals_flat <- bit64::as.integer64(1:(1200 * 8))
+    blob <- dafr:::.shard_assemble_plain(vals_flat, "int64",
+                                         shape = c(8L, 1200L), inner = c(1L, 1024L),
+                                         codec = "gzip", level = 5L)
+    node <- dafr:::.files_packed_node(
+        list(eltype = "Int64", compression = "gzip", chunk_shape = list(1L, 1024L)),
+        shape = c(8L, 1200L), chunk_shape = c(1L, 1024L))
+    dec <- dafr:::.shard_decode_matrix(blob, node)
+    expect_equal(bit64::as.double.integer64(dec), as.numeric(vals_flat))
+})

@@ -69,7 +69,9 @@ NULL
 .shard_split_chunks <- function(values, shape, inner) {
     grid <- list(outer = as.integer(shape), inner = as.integer(inner),
                  per_dim = as.integer(ceiling(shape / inner)))
-    fill <- if (is.character(values)) "" else as(0, typeof(values))
+    fill <- if (is.character(values)) ""
+        else if (bit64::is.integer64(values)) bit64::as.integer64(0L)
+        else as(0, typeof(values))
     if (length(shape) == 1L) {
         chunks <- vector("list", grid$per_dim[[1L]])
         for (k in seq_len(grid$per_dim[[1L]])) {
@@ -81,15 +83,15 @@ NULL
         }
         return(chunks)
     }
-    # 2-D: on-disk column-major buffer dim=[d0,d1]; inner [i0,i1]; column-major
-    # grid order (c0 fastest), each inner chunk emitted C-order over [i0,i1] to
-    # match .shard_decode_matrix's local (a,b) at a*i1+b.
+    # 2-D: on-disk column-major buffer dim=[d0,d1]; inner [i0,i1]; C-order over
+    # the grid (c1 fastest), matching .shard_decode_matrix, each inner chunk
+    # emitted C-order over [i0,i1] to match local (a,b) at a*i1+b.
     d0 <- shape[[1L]]; d1 <- shape[[2L]]; i0 <- inner[[1L]]; i1 <- inner[[2L]]
     n0 <- grid$per_dim[[1L]]; n1 <- grid$per_dim[[2L]]
     buf <- values  # length d0*d1, on-disk C-order over [d0,d1]
     chunks <- vector("list", n0 * n1)
     lin <- 0L
-    for (c0 in seq_len(n0)) for (c1 in seq_len(n1)) {  # column-major grid
+    for (c0 in seq_len(n0)) for (c1 in seq_len(n1)) {  # C-order over the grid (c1 fastest)
         lin <- lin + 1L
         lo0 <- (c0 - 1L) * i0; lo1 <- (c1 - 1L) * i1
         v0 <- min(i0, d0 - lo0); v1 <- min(i1, d1 - lo1)
@@ -143,8 +145,8 @@ NULL
         .shard_inner_compress(raw_bytes, cfg, level, typesize)
     })
     n <- length(comp)
-    nbytes <- vapply(comp, length, integer(1L))
-    idx_size <- n * 16L + 4L
-    offsets <- idx_size + c(0L, cumsum(nbytes)[-n])
+    nbytes <- as.numeric(vapply(comp, length, integer(1L)))
+    idx_size <- as.numeric(n) * 16 + 4
+    offsets <- idx_size + c(0, cumsum(nbytes)[-n])
     c(.shard_build_index(offsets, nbytes), do.call(c, comp))
 }
