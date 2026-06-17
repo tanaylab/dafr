@@ -20,15 +20,11 @@
     #define DAFR_BLOSC_DECOMPRESS    blosc1_decompress
     #define DAFR_BLOSC_CBUFFER_SIZES blosc1_cbuffer_sizes
     #define DAFR_BLOSC_COMPRESS      blosc1_compress_ctx
-    #define DAFR_BLOSC_SET_COMPRESSOR blosc1_set_compressor
-    #define DAFR_BLOSC_COMPRESS_SIMPLE blosc1_compress
   #else
     #include <blosc.h>
     #define DAFR_BLOSC_DECOMPRESS    blosc_decompress
     #define DAFR_BLOSC_CBUFFER_SIZES blosc_cbuffer_sizes
     #define DAFR_BLOSC_COMPRESS      blosc_compress_ctx
-    #define DAFR_BLOSC_SET_COMPRESSOR blosc_set_compressor
-    #define DAFR_BLOSC_COMPRESS_SIMPLE blosc_compress
   #endif
 #endif
 #ifdef HAVE_ZSTD
@@ -140,6 +136,8 @@ cpp11::raws dafr_zstd_compress_cpp(cpp11::raws src, int level) {
     size_t in_n = static_cast<size_t>(src.size());
     size_t bound = ZSTD_compressBound(in_n);
     cpp11::writable::raws out(static_cast<R_xlen_t>(bound));
+    // src may be empty; avoid RAW() on a zero-length vector (the codec does not
+    // dereference src when nbytes == 0).
     const void* s = (in_n > 0)
         ? reinterpret_cast<const void*>(RAW(src.data())) : nullptr;
     void* d = reinterpret_cast<void*>(RAW(out.data()));
@@ -165,12 +163,15 @@ cpp11::raws dafr_blosc_compress_cpp(cpp11::raws src, int level,
     size_t in_n = static_cast<size_t>(src.size());
     size_t bound = in_n + BLOSC_MAX_OVERHEAD;
     cpp11::writable::raws out(static_cast<R_xlen_t>(bound));
+    // src may be empty; avoid RAW() on a zero-length vector (the codec does not
+    // dereference src when nbytes == 0).
     const void* s = (in_n > 0)
         ? reinterpret_cast<const void*>(RAW(src.data())) : nullptr;
     void* d = reinterpret_cast<void*>(RAW(out.data()));
     int got = DAFR_BLOSC_COMPRESS(level, doshuffle, static_cast<size_t>(typesize),
                                   in_n, s, d, bound, cname.c_str(), 0, 1);
-    if (got <= 0) cpp11::stop("blosc compress failed (code %d)", got);
+    if (got < 0) cpp11::stop("blosc compress failed (code %d)", got);
+    if (got == 0) cpp11::stop("blosc compress: output did not fit dest buffer");
     out.resize(static_cast<R_xlen_t>(got));
     return out;
 #else
