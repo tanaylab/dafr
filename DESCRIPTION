@@ -122,6 +122,7 @@ Collate:
     'reconstruction.R'
     'reorder.R'
     'reorder_plan.R'
+    'shard_encode.R'
     'threads.R'
     'top_k_per_col.R'
     'zarr_format.R'
