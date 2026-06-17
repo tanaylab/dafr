@@ -158,9 +158,30 @@ NULL
 # directory + ZIP64 EOCD region. The Zarr read path uses the index; the ZIP
 # framing makes the blob a legal archive for generic tools.
 #
+# The ZIP CRC32 / "uncompressed size" convention is METHOD-DEPENDENT, pinned
+# against the Julia fixtures:
+#   - STORED (method 0, blosc): the ZIP entry data IS the compressor output
+#     stored verbatim (an opaque blob), so usize == csize == length(comp) and
+#     the crc32 is over those stored bytes.
+#   - zstd (method 93): the ZIP entry data is a real zstd frame, so csize =
+#     length(comp) and usize = length(plain) (they DIFFER), and the crc32 is
+#     over the UNCOMPRESSED bytes (`plain`) per the ZIP spec.
+# Returns the (crc32, usize) pair to stamp into the LFH / central entry; the
+# entry CRC always describes what a ZIP reader treats as the entry's content.
+.shard_zip_entry_meta <- function(method, plain, comp) {
+    if (method == 0L) {            # STORED: usize == csize, crc over comp
+        list(crc = dafr_crc32_cpp(comp) %% 2^32, usize = length(comp))
+    } else {                       # method 93 (zstd) / 8 (gzip): crc over plain
+        list(crc = dafr_crc32_cpp(plain) %% 2^32, usize = length(plain))
+    }
+}
+
 # For a STORED inner codec (blosc) the ZIP entry is the compressor output stored
 # verbatim: csize == usize == length(compressed) and the ZIP crc32 is over the
-# compressed bytes. zstd uses ZIP method 93 (Task 7); gzip method 8 is Task 8.
+# compressed bytes. zstd uses ZIP method 93 (Task 7) - a real compressed frame,
+# so usize = length(plain) and crc over plain; gzip method 8 is Task 8. The
+# Zarr shard index offset/nbytes is method-independent: offset at the entry data
+# (after the LFH), nbytes = length(comp).
 .shard_assemble <- function(values, dtype, shape, inner, codec, level, cname = NULL) {
     cfg <- list(codecs = list(list(name = "bytes"),
                               list(name = .SHARD_CODEC_TABLE[[codec]]$compressor)),
@@ -180,14 +201,13 @@ NULL
             zarr_v3_encode_chunk(chunks[[k]], dtype)
         comp <- .shard_inner_compress(plain, cfg, level, typesize)
         name <- .shard_chunk_name(k, per_dim)
-        # STORED: the ZIP entry data is the compressed blob; crc32 and
-        # csize/usize are over those stored bytes.
-        crc <- dafr_crc32_cpp(comp) %% 2^32
-        lfh <- .shard_zip_local_header(name, crc, length(comp), length(comp), method)
+        meta <- .shard_zip_entry_meta(method, plain, comp)
+        crc <- meta$crc; usize <- meta$usize; csize <- length(comp)
+        lfh <- .shard_zip_local_header(name, crc, csize, usize, method)
         data_off <- cursor + length(lfh)
         offsets[[k]] <- data_off; nbytes[[k]] <- length(comp)
-        centrals[[k]] <- .shard_zip_central_entry(name, crc, length(comp),
-                                                  length(comp), cursor, method)
+        centrals[[k]] <- .shard_zip_central_entry(name, crc, csize, usize,
+                                                  cursor, method)
         bodies[[k]] <- c(lfh, comp)
         cursor <- cursor + length(lfh) + length(comp)
     }

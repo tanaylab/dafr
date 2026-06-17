@@ -66,7 +66,8 @@ NULL
 .U32MAX <- as.raw(c(0xff, 0xff, 0xff, 0xff)); .U16MAX <- as.raw(c(0xff, 0xff))
 
 # Local file header with a ZIP64 extra carrying the real usize/csize (the base
-# record uses 0xFFFFFFFF sentinels). `csize`==`usize` for STORED entries.
+# record uses 0xFFFFFFFF sentinels). `csize`==`usize` for STORED entries; for a
+# compressed method (zstd 93) csize=length(comp) and usize=length(plain).
 .shard_zip_local_header <- function(name, crc, csize, usize, method = 0L) {
     nm <- charToRaw(name)
     zip64 <- c(.shard_u16_raw(1L), .shard_u16_raw(16L),

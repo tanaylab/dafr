@@ -82,3 +82,68 @@ test_that("dual-format framing is byte-identical to the 2-D Julia matrix fixture
                  c(vapply(1:16, function(i) dafr:::.shard_chunk_name(i, c(8L, 2L)), ""),
                    "codec.json"))
 })
+
+test_that("a dual-format zstd shard round-trips and is a legal ZIP", {
+    skip_if_not(dafr:::dafr_have_zstd_cpp(), "libzstd not built in")
+    vals <- as.numeric(1:1200)
+    blob <- dafr:::.shard_assemble(vals, "float64", 1200L, 1024L, "zstd", 5L)
+    node <- dafr:::.files_packed_node(
+        list(eltype = "Float64", compression = "zstd", chunk_shape = list(1024L)),
+        shape = 1200L, chunk_shape = 1024L)
+    expect_equal(dafr:::.shard_decode_vector(blob, node), vals)
+    tmp <- tempfile(fileext = ".zip"); writeBin(blob, tmp)
+    z <- zip::zip_list(tmp)
+    expect_true(all(c("c/0", "c/1") %in% z$filename))
+    expect_false("codec.json" %in% z$filename)   # zstd self-describes
+})
+
+test_that("zstd framing is byte-identical to the 1-D Julia zstd fixture", {
+    skip_if_not(dafr:::dafr_have_zstd_cpp(), "libzstd not built in")
+    # The zs fixture is a zstd dual-format shard: score vector, 1200 float64,
+    # inner 1024 -> 2 chunks. We lift each chunk's compressed zstd frame straight
+    # out of the fixture via its shard index (so zstd-encoder nondeterminism is
+    # irrelevant - we reuse Julia's exact frames and only re-run dafr's framing).
+    fx <- testthat::test_path("fixtures/zpk/zs.daf.zarr/vectors/cell/score/c/0")
+    fixture <- readBin(fx, "raw", n = 1e6)
+    node <- dafr:::.files_packed_node(
+        list(eltype = "Float64", compression = "zstd", chunk_shape = list(1024L)),
+        shape = 1200L, chunk_shape = 1024L)
+    cfg <- dafr:::.zarr_sharding_config(node)
+    idx <- dafr:::.zarr_shard_index(fixture, node, cfg)
+    n <- nrow(idx)
+    comp <- lapply(seq_len(n), function(k)
+        fixture[(idx$offset[[k]] + 1):(idx$offset[[k]] + idx$nbytes[[k]])])
+    # Each chunk's uncompressed length is the full inner shape (1024*8=8192) -
+    # chunks are fill-padded before compression, so even the last partial chunk
+    # decompresses to a full 8192 bytes. Confirm against the fixture's usize.
+    z <- zip::zip_list({tmp0 <- tempfile(fileext = ".zip"); writeBin(fixture, tmp0); tmp0})
+    expect_equal(z$uncompressed_size, rep(8192, n))   # usize = length(plain)
+    expect_equal(z$compressed_size, vapply(comp, length, numeric(1)))  # csize = length(comp)
+    plain <- lapply(comp, function(c_k) dafr:::dafr_zstd_decompress_cpp(c_k, 8192))
+
+    # Reproduce .shard_assemble's framing with the fixture frames, NO codec.json,
+    # usize=length(plain) and crc-over-plain per the per-method rule (method 93).
+    per_dim <- 2L
+    method <- 93L
+    idx_size <- as.numeric(n) * 16 + 4
+    bodies <- vector("list", n); offsets <- numeric(n); nbytes <- numeric(n)
+    centrals <- vector("list", n); cursor <- idx_size
+    for (k in seq_len(n)) {
+        c_k <- comp[[k]]; p_k <- plain[[k]]
+        name <- dafr:::.shard_chunk_name(k, per_dim)
+        crc <- dafr:::dafr_crc32_cpp(p_k) %% 2^32
+        lfh <- dafr:::.shard_zip_local_header(name, crc, length(c_k),
+                                              length(p_k), method)
+        offsets[[k]] <- cursor + length(lfh); nbytes[[k]] <- length(c_k)
+        centrals[[k]] <- dafr:::.shard_zip_central_entry(name, crc, length(c_k),
+                                                         length(p_k), cursor, method)
+        bodies[[k]] <- c(lfh, c_k)
+        cursor <- cursor + length(lfh) + length(c_k)
+    }
+    cd <- do.call(c, centrals); cd_off <- cursor
+    eocd <- dafr:::.shard_zip_eocd(length(centrals), cd_off, length(cd))
+    index <- dafr:::.shard_build_index(offsets, nbytes)
+    reconstructed <- c(index, do.call(c, bodies), cd, eocd)
+
+    expect_identical(reconstructed, fixture)
+})
