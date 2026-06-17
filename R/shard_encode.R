@@ -150,3 +150,54 @@ NULL
     offsets <- idx_size + c(0, cumsum(nbytes)[-n])
     c(.shard_build_index(offsets, nbytes), do.call(c, comp))
 }
+
+# Assemble a ZIP dual-format shard blob ("indexed+zipped"): the start-located
+# Zarr shard index at byte 0, then each inner chunk wrapped in a ZIP local file
+# header (the index offset points at the entry data AFTER its header), then a
+# STORED `codec.json` entry (STORED-method codecs only), then the ZIP central
+# directory + ZIP64 EOCD region. The Zarr read path uses the index; the ZIP
+# framing makes the blob a legal archive for generic tools.
+#
+# For a STORED inner codec (blosc) the ZIP entry is the compressor output stored
+# verbatim: csize == usize == length(compressed) and the ZIP crc32 is over the
+# compressed bytes. zstd uses ZIP method 93 (Task 7); gzip method 8 is Task 8.
+.shard_assemble <- function(values, dtype, shape, inner, codec, level, cname = NULL) {
+    cfg <- list(codecs = list(list(name = "bytes"),
+                              list(name = .SHARD_CODEC_TABLE[[codec]]$compressor)),
+                .blosc_cname = cname %||% .SHARD_CODEC_TABLE[[codec]]$cname,
+                .clevel = as.integer(level))
+    typesize <- if (identical(dtype, "string")) 1L else zarr_v3_size_for_dtype(dtype)
+    per_dim <- as.integer(ceiling(shape / inner))
+    chunks <- .shard_split_chunks(values, shape, inner)
+    n <- length(chunks)
+    idx_size <- as.numeric(n) * 16 + 4
+    method <- .shard_zip_method(codec)
+    bodies <- vector("list", n); offsets <- numeric(n); nbytes <- numeric(n)
+    centrals <- vector("list", n); cursor <- idx_size
+    for (k in seq_len(n)) {
+        plain <- if (identical(dtype, "string"))
+            zarr_v3_encode_strings(chunks[[k]]) else
+            zarr_v3_encode_chunk(chunks[[k]], dtype)
+        comp <- .shard_inner_compress(plain, cfg, level, typesize)
+        name <- .shard_chunk_name(k, per_dim)
+        # STORED: the ZIP entry data is the compressed blob; crc32 and
+        # csize/usize are over those stored bytes.
+        crc <- dafr_crc32_cpp(comp) %% 2^32
+        lfh <- .shard_zip_local_header(name, crc, length(comp), length(comp), method)
+        data_off <- cursor + length(lfh)
+        offsets[[k]] <- data_off; nbytes[[k]] <- length(comp)
+        centrals[[k]] <- .shard_zip_central_entry(name, crc, length(comp),
+                                                  length(comp), cursor, method)
+        bodies[[k]] <- c(lfh, comp)
+        cursor <- cursor + length(lfh) + length(comp)
+    }
+    if (method == 0L) {
+        cj <- .shard_codec_json_entry(cfg, typesize, cursor)
+        bodies <- c(bodies, list(cj$body))
+        centrals <- c(centrals, list(cj$central)); cursor <- cursor + length(cj$body)
+    }
+    cd <- do.call(c, centrals); cd_off <- cursor
+    eocd <- .shard_zip_eocd(length(centrals), cd_off, length(cd))
+    index <- .shard_build_index(offsets, nbytes)
+    c(index, do.call(c, bodies), cd, eocd)
+}

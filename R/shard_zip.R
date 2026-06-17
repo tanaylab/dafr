@@ -1,0 +1,139 @@
+#' @include shard_encode.R
+NULL
+
+# R/shard_zip.R
+# ZIP dual-format framing for packed shards (the byte-exact ZIP half of the
+# "indexed+zipped" blob). The Zarr shard index (R/shard_encode.R) sits at byte 0;
+# this module interleaves ZIP local file headers before each chunk, appends a
+# fixed-width-named central directory + ZIP64 end-of-central-directory region, and
+# (for STORED codecs) a `codec.json` entry recording the inner pipeline.
+#
+# Byte layout pinned against the Julia fixture
+#   tests/testthat/fixtures/zpk/bz.daf.zarr/vectors/cell/score/c/0
+# (blosc/zstd/bitshuffle, 1200 float64, inner 1024 -> 2 chunks). Key facts:
+#   - LFH: version-needed=45, flags=0x0800 (UTF-8), method=0 (STORED), mtime=0,
+#     mdate=0x0021, crc32 over the STORED bytes, csize/usize ZIP64 sentinels,
+#     ZIP64 extra (tag 0x0001, size 16) = [usize:u64, csize:u64].
+#   - For a STORED inner codec the ZIP entry data IS the compressor output (an
+#     opaque STORED blob), so csize == usize == length(compressed) and the
+#     crc32 is over those compressed bytes - NOT over the uncompressed plain
+#     element bytes. The Zarr shard index offset for each chunk points at this
+#     entry data (i.e. AFTER the chunk's local file header).
+#   - CDE: version-made-by=0x031e, version-needed=45, flags=0x0800, method=0,
+#     external attrs = 0o100644<<16, LFH-offset sentinel, ZIP64 extra (tag
+#     0x0001, size 24) = [usize:u64, csize:u64, lfh_off:u64].
+#   - Tail: ZIP64 EOCD (size 44, ver-made-by 0x031e, ver-needed 45) + ZIP64
+#     locator + a sentinel base EOCD.
+#   - codec.json STORED entry holds the full inner pipeline as JSON3-style JSON
+#     (keys sorted: configuration before name; blosc config keys alphabetical).
+
+.ZIP_LFH_SIG <- 0x04034b50; .ZIP_CDE_SIG <- 0x02014b50
+.ZIP64_EOCD_SIG <- 0x06064b50; .ZIP64_LOC_SIG <- 0x07064b50; .ZIP_EOCD_SIG <- 0x06054b50
+
+# ZIP compression method per inner codec: STORED (0) for blosc (and any codec
+# whose output is an opaque blob the ZIP just stores), 93 for zstd, 8 for gzip.
+.shard_zip_method <- function(codec) {
+    switch(codec, zstd = 93L, gzip = 8L, 0L)  # blosc* / default -> STORED
+}
+
+# Fixed-width inner-chunk entry name ("c/<i>" 1-D, "c/<i>/<j>" 2-D, C-order with
+# the last grid axis fastest). `lin` is the 1-based column-major linear index
+# into the inner-chunk grid (matches .shard_split_chunks emission order).
+.shard_chunk_name <- function(lin, per_dim) {
+    coords <- as.integer(arrayInd(lin, per_dim)) - 1L
+    widths <- pmax(1L, nchar(as.character(per_dim - 1L)))
+    parts <- mapply(function(v, w) formatC(v, width = w, flag = "0"),
+                    coords, widths, USE.NAMES = FALSE)
+    paste0("c/", paste(rev(parts), collapse = "/"))
+}
+
+.shard_u16_raw <- function(x) as.raw(c(x %% 256, (x %/% 256) %% 256))
+.shard_u64_raw <- function(x) {
+    lo <- x %% 2^32; hi <- (x - lo) / 2^32
+    c(.shard_u32_raw(lo), .shard_u32_raw(hi))
+}
+.U32MAX <- as.raw(c(0xff, 0xff, 0xff, 0xff)); .U16MAX <- as.raw(c(0xff, 0xff))
+
+# Local file header with a ZIP64 extra carrying the real usize/csize (the base
+# record uses 0xFFFFFFFF sentinels). `csize`==`usize` for STORED entries.
+.shard_zip_local_header <- function(name, crc, csize, usize, method = 0L) {
+    nm <- charToRaw(name)
+    zip64 <- c(.shard_u16_raw(1L), .shard_u16_raw(16L),
+               .shard_u64_raw(usize), .shard_u64_raw(csize))
+    c(.shard_u32_raw(.ZIP_LFH_SIG), .shard_u16_raw(45L), .shard_u16_raw(0x0800L),
+      .shard_u16_raw(method), .shard_u16_raw(0L), .shard_u16_raw(0x0021L),
+      .shard_u32_raw(crc), .U32MAX, .U32MAX,
+      .shard_u16_raw(length(nm)), .shard_u16_raw(length(zip64)), nm, zip64)
+}
+
+# Central-directory entry; ZIP64 extra carries usize/csize/lfh_off (the base
+# record uses sentinels). External attrs encode Unix mode 0o100644.
+.shard_zip_central_entry <- function(name, crc, csize, usize, lfh_off, method = 0L) {
+    nm <- charToRaw(name)
+    zip64 <- c(.shard_u16_raw(1L), .shard_u16_raw(24L),
+               .shard_u64_raw(usize), .shard_u64_raw(csize), .shard_u64_raw(lfh_off))
+    c(.shard_u32_raw(.ZIP_CDE_SIG), .shard_u16_raw(0x031eL), .shard_u16_raw(45L),
+      .shard_u16_raw(0x0800L), .shard_u16_raw(method), .shard_u16_raw(0L),
+      .shard_u16_raw(0x0021L), .shard_u32_raw(crc), .U32MAX, .U32MAX,
+      .shard_u16_raw(length(nm)), .shard_u16_raw(length(zip64)),
+      .shard_u16_raw(0L), .shard_u16_raw(0L), .shard_u16_raw(0L),
+      .shard_u32_raw(33188 * 65536),  # 0o100644 << 16 (Unix perms, u32)
+      .U32MAX, nm, zip64)
+}
+
+# ZIP64 EOCD record + ZIP64 locator + sentinel base EOCD.
+.shard_zip_eocd <- function(n_entries, cd_off, cd_size) {
+    z64 <- c(.shard_u32_raw(.ZIP64_EOCD_SIG), .shard_u64_raw(44),
+             .shard_u16_raw(0x031eL), .shard_u16_raw(45L),
+             .shard_u32_raw(0), .shard_u32_raw(0),
+             .shard_u64_raw(n_entries), .shard_u64_raw(n_entries),
+             .shard_u64_raw(cd_size), .shard_u64_raw(cd_off))
+    loc <- c(.shard_u32_raw(.ZIP64_LOC_SIG), .shard_u32_raw(0),
+             .shard_u64_raw(cd_off + cd_size), .shard_u32_raw(1))
+    eocd <- c(.shard_u32_raw(.ZIP_EOCD_SIG), .shard_u16_raw(0L),
+              .shard_u16_raw(0L), .U16MAX, .U16MAX, .U32MAX, .U32MAX, .shard_u16_raw(0L))
+    c(z64, loc, eocd)
+}
+
+# Full JSON3-style inner pipeline for the codec.json entry. Keys are emitted in
+# the order Julia's JSON3 sorts them (configuration before name; blosc config
+# keys alphabetical) so the bytes match the writer. jsonlite preserves the
+# list's insertion order, so the order is encoded here.
+.shard_codec_json <- function(cfg, typesize) {
+    comp <- .shard_inner_compressor(cfg)
+    bytes_codec <- list(configuration = list(endian = "little"), name = "bytes")
+    if (identical(comp, "blosc")) {
+        cname <- cfg$.blosc_cname %||% "zstd"
+        clevel <- cfg$.clevel %||% 5L
+        comp_codec <- list(
+            configuration = list(blocksize = 0L, clevel = as.integer(clevel),
+                                 cname = cname, shuffle = "bitshuffle",
+                                 typesize = as.integer(typesize)),
+            name = "blosc")
+    } else if (identical(comp, "zstd")) {
+        clevel <- cfg$.clevel %||% 5L
+        comp_codec <- list(
+            configuration = list(checksum = FALSE, level = as.integer(clevel)),
+            name = "zstd")
+    } else if (identical(comp, "gzip")) {
+        clevel <- cfg$.clevel %||% 5L
+        comp_codec <- list(configuration = list(level = as.integer(clevel)),
+                           name = "gzip")
+    } else {
+        return(list(bytes_codec))
+    }
+    list(bytes_codec, comp_codec)
+}
+
+# Build the STORED codec.json ZIP entry (LFH + JSON body + central entry). The
+# JSON is stored uncompressed, so csize == usize == length(json) and the crc32
+# is over the JSON bytes.
+.shard_codec_json_entry <- function(cfg, typesize, lfh_off) {
+    pipeline <- .shard_codec_json(cfg, typesize)
+    json <- charToRaw(as.character(jsonlite::toJSON(pipeline, auto_unbox = TRUE)))
+    crc <- dafr_crc32_cpp(json) %% 2^32
+    lfh <- .shard_zip_local_header("codec.json", crc, length(json), length(json))
+    list(body = c(lfh, json),
+         central = .shard_zip_central_entry("codec.json", crc, length(json),
+                                            length(json), lfh_off))
+}
