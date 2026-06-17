@@ -96,6 +96,29 @@
         file = path)
 }
 
+# Build an in-memory packed dense-component descriptor (the R list that will be
+# serialized to a `<name>.json` sidecar alongside a `<name>.zip` shard).
+# Mirrors what DataAxesFormats.jl writes for a FilesFormat packed component.
+# `n`      - element count; included as `n_elements` when non-NULL (required for
+#            packed sub-descriptors inside a sparse property descriptor, omitted
+#            for standalone dense vector/matrix packed descriptors).
+# `inner`  - inner chunk shape (integer scalar or vector, e.g. 1024L or c(1024L, 1L)).
+# `codec`  - FilesFormat compression name (e.g. "gzip", "zstd", "blosc_lz4_bitshuffle").
+# `level`  - compression level integer.
+.files_packed_descriptor <- function(eltype, n = NULL, inner, codec, level) {
+    d <- list(
+        format         = "dense",
+        eltype         = eltype
+    )
+    if (!is.null(n)) d$n_elements <- as.integer(n)
+    d$packed_format       <- "indexed+zipped"
+    d$chunk_shape         <- as.list(as.integer(inner))
+    d$compression         <- codec
+    d$compression_level   <- as.integer(level)
+    d$index_location      <- "start"
+    d
+}
+
 # Fast-path regex for the two fixed descriptor schemas dafr emits:
 #   {"format":"dense","eltype":"X"}
 #   {"format":"sparse","eltype":"X","indtype":"Y"}
