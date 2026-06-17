@@ -36,15 +36,26 @@ NULL
     switch(codec, zstd = 93L, gzip = 8L, 0L)  # blosc* / default -> STORED
 }
 
-# Fixed-width inner-chunk entry name ("c/<i>" 1-D, "c/<i>/<j>" 2-D, C-order with
-# the last grid axis fastest). `lin` is the 1-based column-major linear index
-# into the inner-chunk grid (matches .shard_split_chunks emission order).
+# Fixed-width inner-chunk entry name ("c/<i>" 1-D, "c/<i>/<j>" 2-D). `lin` is the
+# 1-based linear chunk index in .shard_split_chunks emission order, which is
+# C-ORDER over per_dim (last grid axis fastest): for per_dim=[8,2] the order is
+# c/0/0, c/0/1, c/1/0, c/1/1, ... Decode lin in C-order and emit the path
+# components in grid-axis order (NOT reversed) so name(lin) lines up with both
+# the shard index and the payload at lin. Pinned against the 2-D Julia fixture
+# tests/testthat/fixtures/zpk/bz.daf.zarr/matrices/cell/gene/dense (on-disk
+# shape [8,1200], inner [1,1024] -> per_dim [8,2]; 16 chunks c/0/0 .. c/7/1).
 .shard_chunk_name <- function(lin, per_dim) {
-    coords <- as.integer(arrayInd(lin, per_dim)) - 1L
+    nd <- length(per_dim)
+    idx0 <- lin - 1L
+    coords <- integer(nd)
+    for (d in rev(seq_len(nd))) {  # C-order decode: last axis fastest
+        coords[d] <- idx0 %% per_dim[d]
+        idx0 <- idx0 %/% per_dim[d]
+    }
     widths <- pmax(1L, nchar(as.character(per_dim - 1L)))
     parts <- mapply(function(v, w) formatC(v, width = w, flag = "0"),
                     coords, widths, USE.NAMES = FALSE)
-    paste0("c/", paste(rev(parts), collapse = "/"))
+    paste0("c/", paste(parts, collapse = "/"))
 }
 
 .shard_u16_raw <- function(x) as.raw(c(x %% 256, (x %/% 256) %% 256))

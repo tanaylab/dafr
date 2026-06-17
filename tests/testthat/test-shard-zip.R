@@ -11,3 +11,74 @@ test_that("a dual-format blosc shard is a legal ZIP and round-trips", {
     z <- zip::zip_list(tmp)
     expect_true(all(c("c/0", "c/1", "codec.json") %in% z$filename))
 })
+
+test_that(".shard_chunk_name uses C-order matching the 2-D Julia matrix fixture", {
+    # On-disk grid for the dense matrix fixture: shape [8,1200] / inner [1,1024]
+    # -> per_dim [8,2]. Julia writes inner chunks in C-order (last axis fastest)
+    # with the path components in grid-axis order (NOT reversed).
+    fixture_names <- c("c/0/0", "c/0/1", "c/1/0", "c/1/1", "c/2/0", "c/2/1",
+                       "c/3/0", "c/3/1", "c/4/0", "c/4/1", "c/5/0", "c/5/1",
+                       "c/6/0", "c/6/1", "c/7/0", "c/7/1")
+    got <- vapply(1:16, function(i) dafr:::.shard_chunk_name(i, c(8L, 2L)), "")
+    expect_equal(got, fixture_names)
+    # 1-D behavior is unchanged.
+    expect_equal(vapply(1:2, function(i) dafr:::.shard_chunk_name(i, 2L), ""),
+                 c("c/0", "c/1"))
+    # Multi-digit zero-padding (per_dim 12 -> width 2).
+    expect_equal(dafr:::.shard_chunk_name(11L, 12L), "c/10")
+})
+
+test_that("dual-format framing is byte-identical to the 2-D Julia matrix fixture", {
+    skip_if_not(dafr:::dafr_have_blosc_cpp(), "c-blosc not built in")
+    fx <- testthat::test_path("fixtures/zpk/bz.daf.zarr/matrices/cell/gene/dense")
+    fixture <- readBin(file.path(fx, "c/0/0"), "raw", n = 1e7)
+    # On-disk shape + inner chunk_shape from the dense matrix zarr.json.
+    node <- dafr:::.files_packed_node(
+        list(eltype = "Float64", compression = "blosc_zstd_bitshuffle",
+             chunk_shape = list(1L, 1024L)),
+        shape = c(8L, 1200L), chunk_shape = c(1L, 1024L))
+    cfg <- dafr:::.zarr_sharding_config(node)
+    idx <- dafr:::.zarr_shard_index(fixture, node, cfg)
+    n <- nrow(idx)
+    # Each chunk's compressed payload, lifted straight out of the fixture via the
+    # shard index (so blosc nondeterminism is irrelevant - we re-use Julia's
+    # exact STORED bytes and only re-run dafr's ZIP framing around them).
+    comp <- lapply(seq_len(n), function(k)
+        fixture[(idx$offset[[k]] + 1):(idx$offset[[k]] + idx$nbytes[[k]])])
+
+    # Reproduce .shard_assemble's framing with the fixture payloads.
+    per_dim <- as.integer(ceiling(c(8L, 1200L) / c(1L, 1024L)))
+    method <- 0L
+    idx_size <- as.numeric(n) * 16 + 4
+    bodies <- vector("list", n); offsets <- numeric(n); nbytes <- numeric(n)
+    centrals <- vector("list", n); cursor <- idx_size
+    for (k in seq_len(n)) {
+        c_k <- comp[[k]]
+        name <- dafr:::.shard_chunk_name(k, per_dim)
+        crc <- dafr:::dafr_crc32_cpp(c_k) %% 2^32
+        lfh <- dafr:::.shard_zip_local_header(name, crc, length(c_k),
+                                              length(c_k), method)
+        offsets[[k]] <- cursor + length(lfh); nbytes[[k]] <- length(c_k)
+        centrals[[k]] <- dafr:::.shard_zip_central_entry(name, crc, length(c_k),
+                                                         length(c_k), cursor, method)
+        bodies[[k]] <- c(lfh, c_k)
+        cursor <- cursor + length(lfh) + length(c_k)
+    }
+    cfg2 <- list(codecs = list(list(name = "bytes"), list(name = "blosc")),
+                 .blosc_cname = "zstd", .clevel = 5L)
+    cj <- dafr:::.shard_codec_json_entry(cfg2, typesize = 8L, cursor)
+    bodies <- c(bodies, list(cj$body))
+    centrals <- c(centrals, list(cj$central)); cursor <- cursor + length(cj$body)
+    cd <- do.call(c, centrals); cd_off <- cursor
+    eocd <- dafr:::.shard_zip_eocd(length(centrals), cd_off, length(cd))
+    index <- dafr:::.shard_build_index(offsets, nbytes)
+    reconstructed <- c(index, do.call(c, bodies), cd, eocd)
+
+    expect_identical(reconstructed, fixture)
+
+    # And the framed blob is a legal ZIP whose entry order matches the fixture.
+    tmp <- tempfile(fileext = ".zip"); writeBin(reconstructed, tmp)
+    expect_equal(zip::zip_list(tmp)$filename,
+                 c(vapply(1:16, function(i) dafr:::.shard_chunk_name(i, c(8L, 2L)), ""),
+                   "codec.json"))
+})
