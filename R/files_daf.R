@@ -20,6 +20,13 @@
 #'   subdirectories and `daf.json` are truncated, but unrelated files in
 #'   the directory are preserved).
 #' @param name Human-readable identifier. Defaults to `basename(path)`.
+#' @param packed When `TRUE` (writeable modes only), dense vectors, dense
+#'   matrices, and large sparse components that exceed the packing threshold are
+#'   written as compressed dual-format `.zip` shards (DataAxesFormats.jl 0.3.0
+#'   "indexed+zipped" packed format) instead of flat binary payloads. Small
+#'   components and string properties always stay flat. Tuning is read from the
+#'   `dafr.packed_compression`, `dafr.packed_compression_level`, and
+#'   `dafr.packed_target_chunk_kb` options. Defaults to `FALSE` (flat layout).
 #' @return A `FilesDaf` instance (`DafWriter` under `"r+"`/`"w"`/`"w+"`,
 #'   `FilesDafReadOnly`/`DafReadOnly` under `"r"`).
 #' @include format_api.R
@@ -31,7 +38,8 @@
 #' rm(d)
 #' unlink(path, recursive = TRUE)
 #' @export
-files_daf <- function(path, mode = c("r", "r+", "w", "w+"), name = NULL) {
+files_daf <- function(path, mode = c("r", "r+", "w", "w+"), name = NULL,
+                      packed = FALSE) {
     stopifnot(is.character(path), length(path) == 1L, !is.na(path))
     mode <- match.arg(mode)
     path <- normalizePath(path, winslash = "/", mustWork = FALSE)
@@ -57,6 +65,7 @@ files_daf <- function(path, mode = c("r", "r+", "w", "w+"), name = NULL) {
     internal <- new_internal_env()
     internal$path <- path
     internal$mode <- mode
+    internal$packed <- isTRUE(packed)
     internal$axes <- new.env(parent = emptyenv())
     ctor <- if (mode == "r") FilesDafReadOnly else FilesDaf
     daf <- ctor(
@@ -120,6 +129,13 @@ FilesDafReadOnly <- S7::new_class(
     stop(sprintf("files_daf: store opened read-only; %s not permitted", verb),
         call. = FALSE
     )
+}
+
+# TRUE if this store was opened with packed write enabled. Read by the
+# format_set_vector / format_set_matrix writers to route over-threshold
+# numeric components to `.zip` shards.
+.files_is_packed_writer <- function(daf) {
+    isTRUE(S7::prop(daf, "internal")$packed)
 }
 
 S7::method(
