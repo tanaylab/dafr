@@ -7,7 +7,7 @@ Writes are non-atomic; only one writer may touch a store at a time.
 ## Usage
 
 ``` r
-files_daf(path, mode = c("r", "r+", "w", "w+"), name = NULL)
+files_daf(path, mode = c("r", "r+", "w", "w+"), name = NULL, packed = FALSE)
 ```
 
 ## Arguments
@@ -27,6 +27,17 @@ files_daf(path, mode = c("r", "r+", "w", "w+"), name = NULL)
 - name:
 
   Human-readable identifier. Defaults to `basename(path)`.
+
+- packed:
+
+  When `TRUE` (writeable modes only), dense vectors, dense matrices, and
+  large sparse components that exceed the packing threshold are written
+  as compressed dual-format `.zip` shards (DataAxesFormats.jl 0.3.0
+  "indexed+zipped" packed format) instead of flat binary payloads. Small
+  components and string properties always stay flat. Tuning is read from
+  the `dafr.packed_compression`, `dafr.packed_compression_level`, and
+  `dafr.packed_target_chunk_kb` options. Defaults to `FALSE` (flat
+  layout).
 
 ## Value
 

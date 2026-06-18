@@ -7,7 +7,7 @@
 
     <a class="navbar-brand me-2" href="../index.html">dafr</a>
 
-    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">0.4.7</small>
+    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">0.4.8</small>
 
 
     <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbar" aria-controls="navbar" aria-expanded="false" aria-label="Toggle navigation">
@@ -45,6 +45,16 @@
       <small>Source: <a href="https://github.com/tanaylab/dafr/blob/main/NEWS.md" class="external-link"><code>NEWS.md</code></a></small>
     </div>
 
+    <div class="section level2">
+<h2 class="pkg-version" data-toc-text="0.4.8" id="dafr-048">dafr 0.4.8<a class="anchor" aria-label="anchor" href="#dafr-048"></a></h2>
+<p>Packed/sharded WRITE for ZarrDaf and FilesDaf, byte-compatible with <code>DataAxesFormats.jl</code> (verified read-back in both directions).</p>
+<div class="section level3">
+<h3 id="packedsharded-write-zarrdaf--filesdaf-0-4-8">Packed/sharded WRITE (ZarrDaf + FilesDaf)<a class="anchor" aria-label="anchor" href="#packedsharded-write-zarrdaf--filesdaf-0-4-8"></a></h3>
+<ul><li>Writing packed/sharded stores is now supported: <code>zarr_daf(..., packed = TRUE)</code> and <code>files_daf(..., packed = TRUE)</code> produce the same dual-format (“indexed+zipped”) shards DataAxesFormats.jl writes. Packing is per-component and threshold-gated; tune with <code>options(dafr.packed_compression=, dafr.packed_compression_level=, dafr.packed_target_chunk_kb=)</code> (defaults <code>blosc_zstd_bitshuffle</code>, 5, 8). Verified byte-readable by DataAxesFormats.jl 0.3.0 in both directions for the gzip, zstd, and blosc codecs.</li>
+<li>
+<code>gzip</code>-packed write needs no extra library (CRAN-safe); <code>zstd</code> / <code>blosc_*</code> need the same optional system libzstd / c-blosc probed by <code>configure</code> for packed reads. Requesting a codec whose library is absent raises an actionable error. String properties are always written flat.</li>
+</ul></div>
+</div>
     <div class="section level2">
 <h2 class="pkg-version" data-toc-text="0.4.7" id="dafr-047">dafr 0.4.7<a class="anchor" aria-label="anchor" href="#dafr-047"></a></h2>
 <p>Continued parity-audit cleanup against <code>DataAxesFormats.jl</code>. Each change is test-driven and the full suite stays green. See <code>dev/parity-audit-2026-06-11/</code> for the audit trail.</p>

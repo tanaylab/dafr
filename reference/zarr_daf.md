@@ -8,7 +8,12 @@ creates an `MmapZipStore` (mmap-backed zip).
 ## Usage
 
 ``` r
-zarr_daf(uri = NULL, mode = c("r", "r+", "w", "w+"), name = NULL)
+zarr_daf(
+  uri = NULL,
+  mode = c("r", "r+", "w", "w+"),
+  name = NULL,
+  packed = FALSE
+)
 ```
 
 ## Arguments
@@ -27,6 +32,15 @@ zarr_daf(uri = NULL, mode = c("r", "r+", "w", "w+"), name = NULL)
 - name:
 
   Optional name; default derived from `uri`.
+
+- packed:
+
+  If `TRUE` (write modes only), dense vectors, dense matrices, and
+  sparse-component arrays that exceed the packed-write size threshold
+  are written as sharded (compressed) Zarr v3 arrays instead of flat;
+  scalars and axes always stay flat. Per-component and threshold-gated,
+  so a store may mix flat and packed components. Tunable via
+  `options(dafr.packed_compression=, dafr.packed_compression_level=, dafr.packed_target_chunk_kb=)`.
 
 ## Value
 
