@@ -1,8 +1,7 @@
-# dafr 0.4.7
+# dafr 0.4.8
 
-Continued parity-audit cleanup against `DataAxesFormats.jl`. Each change is
-test-driven and the full suite stays green. See `dev/parity-audit-2026-06-11/`
-for the audit trail.
+Packed/sharded WRITE for ZarrDaf and FilesDaf, byte-compatible with
+`DataAxesFormats.jl` (verified read-back in both directions).
 
 ## Packed/sharded WRITE (ZarrDaf + FilesDaf)
 
@@ -17,6 +16,12 @@ for the audit trail.
   need the same optional system libzstd / c-blosc probed by `configure` for
   packed reads. Requesting a codec whose library is absent raises an actionable
   error. String properties are always written flat.
+
+# dafr 0.4.7
+
+Continued parity-audit cleanup against `DataAxesFormats.jl`. Each change is
+test-driven and the full suite stays green. See `dev/parity-audit-2026-06-11/`
+for the audit trail.
 
 ## AnnData interop
 
