@@ -172,15 +172,12 @@ test_that("gzip framing is byte-identical to the 1-D Julia gzip fixture", {
     index <- dafr:::.shard_build_index(offsets, nbytes)
     reconstructed <- c(index, do.call(c, bodies), cd, eocd)
     expect_identical(reconstructed, fixture)
-
-    # Bonus: on this box R's zlib deflate happens to match Julia/CodecZlib's
-    # byte-for-byte, so a fully dafr-written gzip blob (re-compressing the data,
-    # not reusing fixture deflate) is identical to the fixture in full. Guard it
-    # with skip_on_cran since it depends on the platform zlib's deflate output.
-    skip_on_cran()
-    blob <- dafr:::.shard_assemble(as.numeric(1:1200), "float64", 1200L, 1024L,
-                                   "gzip", 5L)
-    expect_identical(blob, fixture)
+    # NB: we deliberately do NOT assert a freshly re-compressed dafr blob equals
+    # the fixture byte-for-byte. Per the design, only the FRAMING is guaranteed
+    # byte-identical to Julia; the compressed DEFLATE payload depends on the
+    # platform zlib build (R's zlib vs Julia's CodecZlib) and is not portable.
+    # The reconstruction above isolates and pins the framing without that
+    # dependency; round-trip + interop tests cover functional correctness.
 })
 
 test_that("zstd framing is byte-identical to the 1-D Julia zstd fixture", {
