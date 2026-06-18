@@ -7,7 +7,7 @@
 
     <a class="navbar-brand me-2" href="../index.html">dafr</a>
 
-    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">0.4.8</small>
+    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">0.4.9</small>
 
 
     <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbar" aria-controls="navbar" aria-expanded="false" aria-label="Toggle navigation">
@@ -42,9 +42,13 @@
   <main id="main" class="col-md-9"><div class="page-header">
 
       <h1>Changelog</h1>
-      <small>Source: <a href="https://github.com/tanaylab/dafr/blob/main/NEWS.md" class="external-link"><code>NEWS.md</code></a></small>
+      <small>Source: <a href="https://github.com/tanaylab/dafr/blob/v0.4.9/NEWS.md" class="external-link"><code>NEWS.md</code></a></small>
     </div>
 
+    <div class="section level2">
+<h2 class="pkg-version" data-toc-text="0.4.9" id="dafr-049">dafr 0.4.9<a class="anchor" aria-label="anchor" href="#dafr-049"></a></h2>
+<p>Maintenance release - no user-facing changes. Drops a non-portable test assertion that compared a freshly re-compressed packed <code>gzip</code> shard byte-for-byte against a fixture; that comparison depends on the platform zlib’s DEFLATE output (R’s zlib vs Julia’s CodecZlib) and failed CI on some runners. Only the <em>framing</em> is guaranteed byte-identical across implementations (still tested); the 0.4.8 packed/sharded write feature is otherwise unchanged.</p>
+</div>
     <div class="section level2">
 <h2 class="pkg-version" data-toc-text="0.4.8" id="dafr-048">dafr 0.4.8<a class="anchor" aria-label="anchor" href="#dafr-048"></a></h2>
 <p>Packed/sharded WRITE for ZarrDaf and FilesDaf, byte-compatible with <code>DataAxesFormats.jl</code> (verified read-back in both directions).</p>

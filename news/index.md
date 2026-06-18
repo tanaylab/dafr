@@ -1,5 +1,15 @@
 # Changelog
 
+## dafr 0.4.9
+
+Maintenance release - no user-facing changes. Drops a non-portable test
+assertion that compared a freshly re-compressed packed `gzip` shard
+byte-for-byte against a fixture; that comparison depends on the platform
+zlib’s DEFLATE output (R’s zlib vs Julia’s CodecZlib) and failed CI on
+some runners. Only the *framing* is guaranteed byte-identical across
+implementations (still tested); the 0.4.8 packed/sharded write feature
+is otherwise unchanged.
+
 ## dafr 0.4.8
 
 Packed/sharded WRITE for ZarrDaf and FilesDaf, byte-compatible with
