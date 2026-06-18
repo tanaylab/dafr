@@ -10,6 +10,7 @@
 
 #include <cpp11.hpp>
 #include "crc32c.h"
+#include "crc32.h"
 #ifdef HAVE_BLOSC
   // Classic c-blosc (v1) exposes blosc.h + blosc_decompress; the modern c-blosc2
   // exposes blosc2.h + the always-available blosc1_* legacy API (which decodes
@@ -18,10 +19,12 @@
     #include <blosc2.h>
     #define DAFR_BLOSC_DECOMPRESS    blosc1_decompress
     #define DAFR_BLOSC_CBUFFER_SIZES blosc1_cbuffer_sizes
+    #define DAFR_BLOSC_COMPRESS      blosc1_compress_ctx
   #else
     #include <blosc.h>
     #define DAFR_BLOSC_DECOMPRESS    blosc_decompress
     #define DAFR_BLOSC_CBUFFER_SIZES blosc_cbuffer_sizes
+    #define DAFR_BLOSC_COMPRESS      blosc_compress_ctx
   #endif
 #endif
 #ifdef HAVE_ZSTD
@@ -34,6 +37,14 @@ double dafr_crc32c_cpp(cpp11::raws x) {
     const unsigned char* p = (n > 0)
         ? reinterpret_cast<const unsigned char*>(RAW(x.data())) : nullptr;
     return static_cast<double>(dafr_crc32c(p, static_cast<size_t>(n)));
+}
+
+[[cpp11::register]]
+double dafr_crc32_cpp(cpp11::raws x) {
+    R_xlen_t n = x.size();
+    const unsigned char* p = (n > 0)
+        ? reinterpret_cast<const unsigned char*>(RAW(x.data())) : nullptr;
+    return static_cast<double>(dafr_crc32(p, static_cast<size_t>(n)));
 }
 
 // Decompress a classic blosc1 chunk. out_nbytes is the uncompressed size when
@@ -115,5 +126,57 @@ cpp11::raws dafr_zstd_decompress_cpp(cpp11::raws src, double out_nbytes) {
     return true;
 #else
     return false;
+#endif
+}
+
+// Compress src to a single zstd frame at the given compression level.
+[[cpp11::register]]
+cpp11::raws dafr_zstd_compress_cpp(cpp11::raws src, int level) {
+#ifdef HAVE_ZSTD
+    size_t in_n = static_cast<size_t>(src.size());
+    size_t bound = ZSTD_compressBound(in_n);
+    cpp11::writable::raws out(static_cast<R_xlen_t>(bound));
+    // src may be empty; avoid RAW() on a zero-length vector (the codec does not
+    // dereference src when nbytes == 0).
+    const void* s = (in_n > 0)
+        ? reinterpret_cast<const void*>(RAW(src.data())) : nullptr;
+    void* d = reinterpret_cast<void*>(RAW(out.data()));
+    size_t got = ZSTD_compress(d, bound, s, in_n, level);
+    if (ZSTD_isError(got))
+        cpp11::stop("ZSTD_compress failed: %s", ZSTD_getErrorName(got));
+    out.resize(static_cast<R_xlen_t>(got));
+    return out;
+#else
+    (void)src; (void)level;
+    cpp11::stop("Writing zstd-packed stores requires libzstd; install it "
+                "(e.g. `conda install -c conda-forge zstd`) and reinstall dafr.");
+#endif
+}
+
+// Compress src as a classic blosc1 chunk. doshuffle: 0=none, 1=byteshuffle,
+// 2=bitshuffle. typesize is the element size in bytes (e.g. 8 for float64).
+[[cpp11::register]]
+cpp11::raws dafr_blosc_compress_cpp(cpp11::raws src, int level,
+                                    std::string cname, int doshuffle,
+                                    int typesize) {
+#ifdef HAVE_BLOSC
+    size_t in_n = static_cast<size_t>(src.size());
+    size_t bound = in_n + BLOSC_MAX_OVERHEAD;
+    cpp11::writable::raws out(static_cast<R_xlen_t>(bound));
+    // src may be empty; avoid RAW() on a zero-length vector (the codec does not
+    // dereference src when nbytes == 0).
+    const void* s = (in_n > 0)
+        ? reinterpret_cast<const void*>(RAW(src.data())) : nullptr;
+    void* d = reinterpret_cast<void*>(RAW(out.data()));
+    int got = DAFR_BLOSC_COMPRESS(level, doshuffle, static_cast<size_t>(typesize),
+                                  in_n, s, d, bound, cname.c_str(), 0, 1);
+    if (got < 0) cpp11::stop("blosc compress failed (code %d)", got);
+    if (got == 0) cpp11::stop("blosc compress: output did not fit dest buffer");
+    out.resize(static_cast<R_xlen_t>(got));
+    return out;
+#else
+    (void)src; (void)level; (void)cname; (void)doshuffle; (void)typesize;
+    cpp11::stop("Writing blosc-packed stores requires c-blosc; install it "
+                "(e.g. `conda install -c conda-forge c-blosc`) and reinstall dafr.");
 #endif
 }

@@ -148,6 +148,10 @@ dafr_crc32c_cpp <- function(x) {
   .Call(`_dafr_dafr_crc32c_cpp`, x)
 }
 
+dafr_crc32_cpp <- function(x) {
+  .Call(`_dafr_dafr_crc32_cpp`, x)
+}
+
 dafr_blosc_decompress_cpp <- function(src, out_nbytes) {
   .Call(`_dafr_dafr_blosc_decompress_cpp`, src, out_nbytes)
 }
@@ -162,6 +166,14 @@ dafr_have_blosc_cpp <- function() {
 
 dafr_have_zstd_cpp <- function() {
   .Call(`_dafr_dafr_have_zstd_cpp`)
+}
+
+dafr_zstd_compress_cpp <- function(src, level) {
+  .Call(`_dafr_dafr_zstd_compress_cpp`, src, level)
+}
+
+dafr_blosc_compress_cpp <- function(src, level, cname, doshuffle, typesize) {
+  .Call(`_dafr_dafr_blosc_compress_cpp`, src, level, cname, doshuffle, typesize)
 }
 
 dafr_set_num_threads <- function(n) {

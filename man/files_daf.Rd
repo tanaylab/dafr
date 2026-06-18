@@ -4,7 +4,7 @@
 \alias{files_daf}
 \title{File-backed Daf store.}
 \usage{
-files_daf(path, mode = c("r", "r+", "w", "w+"), name = NULL)
+files_daf(path, mode = c("r", "r+", "w", "w+"), name = NULL, packed = FALSE)
 }
 \arguments{
 \item{path}{Directory path.}
@@ -17,6 +17,14 @@ subdirectories and \code{daf.json} are truncated, but unrelated files in
 the directory are preserved).}
 
 \item{name}{Human-readable identifier. Defaults to \code{basename(path)}.}
+
+\item{packed}{When \code{TRUE} (writeable modes only), dense vectors, dense
+matrices, and large sparse components that exceed the packing threshold are
+written as compressed dual-format \code{.zip} shards (DataAxesFormats.jl 0.3.0
+"indexed+zipped" packed format) instead of flat binary payloads. Small
+components and string properties always stay flat. Tuning is read from the
+\code{dafr.packed_compression}, \code{dafr.packed_compression_level}, and
+\code{dafr.packed_target_chunk_kb} options. Defaults to \code{FALSE} (flat layout).}
 }
 \value{
 A \code{FilesDaf} instance (\code{DafWriter} under \code{"r+"}/\code{"w"}/\code{"w+"},

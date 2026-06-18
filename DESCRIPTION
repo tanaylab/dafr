@@ -1,6 +1,6 @@
 Package: dafr
 Title: Data in Axes in Formats (DAF) for R
-Version: 0.4.7
+Version: 0.4.8
 Authors@R: c(
     person("Aviezer", "Lifshitz", , "aviezer.lifshitz@weizmann.ac.il",
            role = c("aut", "cre"),
@@ -56,9 +56,11 @@ Suggests:
     tibble,
     tidyr,
     tidyselect,
-    withr
+    withr,
+    zip
 SystemRequirements: C++17, zlib; optional libblosc and libzstd (to read
-    packed/sharded Zarr v3 ZarrDaf stores; the flat path needs neither)
+    and write packed/sharded Zarr v3 ZarrDaf and FilesDaf stores; gzip-packed
+    and the flat path need neither)
 VignetteBuilder: knitr
 Config/testthat/edition: 3
 Encoding: UTF-8
@@ -117,11 +119,14 @@ Collate:
     'op_dispatch.R'
     'open_daf.R'
     'options.R'
+    'shard_encode.R'
+    'packed_opts.R'
     'query_builders.R'
     'query_builders_exports.R'
     'reconstruction.R'
     'reorder.R'
     'reorder_plan.R'
+    'shard_zip.R'
     'threads.R'
     'top_k_per_col.R'
     'zarr_format.R'

@@ -64,6 +64,13 @@ ZarrDafReadOnly <- S7::new_class(
 #'   truncates any existing store and creates a fresh one. `"r+"`
 #'   opens for read-write without truncating. `"r"` opens read-only.
 #' @param name Optional name; default derived from `uri`.
+#' @param packed If `TRUE` (write modes only), dense vectors, dense
+#'   matrices, and sparse-component arrays that exceed the packed-write
+#'   size threshold are written as sharded (compressed) Zarr v3 arrays
+#'   instead of flat; scalars and axes always stay flat. Per-component
+#'   and threshold-gated, so a store may mix flat and packed components.
+#'   Tunable via `options(dafr.packed_compression=, dafr.packed_compression_level=,
+#'   dafr.packed_target_chunk_kb=)`.
 #' @return A `ZarrDaf` (writeable) or `ZarrDafReadOnly`.
 #' @examples
 #' tmp <- tempfile(fileext = ".daf.zarr")
@@ -71,7 +78,7 @@ ZarrDafReadOnly <- S7::new_class(
 #' add_axis(d, "cell", c("c1", "c2"))
 #' @export
 zarr_daf <- function(uri = NULL, mode = c("r", "r+", "w", "w+"),
-                     name = NULL) {
+                     name = NULL, packed = FALSE) {
     mode <- match.arg(mode)
     is_memory <- is.null(uri) || identical(uri, ":memory:") ||
         identical(uri, "memory://") || !nzchar(uri)
@@ -153,6 +160,7 @@ zarr_daf <- function(uri = NULL, mode = c("r", "r+", "w", "w+"),
     internal <- new_internal_env()
     internal$path <- store_path  # so complete_path(daf) and description() see it
     internal$mode <- mode
+    internal$packed <- isTRUE(packed)
     cls(
         name                   = final_name,
         store                  = store,
@@ -309,14 +317,18 @@ S7::method(
     .zarr_read_only_guard("set_scalar")
 }
 
+# TRUE if this ZarrDaf was opened with packed = TRUE.
+.zarr_is_packed <- function(daf) isTRUE(S7::prop(daf, "internal")$packed)
+
 # Write a single dense v3 array (numeric or string) + its one chunk. ndim is
-# derived from length(shape); caller refreshes consolidated metadata.
-.zarr_write_dense_array <- function(store, base, values, shape) {
+# derived from length(shape); caller refreshes consolidated metadata. When
+# `packed` and the component is over the size threshold it is written sharded
+# (compressed); otherwise flat (the default, unchanged behaviour). Scalars and
+# axes pass packed = FALSE so they always stay flat (Julia parity).
+.zarr_write_dense_array <- function(store, base, values, shape, packed = FALSE) {
     dtype <- zarr_v3_dtype_for_r(values)
-    zarr_v3_write_array(store, base, zarr_v3_array_meta(shape = shape, dtype = dtype))
-    chunk <- if (dtype == "string") zarr_v3_encode_strings(values) else
-        zarr_v3_encode_chunk(values, dtype)
-    store_set_bytes(store, zarr_v3_chunk_path(base, length(shape)), chunk)
+    .shard_write_zarr_component(store, base, values, as.integer(shape), dtype,
+                                packed)
     invisible()
 }
 
@@ -720,10 +732,11 @@ S7::method(
     if (exists_sparse) {
         for (k in store_list(store, base)) store_delete(store, k)
     }
+    packed <- .zarr_is_packed(daf)
     if (methods::is(vec, "sparseVector")) {
-        .zarr_write_sparse_vector(store, base, vec)
+        .zarr_write_sparse_vector(store, base, vec, packed)
     } else {
-        .zarr_write_dense_vector(store, base, vec)
+        .zarr_write_dense_vector(store, base, vec, packed)
     }
     bump_vector_counter(daf, axis, name)
     MEMORY_DATA
@@ -736,12 +749,12 @@ S7::method(
     .zarr_read_only_guard("set_vector")
 }
 
-.zarr_write_dense_vector <- function(store, base, vec) {
-    .zarr_write_dense_array(store, base, vec, length(vec))
+.zarr_write_dense_vector <- function(store, base, vec, packed = FALSE) {
+    .zarr_write_dense_array(store, base, vec, length(vec), packed)
     zarr_v3_consolidate_upsert(store, base)
 }
 
-.zarr_write_sparse_vector <- function(store, base, vec) {
+.zarr_write_sparse_vector <- function(store, base, vec, packed = FALSE) {
     # Mark as a v3 group. NO attributes are written - upstream parity with
     # sparse matrices: shape comes from the axis length on read, and
     # the all-TRUE Bool case is inferred from absence of `nzval/`.
@@ -750,21 +763,13 @@ S7::method(
                         all(vec@x, na.rm = FALSE)
     # Write nzind: int64, 1-based indices (DAF SparseVector convention).
     nzind <- bit64::as.integer64(vec@i)
-    nzind_base <- paste0(base, "/nzind")
-    zarr_v3_write_array(store, nzind_base,
-                        zarr_v3_array_meta(shape = length(nzind),
-                                           dtype = "int64"))
-    store_set_bytes(store, zarr_v3_chunk_path(nzind_base, 1L),
-                    zarr_v3_encode_chunk(nzind, "int64"))
+    .shard_write_zarr_component(store, paste0(base, "/nzind"), nzind,
+                                length(nzind), "int64", packed)
     # Write nzval (skip for all-TRUE Bool — upstream-compatible compaction).
     if (!is_all_true_bool) {
         nzval_dtype <- zarr_v3_dtype_for_r(vec@x)
-        nzval_base <- paste0(base, "/nzval")
-        zarr_v3_write_array(store, nzval_base,
-                            zarr_v3_array_meta(shape = length(vec@x),
-                                               dtype = nzval_dtype))
-        store_set_bytes(store, zarr_v3_chunk_path(nzval_base, 1L),
-                        zarr_v3_encode_chunk(vec@x, nzval_dtype))
+        .shard_write_zarr_component(store, paste0(base, "/nzval"), vec@x,
+                                    length(vec@x), nzval_dtype, packed)
     }
     zarr_v3_consolidate_upsert(store, base)
 }
@@ -1026,11 +1031,12 @@ S7::method(
     if (exists_sparse) {
         for (k in store_list(store, base)) store_delete(store, k)
     }
+    packed <- .zarr_is_packed(daf)
     is_sparse <- methods::is(mat, "dgCMatrix") || methods::is(mat, "lgCMatrix")
     if (is_sparse) {
-        .zarr_write_sparse_matrix(store, base, mat)
+        .zarr_write_sparse_matrix(store, base, mat, packed)
     } else {
-        .zarr_write_dense_matrix(store, base, mat, nr, nc)
+        .zarr_write_dense_matrix(store, base, mat, nr, nc, packed)
     }
     bump_matrix_counter(daf, rows_axis, columns_axis, name)
     MEMORY_DATA
@@ -1043,15 +1049,15 @@ S7::method(
     .zarr_read_only_guard("set_matrix")
 }
 
-.zarr_write_dense_matrix <- function(store, base, mat, nr, nc) {
+.zarr_write_dense_matrix <- function(store, base, mat, nr, nc, packed = FALSE) {
     # On-disk shape is REVERSED [n_cols, n_rows] (matches DAF; no `order`
     # field in v3). Chunk bytes are R/Julia column-major (as.vector flatten).
     dimnames(mat) <- NULL
-    .zarr_write_dense_array(store, base, as.vector(mat), c(nc, nr))
+    .zarr_write_dense_array(store, base, as.vector(mat), c(nc, nr), packed)
     zarr_v3_consolidate_upsert(store, base)
 }
 
-.zarr_write_sparse_matrix <- function(store, base, mat) {
+.zarr_write_sparse_matrix <- function(store, base, mat, packed = FALSE) {
     zarr_v3_write_group(store, base)
     is_lg <- methods::is(mat, "lgCMatrix")
     is_all_true_bool <- is_lg && length(mat@x) > 0L &&
@@ -1060,28 +1066,16 @@ S7::method(
     # colptr + rowval: int64, 1-based (DAF SparseMatrixCSC convention).
     # Matrix's @p / @i are 0-based, so +1L on write.
     colptr_1 <- bit64::as.integer64(mat@p + 1L)
-    colptr_base <- paste0(base, "/colptr")
-    zarr_v3_write_array(store, colptr_base,
-                        zarr_v3_array_meta(shape = length(colptr_1),
-                                           dtype = "int64"))
-    store_set_bytes(store, zarr_v3_chunk_path(colptr_base, 1L),
-                    zarr_v3_encode_chunk(colptr_1, "int64"))
+    .shard_write_zarr_component(store, paste0(base, "/colptr"), colptr_1,
+                                length(colptr_1), "int64", packed)
     rowval_1 <- bit64::as.integer64(mat@i + 1L)
-    rowval_base <- paste0(base, "/rowval")
-    zarr_v3_write_array(store, rowval_base,
-                        zarr_v3_array_meta(shape = length(rowval_1),
-                                           dtype = "int64"))
-    store_set_bytes(store, zarr_v3_chunk_path(rowval_base, 1L),
-                    zarr_v3_encode_chunk(rowval_1, "int64"))
+    .shard_write_zarr_component(store, paste0(base, "/rowval"), rowval_1,
+                                length(rowval_1), "int64", packed)
     # nzval (skip for all-TRUE Bool — upstream-compatible compaction).
     if (!is_all_true_bool) {
         nzval_dtype <- if (is_lg) "bool" else zarr_v3_dtype_for_r(mat@x)
-        nzval_base <- paste0(base, "/nzval")
-        zarr_v3_write_array(store, nzval_base,
-                            zarr_v3_array_meta(shape = length(mat@x),
-                                               dtype = nzval_dtype))
-        store_set_bytes(store, zarr_v3_chunk_path(nzval_base, 1L),
-                        zarr_v3_encode_chunk(mat@x, nzval_dtype))
+        .shard_write_zarr_component(store, paste0(base, "/nzval"), mat@x,
+                                    length(mat@x), nzval_dtype, packed)
     }
     zarr_v3_consolidate_upsert(store, base)
 }

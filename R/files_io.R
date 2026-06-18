@@ -81,19 +81,133 @@
     cat(sprintf('{"format":"dense","eltype":"%s"}\n', dtype), file = path)
 }
 
+# Serialize a packed dense descriptor list (from .files_packed_descriptor) to a
+# `<name>.json` sidecar. jsonlite renders the field order as inserted, which is
+# byte-identical to the DataAxesFormats.jl FilesFormat packed descriptor
+# (verified against the fpk fixtures).
+.write_descriptor_packed <- function(path, desc) {
+    cat(jsonlite::toJSON(desc, auto_unbox = TRUE), "\n", file = path, sep = "")
+}
+
 # Write a FilesFormat v1.1 sparse property descriptor: a per-component object
 # for each index/value component, in the given order. `components` is a list of
-# list(key=, eltype=, n_elements=) - e.g. nzind/nzval for a vector or
-# colptr/rowval/nzval for a matrix. Each component is shaped like a stand-alone
-# dense vector descriptor (matching DataAxesFormats.jl 0.3.0); the binary
-# payload files are unchanged from v1.0.
+# per-component descriptor objects, each either:
+#   - flat:   list(key=, eltype=, n_elements=)  ->  rendered as a stand-alone
+#             dense vector descriptor (matching DataAxesFormats.jl 0.3.0); the
+#             binary payload file is unchanged from v1.0.
+#   - packed: list(key=, desc=<.files_packed_descriptor list incl. n_elements>)
+#             -> rendered as the nested packed shard descriptor (the payload is a
+#             `<name>.<component>.zip` shard).
 .write_descriptor_sparse <- function(path, components) {
     parts <- vapply(components, function(c) {
-        sprintf('"%s":{"format":"dense","eltype":"%s","n_elements":%d}',
-                c$key, c$eltype, as.integer(c$n_elements))
+        if (!is.null(c$desc)) {
+            # Packed component: render the packed descriptor list as a nested
+            # object. jsonlite preserves the insertion field order.
+            sprintf('"%s":%s', c$key,
+                    jsonlite::toJSON(c$desc, auto_unbox = TRUE))
+        } else {
+            sprintf('"%s":{"format":"dense","eltype":"%s","n_elements":%d}',
+                    c$key, c$eltype, as.integer(c$n_elements))
+        }
     }, character(1L))
     cat(sprintf('{"format":"sparse",%s}\n', paste(parts, collapse = ",")),
         file = path)
+}
+
+# Build an in-memory packed dense-component descriptor (the R list that will be
+# serialized to a `<name>.json` sidecar alongside a `<name>.zip` shard).
+# Mirrors what DataAxesFormats.jl writes for a FilesFormat packed component.
+# `n`      - element count; included as `n_elements` when non-NULL (required for
+#            packed sub-descriptors inside a sparse property descriptor, omitted
+#            for standalone dense vector/matrix packed descriptors).
+# `inner`  - inner chunk shape (integer scalar or vector, e.g. 1024L or c(1024L, 1L)).
+# `codec`  - FilesFormat compression name (e.g. "gzip", "zstd", "blosc_lz4_bitshuffle").
+# `level`  - compression level integer.
+.files_packed_descriptor <- function(eltype, n = NULL, inner, codec, level) {
+    d <- list(
+        format         = "dense",
+        eltype         = eltype
+    )
+    if (!is.null(n)) d$n_elements <- as.integer(n)
+    d$packed_format       <- "indexed+zipped"
+    d$chunk_shape         <- as.list(as.integer(inner))
+    d$compression         <- codec
+    d$compression_level   <- as.integer(level)
+    d$index_location      <- "start"
+    d
+}
+
+# ---- packed component writers ----
+
+# Write one 1-D component (a dense vector payload, or a sparse index/value
+# component) either packed or flat, and return its descriptor list.
+#   `base`     - path stem the packed `<base>.zip` shard is written at, e.g.
+#                ".../vectors/cell/score" (dense vector -> score.zip) or
+#                ".../vectors/cell/score.nzind" (sparse comp -> score.nzind.zip).
+#   `ext`      - flat-payload extension appended to `base` to form the flat path.
+#                For a dense vector this is ".data" (base lacks it, so flat is
+#                score.data while packed strips to score.zip); for a sparse comp
+#                `base` already carries the `.<comp>` stem so `ext` is "" (flat is
+#                score.nzind, packed is score.nzind.zip).
+#   `values`   - the element vector to write.
+#   `dtype`    - Zarr v3 dtype name (lowercase, e.g. "float64") used by the shard
+#                encoder.
+#   `eltype`   - Julia eltype name (e.g. "Float64") stamped into the descriptor.
+#   `packed`   - whether packed write is enabled for this store.
+#   `include_n`- whether to stamp `n_elements` into the descriptor. Sparse
+#                sub-components REQUIRE it (the reader sizes the shard from it);
+#                a stand-alone dense vector OMITS it (Julia parity - the reader
+#                sizes from the axis length).
+# When packed AND over threshold the payload is a `<base>.zip` shard; otherwise a
+# flat `<base><ext>` file. The returned descriptor is the per-component object the
+# caller serializes (directly for a dense vector, or nested for a sparse comp).
+.files_write_component <- function(base, ext, values, dtype, eltype, packed,
+                                   include_n = FALSE) {
+    opts <- .packed_opts()
+    n <- length(values)
+    if (packed && .shard_should_pack(n, dtype, opts$target_kb)) {
+        .packed_validate_codec(opts$compression)
+        inner <- .shard_inner_chunk_shape(n, dtype, opts$target_kb)  # scalar
+        blob <- .shard_assemble(values, dtype, n, inner,
+                                opts$compression, opts$level)
+        writeBin(blob, paste0(base, ".zip"))
+        return(.files_packed_descriptor(
+            eltype, n = if (include_n) n else NULL, inner = inner,
+            codec = opts$compression, level = opts$level))
+    }
+    .write_bin_dense(paste0(base, ext), values, dtype)
+    d <- list(format = "dense", eltype = eltype)
+    if (include_n) d$n_elements <- as.integer(n)
+    d
+}
+
+# Write a dense matrix payload either packed or flat, and return its descriptor
+# list. On-disk the element stream is column-major over the natural [nrow, ncol]
+# matrix. The packed shard is assembled in the SAME convention as ZarrDaf (and as
+# the Julia FilesFormat writer): the reversed on-disk shape [ncol, nrow] with the
+# inner chunk tiling the fast (nrow) dimension as [1, nrow_chunk], which yields a
+# column-grouped inner-chunk stream. The descriptor's `chunk_shape`, however, is
+# the NATURAL [nrow_chunk, 1] (matching the fpk fixtures and the column-major
+# decoder in .files_packed_decode_matrix). Threshold is on nrow (the fast dim).
+.files_write_dense_matrix_packed <- function(base, mat, dtype, eltype) {
+    opts <- .packed_opts()
+    nr <- nrow(mat)
+    nc <- ncol(mat)
+    .packed_validate_codec(opts$compression)
+    nrowchunk <- .shard_slab_rows(dtype, opts$target_kb, nr)
+    blob <- .shard_assemble(as.vector(mat), dtype,
+                            shape = c(as.integer(nc), as.integer(nr)),
+                            inner = c(1L, nrowchunk),
+                            opts$compression, opts$level)
+    writeBin(blob, paste0(base, ".zip"))
+    .files_packed_descriptor(eltype, n = NULL,
+                             inner = c(nrowchunk, 1L),
+                             codec = opts$compression, level = opts$level)
+}
+
+# TRUE if a dense matrix's fast (nrow) dimension is over the pack threshold.
+.files_matrix_should_pack <- function(nr, dtype) {
+    .shard_should_pack(nr, dtype, .packed_opts()$target_kb)
 }
 
 # Fast-path regex for the two fixed descriptor schemas dafr emits:

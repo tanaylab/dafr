@@ -133,51 +133,79 @@ S7::method(
     invisible()
 }
 
-.files_write_vector_dense <- function(vdir, name, vec) {
+.files_write_vector_dense <- function(vdir, name, vec, packed = FALSE) {
     dtype <- .dtype_for_r_vector(vec)
     if (dtype == "String") {
+        # Strings stay FLAT for now (no packed string write); packed only
+        # applies to fixed-width numeric/bool dense vectors.
         con <- file(file.path(vdir, paste0(name, ".txt")),
             open = "wb",
             encoding = "UTF-8"
         )
         writeLines(vec, con, useBytes = FALSE)
         close(con)
-    } else {
-        .write_bin_dense(file.path(vdir, paste0(name, ".data")), vec, dtype)
+        .write_descriptor_dense(file.path(vdir, paste0(name, ".json")), dtype)
+        return(invisible())
     }
-    .write_descriptor_dense(file.path(vdir, paste0(name, ".json")), dtype)
+    # Numeric/bool dense vector: pack to a `.zip` shard when enabled + over
+    # threshold, else write a flat `.data` payload. A stand-alone dense vector
+    # descriptor omits n_elements (the reader sizes from the axis length).
+    desc <- .files_write_component(
+        file.path(vdir, name), ".data", vec,
+        dtype = tolower(dtype), eltype = dtype, packed = packed,
+        include_n = FALSE)
+    if (!is.null(desc$packed_format)) {
+        .write_descriptor_packed(file.path(vdir, paste0(name, ".json")), desc)
+    } else {
+        .write_descriptor_dense(file.path(vdir, paste0(name, ".json")), dtype)
+    }
     invisible()
 }
 
 .files_vector_unlink_payload <- function(vdir, name) {
-    for (ext in c(".data", ".txt", ".nzind", ".nzval", ".nztxt")) {
+    # Flat payloads + packed shards (dense `<name>.zip` and packed sparse
+    # components `<name>.nzind.zip` / `<name>.nzval.zip`).
+    for (ext in c(".data", ".txt", ".nzind", ".nzval", ".nztxt",
+                  ".zip", ".nzind.zip", ".nzval.zip")) {
         p <- file.path(vdir, paste0(name, ext))
         if (file.exists(p)) unlink(p, force = TRUE)
     }
 }
 
+# Build a sparse-component descriptor entry for .write_descriptor_sparse from the
+# descriptor list returned by .files_write_component: a packed component carries
+# `desc`, a flat one carries the flat fields.
+.files_sparse_comp_entry <- function(key, desc) {
+    if (!is.null(desc$packed_format)) {
+        list(key = key, desc = desc)
+    } else {
+        list(key = key, eltype = desc$eltype,
+             n_elements = as.integer(desc$n_elements))
+    }
+}
+
 .files_write_vector_sparse_numeric <- function(vdir, name, nzind, nzval,
-                                               eltype, indtype) {
-    nnz <- length(nzind)
-    .write_bin_dense(
-        file.path(vdir, paste0(name, ".nzind")),
-        as.integer(nzind), indtype
-    )
-    comps <- list(list(key = "nzind", eltype = indtype, n_elements = nnz))
+                                               eltype, indtype, packed = FALSE) {
+    idx_desc <- .files_write_component(
+        file.path(vdir, paste0(name, ".nzind")), "",
+        as.integer(nzind), dtype = tolower(indtype), eltype = indtype,
+        packed = packed, include_n = TRUE)
+    comps <- list(.files_sparse_comp_entry("nzind", idx_desc))
     if (eltype == "Bool") {
         # All-true sparse Bool omits the .nzval payload (and its descriptor).
         if (!all(nzval)) {
-            .write_bin_dense(
-                file.path(vdir, paste0(name, ".nzval")),
-                as.logical(nzval), "Bool"
-            )
-            comps <- c(comps, list(list(key = "nzval", eltype = "Bool",
-                                        n_elements = nnz)))
+            val_desc <- .files_write_component(
+                file.path(vdir, paste0(name, ".nzval")), "",
+                as.logical(nzval), dtype = "bool", eltype = "Bool",
+                packed = packed, include_n = TRUE)
+            comps <- c(comps, list(.files_sparse_comp_entry("nzval", val_desc)))
         }
     } else {
-        .write_bin_dense(file.path(vdir, paste0(name, ".nzval")), nzval, eltype)
-        comps <- c(comps, list(list(key = "nzval", eltype = eltype,
-                                    n_elements = nnz)))
+        val_desc <- .files_write_component(
+            file.path(vdir, paste0(name, ".nzval")), "",
+            nzval, dtype = tolower(eltype), eltype = eltype,
+            packed = packed, include_n = TRUE)
+        comps <- c(comps, list(.files_sparse_comp_entry("nzval", val_desc)))
     }
     .write_descriptor_sparse(file.path(vdir, paste0(name, ".json")), comps)
     invisible()
@@ -229,15 +257,17 @@ S7::method(
     } else {
         .should_sparsify_numeric(vec, eltype, indtype)
     }
+    packed <- .files_is_packed_writer(daf)
     if (!go_sparse) {
-        .files_write_vector_dense(vdir, name, vec)
+        .files_write_vector_dense(vdir, name, vec, packed = packed)
     } else if (eltype == "String") {
         nz <- which(nzchar(vec))
         .files_write_vector_sparse_string(vdir, name, nz, vec[nz], indtype)
     } else {
         nz <- if (is.logical(vec)) which(vec)
               else which(is.nan(vec) | vec != 0)
-        .files_write_vector_sparse_numeric(vdir, name, nz, vec[nz], eltype, indtype)
+        .files_write_vector_sparse_numeric(vdir, name, nz, vec[nz], eltype,
+                                           indtype, packed = packed)
     }
     .metadata_zip_append(root, paste0("vectors/", axis, "/", name, ".json"))
     bump_vector_counter(daf, axis, name)
@@ -263,7 +293,8 @@ S7::method(
     indtype <- .indtype_for_size(n)
     .files_write_vector_sparse_numeric(
         vdir, name,
-        as.integer(sv@i), sv@x, eltype, indtype
+        as.integer(sv@i), sv@x, eltype, indtype,
+        packed = .files_is_packed_writer(daf)
     )
     .metadata_zip_append(root, paste0("vectors/", axis, "/", name, ".json"))
     bump_vector_counter(daf, axis, name)
@@ -289,47 +320,48 @@ S7::method(
 }
 
 .files_matrix_unlink_payload <- function(mdir, name) {
-    for (ext in c(".data", ".txt", ".colptr", ".rowval", ".nzval", ".nztxt")) {
+    # Flat payloads + packed shards (dense `<name>.zip` and packed sparse
+    # components `<name>.colptr.zip` / `<name>.rowval.zip` / `<name>.nzval.zip`).
+    for (ext in c(".data", ".txt", ".colptr", ".rowval", ".nzval", ".nztxt",
+                  ".zip", ".colptr.zip", ".rowval.zip", ".nzval.zip")) {
         p <- file.path(mdir, paste0(name, ext))
         if (file.exists(p)) unlink(p, force = TRUE)
     }
 }
 
-.files_write_matrix_sparse <- function(mdir, name, mat) {
+.files_write_matrix_sparse <- function(mdir, name, mat, packed = FALSE) {
     is_bool <- methods::is(mat, "lgCMatrix")
     dtype <- if (is_bool) "Bool" else "Float64"
     nr <- nrow(mat)
     nc <- ncol(mat)
     nnz <- length(mat@x)
     indtype <- .indtype_for_size(max(nr, nc, nnz))
-    .write_bin_dense(
-        file.path(mdir, paste0(name, ".colptr")),
-        as.integer(mat@p) + 1L, indtype
-    )
-    .write_bin_dense(
-        file.path(mdir, paste0(name, ".rowval")),
-        as.integer(mat@i) + 1L, indtype
-    )
+    colptr_desc <- .files_write_component(
+        file.path(mdir, paste0(name, ".colptr")), "",
+        as.integer(mat@p) + 1L, dtype = tolower(indtype), eltype = indtype,
+        packed = packed, include_n = TRUE)
+    rowval_desc <- .files_write_component(
+        file.path(mdir, paste0(name, ".rowval")), "",
+        as.integer(mat@i) + 1L, dtype = tolower(indtype), eltype = indtype,
+        packed = packed, include_n = TRUE)
     comps <- list(
-        list(key = "colptr", eltype = indtype, n_elements = nc + 1L),
-        list(key = "rowval", eltype = indtype, n_elements = nnz))
+        .files_sparse_comp_entry("colptr", colptr_desc),
+        .files_sparse_comp_entry("rowval", rowval_desc))
     if (is_bool) {
         # All-true sparse Bool omits the .nzval payload (and its descriptor).
         if (!all(mat@x)) {
-            .write_bin_dense(
-                file.path(mdir, paste0(name, ".nzval")),
-                as.logical(mat@x), "Bool"
-            )
-            comps <- c(comps, list(list(key = "nzval", eltype = "Bool",
-                                        n_elements = nnz)))
+            val_desc <- .files_write_component(
+                file.path(mdir, paste0(name, ".nzval")), "",
+                as.logical(mat@x), dtype = "bool", eltype = "Bool",
+                packed = packed, include_n = TRUE)
+            comps <- c(comps, list(.files_sparse_comp_entry("nzval", val_desc)))
         }
     } else {
-        .write_bin_dense(
-            file.path(mdir, paste0(name, ".nzval")),
-            as.double(mat@x), "Float64"
-        )
-        comps <- c(comps, list(list(key = "nzval", eltype = "Float64",
-                                    n_elements = nnz)))
+        val_desc <- .files_write_component(
+            file.path(mdir, paste0(name, ".nzval")), "",
+            as.double(mat@x), dtype = "float64", eltype = "Float64",
+            packed = packed, include_n = TRUE)
+        comps <- c(comps, list(.files_sparse_comp_entry("nzval", val_desc)))
     }
     .write_descriptor_sparse(file.path(mdir, paste0(name, ".json")), comps)
     invisible()
@@ -351,27 +383,34 @@ S7::method(
     dir.create(mdir, recursive = TRUE, showWarnings = FALSE)
     desc_path <- file.path(mdir, paste0(name, ".json"))
     .files_matrix_unlink_payload(mdir, name)
+    packed <- .files_is_packed_writer(daf)
     if (methods::is(mat, "dgCMatrix") || methods::is(mat, "lgCMatrix")) {
-        .files_write_matrix_sparse(mdir, name, mat)
+        .files_write_matrix_sparse(mdir, name, mat, packed = packed)
         .metadata_zip_append(root, paste0("matrices/", rows_axis, "/", columns_axis, "/", name, ".json"))
         bump_matrix_counter(daf, rows_axis, columns_axis, name)
         return(MEMORY_DATA)
     }
     dtype <- .dtype_for_r_vector(as.vector(mat))
     if (dtype == "String") {
+        # Strings stay FLAT for now (no packed string write).
         con <- file(file.path(mdir, paste0(name, ".txt")),
             open = "wb",
             encoding = "UTF-8"
         )
         writeLines(as.vector(mat), con, useBytes = FALSE)
         close(con)
+        .write_descriptor_dense(desc_path, dtype)
+    } else if (packed && .files_matrix_should_pack(nrow(mat), tolower(dtype))) {
+        desc <- .files_write_dense_matrix_packed(
+            file.path(mdir, name), mat, dtype = tolower(dtype), eltype = dtype)
+        .write_descriptor_packed(desc_path, desc)
     } else {
         .write_bin_dense(
             file.path(mdir, paste0(name, ".data")),
             as.vector(mat), dtype
         )
+        .write_descriptor_dense(desc_path, dtype)
     }
-    .write_descriptor_dense(desc_path, dtype)
     .metadata_zip_append(root, paste0("matrices/", rows_axis, "/", columns_axis, "/", name, ".json"))
     bump_matrix_counter(daf, rows_axis, columns_axis, name)
     MEMORY_DATA
@@ -446,9 +485,13 @@ S7::method(
 .REORDER_BACKUP_DIR <- ".reorder.backup"
 
 # Suffixes upstream backs up + restores per vector/matrix (`.txt` is for
-# string-payload dense vectors; `.nztxt` for sparse strings).
-.REORDER_VECTOR_SUFFIXES <- c(".json", ".data", ".txt", ".nzind", ".nzval", ".nztxt")
-.REORDER_MATRIX_SUFFIXES <- c(".json", ".data", ".txt", ".colptr", ".rowval", ".nzval", ".nztxt")
+# string-payload dense vectors; `.nztxt` for sparse strings). The `.zip` /
+# `.<comp>.zip` suffixes cover packed dense + packed sparse-component shards.
+.REORDER_VECTOR_SUFFIXES <- c(".json", ".data", ".txt", ".nzind", ".nzval",
+                              ".nztxt", ".zip", ".nzind.zip", ".nzval.zip")
+.REORDER_MATRIX_SUFFIXES <- c(".json", ".data", ".txt", ".colptr", ".rowval",
+                              ".nzval", ".nztxt", ".zip", ".colptr.zip",
+                              ".rowval.zip", ".nzval.zip")
 
 .reorder_backup_root <- function(daf) {
     file.path(.files_root(daf), .REORDER_BACKUP_DIR)
@@ -574,6 +617,7 @@ S7::method(
     src_vec <- format_get_vector(daf, pv$axis, pv$name)$value
     pa <- plan$planned_axes[[pv$axis]]
     vdir <- .path_vector_dir(root, pv$axis)
+    packed <- .files_is_packed_writer(daf)
     .reorder_unlink_vector_payload(vdir, pv$name)
     if (methods::is(src_vec, "sparseVector")) {
         # Permute sparse: nzi'_k = inverse_permutation[nzi_k].
@@ -586,10 +630,10 @@ S7::method(
         indtype <- .indtype_for_size(n)
         .files_write_vector_sparse_numeric(vdir, pv$name,
                                            new_nzi, new_nzv,
-                                           eltype, indtype)
+                                           eltype, indtype, packed = packed)
     } else {
         permuted <- src_vec[pa$permutation]
-        .files_write_vector_dense(vdir, pv$name, permuted)
+        .files_write_vector_dense(vdir, pv$name, permuted, packed = packed)
     }
     invisible()
 }
@@ -604,25 +648,32 @@ S7::method(
     c_perm <- if (!is.null(pc)) pc$permutation else seq_len(ncol(src_mat))
     permuted <- src_mat[r_perm, c_perm, drop = FALSE]
     mdir <- .path_matrix_dir(root, pm$rows_axis, pm$columns_axis)
+    packed <- .files_is_packed_writer(daf)
     .reorder_unlink_matrix_payload(mdir, pm$name)
     if (methods::is(permuted, "dgCMatrix") ||
         methods::is(permuted, "lgCMatrix")) {
-        .files_write_matrix_sparse(mdir, pm$name, permuted)
+        .files_write_matrix_sparse(mdir, pm$name, permuted, packed = packed)
     } else {
-        # Dense matrix: write column-major .data + descriptor.
+        # Dense matrix: write column-major .data + descriptor (or packed shard).
         dtype <- .dtype_for_r_vector(as.vector(permuted))
+        desc_path <- file.path(mdir, paste0(pm$name, ".json"))
         if (dtype == "String") {
             con <- file(file.path(mdir, paste0(pm$name, ".txt")),
                         open = "wb", encoding = "UTF-8")
             writeLines(as.vector(permuted), con, useBytes = FALSE)
             close(con)
+            .write_descriptor_dense(desc_path, dtype)
+        } else if (packed && .files_matrix_should_pack(nrow(permuted),
+                                                       tolower(dtype))) {
+            desc <- .files_write_dense_matrix_packed(
+                file.path(mdir, pm$name), permuted,
+                dtype = tolower(dtype), eltype = dtype)
+            .write_descriptor_packed(desc_path, desc)
         } else {
             .write_bin_dense(file.path(mdir, paste0(pm$name, ".data")),
                              as.vector(permuted), dtype)
+            .write_descriptor_dense(desc_path, dtype)
         }
-        .write_descriptor_dense(
-            file.path(mdir, paste0(pm$name, ".json")), dtype
-        )
     }
     invisible()
 }

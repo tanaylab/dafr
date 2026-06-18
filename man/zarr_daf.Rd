@@ -4,7 +4,12 @@
 \alias{zarr_daf}
 \title{Open a Zarr-backed Daf store.}
 \usage{
-zarr_daf(uri = NULL, mode = c("r", "r+", "w", "w+"), name = NULL)
+zarr_daf(
+  uri = NULL,
+  mode = c("r", "r+", "w", "w+"),
+  name = NULL,
+  packed = FALSE
+)
 }
 \arguments{
 \item{uri}{Filesystem directory path, \verb{:memory:}, or \code{NULL}.}
@@ -15,6 +20,13 @@ truncates any existing store and creates a fresh one. \code{"r+"}
 opens for read-write without truncating. \code{"r"} opens read-only.}
 
 \item{name}{Optional name; default derived from \code{uri}.}
+
+\item{packed}{If \code{TRUE} (write modes only), dense vectors, dense
+matrices, and sparse-component arrays that exceed the packed-write
+size threshold are written as sharded (compressed) Zarr v3 arrays
+instead of flat; scalars and axes always stay flat. Per-component
+and threshold-gated, so a store may mix flat and packed components.
+Tunable via \code{options(dafr.packed_compression=, dafr.packed_compression_level=, dafr.packed_target_chunk_kb=)}.}
 }
 \value{
 A \code{ZarrDaf} (writeable) or \code{ZarrDafReadOnly}.
