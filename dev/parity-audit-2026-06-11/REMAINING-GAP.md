@@ -102,31 +102,32 @@ insist-on-collision; computation() overwrite (COMP-01); **anndata dense `/X` +
   flat where Julia's Int64 index packs them - correct per the byte-size threshold.
   ZipDaf is NOT covered (dafr has no `zip_daf`/`ZipDaf` writer at all).
 
+- **http/files root `metadata.json` interop (cross-language serving).**
+  Decision: adopt Julia's schema. dafr now writes a single root `metadata.json`
+  (the DataAxesFormats consolidated index) instead of `metadata.zip`; HttpDaf
+  enumerates a remote store from it. Bidirectionally interop-verified with
+  DAF 0.3.0 (Julia reads dafr-written stores and vice-versa). Clean break:
+  `metadata.zip` is no longer written or read; `pack_files_daf_metadata(path)`
+  migrates an old store (or one modified outside dafr). Side benefit: the index
+  now works on Windows (`metadata.zip` was POSIX-only). Shipped in dafr 0.5.0.
+
+- **`complete_daf` `base_daf_view` JSON cross-language format.** Decision: adopt
+  Julia's reader schema. dafr now serialises the view spec as an array of
+  single-key objects (`[{"cell":"="}, ...]`) - the form Julia's reader accepts.
+  NB: Julia's OWN WRITER emits an incompatible object form its own reader cannot
+  parse (upstream bug in DataAxesFormats.jl); dafr targets the reader, not the
+  writer, and dafr's reader tolerates both forms. Bidirectionally interop-verified
+  with DAF 0.3.0. Shipped in dafr 0.5.0.
+
 ## OPEN - genuinely fixable (priority order)
 
 (none) - all genuinely-fixable, non-design-decision parity gaps are now closed.
-What remains is the two cross-language DESIGN decisions below, the INHERENT
-R-type limits, and the deferred backends.
+What remains is the INHERENT R-type limits and the deferred backends.
 
 ## OPEN - needs a DESIGN decision first (not a straight code fix)
 
-1. **http/files root `metadata.json` interop (cross-language serving).**
-   Probes: `files-meta-json-missing`, `files-http-client-cross`.
-   Files: `R/files_*.R`, `R/http_*.R`. dafr writes a `metadata.zip`; Julia
-   writes a root `metadata.json`. Pick the canonical on-disk layout so a dafr
-   store can be served to / read by Julia and vice-versa. Decide layout before
-   coding.
-
-2. **`complete_daf` `base_daf_view` JSON cross-language format.** Probe:
-   `complete-view-json-xlang`. File: `R/complete.R` (`complete_chain` writes
-   `jsonlite::toJSON(list(axes=, data=))` positional arrays;
-   `complete_daf`/`.normalise_json_spec` read it back). Julia
-   (`chains.jl:186-190`) serialises single-key objects with paren-tuple matrix
-   keys, e.g. `{"axes":[{"cell":"="}], "data":[{"(cell,gene,umi)":"="}]}`. The
-   two schemas are structurally incompatible, so a chain written by one language
-   cannot be reopened by the other. Same flavour as the metadata.json item:
-   pick a canonical view-spec JSON schema (adopt Julia's, most likely) before
-   coding. The intra-dafr round-trip works today; this is purely cross-language.
+(none) - both design-decision items are now resolved and implemented (see DONE
+section above).
 
 ## CLOSED BY DESIGN - do NOT "fix" (dafr is intentionally correct/safer)
 

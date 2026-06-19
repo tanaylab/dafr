@@ -1,3 +1,20 @@
+# dafr 0.5.0
+
+Cross-language JSON parity with DataAxesFormats.jl: dafr now reads and writes
+Julia's exact `metadata.json` store index and `base_daf_view` chain spec.
+
+* **FilesDaf/HttpDaf root `metadata.json`.** FilesDaf now writes a single root
+  `metadata.json` (the DataAxesFormats consolidated index) instead of a
+  `metadata.zip` bundle; HttpDaf enumerates a remote store from it. A
+  dafr-written store is now readable by DataAxesFormats.jl 0.3.0 and vice-versa,
+  and the index now works on Windows (it was POSIX-only before). Migrate an older
+  (metadata.zip) store, or one modified outside dafr, with
+  `pack_files_daf_metadata(path)`. (Breaking: dafr no longer writes or reads
+  `metadata.zip`; an old store served over HTTP must be re-packed first.)
+* **complete_daf `base_daf_view`.** The persisted chain view spec now uses the
+  JSON schema DataAxesFormats' reader accepts, so a chain written by one language
+  reopens in the other.
+
 # dafr 0.4.9
 
 Maintenance release - no user-facing changes. Drops a non-portable test
