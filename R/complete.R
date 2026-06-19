@@ -29,6 +29,29 @@ NULL
     as.character(jsonlite::toJSON(spec, auto_unbox = TRUE))
 }
 
+# Decode a Julia data-key back to a dafr view key: a tuple-encoded string
+# '("cell", "age")' -> c("cell","age"); a plain name stays a string. Mirrors
+# Julia's parse: map ()->[] and JSON-parse.
+.view_decode_key <- function(key) {
+    if (startsWith(key, "(") && endsWith(key, ")")) {
+        bracketed <- paste0("[", substr(key, 2L, nchar(key) - 1L), "]")
+        return(unlist(jsonlite::fromJSON(bracketed), use.names = FALSE))
+    }
+    key
+}
+
+# Parse a Julia base_daf_view object (axes or data) into dafr's viewer spec form:
+# a list of list(key, query). `spec_obj` is the parsed named list (from
+# fromJSON(simplifyVector=FALSE)); names are the keys, values the query strings.
+.view_spec_from_julia_json <- function(spec_obj, is_data) {
+    if (is.null(spec_obj) || length(spec_obj) == 0L) return(NULL)
+    keys <- names(spec_obj)
+    lapply(seq_along(spec_obj), function(i) {
+        k <- if (is_data) .view_decode_key(keys[[i]]) else keys[[i]]
+        list(k, as.character(spec_obj[[i]]))
+    })
+}
+
 #' Create a persistent chain by linking `new_daf` to a `base_daf`.
 #'
 #' Writes a `base_daf_repository` scalar on `new_daf` that points at
