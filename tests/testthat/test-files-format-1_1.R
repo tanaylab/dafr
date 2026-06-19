@@ -132,11 +132,8 @@ test_that("files_daf rejects a 'zipped'-only packed component (no Zarr index)", 
 
 test_that("http_daf reads a FilesFormat v1.1 repo served over HTTP", {
     skip_on_cran()
-    # http_daf reads metadata.json as of Task 8; until that lands this test
-    # would 404 on metadata.zip. Skip unconditionally here; the full http test
-    # suite covers it.
-    testthat::skip("http_daf + metadata.json wiring deferred to Task 8")
-    skip_if_no_mmap_zip()  # POSIX-only HTTP server helpers
+    skip_if_not_installed("processx")
+    skip_if_not(nzchar(Sys.which("python")))
     p <- tempfile(fileext = ".daf")
     on.exit(unlink(p, recursive = TRUE, force = TRUE), add = TRUE)
     d <- files_daf(p, "w")
