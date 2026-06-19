@@ -1,6 +1,33 @@
 #' @include classes.R files_daf.R memory_daf.R chain_daf.R view_daf.R readers.R writers.R
 NULL
 
+# Julia data-key for a view-data entry key: a scalar name stays a plain string;
+# a 2/3-element vector/matrix key becomes the stringified Julia tuple, e.g.
+# c("cell","age") -> '("cell", "age")' (matches DataAxesFormats JSON of a
+# Tuple dict key; the reader maps ()->[] and JSON-parses it back).
+.view_data_key <- function(key) {
+    if (length(key) == 1L) return(as.character(key))
+    paste0("(", paste0('"', key, '"', collapse = ", "), ")")
+}
+
+# Serialize viewer axes/data (each a list of list(key,value) or list(name=value)
+# items) to Julia's base_daf_view object JSON: {"axes":{name:query},
+# "data":{datakey:query}}. Empty axes/data are omitted.
+.view_spec_to_julia_json <- function(axes, data) {
+    to_obj <- function(items, is_data) {
+        if (is.null(items) || length(items) == 0L) return(NULL)
+        parsed <- lapply(items, .parse_view_item)
+        keys <- vapply(parsed, function(p)
+            if (is_data) .view_data_key(p$key) else as.character(p$key),
+            character(1L))
+        vals <- lapply(parsed, function(p) jsonlite::unbox(as.character(p$value)))
+        stats::setNames(vals, keys)
+    }
+    spec <- list()
+    a <- to_obj(axes, FALSE); if (!is.null(a)) spec$axes <- a
+    d <- to_obj(data, TRUE);  if (!is.null(d)) spec$data <- d
+    as.character(jsonlite::toJSON(spec, auto_unbox = TRUE))
+}
 
 #' Create a persistent chain by linking `new_daf` to a `base_daf`.
 #'
