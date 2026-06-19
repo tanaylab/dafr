@@ -45,16 +45,21 @@ test_that(".metadata_json_append adds one entry without a full rebuild", {
     expect_equal(m[["axes/cell"]], list(format = "axis", n_entries = 3L))
 })
 
-test_that(".metadata_json_append rebuilds on collision (overwrite)", {
+test_that(".metadata_json_append rebuilds (byte-preserving) on collision", {
     root <- withr::local_tempdir()
-    d <- files_daf(root, mode = "w+", name = "m"); add_axis(d, "cell", c("a","b"))
-    dafr:::.metadata_json_rebuild(root)
-    dafr:::.metadata_json_append(root, "scalars/x", '{"type":"Int32","value":1}')
-    dafr:::.metadata_json_append(root, "scalars/x", '{"type":"Int32","value":2}')
+    d <- files_daf(root, mode = "w+", name = "m")
+    add_axis(d, "cell", c("a", "b"))
+    set_scalar(d, "x", 1L)                       # writes scalars/x.json on disk
+    dafr:::.metadata_json_rebuild(root)          # metadata.json: scalars/x = {Int32,1}
+    # Simulate an overwrite: the per-property descriptor on disk now holds value 2
+    # (production: set_scalar overwrites scalars/x.json, THEN appends).
+    writeLines('{"type":"Int32","value":2}',
+               file.path(root, "scalars", "x.json"))
+    dafr:::.metadata_json_append(root, "scalars/x",
+                                 '{"type":"Int32","value":2}')  # collision -> rebuild
     m <- jsonlite::fromJSON(file.path(root, "metadata.json"), simplifyVector = FALSE)
-    # no duplicate key; last write wins is not required, but it must be valid JSON
-    expect_true(is.list(m[["scalars/x"]]))
-    expect_equal(sum(names(m) == "scalars/x"), 1L)
+    expect_equal(m[["scalars/x"]], list(type = "Int32", value = 2L))  # new value
+    expect_equal(sum(names(m) == "scalars/x"), 1L)                    # no duplicate
 })
 
 test_that("pack_files_daf_metadata rebuilds a valid metadata.json", {

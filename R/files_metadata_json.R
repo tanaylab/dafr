@@ -63,29 +63,16 @@ NULL
 
 # Append "<key>":<descriptor> to an existing metadata.json (read, insert before
 # the trailing "}"). Rebuilds from tree if the file is missing. On a key
-# collision (overwrite), parses the existing JSON, drops the old entry, and
-# re-serialises with the new descriptor appended - keeping the file consistent
-# without a full tree walk.
+# collision (overwrite), rebuilds from the tree so that per-property .json
+# descriptors are inlined verbatim - byte-preserving, matching Julia behaviour.
+# In production the caller writes the new per-property .json to disk BEFORE
+# calling append, so the rebuild reads the updated descriptor automatically.
 .metadata_json_append <- function(root, key, descriptor) {
     p <- file.path(root, .METADATA_JSON)
     if (!file.exists(p)) return(.metadata_json_rebuild(root))
     cur <- paste(readLines(p, warn = FALSE), collapse = "")
     if (grepl(paste0('"', key, '":'), cur, fixed = TRUE)) {
-        # Collision: parse, drop old entry, re-assemble (preserves order of
-        # remaining keys, avoids hand-rolling recursive JSON string surgery).
-        existing <- jsonlite::fromJSON(cur, simplifyVector = FALSE)
-        existing[[key]] <- NULL
-        # Re-encode remaining entries as raw fragments and re-assemble.
-        if (length(existing) == 0L) {
-            cur <- "{}"
-        } else {
-            frags <- vapply(
-                names(existing),
-                function(k) paste0('"', k, '":', jsonlite::toJSON(existing[[k]], auto_unbox = TRUE)),
-                character(1L)
-            )
-            cur <- paste0("{", paste(frags, collapse = ","), "}")
-        }
+        return(.metadata_json_rebuild(root))   # collision -> rebuild from tree
     }
     inner <- sub("\\}\\s*$", "", cur)
     sep <- if (identical(trimws(inner), "{")) "" else ","
