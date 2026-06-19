@@ -6,7 +6,7 @@
 #'
 #' @section Concurrent access:
 #' `files_daf` does not lock the store. Two writers opening the same
-#' path in mode `"r+"` or `"w+"` will race on `metadata.zip` rebuilds
+#' path in mode `"r+"` or `"w+"` will race on `metadata.json` rebuilds
 #' and per-entry JSON writes, with no guarantee of last-writer-wins
 #' consistency. The supported pattern is single-writer plus arbitrary
 #' read-only readers; cross-process concurrency must be coordinated
@@ -82,7 +82,7 @@ files_daf <- function(path, mode = c("r", "r+", "w", "w+"), name = NULL,
     # opens leave the backup alone (no permission to mutate).
     if (mode %in% c("r+", "w+")) {
         .files_daf_recover_reorder(daf)
-        .ensure_metadata_zip(path)
+        .metadata_json_ensure(path)
     }
     daf
 }
@@ -233,14 +233,13 @@ S7::method(.is_leaf_dispatch, FilesDafReadOnly) <- function(daf) TRUE
     for (sub in c("scalars", "axes", "vectors", "matrices")) {
         dir.create(file.path(path, sub), recursive = TRUE, showWarnings = FALSE)
     }
-    .write_axes_metadata(path)  # axes/metadata.json: empty array on fresh init
     if (!file.exists(file.path(path, "daf.json"))) {
         # FilesFormat v1.1 (matches DataAxesFormats.jl 0.3.0; the reader accepts
         # both 1.0 and 1.1). The only on-disk difference vs 1.0 is the sparse
         # JSON descriptor shape; binary payloads are unchanged.
         writeLines('{"version":[1,1]}', con = file.path(path, "daf.json"), sep = "\n")
     }
-    .metadata_zip_rebuild(path)
+    .metadata_json_rebuild(path)
     invisible()
 }
 
