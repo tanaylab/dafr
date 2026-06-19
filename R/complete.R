@@ -26,7 +26,7 @@ NULL
     spec <- list()
     a <- to_obj(axes, FALSE); if (!is.null(a)) spec$axes <- a
     d <- to_obj(data, TRUE);  if (!is.null(d)) spec$data <- d
-    as.character(jsonlite::toJSON(spec, auto_unbox = TRUE))
+    as.character(jsonlite::toJSON(spec))
 }
 
 # Decode a Julia data-key back to a dafr view key: a tuple-encoded string
@@ -112,9 +112,8 @@ complete_chain <- function(base_daf, new_daf, name = NULL,
     reader <- if (is.null(axes) && is.null(data)) {
         base_daf
     } else {
-        spec <- list(axes = axes, data = data)
         format_set_scalar(new_daf, "base_daf_view",
-                          jsonlite::toJSON(spec, auto_unbox = TRUE),
+                          .view_spec_to_julia_json(axes, data),
                           overwrite = TRUE)
         viewer(base_daf, axes = axes, data = data,
                name = paste0(S7::prop(base_daf, "name"), ".view"))
@@ -228,8 +227,8 @@ complete_daf <- function(leaf, mode = "r", name = NULL) {
             chain_reader(base_readers, name = paste0(chain_name, ".base"))
         }
         viewed_base <- viewer(base_chain, name = paste0(chain_name, ".view"),
-            axes = .normalise_json_spec(spec$axes),
-            data = .normalise_json_spec(spec$data))
+            axes = .view_spec_from_julia_json(spec$axes, is_data = FALSE),
+            data = .view_spec_from_julia_json(spec$data, is_data = TRUE))
         readers <- list(viewed_base, leaf_daf)
     }
 
@@ -240,25 +239,4 @@ complete_daf <- function(leaf, mode = "r", name = NULL) {
     } else {
         chain_writer(readers, name = chain_name)
     }
-}
-
-# fromJSON with simplifyVector = FALSE returns JSON arrays of strings as R
-# lists rather than character vectors. viewer() (via .parse_view_item) expects
-# the key of a matrix item to be a character vector, not a list. This helper
-# converts all-character inner lists to vectors so the spec is viewer-ready.
-.normalise_json_spec <- function(x) {
-    if (is.null(x) || length(x) == 0L) return(x)
-    lapply(x, function(item) {
-        if (!is.list(item)) return(item)
-        # key-value pair: list(key, value) where key may be a char-list
-        if (length(item) == 2L && is.null(names(item)) &&
-            (is.character(item[[2L]]) || is.null(item[[2L]]))) {
-            key <- item[[1L]]
-            if (is.list(key) && all(vapply(key, is.character, logical(1L)))) {
-                key <- unlist(key, use.names = FALSE)
-            }
-            return(list(key, item[[2L]]))
-        }
-        item
-    })
 }
