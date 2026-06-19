@@ -10,22 +10,23 @@ NULL
     paste0("(", paste0('"', key, '"', collapse = ", "), ")")
 }
 
-# Serialize viewer axes/data (each a list of list(key,value) or list(name=value)
-# items) to Julia's base_daf_view object JSON: {"axes":{name:query},
-# "data":{datakey:query}}. Empty axes/data are omitted.
+# Serialize viewer axes/data to Julia's base_daf_view JSON: an object with
+# "axes"/"data" arrays of single-key objects ({name:query} / {datakey:query}).
+# This is the shape DataAxesFormats' parse_view_parameters accepts (its own
+# writer emits a single merged object which its reader cannot parse - upstream
+# bug; we target the reader). Empty axes/data are omitted.
 .view_spec_to_julia_json <- function(axes, data) {
-    to_obj <- function(items, is_data) {
+    to_arr <- function(items, is_data) {
         if (is.null(items) || length(items) == 0L) return(NULL)
         parsed <- lapply(items, .parse_view_item)
-        keys <- vapply(parsed, function(p)
-            if (is_data) .view_data_key(p$key) else as.character(p$key),
-            character(1L))
-        vals <- lapply(parsed, function(p) jsonlite::unbox(as.character(p$value)))
-        stats::setNames(vals, keys)
+        lapply(parsed, function(p) {
+            k <- if (is_data) .view_data_key(p$key) else as.character(p$key)
+            stats::setNames(list(jsonlite::unbox(as.character(p$value))), k)
+        })
     }
     spec <- list()
-    a <- to_obj(axes, FALSE); if (!is.null(a)) spec$axes <- a
-    d <- to_obj(data, TRUE);  if (!is.null(d)) spec$data <- d
+    a <- to_arr(axes, FALSE); if (!is.null(a)) spec$axes <- a
+    d <- to_arr(data, TRUE);  if (!is.null(d)) spec$data <- d
     as.character(jsonlite::toJSON(spec))
 }
 
@@ -45,15 +46,24 @@ NULL
     key
 }
 
-# Parse a Julia base_daf_view object (axes or data) into dafr's viewer spec form:
-# a list of list(key, query). `spec_obj` is the parsed named list (from
-# fromJSON(simplifyVector=FALSE)); names are the keys, values the query strings.
+# Parse a Julia base_daf_view axes/data value into dafr's viewer spec form: a
+# list of list(key, query). Accepts both the array-of-single-key-objects form
+# (what dafr writes / Julia's reader expects) and the single-object form (what
+# Julia's buggy writer emits), so dafr can read either. `spec_obj` is the parsed
+# value from fromJSON(simplifyVector=FALSE).
 .view_spec_from_julia_json <- function(spec_obj, is_data) {
     if (is.null(spec_obj) || length(spec_obj) == 0L) return(NULL)
-    keys <- names(spec_obj)
-    lapply(seq_along(spec_obj), function(i) {
-        k <- if (is_data) .view_decode_key(keys[[i]]) else keys[[i]]
-        list(k, as.character(spec_obj[[i]]))
+    pairs <- if (!is.null(names(spec_obj))) {
+        # object form: names are the keys
+        Map(function(k, v) list(k, as.character(v)), names(spec_obj), spec_obj)
+    } else {
+        # array form: each element is a single-key named list
+        lapply(spec_obj, function(el) list(names(el)[[1L]], as.character(el[[1L]])))
+    }
+    pairs <- unname(pairs)
+    lapply(pairs, function(p) {
+        k <- if (is_data) .view_decode_key(p[[1L]]) else p[[1L]]
+        list(k, p[[2L]])
     })
 }
 

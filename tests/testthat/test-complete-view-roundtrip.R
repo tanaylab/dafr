@@ -134,8 +134,8 @@ test_that("complete_chain writes Julia-schema base_daf_view and reopens", {
                    data = list(list(c("cell", "gene", "expr"), "=")))
     raw <- format_get_scalar(open_daf(ndir, "r"), "base_daf_view")$value
     obj <- jsonlite::fromJSON(raw, simplifyVector = FALSE)
-    expect_equal(obj$axes$cell, "=")                       # object, not array
-    expect_equal(obj$data[['("cell", "gene", "expr")']], "=")
+    expect_equal(obj$axes[[1]]$cell, "=")                  # array of single-key objects
+    expect_equal(obj$data[[1]][['("cell", "gene", "expr")']], "=")
     ch <- complete_daf(ndir, "r")
     expect_equal(as.numeric(get_matrix(ch, "cell", "gene", "expr")),
                  as.numeric(1:12))
