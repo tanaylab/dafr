@@ -106,6 +106,7 @@ Collate:
     'files_io.R'
     'files_daf_read.R'
     'files_daf_write.R'
+    'files_metadata_json.R'
     'files_metadata_zip.R'
     'zarr_v3.R'
     'zarr_sharded.R'
