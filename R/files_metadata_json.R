@@ -54,6 +54,9 @@ NULL
     text <- .metadata_json_assemble(.metadata_json_entries(root))
     tmp <- file.path(root, paste0(.METADATA_JSON, ".new"))
     writeLines(text, tmp, useBytes = TRUE)
-    file.rename(tmp, file.path(root, .METADATA_JSON))
+    if (!file.rename(tmp, file.path(root, .METADATA_JSON))) {
+        stop(sprintf(".metadata_json_rebuild: failed to rename %s", tmp),
+             call. = FALSE)
+    }
     invisible()
 }
