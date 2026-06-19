@@ -37,3 +37,10 @@ test_that(".view_spec_to_julia_json matches the Julia object schema", {
     # empty axes/data omitted entirely
     expect_false(grepl("data", dafr:::.view_spec_to_julia_json(axes, NULL)))
 })
+
+test_that(".view_decode_key falls back for a paren-wrapped plain name", {
+    # A scalar/column genuinely named "(foo)" is not a valid tuple; must not crash.
+    expect_equal(dafr:::.view_decode_key("(foo)"), "(foo)")
+    # A real tuple still decodes to a character vector.
+    expect_equal(dafr:::.view_decode_key('("cell", "age")'), c("cell", "age"))
+})

@@ -30,12 +30,17 @@ NULL
 }
 
 # Decode a Julia data-key back to a dafr view key: a tuple-encoded string
-# '("cell", "age")' -> c("cell","age"); a plain name stays a string. Mirrors
-# Julia's parse: map ()->[] and JSON-parse.
+# '("cell", "age")' -> c("cell","age"); a plain name (incl. one that merely
+# starts/ends with parens but is not a valid tuple) stays a string. Mirrors
+# Julia's parse: map ()->[] and JSON-parse, falling back to the literal key.
 .view_decode_key <- function(key) {
     if (startsWith(key, "(") && endsWith(key, ")")) {
         bracketed <- paste0("[", substr(key, 2L, nchar(key) - 1L), "]")
-        return(unlist(jsonlite::fromJSON(bracketed), use.names = FALSE))
+        result <- tryCatch(
+            unlist(jsonlite::fromJSON(bracketed), use.names = FALSE),
+            error = function(e) NULL
+        )
+        if (!is.null(result)) return(result)
     }
     key
 }
