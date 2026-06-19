@@ -60,3 +60,60 @@ NULL
     }
     invisible()
 }
+
+# Append "<key>":<descriptor> to an existing metadata.json (read, insert before
+# the trailing "}"). Rebuilds from tree if the file is missing. On a key
+# collision (overwrite), parses the existing JSON, drops the old entry, and
+# re-serialises with the new descriptor appended - keeping the file consistent
+# without a full tree walk.
+.metadata_json_append <- function(root, key, descriptor) {
+    p <- file.path(root, .METADATA_JSON)
+    if (!file.exists(p)) return(.metadata_json_rebuild(root))
+    cur <- paste(readLines(p, warn = FALSE), collapse = "")
+    if (grepl(paste0('"', key, '":'), cur, fixed = TRUE)) {
+        # Collision: parse, drop old entry, re-assemble (preserves order of
+        # remaining keys, avoids hand-rolling recursive JSON string surgery).
+        existing <- jsonlite::fromJSON(cur, simplifyVector = FALSE)
+        existing[[key]] <- NULL
+        # Re-encode remaining entries as raw fragments and re-assemble.
+        if (length(existing) == 0L) {
+            cur <- "{}"
+        } else {
+            frags <- vapply(
+                names(existing),
+                function(k) paste0('"', k, '":', jsonlite::toJSON(existing[[k]], auto_unbox = TRUE)),
+                character(1L)
+            )
+            cur <- paste0("{", paste(frags, collapse = ","), "}")
+        }
+    }
+    inner <- sub("\\}\\s*$", "", cur)
+    sep <- if (identical(trimws(inner), "{")) "" else ","
+    entry <- paste0('"', key, '":', descriptor)
+    writeLines(paste0(inner, sep, entry, "}"), p, useBytes = TRUE)
+    invisible()
+}
+
+# Rebuild metadata.json if absent (writable-open seed).
+.metadata_json_ensure <- function(root) {
+    if (!file.exists(file.path(root, .METADATA_JSON))) .metadata_json_rebuild(root)
+    invisible()
+}
+
+#' Rebuild a FilesDaf store's root metadata.json index.
+#'
+#' Writes the DataAxesFormats-compatible `metadata.json` consolidated index from
+#' the on-disk tree. Use to migrate a store written by an older dafr (which used
+#' `metadata.zip`) or modified outside dafr, so it can be served over HTTP and
+#' read by DataAxesFormats.jl.
+#'
+#' @param path FilesDaf store root directory.
+#' @return `path`, invisibly.
+#' @export
+pack_files_daf_metadata <- function(path) {
+    if (!dir.exists(path)) {
+        stop(sprintf("not a directory: %s", sQuote(path)), call. = FALSE)
+    }
+    .metadata_json_rebuild(path)
+    invisible(path)
+}

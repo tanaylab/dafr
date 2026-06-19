@@ -2,7 +2,7 @@
 NULL
 
 # Platform check, factored out so the Windows-specific no-op paths in
-# .metadata_zip_rebuild / .metadata_zip_append / pack_files_daf_metadata
+# .metadata_zip_rebuild / .metadata_zip_append
 # can be exercised on POSIX hosts via testthat::local_mocked_bindings().
 .is_windows <- function() .Platform$OS.type == "windows"
 
@@ -168,40 +168,3 @@ NULL
     invisible()
 }
 
-#' Pack a FilesDaf directory's JSON metadata into `metadata.zip`.
-#'
-#' Walks `path` and bundles `daf.json`, `axes/metadata.json`, every
-#' `scalars/*.json`, every `vectors/<axis>/*.json`, and every
-#' `matrices/<rows>/<cols>/*.json` into a single `path/metadata.zip` archive,
-#' written atomically via `metadata.zip.new` + rename. Required for serving a
-#' FilesDaf over HTTP via [http_daf()]; from dafr 0.2.0 onward, FilesDaf
-#' writes maintain the bundle automatically — call this only to repack a
-#' tree that was built by an older dafr (pre-0.2.0) or modified outside
-#' dafr.
-#'
-#' @param path Directory path to a FilesDaf root.
-#' @return The absolute path to the written `metadata.zip`, invisibly.
-#' @examples
-#' # The underlying mmap-zip writer is POSIX-only.
-#' if (.Platform$OS.type != "windows") {
-#'   p <- tempfile("daf-")
-#'   files_daf(p, "w+")
-#'   pack_files_daf_metadata(p)
-#' }
-#' @export
-pack_files_daf_metadata <- function(path) {
-    stopifnot(is.character(path), length(path) == 1L, !is.na(path))
-    if (!file.exists(file.path(path, "daf.json"))) {
-        stop(sprintf("pack_files_daf_metadata: %s is not a FilesDaf directory (no daf.json)",
-                     sQuote(path)), call. = FALSE)
-    }
-    if (.is_windows()) {
-        stop(
-            "pack_files_daf_metadata: not supported on Windows. The ",
-            "underlying mmap-zip writer is POSIX-only; ",
-            "run on Linux/macOS if you need a servable archive.",
-            call. = FALSE
-        )
-    }
-    invisible(.metadata_zip_rebuild(path))
-}

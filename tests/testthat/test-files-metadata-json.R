@@ -33,3 +33,36 @@ test_that(".metadata_json_rebuild covers sparse + both relayout orientations", {
     expect_equal(sp$nzval$n_elements, 2L)
     expect_equal(sp$colptr$n_elements, 4L)   # ncol+1 = 3+1
 })
+
+test_that(".metadata_json_append adds one entry without a full rebuild", {
+    root <- withr::local_tempdir()
+    d <- files_daf(root, mode = "w+", name = "m")
+    add_axis(d, "cell", paste0("c", 1:3))
+    dafr:::.metadata_json_rebuild(root)
+    dafr:::.metadata_json_append(root, "scalars/x", '{"type":"Int32","value":9}')
+    m <- jsonlite::fromJSON(file.path(root, "metadata.json"), simplifyVector = FALSE)
+    expect_equal(m[["scalars/x"]], list(type = "Int32", value = 9L))
+    expect_equal(m[["axes/cell"]], list(format = "axis", n_entries = 3L))
+})
+
+test_that(".metadata_json_append rebuilds on collision (overwrite)", {
+    root <- withr::local_tempdir()
+    d <- files_daf(root, mode = "w+", name = "m"); add_axis(d, "cell", c("a","b"))
+    dafr:::.metadata_json_rebuild(root)
+    dafr:::.metadata_json_append(root, "scalars/x", '{"type":"Int32","value":1}')
+    dafr:::.metadata_json_append(root, "scalars/x", '{"type":"Int32","value":2}')
+    m <- jsonlite::fromJSON(file.path(root, "metadata.json"), simplifyVector = FALSE)
+    # no duplicate key; last write wins is not required, but it must be valid JSON
+    expect_true(is.list(m[["scalars/x"]]))
+    expect_equal(sum(names(m) == "scalars/x"), 1L)
+})
+
+test_that("pack_files_daf_metadata rebuilds a valid metadata.json", {
+    root <- withr::local_tempdir()
+    d <- files_daf(root, mode = "w+", name = "m"); add_axis(d, "cell", c("a","b"))
+    unlink(file.path(root, "metadata.json"))
+    pack_files_daf_metadata(root)
+    expect_true(file.exists(file.path(root, "metadata.json")))
+    m <- jsonlite::fromJSON(file.path(root, "metadata.json"), simplifyVector = FALSE)
+    expect_equal(m[["axes/cell"]], list(format = "axis", n_entries = 2L))
+})
