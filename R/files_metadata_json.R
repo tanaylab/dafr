@@ -38,6 +38,7 @@ NULL
             ent[[key]] <- .metadata_json_inline(file.path(sdir, jf))
         }
     }
+    if (length(ent) == 0L) return(ent)
     ent[order(names(ent))]
 }
 
@@ -100,6 +101,10 @@ NULL
 pack_files_daf_metadata <- function(path) {
     if (!dir.exists(path)) {
         stop(sprintf("not a directory: %s", sQuote(path)), call. = FALSE)
+    }
+    if (!file.exists(file.path(path, "daf.json"))) {
+        stop(sprintf("not a FilesDaf store (no daf.json): %s", sQuote(path)),
+             call. = FALSE)
     }
     .metadata_json_rebuild(path)
     invisible(path)

@@ -71,3 +71,16 @@ test_that("pack_files_daf_metadata rebuilds a valid metadata.json", {
     m <- jsonlite::fromJSON(file.path(root, "metadata.json"), simplifyVector = FALSE)
     expect_equal(m[["axes/cell"]], list(format = "axis", n_entries = 2L))
 })
+
+test_that(".metadata_json_rebuild handles an empty store (no properties)", {
+    root <- withr::local_tempdir()
+    dir.create(root, recursive = TRUE, showWarnings = FALSE)
+    writeLines('{"version":[1,1]}', file.path(root, "daf.json"))
+    dafr:::.metadata_json_rebuild(root)   # must not crash
+    expect_equal(readLines(file.path(root, "metadata.json")), "{}")
+})
+
+test_that("pack_files_daf_metadata rejects a non-FilesDaf directory", {
+    d <- withr::local_tempdir()
+    expect_error(pack_files_daf_metadata(d), "no daf.json")
+})
