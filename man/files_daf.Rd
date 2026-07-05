@@ -38,7 +38,7 @@ Writes are non-atomic; only one writer may touch a store at a time.
 \section{Concurrent access}{
 
 \code{files_daf} does not lock the store. Two writers opening the same
-path in mode \code{"r+"} or \code{"w+"} will race on \code{metadata.zip} rebuilds
+path in mode \code{"r+"} or \code{"w+"} will race on \code{metadata.json} rebuilds
 and per-entry JSON writes, with no guarantee of last-writer-wins
 consistency. The supported pattern is single-writer plus arbitrary
 read-only readers; cross-process concurrency must be coordinated

@@ -122,6 +122,25 @@ test_that("complete_daf r+ reopen keeps the leaf writable on a viewed chain", {
     expect_identical(get_scalar(reopened, "leaf_note"), "hi")
 })
 
+test_that("complete_chain writes Julia-schema base_daf_view and reopens", {
+    root <- withr::local_tempdir()
+    bdir <- file.path(root, "base"); ndir <- file.path(root, "new")
+    base <- files_daf(bdir, name = "base", mode = "w+")
+    add_axis(base, "cell", paste0("c", 1:4)); add_axis(base, "gene", paste0("g", 1:3))
+    set_matrix(base, "cell", "gene", "expr", matrix(as.numeric(1:12), 4, 3))
+    new <- files_daf(ndir, name = "new", mode = "w+")
+    complete_chain(base_daf = base, new_daf = new, absolute = TRUE,
+                   axes = list(list("cell", "="), list("gene", "=")),
+                   data = list(list(c("cell", "gene", "expr"), "=")))
+    raw <- format_get_scalar(open_daf(ndir, "r"), "base_daf_view")$value
+    obj <- jsonlite::fromJSON(raw, simplifyVector = FALSE)
+    expect_equal(obj$axes[[1]]$cell, "=")                  # array of single-key objects
+    expect_equal(obj$data[[1]][['("cell", "gene", "expr")']], "=")
+    ch <- complete_daf(ndir, "r")
+    expect_equal(as.numeric(get_matrix(ch, "cell", "gene", "expr")),
+                 as.numeric(1:12))
+})
+
 test_that("complete_daf without view returns plain chain", {
     base_dir <- withr::local_tempdir()
     new_dir <- withr::local_tempdir()

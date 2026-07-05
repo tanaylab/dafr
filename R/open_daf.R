@@ -4,6 +4,7 @@
 #' Supported URIs:
 #' - `memory://` (or no path / `NULL`) — in-memory [memory_daf()].
 #' - filesystem directory path — [files_daf()].
+#' - `*.daf.zip` — [zip_daf()] (single-file, append-only archive).
 #' - `*.daf.zarr` or `*.daf.zarr.zip` (filesystem or HTTP) — [zarr_daf()].
 #' - any other `http(s)://` URL — [http_daf()] (read-only HTTP-served
 #'   FilesDaf).
@@ -58,6 +59,15 @@ open_daf <- function(uri = NULL, mode = "r", name = NULL, ...) {
     }
     if (grepl("\\.daf\\.zarr\\.zip(#.*)?$", uri) || grepl("\\.daf\\.zarr$", uri)) {
         return(zarr_daf(uri, mode = mode, name = name))
+    }
+    if (grepl("\\.daf\\.zip(#.*)?$", uri)) {
+        if (grepl("#", uri, fixed = TRUE)) {
+            stop(sprintf(paste0(
+                "open_daf: grouped .dafs.zip#/group archives are not supported yet.\n",
+                "Refused: %s"
+            ), uri), call. = FALSE)
+        }
+        return(zip_daf(uri, mode = mode, name = name))
     }
     # Default: filesystem path → files_daf
     files_daf(uri, mode = mode, name = name)

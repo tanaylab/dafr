@@ -13,10 +13,6 @@ skip_if_no_http_harness <- function() {
     skip_on_cran()
     skip_if_not_installed("processx")
     skip_if_not(nzchar(Sys.which("python")))
-    # http_daf reads `metadata.zip` from the server; on Windows the
-    # local FilesDaf writer doesn't produce one (slice-17 MmapZipStore
-    # is POSIX-only), so the served fixture is incomplete.
-    skip_if_no_mmap_zip()
 }
 
 # Build a populated FilesDaf at `path/served.daf` and return the parent
@@ -64,7 +60,7 @@ test_that("http_daf reads a packed (gzip) FilesFormat store served over HTTP", {
     file.copy(src, root, recursive = TRUE)
     dst <- file.path(root, "packed.files")
     file.rename(file.path(root, "gz.files"), dst)
-    pack_files_daf_metadata(dst)            # build the metadata.zip http_daf needs
+    # The committed fixture already contains metadata.json; no rebuild needed.
     h <- start_http_server(root)
     on.exit(stop_http_server(h), add = TRUE)
 
@@ -106,34 +102,31 @@ test_that("http_daf override name wins over `name` scalar", {
     expect_identical(daf_name(daf), "override!")
 })
 
-# Build a metadata.zip with one entry. Used by error-path tests below.
-.build_metadata_zip <- function(path, entries) {
-    # entries: named list, name = entry path, value = bytes (raw or string)
-    store <- new_mmap_zip_store(path, mode = "w+")
-    for (key in names(entries)) {
-        val <- entries[[key]]
-        if (is.character(val)) val <- charToRaw(val)
-        store_set_bytes(store, key, val)
+# Write a minimal store root with a metadata.json and optional daf.json.
+# Used by error-path tests below.
+.write_metadata_json <- function(root, meta_content, daf_content = NULL) {
+    dir.create(root, showWarnings = FALSE, recursive = TRUE)
+    writeLines(meta_content, file.path(root, "metadata.json"))
+    if (!is.null(daf_content)) {
+        writeLines(daf_content, file.path(root, "daf.json"))
     }
-    dafr:::dafr_mmap_zip_close(S7::prop(store, "xptr"))
 }
 
-test_that("http_daf rejects a non-daf metadata.zip", {
+test_that("http_daf rejects a metadata.json that is not a daf store (no daf.json)", {
     skip_if_no_http_harness()
     root <- withr::local_tempdir("daf-http-bogus-")
-    .build_metadata_zip(file.path(root, "metadata.zip"),
-                        list("other.json" = "{}"))
+    # Valid metadata.json but no daf.json -> "not a daf data set"
+    .write_metadata_json(root, "{}")
     h <- start_http_server(root)
     on.exit(stop_http_server(h), add = TRUE)
     expect_error(http_daf(h$url),
                  "not a daf data set:")
 })
 
-test_that("http_daf rejects a metadata.zip with incompatible version", {
+test_that("http_daf rejects a daf.json with incompatible version", {
     skip_if_no_http_harness()
     root <- withr::local_tempdir("daf-http-version-")
-    .build_metadata_zip(file.path(root, "metadata.zip"),
-                        list("daf.json" = '{"version":[99,0]}'))
+    .write_metadata_json(root, "{}", '{"version":[99,0]}')
     h <- start_http_server(root)
     on.exit(stop_http_server(h), add = TRUE)
     expect_error(http_daf(h$url),

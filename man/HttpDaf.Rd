@@ -43,20 +43,20 @@ A \code{HttpDaf} instance (\code{DafReadOnly} subclass).
 \description{
 A \code{Daf} reader that fetches a \code{\link[=files_daf]{files_daf()}} directory served over
 HTTP(S). The server must expose the FilesDaf tree verbatim and include a
-\code{metadata.zip} bundle at the root (see \code{\link[=pack_files_daf_metadata]{pack_files_daf_metadata()}}).
-From dafr 0.2.0 onward, FilesDaf writes maintain \code{metadata.zip}
-automatically; for pre-0.2.0 stores call \code{pack_files_daf_metadata()}
-before publishing.
+\code{metadata.json} consolidated index at the root (see
+\code{\link[=pack_files_daf_metadata]{pack_files_daf_metadata()}}). From dafr 0.5.0 onward, FilesDaf writes
+maintain \code{metadata.json} automatically; for pre-0.5.0 stores call
+\code{pack_files_daf_metadata()} before publishing.
 }
 \details{
-The client downloads \code{metadata.zip} once at open time, parses it in
+The client downloads \code{metadata.json} once at open time, parses it in
 memory, and serves all JSON metadata from it (no further HTTP traffic
 for \verb{format_has_*} / \verb{format_*_set} / scalar reads). Non-JSON payloads
 (axis \code{.txt} files, vector/matrix \code{.data} / \code{.nzind} / \code{.nzval} /
 \code{.colptr} / \code{.rowval} / \code{.nztxt}) are fetched lazily on first access via
 one HTTP GET each, cached by the standard cache layer.
 
-Read-only — mutations are not supported. Server data is assumed stable
+Read-only - mutations are not supported. Server data is assumed stable
 while a \link{HttpDaf} is open; reopen to pick up changes.
 }
 \section{HTTP timeout}{
