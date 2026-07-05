@@ -1,3 +1,23 @@
+# dafr 0.6.0
+
+New `ZipDaf` backend: a whole Daf store in a single append-only `.daf.zip`
+archive, byte-compatible with `DataAxesFormats.jl` 0.3.0 (verified
+bidirectionally - Julia reads dafr-written `.daf.zip` and vice-versa).
+
+* **`zip_daf(path, mode, name, packed)`** opens (`"r"`/`"r+"`/`"w"`/`"w+"`) a
+  single-file `.daf.zip` store, and `open_daf()` now dispatches a `*.daf.zip`
+  path to it. The on-disk layout inside the archive is the same as `files_daf()`
+  (`daf.json` marker + `scalars`/`axes`/`vectors`/`matrices` keys, identical
+  component serialization); the ZIP central directory replaces the
+  `metadata.json` index, so no `metadata.json` is written. Reuses the existing
+  append-only, mmap-backed ZIP store (the one behind `.daf.zarr.zip`).
+* **Append-only.** The archive cannot be modified in place: overwriting or
+  deleting a scalar/axis/vector/matrix, or reordering an axis, raises a clear
+  error (matching Julia's `ZipDaf`). Writing new properties, and `relayout` into
+  a not-yet-written orientation, work normally.
+* **Not yet supported:** grouped multi-daf `*.dafs.zip#/group` archives
+  (`open_daf` rejects them with an actionable error) and the `H5df` backend.
+
 # dafr 0.5.0
 
 Cross-language JSON parity with DataAxesFormats.jl: dafr now reads and writes

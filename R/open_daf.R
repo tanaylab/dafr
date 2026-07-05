@@ -4,6 +4,7 @@
 #' Supported URIs:
 #' - `memory://` (or no path / `NULL`) — in-memory [memory_daf()].
 #' - filesystem directory path — [files_daf()].
+#' - `*.daf.zip` — [zip_daf()] (single-file, append-only archive).
 #' - `*.daf.zarr` or `*.daf.zarr.zip` (filesystem or HTTP) — [zarr_daf()].
 #' - any other `http(s)://` URL — [http_daf()] (read-only HTTP-served
 #'   FilesDaf).

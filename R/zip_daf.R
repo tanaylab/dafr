@@ -1,4 +1,4 @@
-#' @include files_daf.R files_daf_read.R files_daf_write.R files_io.R files_packed.R format_api.R zarr_store.R
+#' @include classes.R files_daf.R files_daf_read.R files_daf_write.R files_io.R files_packed.R format_api.R zarr_store.R
 NULL
 
 # ZipDaf: a whole Daf store in one append-only `.daf.zip` archive, byte-
