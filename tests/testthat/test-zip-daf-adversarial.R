@@ -93,6 +93,10 @@ test_that("Bool sparse matrix with an explicit stored FALSE writes+reads nzval",
 })
 
 test_that("packed = TRUE writes zip-shard components readable back", {
+    # Use blosc when c-blosc is built in, else the CRAN-safe gzip codec (CI has
+    # no c-blosc). Either way this exercises the packed-shard-in-zip write path.
+    codec <- if (dafr:::dafr_have_blosc_cpp()) "blosc_zstd_bitshuffle" else "gzip"
+    withr::local_options(list(dafr.packed_compression = codec))
     p <- tempfile(fileext = ".daf.zip")
     d <- zip_daf(p, mode = "w", packed = TRUE)
     add_axis(d, "cell", sprintf("c%d", 1:4000))

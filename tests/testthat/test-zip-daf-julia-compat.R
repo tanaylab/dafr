@@ -45,6 +45,8 @@ test_that("R-written .daf.zip is readable by Julia with identical values", {
 
 test_that("R-written PACKED .daf.zip (zip-shard components) is readable by Julia", {
     skip_if_not(.have_julia_env())
+    codec <- if (dafr:::dafr_have_blosc_cpp()) "blosc_zstd_bitshuffle" else "gzip"
+    withr::local_options(list(dafr.packed_compression = codec))
     p <- tempfile(fileext = ".daf.zip")
     d <- zip_daf(p, mode = "w", packed = TRUE)
     add_axis(d, "cell", sprintf("c%d", 1:4000))
