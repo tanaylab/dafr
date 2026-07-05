@@ -189,7 +189,10 @@
 # When packed AND over threshold the payload is a `<base>.zip` shard; otherwise a
 # flat `<base><ext>` file. The returned descriptor is the per-component object the
 # caller serializes (directly for a dense vector, or nested for a sparse comp).
-.files_write_component <- function(base, ext, values, dtype, eltype, packed,
+# Pure: decide packed-vs-flat and return list(ext=, bytes=, desc=) - the on-disk
+# extension, its payload bytes, and the component descriptor. No I/O. Shared by
+# `.files_write_component` (writes to a path) and ZipDaf (writes to the store).
+.files_component_bytes <- function(ext, values, dtype, eltype, packed,
                                    include_n = FALSE) {
     opts <- .packed_opts()
     n <- length(values)
@@ -198,15 +201,21 @@
         inner <- .shard_inner_chunk_shape(n, dtype, opts$target_kb)  # scalar
         blob <- .shard_assemble(values, dtype, n, inner,
                                 opts$compression, opts$level)
-        writeBin(blob, paste0(base, ".zip"))
-        return(.files_packed_descriptor(
-            eltype, n = if (include_n) n else NULL, inner = inner,
-            codec = opts$compression, level = opts$level))
+        return(list(ext = ".zip", bytes = blob,
+            desc = .files_packed_descriptor(
+                eltype, n = if (include_n) n else NULL, inner = inner,
+                codec = opts$compression, level = opts$level)))
     }
-    .write_bin_dense(paste0(base, ext), values, dtype)
     d <- list(format = "dense", eltype = eltype)
     if (include_n) d$n_elements <- as.integer(n)
-    d
+    list(ext = ext, bytes = .encode_dense(values, dtype), desc = d)
+}
+
+.files_write_component <- function(base, ext, values, dtype, eltype, packed,
+                                   include_n = FALSE) {
+    r <- .files_component_bytes(ext, values, dtype, eltype, packed, include_n)
+    writeBin(r$bytes, paste0(base, r$ext))
+    r$desc
 }
 
 # Write a dense matrix payload either packed or flat, and return its descriptor
@@ -217,7 +226,8 @@
 # column-grouped inner-chunk stream. The descriptor's `chunk_shape`, however, is
 # the NATURAL [nrow_chunk, 1] (matching the fpk fixtures and the column-major
 # decoder in .files_packed_decode_matrix). Threshold is on nrow (the fast dim).
-.files_write_dense_matrix_packed <- function(base, mat, dtype, eltype) {
+# Pure: return list(bytes=, desc=) for a packed dense matrix (no I/O). Shared.
+.files_dense_matrix_packed_bytes <- function(mat, dtype, eltype) {
     opts <- .packed_opts()
     nr <- nrow(mat)
     nc <- ncol(mat)
@@ -227,10 +237,16 @@
                             shape = c(as.integer(nc), as.integer(nr)),
                             inner = c(1L, nrowchunk),
                             opts$compression, opts$level)
-    writeBin(blob, paste0(base, ".zip"))
-    .files_packed_descriptor(eltype, n = NULL,
-                             inner = c(nrowchunk, 1L),
-                             codec = opts$compression, level = opts$level)
+    list(bytes = blob,
+         desc = .files_packed_descriptor(eltype, n = NULL,
+                                         inner = c(nrowchunk, 1L),
+                                         codec = opts$compression, level = opts$level))
+}
+
+.files_write_dense_matrix_packed <- function(base, mat, dtype, eltype) {
+    r <- .files_dense_matrix_packed_bytes(mat, dtype, eltype)
+    writeBin(r$bytes, paste0(base, ".zip"))
+    r$desc
 }
 
 # TRUE if a dense matrix's fast (nrow) dimension is over the pack threshold.

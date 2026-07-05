@@ -131,5 +131,6 @@ Collate:
     'top_k_per_col.R'
     'zarr_format.R'
     'zarr_convert.R'
+    'zip_daf.R'
     'zzz.R'
 Config/roxygen2/version: 8.0.0
