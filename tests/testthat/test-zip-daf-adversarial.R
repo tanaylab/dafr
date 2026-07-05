@@ -5,6 +5,7 @@
 # already-tested) serialization cores.
 
 test_that("numeric tower round-trips (Float32, Int32, Int64, UInt16-indexed sparse)", {
+    skip_if_no_mmap_zip()
     p <- tempfile(fileext = ".daf.zip")
     d <- zip_daf(p, mode = "w")
     add_axis(d, "cell", sprintf("c%d", 1:6))
@@ -24,6 +25,7 @@ test_that("numeric tower round-trips (Float32, Int32, Int64, UInt16-indexed spar
 })
 
 test_that("NaN is preserved through a sparsified float vector", {
+    skip_if_no_mmap_zip()
     p <- tempfile(fileext = ".daf.zip")
     d <- zip_daf(p, mode = "w")
     add_axis(d, "cell", sprintf("c%d", 1:5))
@@ -37,6 +39,7 @@ test_that("NaN is preserved through a sparsified float vector", {
 })
 
 test_that("all-zero vector (nnz = 0) round-trips", {
+    skip_if_no_mmap_zip()
     p <- tempfile(fileext = ".daf.zip")
     d <- zip_daf(p, mode = "w")
     add_axis(d, "cell", sprintf("c%d", 1:4))
@@ -47,6 +50,7 @@ test_that("all-zero vector (nnz = 0) round-trips", {
 })
 
 test_that("sparse matrix with an empty column round-trips", {
+    skip_if_no_mmap_zip()
     p <- tempfile(fileext = ".daf.zip")
     d <- zip_daf(p, mode = "w")
     add_axis(d, "cell", sprintf("c%d", 1:3))
@@ -63,6 +67,7 @@ test_that("sparse matrix with an empty column round-trips", {
 })
 
 test_that("sparse string vector (many empties) uses the .nztxt path", {
+    skip_if_no_mmap_zip()
     p <- tempfile(fileext = ".daf.zip")
     d <- zip_daf(p, mode = "w")
     add_axis(d, "cell", sprintf("c%d", 1:6))
@@ -74,6 +79,7 @@ test_that("sparse string vector (many empties) uses the .nztxt path", {
 })
 
 test_that("Bool sparse matrix with an explicit stored FALSE writes+reads nzval", {
+    skip_if_no_mmap_zip()
     p <- tempfile(fileext = ".daf.zip")
     d <- zip_daf(p, mode = "w")
     add_axis(d, "cell", sprintf("c%d", 1:3))
@@ -93,6 +99,7 @@ test_that("Bool sparse matrix with an explicit stored FALSE writes+reads nzval",
 })
 
 test_that("packed = TRUE writes zip-shard components readable back", {
+    skip_if_no_mmap_zip()
     # Use blosc when c-blosc is built in, else the CRAN-safe gzip codec (CI has
     # no c-blosc). Either way this exercises the packed-shard-in-zip write path.
     codec <- if (dafr:::dafr_have_blosc_cpp()) "blosc_zstd_bitshuffle" else "gzip"
@@ -113,6 +120,7 @@ test_that("packed = TRUE writes zip-shard components readable back", {
 })
 
 test_that("r+ append adds new keys but overwrite of existing raises", {
+    skip_if_no_mmap_zip()
     p <- tempfile(fileext = ".daf.zip")
     d <- zip_daf(p, mode = "w")
     add_axis(d, "cell", c("A", "B"))
@@ -132,6 +140,7 @@ test_that("r+ append adds new keys but overwrite of existing raises", {
 })
 
 test_that("default overwrite=FALSE gives an 'exists' error, distinct from append-only", {
+    skip_if_no_mmap_zip()
     p <- tempfile(fileext = ".daf.zip")
     d <- zip_daf(p, mode = "w")
     add_axis(d, "cell", c("A", "B"))
@@ -144,6 +153,7 @@ test_that("default overwrite=FALSE gives an 'exists' error, distinct from append
 })
 
 test_that("missing scalar/vector/matrix and missing axis error cleanly", {
+    skip_if_no_mmap_zip()
     p <- tempfile(fileext = ".daf.zip")
     d <- zip_daf(p, mode = "w")
     add_axis(d, "cell", c("A", "B"))
@@ -157,6 +167,7 @@ test_that("missing scalar/vector/matrix and missing axis error cleanly", {
 })
 
 test_that("description() reports type ZipDaf; name derives from the name scalar", {
+    skip_if_no_mmap_zip()
     p <- tempfile(fileext = ".daf.zip")
     d <- zip_daf(p, mode = "w")
     set_scalar(d, "name", "my_zip_store")
@@ -169,6 +180,7 @@ test_that("description() reports type ZipDaf; name derives from the name scalar"
 })
 
 test_that("unicode axis entries and string values round-trip", {
+    skip_if_no_mmap_zip()
     p <- tempfile(fileext = ".daf.zip")
     d <- zip_daf(p, mode = "w")
     cells <- c("α", "中", "café")

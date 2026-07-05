@@ -1,4 +1,5 @@
 test_that("zip_daf round-trips scalars, axes, vectors, matrices", {
+    skip_if_no_mmap_zip()
     p <- tempfile(fileext = ".daf.zip")
     d <- zip_daf(p, mode = "w")
     set_scalar(d, "pi", 3.14)
@@ -38,6 +39,7 @@ test_that("zip_daf round-trips scalars, axes, vectors, matrices", {
 })
 
 test_that("zip_daf round-trips a Bool sparse vector and matrix (nzval absent)", {
+    skip_if_no_mmap_zip()
     p <- tempfile(fileext = ".daf.zip")
     d <- zip_daf(p, mode = "w")
     add_axis(d, "cell", c("A", "B", "C", "D"))
@@ -58,6 +60,7 @@ test_that("zip_daf round-trips a Bool sparse vector and matrix (nzval absent)", 
 })
 
 test_that("zip_daf is append-only: overwrite and delete raise", {
+    skip_if_no_mmap_zip()
     p <- tempfile(fileext = ".daf.zip")
     d <- zip_daf(p, mode = "w")
     add_axis(d, "cell", c("A", "B"))
@@ -70,6 +73,7 @@ test_that("zip_daf is append-only: overwrite and delete raise", {
 })
 
 test_that("open_daf dispatches .daf.zip to zip_daf", {
+    skip_if_no_mmap_zip()
     p <- tempfile(fileext = ".daf.zip")
     d <- open_daf(p, mode = "w")
     expect_true(inherits(d, "dafr::ZipDaf"))
@@ -86,6 +90,7 @@ test_that("open_daf dispatches .daf.zip to zip_daf", {
 })
 
 test_that("zip_daf 'r' on missing archive errors; 'w' on existing daf errors", {
+    skip_if_no_mmap_zip()
     p <- tempfile(fileext = ".daf.zip")
     expect_error(zip_daf(p, mode = "r"))
     d <- zip_daf(p, mode = "w")
@@ -96,6 +101,7 @@ test_that("zip_daf 'r' on missing archive errors; 'w' on existing daf errors", {
 })
 
 test_that("read-only zip_daf rejects mutation", {
+    skip_if_no_mmap_zip()
     p <- tempfile(fileext = ".daf.zip")
     d <- zip_daf(p, mode = "w")
     add_axis(d, "cell", c("A", "B"))
