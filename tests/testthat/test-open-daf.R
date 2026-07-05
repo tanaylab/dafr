@@ -59,7 +59,7 @@ test_that("open_daf routes http(s):// to http_daf or zarr_daf based on suffix", 
     # localhost:1 is unreachable; we just verify that dispatch reached the
     # right backend's HTTP fetch (different paths for HttpDaf vs HttpStore).
     expect_error(open_daf("http://localhost:1/served"),
-                 "HTTP GET failed for: http://localhost:1/served/metadata.zip")
+                 "not a daf data set \\(no metadata\\.json\\)")
     expect_error(open_daf("http://localhost:1/foo.daf.zarr/", mode = "r"),
                  "HTTP GET failed for: http://localhost:1/foo.daf.zarr/zarr.json")
 })

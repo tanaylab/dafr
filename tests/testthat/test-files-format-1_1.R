@@ -132,10 +132,8 @@ test_that("files_daf rejects a 'zipped'-only packed component (no Zarr index)", 
 
 test_that("http_daf reads a FilesFormat v1.1 repo served over HTTP", {
     skip_on_cran()
-    # http_daf serving needs metadata.zip, which .metadata_zip_rebuild only
-    # writes on POSIX (MmapZipStore is POSIX-only); without this guard the test
-    # runs on Windows CI whenever python is available and 404s on metadata.zip.
-    skip_if_no_mmap_zip()
+    skip_if_not_installed("processx")
+    skip_if_not(nzchar(Sys.which("python")))
     p <- tempfile(fileext = ".daf")
     on.exit(unlink(p, recursive = TRUE, force = TRUE), add = TRUE)
     d <- files_daf(p, "w")
@@ -147,7 +145,7 @@ test_that("http_daf reads a FilesFormat v1.1 repo served over HTTP", {
     set_matrix(d, "cell", "gene", "SM", sm)
     rm(d)
     .rewrite_files_repo_to_v11(p)
-    dafr:::.metadata_zip_rebuild(p)   # repack metadata.zip with the v1.1 JSONs
+    dafr:::.metadata_json_rebuild(p)   # rebuild metadata.json with the v1.1 JSONs
 
     srv <- start_http_server(p)
     on.exit(stop_http_server(srv), add = TRUE)

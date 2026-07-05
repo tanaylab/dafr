@@ -124,17 +124,15 @@ test_that("explicit reset_reorder_axes after crash also recovers", {
     expect_identical(axis_vector(fd_w, "cell"), .ORIGINAL_ENTRIES)
 
     path <- tmp
-    # After rollback, metadata.zip should match what a rebuild would produce
-    # on the restored tree. Skipped on Windows where MmapZipStore is POSIX-
-    # only and metadata.zip isn't maintained.
-    if (.Platform$OS.type != "windows") {
-        bytes_after <- readBin(file.path(path, "metadata.zip"), what = "raw",
-                               n = file.size(file.path(path, "metadata.zip")))
-        pack_files_daf_metadata(path)
-        bytes_rebuild <- readBin(file.path(path, "metadata.zip"), what = "raw",
-                                 n = file.size(file.path(path, "metadata.zip")))
-        expect_identical(bytes_after, bytes_rebuild)
-    }
+    # After rollback, metadata.json should exist and match what a rebuild
+    # produces on the restored tree.
+    expect_true(file.exists(file.path(path, "metadata.json")))
+    text_after <- paste(readLines(file.path(path, "metadata.json"), warn = FALSE),
+                        collapse = "")
+    pack_files_daf_metadata(path)
+    text_rebuild <- paste(readLines(file.path(path, "metadata.json"), warn = FALSE),
+                          collapse = "")
+    expect_identical(text_after, text_rebuild)
 })
 
 test_that("recovery hook fires automatically on r+ open", {

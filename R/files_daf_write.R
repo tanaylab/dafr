@@ -11,7 +11,9 @@ S7::method(
         .require_no_scalar(daf, name)
     }
     .write_scalar_json(p, value)
-    .metadata_zip_append(.files_root(daf), paste0("scalars/", name, ".json"))
+    root <- .files_root(daf)
+    .metadata_json_append(root, paste0("scalars/", name),
+                          .metadata_json_inline(file.path(root, "scalars", paste0(name, ".json"))))
     MEMORY_DATA
 }
 
@@ -27,7 +29,7 @@ S7::method(
         return(invisible())
     }
     unlink(p, force = TRUE)
-    .metadata_zip_rebuild(.files_root(daf))
+    .metadata_json_rebuild(.files_root(daf))
     invisible()
 }
 
@@ -89,11 +91,10 @@ S7::method(
     assign(axis, list(entries = entries, dict = dict),
         envir = S7::prop(daf, "internal")$axes
     )
-    # Rebuild metadata.zip so the bundled axes/metadata.json reflects the
-    # new axis. Replaces the Phase-1 .write_axes_metadata call (rebuild
-    # calls it internally and also captures any descriptor JSONs created
-    # eagerly above).
-    .metadata_zip_rebuild(root)
+    # Rebuild metadata.json so the consolidated index reflects the new axis
+    # (n_entries is computed from the .txt by rebuild). Also captures any
+    # descriptor JSONs created eagerly above.
+    .metadata_json_rebuild(root)
     invisible()
 }
 
@@ -125,10 +126,10 @@ S7::method(
     if (exists(axis, envir = cache, inherits = FALSE)) {
         rm(list = axis, envir = cache)
     }
-    # Zip-then-bump: a zip rebuild failure leaves the counter unchanged
+    # Rebuild-then-bump: a rebuild failure leaves the counter unchanged
     # so the caller can retry without observing torn cache state. Matches
     # the ordering used by every set_* path.
-    .metadata_zip_rebuild(root)
+    .metadata_json_rebuild(root)
     bump_axis_counter(daf, axis)
     invisible()
 }
@@ -269,7 +270,9 @@ S7::method(
         .files_write_vector_sparse_numeric(vdir, name, nz, vec[nz], eltype,
                                            indtype, packed = packed)
     }
-    .metadata_zip_append(root, paste0("vectors/", axis, "/", name, ".json"))
+    .metadata_json_append(root, paste0("vectors/", axis, "/", name),
+                          .metadata_json_inline(file.path(root, "vectors", axis,
+                                                           paste0(name, ".json"))))
     bump_vector_counter(daf, axis, name)
     MEMORY_DATA
 }
@@ -296,7 +299,9 @@ S7::method(
         as.integer(sv@i), sv@x, eltype, indtype,
         packed = .files_is_packed_writer(daf)
     )
-    .metadata_zip_append(root, paste0("vectors/", axis, "/", name, ".json"))
+    .metadata_json_append(root, paste0("vectors/", axis, "/", name),
+                          .metadata_json_inline(file.path(root, "vectors", axis,
+                                                           paste0(name, ".json"))))
     bump_vector_counter(daf, axis, name)
     MEMORY_DATA
 }
@@ -315,7 +320,7 @@ S7::method(
     }
     unlink(desc_path, force = TRUE)
     .files_vector_unlink_payload(vdir, name)
-    .metadata_zip_rebuild(.files_root(daf))
+    .metadata_json_rebuild(.files_root(daf))
     invisible()
 }
 
@@ -386,7 +391,8 @@ S7::method(
     packed <- .files_is_packed_writer(daf)
     if (methods::is(mat, "dgCMatrix") || methods::is(mat, "lgCMatrix")) {
         .files_write_matrix_sparse(mdir, name, mat, packed = packed)
-        .metadata_zip_append(root, paste0("matrices/", rows_axis, "/", columns_axis, "/", name, ".json"))
+        .metadata_json_append(root, paste0("matrices/", rows_axis, "/", columns_axis, "/", name),
+                              .metadata_json_inline(file.path(mdir, paste0(name, ".json"))))
         bump_matrix_counter(daf, rows_axis, columns_axis, name)
         return(MEMORY_DATA)
     }
@@ -411,7 +417,8 @@ S7::method(
         )
         .write_descriptor_dense(desc_path, dtype)
     }
-    .metadata_zip_append(root, paste0("matrices/", rows_axis, "/", columns_axis, "/", name, ".json"))
+    .metadata_json_append(root, paste0("matrices/", rows_axis, "/", columns_axis, "/", name),
+                          .metadata_json_inline(file.path(mdir, paste0(name, ".json"))))
     bump_matrix_counter(daf, rows_axis, columns_axis, name)
     MEMORY_DATA
 }
@@ -433,7 +440,7 @@ S7::method(
     }
     unlink(desc_path, force = TRUE)
     .files_matrix_unlink_payload(mdir, name)
-    .metadata_zip_rebuild(.files_root(daf))
+    .metadata_json_rebuild(.files_root(daf))
     invisible()
 }
 
@@ -731,11 +738,11 @@ S7::method(format_cleanup_reorder, list(FilesDaf, S7::class_list)) <-
         for (pm in plan$planned_matrices) {
             bump_matrix_counter(daf, pm$rows_axis, pm$columns_axis, pm$name)
         }
-        # Rebuild metadata.zip for upstream parity. Reorder doesn't
+        # Rebuild metadata.json for upstream parity. Reorder doesn't
         # currently change descriptor JSON content, but a future change
         # (e.g., indtype switch on permuted indices) would silently break
         # without this rebuild.
-        .metadata_zip_rebuild(.files_root(daf))
+        .metadata_json_rebuild(.files_root(daf))
         invisible()
     }
 
@@ -774,10 +781,9 @@ S7::method(format_reset_reorder, FilesDaf) <-
         for (k in ls(envir = axes_cache, all.names = TRUE)) {
             rm(list = k, envir = axes_cache)
         }
-        # Rebuild metadata.zip after rollback so it reflects the restored
-        # tree (not whatever pre-crash state the previous metadata.zip
-        # encoded). Upstream parity + defensive correctness.
-        .metadata_zip_rebuild(.files_root(daf))
+        # Rebuild metadata.json after rollback so it reflects the restored
+        # tree. Upstream parity + defensive correctness.
+        .metadata_json_rebuild(.files_root(daf))
         invisible(TRUE)
     }
 
@@ -797,15 +803,15 @@ S7::method(format_reset_reorder, FilesDaf) <-
                 sQuote(backup_root), conditionMessage(e)
             ), call. = FALSE)
             unlink(backup_root, recursive = TRUE, force = TRUE)
-            # Best-effort metadata.zip rebuild against whatever-state the
+            # Best-effort metadata.json rebuild against whatever-state the
             # tree ended up in. Wrap in tryCatch — a corrupt tree may make
             # the rebuild fail too, but failing here would mask the
             # underlying restoration failure.
             tryCatch(
-                .metadata_zip_rebuild(.files_root(daf)),
+                .metadata_json_rebuild(.files_root(daf)),
                 error = function(e2) {
                     warning(sprintf(
-                        "files_daf: post-rollback metadata.zip rebuild failed (%s); metadata.zip may be stale",
+                        "files_daf: post-rollback metadata.json rebuild failed (%s); metadata.json may be stale",
                         conditionMessage(e2)
                     ), call. = FALSE)
                 }
