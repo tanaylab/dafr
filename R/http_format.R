@@ -149,7 +149,11 @@ http_daf <- function(url, name = NULL) {
     if (length(lines) > 0L && lines[[length(lines)]] == "") {
         lines <- lines[-length(lines)]
     }
-    lines
+    # Strip a trailing CR so a CRLF-terminated file (e.g. a fixture checked out
+    # with git autocrlf on Windows) parses identically to an LF-only one,
+    # matching readLines / FilesDaf. Real dafr/Julia stores write LF; this is
+    # purely defensive for CRLF-mangled inputs.
+    sub("\r$", "", lines)
 }
 
 # Decode a parsed scalar JSON descriptor (`list($type, $value)` from
