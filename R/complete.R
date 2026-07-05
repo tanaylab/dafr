@@ -1,6 +1,71 @@
 #' @include classes.R files_daf.R memory_daf.R chain_daf.R view_daf.R readers.R writers.R
 NULL
 
+# Julia data-key for a view-data entry key: a scalar name stays a plain string;
+# a 2/3-element vector/matrix key becomes the stringified Julia tuple, e.g.
+# c("cell","age") -> '("cell", "age")' (matches DataAxesFormats JSON of a
+# Tuple dict key; the reader maps ()->[] and JSON-parses it back).
+.view_data_key <- function(key) {
+    if (length(key) == 1L) return(as.character(key))
+    paste0("(", paste0('"', key, '"', collapse = ", "), ")")
+}
+
+# Serialize viewer axes/data to Julia's base_daf_view JSON: an object with
+# "axes"/"data" arrays of single-key objects ({name:query} / {datakey:query}).
+# This is the shape DataAxesFormats' parse_view_parameters accepts (its own
+# writer emits a single merged object which its reader cannot parse - upstream
+# bug; we target the reader). Empty axes/data are omitted.
+.view_spec_to_julia_json <- function(axes, data) {
+    to_arr <- function(items, is_data) {
+        if (is.null(items) || length(items) == 0L) return(NULL)
+        parsed <- lapply(items, .parse_view_item)
+        lapply(parsed, function(p) {
+            k <- if (is_data) .view_data_key(p$key) else as.character(p$key)
+            stats::setNames(list(jsonlite::unbox(as.character(p$value))), k)
+        })
+    }
+    spec <- list()
+    a <- to_arr(axes, FALSE); if (!is.null(a)) spec$axes <- a
+    d <- to_arr(data, TRUE);  if (!is.null(d)) spec$data <- d
+    as.character(jsonlite::toJSON(spec))
+}
+
+# Decode a Julia data-key back to a dafr view key: a tuple-encoded string
+# '("cell", "age")' -> c("cell","age"); a plain name (incl. one that merely
+# starts/ends with parens but is not a valid tuple) stays a string. Mirrors
+# Julia's parse: map ()->[] and JSON-parse, falling back to the literal key.
+.view_decode_key <- function(key) {
+    if (startsWith(key, "(") && endsWith(key, ")")) {
+        bracketed <- paste0("[", substr(key, 2L, nchar(key) - 1L), "]")
+        result <- tryCatch(
+            unlist(jsonlite::fromJSON(bracketed), use.names = FALSE),
+            error = function(e) NULL
+        )
+        if (!is.null(result)) return(result)
+    }
+    key
+}
+
+# Parse a Julia base_daf_view axes/data value into dafr's viewer spec form: a
+# list of list(key, query). Accepts both the array-of-single-key-objects form
+# (what dafr writes / Julia's reader expects) and the single-object form (what
+# Julia's buggy writer emits), so dafr can read either. `spec_obj` is the parsed
+# value from fromJSON(simplifyVector=FALSE).
+.view_spec_from_julia_json <- function(spec_obj, is_data) {
+    if (is.null(spec_obj) || length(spec_obj) == 0L) return(NULL)
+    pairs <- if (!is.null(names(spec_obj))) {
+        # object form: names are the keys
+        Map(function(k, v) list(k, as.character(v)), names(spec_obj), spec_obj)
+    } else {
+        # array form: each element is a single-key named list
+        lapply(spec_obj, function(el) list(names(el)[[1L]], as.character(el[[1L]])))
+    }
+    pairs <- unname(pairs)
+    lapply(pairs, function(p) {
+        k <- if (is_data) .view_decode_key(p[[1L]]) else p[[1L]]
+        list(k, p[[2L]])
+    })
+}
 
 #' Create a persistent chain by linking `new_daf` to a `base_daf`.
 #'
@@ -57,9 +122,8 @@ complete_chain <- function(base_daf, new_daf, name = NULL,
     reader <- if (is.null(axes) && is.null(data)) {
         base_daf
     } else {
-        spec <- list(axes = axes, data = data)
         format_set_scalar(new_daf, "base_daf_view",
-                          jsonlite::toJSON(spec, auto_unbox = TRUE),
+                          .view_spec_to_julia_json(axes, data),
                           overwrite = TRUE)
         viewer(base_daf, axes = axes, data = data,
                name = paste0(S7::prop(base_daf, "name"), ".view"))
@@ -173,8 +237,8 @@ complete_daf <- function(leaf, mode = "r", name = NULL) {
             chain_reader(base_readers, name = paste0(chain_name, ".base"))
         }
         viewed_base <- viewer(base_chain, name = paste0(chain_name, ".view"),
-            axes = .normalise_json_spec(spec$axes),
-            data = .normalise_json_spec(spec$data))
+            axes = .view_spec_from_julia_json(spec$axes, is_data = FALSE),
+            data = .view_spec_from_julia_json(spec$data, is_data = TRUE))
         readers <- list(viewed_base, leaf_daf)
     }
 
@@ -185,25 +249,4 @@ complete_daf <- function(leaf, mode = "r", name = NULL) {
     } else {
         chain_writer(readers, name = chain_name)
     }
-}
-
-# fromJSON with simplifyVector = FALSE returns JSON arrays of strings as R
-# lists rather than character vectors. viewer() (via .parse_view_item) expects
-# the key of a matrix item to be a character vector, not a list. This helper
-# converts all-character inner lists to vectors so the spec is viewer-ready.
-.normalise_json_spec <- function(x) {
-    if (is.null(x) || length(x) == 0L) return(x)
-    lapply(x, function(item) {
-        if (!is.list(item)) return(item)
-        # key-value pair: list(key, value) where key may be a char-list
-        if (length(item) == 2L && is.null(names(item)) &&
-            (is.character(item[[2L]]) || is.null(item[[2L]]))) {
-            key <- item[[1L]]
-            if (is.list(key) && all(vapply(key, is.character, logical(1L)))) {
-                key <- unlist(key, use.names = FALSE)
-            }
-            return(list(key, item[[2L]]))
-        }
-        item
-    })
 }

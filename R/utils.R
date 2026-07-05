@@ -1,5 +1,8 @@
 `%||%` <- function(a, b) if (is.null(a)) b else a
 
+# TRUE on Windows. (Was previously defined in the now-removed files_metadata_zip.R.)
+.is_windows <- function() .Platform$OS.type == "windows"
+
 .FORBIDDEN_NAME_CHARS <- "[/\\\\:,\n\r\t\\x00]"
 
 # Scalar-character argument guard used by the user-facing wrappers in

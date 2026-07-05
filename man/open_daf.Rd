@@ -29,6 +29,7 @@ Supported URIs:
 \itemize{
 \item \verb{memory://} (or no path / \code{NULL}) — in-memory \code{\link[=memory_daf]{memory_daf()}}.
 \item filesystem directory path — \code{\link[=files_daf]{files_daf()}}.
+\item \verb{*.daf.zip} — \code{\link[=zip_daf]{zip_daf()}} (single-file, append-only archive).
 \item \verb{*.daf.zarr} or \verb{*.daf.zarr.zip} (filesystem or HTTP) — \code{\link[=zarr_daf]{zarr_daf()}}.
 \item any other \verb{http(s)://} URL — \code{\link[=http_daf]{http_daf()}} (read-only HTTP-served
 FilesDaf).

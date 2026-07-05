@@ -1,24 +1,23 @@
 #' @include classes.R format_api.R cache_group.R
-#' @importFrom utils unzip
 NULL
 
 #' Read-only HTTP-served FilesDaf.
 #'
 #' A `Daf` reader that fetches a [files_daf()] directory served over
 #' HTTP(S). The server must expose the FilesDaf tree verbatim and include a
-#' `metadata.zip` bundle at the root (see [pack_files_daf_metadata()]).
-#' From dafr 0.2.0 onward, FilesDaf writes maintain `metadata.zip`
-#' automatically; for pre-0.2.0 stores call `pack_files_daf_metadata()`
-#' before publishing.
+#' `metadata.json` consolidated index at the root (see
+#' [pack_files_daf_metadata()]). From dafr 0.5.0 onward, FilesDaf writes
+#' maintain `metadata.json` automatically; for pre-0.5.0 stores call
+#' `pack_files_daf_metadata()` before publishing.
 #'
-#' The client downloads `metadata.zip` once at open time, parses it in
+#' The client downloads `metadata.json` once at open time, parses it in
 #' memory, and serves all JSON metadata from it (no further HTTP traffic
 #' for `format_has_*` / `format_*_set` / scalar reads). Non-JSON payloads
 #' (axis `.txt` files, vector/matrix `.data` / `.nzind` / `.nzval` /
 #' `.colptr` / `.rowval` / `.nztxt`) are fetched lazily on first access via
 #' one HTTP GET each, cached by the standard cache layer.
 #'
-#' Read-only — mutations are not supported. Server data is assumed stable
+#' Read-only - mutations are not supported. Server data is assumed stable
 #' while a [HttpDaf] is open; reopen to pick up changes.
 #'
 #' @section HTTP timeout:
@@ -59,20 +58,44 @@ http_daf <- function(url, name = NULL) {
     }
     url <- sub("/+$", "", url)
 
-    zip_bytes <- .dafr_http_get(paste0(url, "/metadata.zip"))
-    zip_path <- tempfile("dafr-http-meta-", fileext = ".zip")
-    writeBin(zip_bytes, zip_path)
+    # Fetch the consolidated metadata index (one GET at open time).
+    meta_bytes <- tryCatch(
+        .dafr_http_get(paste0(url, "/metadata.json")),
+        error = function(e) {
+            stop(sprintf(
+                "not a daf data set (no metadata.json): %s\n%s",
+                url, conditionMessage(e)
+            ), call. = FALSE)
+        }
+    )
+    meta <- tryCatch(
+        jsonlite::fromJSON(rawToChar(meta_bytes), simplifyVector = FALSE),
+        error = function(e) NULL
+    )
+    if (is.null(meta) || !is.list(meta)) {
+        stop(sprintf(
+            "not a daf data set (no metadata.json): %s; if it is an older dafr store, re-pack with pack_files_daf_metadata()",
+            url
+        ), call. = FALSE)
+    }
 
-    zip_names_full <- unzip(zip_path, list = TRUE)$Name
-    if (!"daf.json" %in% zip_names_full) {
-        unlink(zip_path, force = TRUE)
+    # Validate version via a separate daf.json GET.
+    daf_bytes <- tryCatch(
+        .dafr_http_get(paste0(url, "/daf.json")),
+        error = function(e) NULL
+    )
+    if (is.null(daf_bytes)) {
         stop(sprintf("not a daf data set: %s", url), call. = FALSE)
     }
-    daf_json <- jsonlite::fromJSON(unz(zip_path, "daf.json"),
-                                   simplifyVector = TRUE)
+    daf_json <- tryCatch(
+        jsonlite::fromJSON(rawToChar(daf_bytes), simplifyVector = TRUE),
+        error = function(e) NULL
+    )
+    if (is.null(daf_json)) {
+        stop(sprintf("not a daf data set: %s", url), call. = FALSE)
+    }
     v <- daf_json$version
     if (length(v) != 2L || v[[1]] != 1L || v[[2]] > 1L) {
-        unlink(zip_path, force = TRUE)
         stop(sprintf(paste0("incompatible format version: %d.%d\n",
                             "for the daf HTTP data set: %s\n",
                             "the code supports version: 1.1"),
@@ -80,15 +103,10 @@ http_daf <- function(url, name = NULL) {
     }
 
     if (is.null(name)) {
-        if ("scalars/name.json" %in% zip_names_full) {
-            j <- jsonlite::fromJSON(unz(zip_path, "scalars/name.json"),
-                                    simplifyVector = TRUE)
-            name <- as.character(j$value)
+        name_desc <- meta[["scalars/name"]]
+        if (!is.null(name_desc)) {
+            name <- as.character(name_desc[["value"]])
         } else {
-            # URL-derived default: basename strips the scheme + path so the
-            # result passes .assert_name's forbidden-character check
-            # (which rejects '/', ':'). Mirrors upstream's unique_name(url)
-            # at the level of "human-readable defaults".
             name <- basename(url)
             if (!nzchar(name)) name <- "http"
         }
@@ -96,17 +114,10 @@ http_daf <- function(url, name = NULL) {
     .assert_name(name, "name")
 
     internal <- new_internal_env()
-    internal$url <- url
+    internal$url  <- url
     internal$path <- url      # so complete_path(daf) returns the URL
-    internal$zip_path <- zip_path
-    internal$zip_names <- zip_names_full
+    internal$meta <- meta
     internal$is_frozen <- TRUE
-
-    # Clean up the temp zip when the internal env is GC'd.
-    reg.finalizer(internal, function(e) {
-        zp <- e$zip_path
-        if (!is.null(zp) && file.exists(zp)) unlink(zp, force = TRUE)
-    }, onexit = TRUE)
 
     HttpDaf(
         name                   = name,
@@ -120,13 +131,14 @@ http_daf <- function(url, name = NULL) {
 
 # ---- Helpers ---------------------------------------------------------------
 
-.http_zip_path  <- function(daf) S7::prop(daf, "internal")$zip_path
-.http_zip_names <- function(daf) S7::prop(daf, "internal")$zip_names
-.http_url       <- function(daf) S7::prop(daf, "internal")$url
+.http_url  <- function(daf) S7::prop(daf, "internal")$url
+.http_meta <- function(daf) S7::prop(daf, "internal")$meta
 
-.http_zip_json <- function(daf, relative_path) {
-    jsonlite::fromJSON(unz(.http_zip_path(daf), relative_path),
-                       simplifyVector = TRUE)
+# Look up a key in the in-memory meta dict (e.g. "scalars/x",
+# "vectors/cell/v", "matrices/cell/gene/m"). Returns the parsed descriptor
+# list, or NULL if absent.
+.http_meta_get <- function(daf, key) {
+    .http_meta(daf)[[key]]
 }
 
 # Split HTTP-fetched text bytes into lines, dropping the trailing empty
@@ -137,11 +149,15 @@ http_daf <- function(url, name = NULL) {
     if (length(lines) > 0L && lines[[length(lines)]] == "") {
         lines <- lines[-length(lines)]
     }
-    lines
+    # Strip a trailing CR so a CRLF-terminated file (e.g. a fixture checked out
+    # with git autocrlf on Windows) parses identically to an LF-only one,
+    # matching readLines / FilesDaf. Real dafr/Julia stores write LF; this is
+    # purely defensive for CRLF-mangled inputs.
+    sub("\r$", "", lines)
 }
 
 # Decode a parsed scalar JSON descriptor (`list($type, $value)` from
-# jsonlite::fromJSON simplifyVector=TRUE) into the typed R value.
+# jsonlite::fromJSON simplifyVector=FALSE) into the typed R value.
 # Mirrors files_io.R's .read_scalar_json fallback path.
 .http_scalar_from_json <- function(j) {
     type <- j$type
@@ -173,14 +189,14 @@ S7::method(
     format_has_scalar,
     list(HttpDaf, S7::class_character)
 ) <- function(daf, name) {
-    paste0("scalars/", name, ".json") %in% .http_zip_names(daf)
+    !is.null(.http_meta_get(daf, paste0("scalars/", name)))
 }
 
 S7::method(
     format_get_scalar,
     list(HttpDaf, S7::class_character)
 ) <- function(daf, name) {
-    j <- .http_zip_json(daf, paste0("scalars/", name, ".json"))
+    j <- .http_meta_get(daf, paste0("scalars/", name))
     .cache_group_value(.http_scalar_from_json(j), MEMORY_DATA)
 }
 
@@ -188,9 +204,9 @@ S7::method(
     format_scalars_set,
     HttpDaf
 ) <- function(daf) {
-    names <- .http_zip_names(daf)
-    pattern <- "^scalars/([^/]+)\\.json$"
-    matches <- regmatches(names, regexec(pattern, names))
+    nms <- names(.http_meta(daf))
+    pattern <- "^scalars/(.+)$"
+    matches <- regmatches(nms, regexec(pattern, nms))
     out <- vapply(matches,
                   function(m) if (length(m) == 2L) m[[2L]] else NA_character_,
                   character(1L))
@@ -203,20 +219,20 @@ S7::method(
     format_has_axis,
     list(HttpDaf, S7::class_character)
 ) <- function(daf, axis) {
-    axis %in% format_axes_set(daf)
+    !is.null(.http_meta_get(daf, paste0("axes/", axis)))
 }
 
 S7::method(
     format_axes_set,
     HttpDaf
 ) <- function(daf) {
-    if (!"axes/metadata.json" %in% .http_zip_names(daf)) {
-        return(character(0L))
-    }
-    j <- .http_zip_json(daf, "axes/metadata.json")
-    # jsonlite::fromJSON("[]", simplifyVector = TRUE) returns list(); coerce.
-    if (is.list(j) && length(j) == 0L) return(character(0L))
-    sort(as.character(j))
+    nms <- names(.http_meta(daf))
+    pattern <- "^axes/(.+)$"
+    matches <- regmatches(nms, regexec(pattern, nms))
+    out <- vapply(matches,
+                  function(m) if (length(m) == 2L) m[[2L]] else NA_character_,
+                  character(1L))
+    sort(out[!is.na(out)])
 }
 
 S7::method(
@@ -242,6 +258,11 @@ S7::method(
     format_axis_length,
     list(HttpDaf, S7::class_character)
 ) <- function(daf, axis) {
+    # Prefer the n_entries from the meta dict to avoid a network fetch.
+    desc <- .http_meta_get(daf, paste0("axes/", axis))
+    if (!is.null(desc) && !is.null(desc$n_entries)) {
+        return(as.integer(desc$n_entries))
+    }
     length(format_axis_array(daf, axis)$value)
 }
 
@@ -332,16 +353,16 @@ S7::method(
     format_has_vector,
     list(HttpDaf, S7::class_character, S7::class_character)
 ) <- function(daf, axis, name) {
-    paste0("vectors/", axis, "/", name, ".json") %in% .http_zip_names(daf)
+    !is.null(.http_meta_get(daf, paste0("vectors/", axis, "/", name)))
 }
 
 S7::method(
     format_vectors_set,
     list(HttpDaf, S7::class_character)
 ) <- function(daf, axis) {
-    names <- .http_zip_names(daf)
-    pattern <- paste0("^vectors/", axis, "/([^/]+)\\.json$")
-    matches <- regmatches(names, regexec(pattern, names))
+    nms <- names(.http_meta(daf))
+    pattern <- paste0("^vectors/", axis, "/(.+)$")
+    matches <- regmatches(nms, regexec(pattern, nms))
     out <- vapply(matches,
                   function(m) if (length(m) == 2L) m[[2L]] else NA_character_,
                   character(1L))
@@ -352,9 +373,7 @@ S7::method(
     format_get_vector,
     list(HttpDaf, S7::class_character, S7::class_character)
 ) <- function(daf, axis, name) {
-    desc <- .http_descriptor(.http_zip_json(
-        daf, paste0("vectors/", axis, "/", name, ".json")
-    ))
+    desc <- .http_descriptor(.http_meta_get(daf, paste0("vectors/", axis, "/", name)))
     n <- format_axis_length(daf, axis)
     base <- paste0(.http_url(daf), "/vectors/", axis, "/", name)
 
@@ -416,7 +435,7 @@ S7::method(
         } else {
             nzval_bytes <- .dafr_http_get(paste0(base, ".nzval"), allow_404 = TRUE)
             if (is.null(nzval_bytes)) {
-                # All-true Bool optimization: .nzval absent → every nzind is TRUE.
+                # All-true Bool optimization: .nzval absent -> every nzind is TRUE.
                 out[as.integer(idx)] <- TRUE
             } else {
                 out[as.integer(idx)] <- as.logical(
@@ -443,17 +462,17 @@ S7::method(
     format_has_matrix,
     list(HttpDaf, S7::class_character, S7::class_character, S7::class_character)
 ) <- function(daf, rows_axis, columns_axis, name) {
-    paste0("matrices/", rows_axis, "/", columns_axis, "/", name, ".json") %in%
-        .http_zip_names(daf)
+    !is.null(.http_meta_get(daf,
+        paste0("matrices/", rows_axis, "/", columns_axis, "/", name)))
 }
 
 S7::method(
     format_matrices_set,
     list(HttpDaf, S7::class_character, S7::class_character)
 ) <- function(daf, rows_axis, columns_axis) {
-    names <- .http_zip_names(daf)
-    pattern <- paste0("^matrices/", rows_axis, "/", columns_axis, "/([^/]+)\\.json$")
-    matches <- regmatches(names, regexec(pattern, names))
+    nms <- names(.http_meta(daf))
+    pattern <- paste0("^matrices/", rows_axis, "/", columns_axis, "/(.+)$")
+    matches <- regmatches(nms, regexec(pattern, nms))
     out <- vapply(matches,
                   function(m) if (length(m) == 2L) m[[2L]] else NA_character_,
                   character(1L))
@@ -464,8 +483,8 @@ S7::method(
     format_get_matrix,
     list(HttpDaf, S7::class_character, S7::class_character, S7::class_character)
 ) <- function(daf, rows_axis, columns_axis, name) {
-    desc <- .http_descriptor(.http_zip_json(
-        daf, paste0("matrices/", rows_axis, "/", columns_axis, "/", name, ".json")
+    desc <- .http_descriptor(.http_meta_get(
+        daf, paste0("matrices/", rows_axis, "/", columns_axis, "/", name)
     ))
     nr <- format_axis_length(daf, rows_axis)
     nc <- format_axis_length(daf, columns_axis)
@@ -503,7 +522,7 @@ S7::method(
             MEMORY_DATA))
     }
 
-    # sparse — CSC layout (v1.0 top-level or v1.1 per-component descriptors)
+    # sparse - CSC layout (v1.0 top-level or v1.1 per-component descriptors)
     sd <- .files_parse_sparse_descriptor(desc, "colptr")
     indtype <- sd$indtype
     eltype <- sd$eltype
