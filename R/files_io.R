@@ -108,11 +108,13 @@
 }
 .decode_lines <- function(bytes) {
     if (length(bytes) == 0L) return(character(0L))
-    s <- rawToChar(bytes)
-    Encoding(s) <- "UTF-8"
-    s <- sub("\n$", "", s)
-    if (!nzchar(s)) return(character(0L))
-    strsplit(s, "\n", fixed = TRUE)[[1L]]
+    # Use readLines (same as FilesDaf's readers) so line semantics match exactly
+    # - crucially, a trailing empty element (writeLines emits a final LF after
+    # every element, so a vector ending in "" ends in "\n\n") is preserved, which
+    # a naive strsplit would drop.
+    con <- rawConnection(bytes, "rb")
+    on.exit(close(con), add = TRUE)
+    readLines(con, encoding = "UTF-8", warn = FALSE)
 }
 
 # Write a FilesFormat v1.1 sparse property descriptor: a per-component object

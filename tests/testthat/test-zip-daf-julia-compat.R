@@ -43,6 +43,31 @@ test_that("R-written .daf.zip is readable by Julia with identical values", {
     expect_true(any(grepl("JULIA_OK", out)), info = paste(out, collapse = "\n"))
 })
 
+test_that("R-written PACKED .daf.zip (zip-shard components) is readable by Julia", {
+    skip_if_not(.have_julia_env())
+    p <- tempfile(fileext = ".daf.zip")
+    d <- zip_daf(p, mode = "w", packed = TRUE)
+    add_axis(d, "cell", sprintf("c%d", 1:4000))
+    add_axis(d, "gene", sprintf("g%d", 1:4))
+    v <- as.double(seq_len(4000)) # > 8 KB -> packed .zip shard entry
+    set_vector(d, "cell", "big", v)
+    m <- matrix(as.double(seq_len(4000 * 4)), nrow = 4000)
+    set_matrix(d, "cell", "gene", "dm", m)
+    rm(d)
+    gc()
+    script <- c(
+        "using DataAxesFormats",
+        sprintf('daf = ZipDaf(raw"%s", "r")', p),
+        '@assert get_vector(daf, "cell", "big") == Float64.(1:4000)',
+        'dm = get_matrix(daf, "cell", "gene", "dm")',
+        "@assert size(dm) == (4000, 4)",
+        '@assert dm == reshape(Float64.(1:16000), 4000, 4)',
+        'println("JULIA_PACKED_OK")'
+    )
+    out <- run_julia(script)
+    expect_true(any(grepl("JULIA_PACKED_OK", out)), info = paste(out, collapse = "\n"))
+})
+
 test_that("Julia-written .daf.zip is readable by R with identical values", {
     skip_if_not(.have_julia_env())
     p <- tempfile(fileext = ".daf.zip")
