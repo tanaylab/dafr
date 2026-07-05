@@ -700,12 +700,16 @@ S7::method(format_relayout_matrix,
 #'   written as packed `.zip` shards, as in [files_daf()].
 #' @return A `ZipDaf` (writable modes) or `ZipDafReadOnly` (`"r"`).
 #' @examples
-#' path <- tempfile("dafr-zip-", fileext = ".daf.zip")
-#' d <- zip_daf(path, mode = "w")
-#' add_axis(d, "cell", c("c1", "c2"))
-#' set_scalar(d, "organism", "human")
-#' rm(d)
-#' unlink(path)
+#' # ZipDaf is built on the POSIX-only MmapZipStore, so it is unavailable on
+#' # Windows; guard the example accordingly.
+#' if (.Platform$OS.type != "windows") {
+#'   path <- tempfile("dafr-zip-", fileext = ".daf.zip")
+#'   d <- zip_daf(path, mode = "w")
+#'   add_axis(d, "cell", c("c1", "c2"))
+#'   set_scalar(d, "organism", "human")
+#'   rm(d)
+#'   unlink(path)
+#' }
 #' @export
 zip_daf <- function(path, mode = c("r", "r+", "w", "w+"), name = NULL,
                     packed = FALSE) {

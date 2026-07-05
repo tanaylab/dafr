@@ -30,10 +30,14 @@ The archive is append-only: overwriting or deleting a property, or reordering
 an axis, raises an error.
 }
 \examples{
-path <- tempfile("dafr-zip-", fileext = ".daf.zip")
-d <- zip_daf(path, mode = "w")
-add_axis(d, "cell", c("c1", "c2"))
-set_scalar(d, "organism", "human")
-rm(d)
-unlink(path)
+# ZipDaf is built on the POSIX-only MmapZipStore, so it is unavailable on
+# Windows; guard the example accordingly.
+if (.Platform$OS.type != "windows") {
+  path <- tempfile("dafr-zip-", fileext = ".daf.zip")
+  d <- zip_daf(path, mode = "w")
+  add_axis(d, "cell", c("c1", "c2"))
+  set_scalar(d, "organism", "human")
+  rm(d)
+  unlink(path)
+}
 }
