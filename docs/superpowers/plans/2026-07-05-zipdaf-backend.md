@@ -12,6 +12,49 @@
 
 ---
 
+## REVISION (2026-07-05, during execution): hybrid, not full backend-refactor
+
+After reading `files_daf_write.R` in full, the original "route ALL FilesDaf I/O
+through a backend" plan (Tasks A3/A4) is the wrong trade. FilesDaf's **write**
+orchestration is deeply entangled with filesystem-only concerns ZipDaf does not
+have: `metadata.json` rebuild/append on every setter, eager directory creation
+in `format_add_axis`, unlink-before-write, and a hardlink-based reorder engine.
+Disentangling those from mature, byte-parity-critical code is high-risk for
+little gain.
+
+**Revised approach (hybrid):**
+- **Keep A1/A2** - extract the *pure serialization cores* (dense/scalar/
+  descriptor/lines encode+decode) into `files_io.R`; FilesDaf's leaf helpers
+  delegate to them (trivial, single-source, guarded by the existing suite).
+- **Drop A3/A4** (the backend object + full FilesDaf routing).
+- **ZipDaf gets its own thin orchestration** (`R/zip_daf.R`) that calls the
+  shared cores + `store_get_bytes/set_bytes/exists/list`. It parallels the
+  `.files_get_*`/`.files_write_*` *structure* but is simpler: no `metadata.json`,
+  no eager dirs, no mmap, no unlink, no reorder. Append-only: delete / overwrite
+  / relayout / reorder raise a clean error.
+
+What's shared (byte-parity lives here, so parity fixes propagate): `.encode_dense`
+/`.decode_dense`, `.encode_scalar_json`/`.decode_scalar_json`,
+`.decode_descriptor_bytes` + descriptor byte-builders, `.encode_lines`/
+`.decode_lines`, `.files_parse_sparse_descriptor`, `.files_packed_decode_vector`
+/`_matrix`, `.shard_assemble`, `.should_sparsify_*`, `.indtype_for_size`, the
+dtype helpers.
+
+What's duplicated (structure only, simpler for zip): the read branch
+(dense/sparse/string -> assemble vector/`dgCMatrix`/`lgCMatrix`) and the write
+branch (sparsify decision -> descriptor + components). FilesDaf's orchestration
+structure is stable; the frequent parity fixes are in serialization, which is
+shared.
+
+Revised task list: **A1, A2** (cores, unchanged below) -> **B1** ZipDaf classes +
+store accessor -> **B2** read methods -> **B3** write methods (append-only) ->
+**B4** `zip_daf()` + `open_daf` dispatch -> **B5** round-trip tests -> **C1**
+Julia interop -> **C2** docs/NEWS/version. The B-task code is written TDD-first
+during execution (paralleling the FilesDaf helpers just read), so the detailed
+listings in the original Phase B below are superseded by this structure.
+
+---
+
 ## Phase A - Backend seam (behavior-preserving refactor)
 
 The existing FilesDaf test suite (`test-files-*.R`, `test-files-julia-compat.R`, `test-files-packed-*.R`) is the regression guard for all of Phase A. No test should change in Phase A; if one does, the refactor changed behavior and is wrong.

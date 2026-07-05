@@ -77,16 +77,42 @@
 }
 
 # ---- JSON descriptors ----
+# Each descriptor has a *string* builder (the exact bytes written, incl. trailing
+# newline) reused by both the file writer (`.write_descriptor_*`) and ZipDaf
+# (which charToRaw's the string into the store). Single source of truth.
+.descriptor_dense_string <- function(dtype) {
+    sprintf('{"format":"dense","eltype":"%s"}\n', dtype)
+}
 .write_descriptor_dense <- function(path, dtype) {
-    cat(sprintf('{"format":"dense","eltype":"%s"}\n', dtype), file = path)
+    cat(.descriptor_dense_string(dtype), file = path)
 }
 
-# Serialize a packed dense descriptor list (from .files_packed_descriptor) to a
-# `<name>.json` sidecar. jsonlite renders the field order as inserted, which is
-# byte-identical to the DataAxesFormats.jl FilesFormat packed descriptor
-# (verified against the fpk fixtures).
+# Serialize a packed dense descriptor list (from .files_packed_descriptor).
+# jsonlite renders the field order as inserted, which is byte-identical to the
+# DataAxesFormats.jl FilesFormat packed descriptor (verified against the fpk
+# fixtures).
+.descriptor_packed_string <- function(desc) {
+    paste0(jsonlite::toJSON(desc, auto_unbox = TRUE), "\n")
+}
 .write_descriptor_packed <- function(path, desc) {
-    cat(jsonlite::toJSON(desc, auto_unbox = TRUE), "\n", file = path, sep = "")
+    cat(.descriptor_packed_string(desc), file = path)
+}
+
+# Newline-delimited text payload (axes .txt, dense/sparse string vectors .txt/
+# .nztxt), matching `writeLines(x, <wb UTF-8 con>)`: each element followed by a
+# single LF. `.decode_lines` mirrors `readLines` (a single trailing LF does not
+# produce an extra empty element).
+.encode_lines <- function(x) {
+    if (length(x) == 0L) return(raw(0L))
+    charToRaw(paste0(x, "\n", collapse = ""))
+}
+.decode_lines <- function(bytes) {
+    if (length(bytes) == 0L) return(character(0L))
+    s <- rawToChar(bytes)
+    Encoding(s) <- "UTF-8"
+    s <- sub("\n$", "", s)
+    if (!nzchar(s)) return(character(0L))
+    strsplit(s, "\n", fixed = TRUE)[[1L]]
 }
 
 # Write a FilesFormat v1.1 sparse property descriptor: a per-component object
@@ -98,7 +124,7 @@
 #   - packed: list(key=, desc=<.files_packed_descriptor list incl. n_elements>)
 #             -> rendered as the nested packed shard descriptor (the payload is a
 #             `<name>.<component>.zip` shard).
-.write_descriptor_sparse <- function(path, components) {
+.descriptor_sparse_string <- function(components) {
     parts <- vapply(components, function(c) {
         if (!is.null(c$desc)) {
             # Packed component: render the packed descriptor list as a nested
@@ -110,8 +136,10 @@
                     c$key, c$eltype, as.integer(c$n_elements))
         }
     }, character(1L))
-    cat(sprintf('{"format":"sparse",%s}\n', paste(parts, collapse = ",")),
-        file = path)
+    sprintf('{"format":"sparse",%s}\n', paste(parts, collapse = ","))
+}
+.write_descriptor_sparse <- function(path, components) {
+    cat(.descriptor_sparse_string(components), file = path)
 }
 
 # Build an in-memory packed dense-component descriptor (the R list that will be
@@ -223,7 +251,11 @@
 )
 
 .read_descriptor <- function(path) {
-    raw <- readChar(path, file.size(path), useBytes = TRUE)
+    .decode_descriptor_bytes(readBin(path, "raw", n = file.size(path)))
+}
+
+.decode_descriptor_bytes <- function(bytes) {
+    raw <- rawToChar(bytes)
     # Try dense fast-path
     m <- regmatches(raw, regexec(.DESCRIPTOR_DENSE_RE, raw, perl = TRUE))[[1L]]
     if (length(m) == 3L) {
@@ -243,14 +275,11 @@
         ))
     }
     # Fallback: full JSON parse
-    j <- jsonlite::fromJSON(path, simplifyVector = TRUE)
+    j <- jsonlite::fromJSON(raw, simplifyVector = TRUE)
     fmt <- j$format
     elt <- j$eltype
     if (is.null(fmt) || !(fmt %in% c("dense", "sparse"))) {
-        stop(sprintf(
-            "files_daf: %s has malformed descriptor (no format)",
-            sQuote(path)
-        ), call. = FALSE)
+        stop("files_daf: malformed descriptor (no format)", call. = FALSE)
     }
     if (fmt == "sparse" && is.null(elt)) {
         # FilesFormat v1.1 (DataAxesFormats.jl 0.3.0): no top-level eltype;
@@ -267,10 +296,7 @@
         return(j)
     }
     if (is.null(elt)) {
-        stop(sprintf(
-            "files_daf: %s has malformed descriptor (no eltype)",
-            sQuote(path)
-        ), call. = FALSE)
+        stop("files_daf: malformed descriptor (no eltype)", call. = FALSE)
     }
     list(
         format = fmt, eltype = .dtype_canonical(elt),
@@ -279,7 +305,10 @@
 }
 
 # ---- scalar JSON ----
-.write_scalar_json <- function(path, value) {
+# The scalar JSON *string* (including its trailing newline) is built by
+# `.scalar_json_string`; `.write_scalar_json` writes it to a file and
+# `.encode_scalar_json` returns its raw bytes (for ZipDaf). Single source.
+.scalar_json_string <- function(value) {
     dtype <- .dtype_for_r_vector(value)
     if (dtype == "String") {
         obj <- list(
@@ -292,14 +321,10 @@
             value = jsonlite::unbox(as.integer(value))
         )
     } else if (dtype == "Int64") {
-        cat(
-            sprintf(
-                '{"type":"Int64","value":%s}\n',
-                format(value, scientific = FALSE)
-            ),
-            file = path
-        )
-        return(invisible())
+        return(sprintf(
+            '{"type":"Int64","value":%s}\n',
+            format(value, scientific = FALSE)
+        ))
     } else {
         obj <- list(
             type = jsonlite::unbox(dtype),
@@ -309,10 +334,15 @@
     # digits = 17 is the minimum needed to round-trip Float64 without
     # precision loss. jsonlite's default of 4 was truncating high-
     # precision scalars (e.g. pi to 3.1416). String/Bool branches are
-    # unaffected; the explicit Int64 branch above writes its own JSON.
-    cat(jsonlite::toJSON(obj, auto_unbox = FALSE, digits = 17),
-        "\n", file = path, sep = "")
+    # unaffected; the explicit Int64 branch above returns its own JSON.
+    paste0(jsonlite::toJSON(obj, auto_unbox = FALSE, digits = 17), "\n")
 }
+
+.write_scalar_json <- function(path, value) {
+    cat(.scalar_json_string(value), file = path)
+}
+
+.encode_scalar_json <- function(value) charToRaw(.scalar_json_string(value))
 
 # Fast-path regex for fixed scalar schemas dafr emits:
 #   {"type":"X","value":N}       numeric/bool  (N = [-+digits.eE]+)
@@ -321,8 +351,8 @@
 .SCALAR_NUM_RE  <- '^\\{"type":"([A-Za-z0-9]+)","value":(-?[0-9]+(?:\\.[0-9]+)?(?:[eE][+-]?[0-9]+)?)\\}\\s*$'
 .SCALAR_STR_RE  <- '^\\{"type":"([A-Za-z0-9]+)","value":"([^"\\\\[:cntrl:]]*)"\\}\\s*$'
 
-.read_scalar_json <- function(path) {
-    raw <- readChar(path, file.size(path), useBytes = TRUE)
+.decode_scalar_json <- function(bytes) {
+    raw <- rawToChar(bytes)
     # Try numeric/bool fast-path
     m <- regmatches(raw, regexec(.SCALAR_NUM_RE, raw, perl = TRUE))[[1L]]
     if (length(m) == 3L) {
@@ -349,10 +379,9 @@
     if (length(m) == 3L) {
         t <- .dtype_canonical(m[[2L]])
         if (t == "String") {
-            # readChar(..., useBytes = TRUE) above leaves the string with
-            # Encoding "bytes"/"unknown". dafr files are UTF-8 by spec; tag
-            # explicitly so downstream `Encoding()` / `serialize()` agree
-            # with the memory backend.
+            # rawToChar leaves the string with Encoding "bytes"/"unknown". dafr
+            # files are UTF-8 by spec; tag explicitly so downstream `Encoding()`
+            # / `serialize()` agree with the memory backend.
             s <- m[[3L]]
             Encoding(s) <- "UTF-8"
             return(s)
@@ -360,7 +389,7 @@
         # Non-string type with quoted value — fall through
     }
     # Fallback: full JSON parse
-    j <- jsonlite::fromJSON(path, simplifyVector = TRUE)
+    j <- jsonlite::fromJSON(raw, simplifyVector = TRUE)
     t <- .dtype_canonical(j$type)
     v <- j$value
     switch(t,
@@ -380,11 +409,18 @@
     )
 }
 
+.read_scalar_json <- function(path) {
+    .decode_scalar_json(readBin(path, "raw", n = file.size(path)))
+}
+
 # ---- binary I/O ----
-.write_bin_dense <- function(path, value, dtype) {
+# Dense encode/decode is split into connection-based cores (`.write_dense_con` /
+# `.read_dense_con`) so the SAME dtype switch serves both file I/O (FilesDaf) and
+# raw-bytes I/O (ZipDaf, via `.encode_dense` / `.decode_dense` over a
+# rawConnection). A rawConnection produces byte-identical output to a file
+# connection, so this is a pure refactor.
+.write_dense_con <- function(con, value, dtype) {
     dtype <- .dtype_canonical(dtype)
-    con <- file(path, open = "wb")
-    on.exit(close(con), add = TRUE)
     switch(dtype,
         Bool    = writeBin(as.raw(as.integer(value)), con),
         Int8    = writeBin(as.integer(value), con, size = 1L, endian = "little"),
@@ -402,10 +438,8 @@
     invisible()
 }
 
-.read_bin_dense <- function(path, n, dtype) {
+.read_dense_con <- function(con, n, dtype) {
     dtype <- .dtype_canonical(dtype)
-    con <- file(path, open = "rb")
-    on.exit(close(con), add = TRUE)
     switch(dtype,
         Bool = as.logical(readBin(con,
             what = "integer", n = n, size = 1L,
@@ -454,6 +488,34 @@
         Float64 = readBin(con, what = "double", n = n, size = 8L, endian = "little"),
         stop(sprintf("files_daf: unsupported dtype %s for dense read", dtype))
     )
+}
+
+.write_bin_dense <- function(path, value, dtype) {
+    con <- file(path, open = "wb")
+    on.exit(close(con), add = TRUE)
+    .write_dense_con(con, value, dtype)
+    invisible()
+}
+
+.read_bin_dense <- function(path, n, dtype) {
+    con <- file(path, open = "rb")
+    on.exit(close(con), add = TRUE)
+    .read_dense_con(con, n, dtype)
+}
+
+# Pure: encode a dense R vector to little-endian raw bytes (no file I/O).
+.encode_dense <- function(value, dtype) {
+    con <- rawConnection(raw(0L), "wb")
+    on.exit(close(con), add = TRUE)
+    .write_dense_con(con, value, dtype)
+    rawConnectionValue(con)
+}
+
+# Pure: decode little-endian raw bytes to a dense R vector (no file I/O).
+.decode_dense <- function(bytes, n, dtype) {
+    con <- rawConnection(bytes, "rb")
+    on.exit(close(con), add = TRUE)
+    .read_dense_con(con, n, dtype)
 }
 
 .indtype_for_size <- function(size) {
