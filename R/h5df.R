@@ -324,3 +324,111 @@ S7::method(format_add_axis, list(H5df, S7::class_character, S7::class_character)
     function(daf, axis, entries) .h5_add_axis(daf, axis, entries)
 S7::method(format_delete_axis, list(H5df, S7::class_character, S7::class_logical)) <-
     function(daf, axis, must_exist) .h5_delete_axis(daf, axis, must_exist)
+
+# ==== vectors ================================================================
+
+.h5_has_vector <- function(daf, axis, name) {
+    if (!format_has_axis(daf, axis)) return(FALSE)
+    .h5_root(daf)$exists(.hkey_vector(axis, name))
+}
+.h5_vectors_set <- function(daf, axis) {
+    if (!format_has_axis(daf, axis)) return(character(0L))
+    root <- .h5_root(daf); key <- paste0("vectors/", axis)
+    if (!root$exists(key)) return(character(0L))
+    sort(root[[key]]$names, method = "radix")
+}
+
+# Scatter a sparse-group vector to a dense R vector (H5df returns dense
+# vectors, matching ZipDaf).
+.h5_read_sparse_vector <- function(grp, n) {
+    idx <- as.integer(grp[["nzind"]]$read())        # 1-based
+    if (grp$exists("nztxt")) {
+        vals <- .h5_safe_read(grp[["nztxt"]])
+        out <- rep("", n); out[idx] <- as.character(vals); return(out)
+    }
+    if (grp$exists("nzval")) {
+        vals <- grp[["nzval"]]$read()
+        out <- if (is.logical(vals)) logical(n) else vector(typeof(vals), n)
+        out[idx] <- vals; return(out)
+    }
+    out <- logical(n); out[idx] <- TRUE; out        # bool-all-true: nzval omitted
+}
+
+.h5_get_vector_impl <- function(daf, axis, name) {
+    root <- .h5_root(daf); key <- .hkey_vector(axis, name)
+    if (!root$exists(key)) .require_vector(daf, axis, name)
+    n <- format_axis_length(daf, axis)
+    obj <- root[[key]]
+    if (inherits(obj, "H5Group")) return(.h5_read_sparse_vector(obj, n))
+    .h5_safe_read(obj)
+}
+
+.h5_set_vector_sparse <- function(daf, axis, name, sv, overwrite) {
+    n <- format_axis_length(daf, axis)
+    if (sv@length != n) {
+        stop(sprintf("sparseVector %s length %d (expected %d) on axis %s",
+            sQuote(name), sv@length, n, sQuote(axis)), call. = FALSE)
+    }
+    if (!overwrite) .require_no_vector(daf, axis, name)
+    root <- .h5_root(daf); key <- .hkey_vector(axis, name)
+    if (root$exists(key)) root$link_delete(key)
+    grp <- root$create_group(key)
+    .h5_write_index(grp, "nzind", as.integer(sv@i), .indtype_for_size(n))  # @i is 1-based
+    eltype <- .dtype_for_r_vector(sv@x)
+    if (eltype == "Bool") {
+        if (!all(sv@x)) grp$create_dataset("nzval", robj = as.logical(sv@x), chunk_dims = NULL)
+    } else {
+        grp$create_dataset("nzval", robj = sv@x, chunk_dims = NULL)
+    }
+    bump_vector_counter(daf, axis, name)
+    MEMORY_DATA
+}
+
+# H5df stores dense input as a dense dataset and sparseVector input as a sparse
+# group; it does NOT auto-sparsify dense input.
+# ponytail: no sparsify heuristic; add one only if store size becomes a problem.
+.h5_set_vector <- function(daf, axis, name, vec, overwrite) {
+    if (methods::is(vec, "sparseVector")) {
+        return(.h5_set_vector_sparse(daf, axis, name, vec, overwrite))
+    }
+    vec <- .validate_vector_value(daf, axis, name, vec)
+    if (!overwrite) .require_no_vector(daf, axis, name)
+    root <- .h5_root(daf); key <- .hkey_vector(axis, name)
+    if (root$exists(key)) root$link_delete(key)
+    # Empty `robj` is fine (writes a valid empty dataset); reads use `.h5_safe_read`.
+    root$create_dataset(key, robj = vec, chunk_dims = NULL)
+    bump_vector_counter(daf, axis, name)
+    MEMORY_DATA
+}
+
+.h5_delete_vector <- function(daf, axis, name, must_exist) {
+    root <- .h5_root(daf); key <- .hkey_vector(axis, name)
+    if (!root$exists(key)) {
+        if (must_exist) .require_vector(daf, axis, name)
+        return(invisible())
+    }
+    root$link_delete(key)
+    invisible()
+}
+
+local({
+    for (cls in list(H5df, H5dfReadOnly)) {
+        S7::method(format_has_vector, list(cls, S7::class_character, S7::class_character)) <-
+            function(daf, axis, name) .h5_has_vector(daf, axis, name)
+        S7::method(format_vectors_set, list(cls, S7::class_character)) <-
+            function(daf, axis) .h5_vectors_set(daf, axis)
+        S7::method(format_get_vector, list(cls, S7::class_character, S7::class_character)) <-
+            function(daf, axis, name) {
+                v <- .h5_get_vector_impl(daf, axis, name)
+                .cache_group_value(.attach_vector_axis_names(daf, axis, v),
+                    .files_daf_classify_vector(v))
+            }
+    }
+})
+
+S7::method(format_set_vector,
+    list(H5df, S7::class_character, S7::class_character, S7::class_any, S7::class_logical)) <-
+    function(daf, axis, name, vec, overwrite) .h5_set_vector(daf, axis, name, vec, overwrite)
+S7::method(format_delete_vector,
+    list(H5df, S7::class_character, S7::class_character, S7::class_logical)) <-
+    function(daf, axis, name, must_exist) .h5_delete_vector(daf, axis, name, must_exist)
