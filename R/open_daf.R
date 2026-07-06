@@ -34,9 +34,13 @@ open_daf <- function(uri = NULL, mode = "r", name = NULL, ...) {
     if (!is.character(uri) || length(uri) != 1L || is.na(uri)) {
         stop("`uri` must be a single character scalar or NULL", call. = FALSE)
     }
-    # Future backends — placeholders so callers don't get cryptic errors.
-    if (endsWith(uri, ".h5df") || grepl(".h5dfs#", uri, fixed = TRUE)) {
-        stop("H5df backend not supported yet", call. = FALSE)
+    if (endsWith(uri, ".h5df")) {
+        return(h5df(uri, mode = mode, name = name))
+    }
+    if (grepl(".h5dfs#", uri, fixed = TRUE)) {
+        stop(sprintf(paste0(
+            "open_daf: grouped .h5dfs#/group stores are not supported yet.\n",
+            "Refused: %s"), uri), call. = FALSE)
     }
     if (grepl("^https?://", uri)) {
         if (!identical(mode, "r")) {
