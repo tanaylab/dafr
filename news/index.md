@@ -1,5 +1,19 @@
 # Changelog
 
+## dafr 0.7.0
+
+- New [`h5df()`](https://tanaylab.github.io/dafr/reference/h5df.md)
+  backend: a whole Daf store in one `.h5df` HDF5 file, interoperable
+  with `DataAxesFormats.jl` `H5df` (read + write + delete + overwrite +
+  reorder), verified by bidirectional Julia interop tests.
+  [`open_daf()`](https://tanaylab.github.io/dafr/reference/open_daf.md)
+  dispatches `*.h5df`. Requires the `hdf5r` package. Compressed/packed
+  writing, grouped `.h5dfs#/group` stores, mmap reads, and crash-safe
+  reorder are deferred. One interop caveat: `hdf5r` cannot read the HDF5
+  *bitfield* type that Julia uses for `Bool`, so reading a Julia-written
+  `Bool` component in R raises a clear error (writing `Bool` from R to a
+  store Julia reads works fine).
+
 ## dafr 0.6.0
 
 New `ZipDaf` backend: a whole Daf store in a single append-only

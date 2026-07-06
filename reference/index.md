@@ -50,6 +50,11 @@
 - [`zip_daf()`](https://tanaylab.github.io/dafr/reference/zip_daf.md) :
   Single-file (zip) Daf store.
 
+- [`H5df()`](https://tanaylab.github.io/dafr/reference/h5df.md)
+  [`H5dfReadOnly()`](https://tanaylab.github.io/dafr/reference/h5df.md)
+  [`h5df()`](https://tanaylab.github.io/dafr/reference/h5df.md) :
+  Single-file (HDF5) Daf store.
+
 - [`pack_files_daf_metadata()`](https://tanaylab.github.io/dafr/reference/pack_files_daf_metadata.md)
   : Rebuild a FilesDaf store's root metadata.json index.
 
