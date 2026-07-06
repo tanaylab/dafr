@@ -166,7 +166,8 @@ local({
 .h5_get_scalar <- function(daf, name) {
     root <- .h5_root(daf); key <- .hkey_scalar(name)
     if (!root$exists(key)) .require_scalar(daf, name)
-    root[[key]]$read()
+    obj <- root[[key]]
+    .h5_coerce_int64(obj, obj$read())
 }
 .h5_scalars_set <- function(daf) {
     root <- .h5_root(daf)
@@ -217,6 +218,18 @@ S7::method(format_delete_scalar, list(H5df, S7::class_character, S7::class_logic
     obj$read()
 }
 
+# hdf5r decodes an on-disk 64-bit integer to R double when values fit in 2^53
+# (value-dependent). FilesDaf/ZipDaf always yield integer64 for Int64; match
+# that so a read-modify-rewrite preserves the on-disk dtype. Vectors/scalars
+# only - Int64 matrices are left as-is (coercion would drop the dim).
+.h5_coerce_int64 <- function(obj, v) {
+    ty <- obj$get_type()
+    if (ty$get_size() == 8L && ty$get_class() == hdf5r::h5const$H5T_INTEGER) {
+        return(bit64::as.integer64(v))
+    }
+    v
+}
+
 # ==== axes ===================================================================
 
 .h5_axis_parsed <- function(daf, axis) {
@@ -229,6 +242,10 @@ S7::method(format_delete_scalar, list(H5df, S7::class_character, S7::class_logic
     entries <- as.character(.h5_safe_read(root[[key]]))
     if (anyNA(entries) || (length(entries) && any(!nzchar(entries)))) {
         stop(sprintf("h5df: axis %s contains empty entries", sQuote(axis)), call. = FALSE)
+    }
+    if (anyDuplicated(entries)) {
+        stop(sprintf("non-unique entries for new axis: %s\nin the daf data: %s",
+            axis, S7::prop(daf, "name")), call. = FALSE)
     }
     dict <- new.env(parent = emptyenv(), size = length(entries))
     for (i in seq_along(entries)) assign(entries[[i]], i, envir = dict)
@@ -347,7 +364,11 @@ S7::method(format_delete_axis, list(H5df, S7::class_character, S7::class_logical
         out <- rep("", n); out[idx] <- as.character(vals); return(out)
     }
     if (grp$exists("nzval")) {
-        vals <- grp[["nzval"]]$read()
+        nzobj <- grp[["nzval"]]
+        vals <- .h5_coerce_int64(nzobj, nzobj$read())
+        if (bit64::is.integer64(vals)) {
+            out <- bit64::as.integer64(rep(0, n)); out[idx] <- vals; return(out)
+        }
         out <- if (is.logical(vals)) logical(n) else vector(typeof(vals), n)
         out[idx] <- vals; return(out)
     }
@@ -360,7 +381,8 @@ S7::method(format_delete_axis, list(H5df, S7::class_character, S7::class_logical
     n <- format_axis_length(daf, axis)
     obj <- root[[key]]
     if (inherits(obj, "H5Group")) return(.h5_read_sparse_vector(obj, n))
-    .h5_safe_read(obj)
+    v <- .h5_safe_read(obj)
+    .h5_coerce_int64(obj, v)
 }
 
 .h5_set_vector_sparse <- function(daf, axis, name, sv, overwrite) {

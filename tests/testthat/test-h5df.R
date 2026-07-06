@@ -101,6 +101,43 @@ test_that("h5df vectors round-trip: numeric, int, string, bool, sparse, empty", 
     rm(d); gc()
 })
 
+test_that("h5df Int64 vectors/scalars read back as integer64 (dtype fidelity)", {
+    skip_if_no_hdf5r()
+    p <- tempfile(fileext = ".h5df")
+    d <- h5df(p, mode = "w")
+    add_axis(d, "cell", c("A", "B", "C", "D"))
+    # Small Int64 values (<2^53): hdf5r would decode them to double; the
+    # backend must still surface integer64 to match FilesDaf/ZipDaf, so a
+    # read-modify-rewrite keeps the on-disk dtype.
+    set_vector(d, "cell", "big64", bit64::as.integer64(c(1, 2, 3, 4)))
+    got <- get_vector(d, "cell", "big64")
+    expect_true(bit64::is.integer64(got))
+    expect_equal(as.numeric(got), c(1, 2, 3, 4), ignore_attr = TRUE)
+    # Sparse Int64 nzval scatters to a dense integer64 vector. Matrix's
+    # sparseVector can't hold integer64 (its x slot must extend numeric), so a
+    # sparse Int64 only reaches the store from a Julia writer; hand-craft the
+    # on-disk group to exercise the interop read path directly.
+    root <- S7::prop(d, "internal")$h5
+    grp <- root$create_group("vectors/cell/sp64")
+    grp$create_dataset("nzind", robj = c(2L, 4L),
+        dtype = hdf5r::h5types$H5T_NATIVE_UINT32, chunk_dims = NULL)
+    grp$create_dataset("nzval", robj = bit64::as.integer64(c(10, 30)), chunk_dims = NULL)
+    gotsp <- get_vector(d, "cell", "sp64")
+    expect_true(bit64::is.integer64(gotsp))
+    expect_equal(as.numeric(gotsp), c(0, 10, 0, 30), ignore_attr = TRUE)
+    set_scalar(d, "cnt", bit64::as.integer64(1000))
+    expect_true(bit64::is.integer64(get_scalar(d, "cnt")))
+    expect_equal(as.numeric(get_scalar(d, "cnt")), 1000)
+    # Int32 and Bool must NOT become integer64 (size / class checks exclude them).
+    set_vector(d, "cell", "i32", c(1L, 2L, 3L, 4L))
+    set_vector(d, "cell", "flag", c(TRUE, FALSE, TRUE, TRUE))
+    expect_false(bit64::is.integer64(get_vector(d, "cell", "i32")))
+    expect_type(as.vector(get_vector(d, "cell", "i32")), "integer")
+    expect_false(bit64::is.integer64(get_vector(d, "cell", "flag")))
+    expect_type(as.vector(get_vector(d, "cell", "flag")), "logical")
+    rm(d); gc()
+})
+
 test_that("h5df matrices round-trip: dense, sparse, bool, orientation, delete", {
     skip_if_no_hdf5r()
     p <- tempfile(fileext = ".h5df")
