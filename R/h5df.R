@@ -432,3 +432,147 @@ S7::method(format_set_vector,
 S7::method(format_delete_vector,
     list(H5df, S7::class_character, S7::class_character, S7::class_logical)) <-
     function(daf, axis, name, must_exist) .h5_delete_vector(daf, axis, name, must_exist)
+
+# ==== matrices ===============================================================
+
+.h5_has_matrix <- function(daf, ra, ca, name) {
+    if (!format_has_axis(daf, ra) || !format_has_axis(daf, ca)) return(FALSE)
+    .h5_root(daf)$exists(.hkey_matrix(ra, ca, name))
+}
+.h5_matrices_set <- function(daf, ra, ca) {
+    if (!format_has_axis(daf, ra) || !format_has_axis(daf, ca)) return(character(0L))
+    root <- .h5_root(daf); key <- paste0("matrices/", ra, "/", ca)
+    if (!root$exists(key)) return(character(0L))
+    sort(root[[key]]$names, method = "radix")
+}
+
+.h5_read_sparse_matrix <- function(grp, nr, nc) {
+    colptr <- as.integer(grp[["colptr"]]$read())
+    rowval <- as.integer(grp[["rowval"]]$read())
+    if (grp$exists("nztxt")) {                        # Julia-written string-sparse
+        txt <- as.character(.h5_safe_read(grp[["nztxt"]]))
+        m <- matrix("", nr, nc)
+        for (j in seq_len(nc)) {
+            if (colptr[j + 1L] > colptr[j]) {
+                rng <- colptr[j]:(colptr[j + 1L] - 1L)
+                m[rowval[rng], j] <- txt[rng]
+            }
+        }
+        return(m)
+    }
+    i0 <- as.integer(rowval) - 1L
+    p0 <- as.integer(colptr) - 1L
+    if (grp$exists("nzval")) {
+        vals <- grp[["nzval"]]$read()
+        if (is.logical(vals)) {
+            return(methods::new("lgCMatrix", x = vals, i = i0, p = p0,
+                Dim = c(as.integer(nr), as.integer(nc)), Dimnames = list(NULL, NULL)))
+        }
+        return(methods::new("dgCMatrix", x = as.double(vals), i = i0, p = p0,
+            Dim = c(as.integer(nr), as.integer(nc)), Dimnames = list(NULL, NULL)))
+    }
+    methods::new("lgCMatrix", x = rep(TRUE, length(i0)), i = i0, p = p0,   # bool-all-true
+        Dim = c(as.integer(nr), as.integer(nc)), Dimnames = list(NULL, NULL))
+}
+
+.h5_get_matrix_impl <- function(daf, ra, ca, name) {
+    root <- .h5_root(daf); key <- .hkey_matrix(ra, ca, name)
+    if (!root$exists(key)) .require_matrix(daf, ra, ca, name, relayout = FALSE)
+    nr <- format_axis_length(daf, ra); nc <- format_axis_length(daf, ca)
+    obj <- root[[key]]
+    if (inherits(obj, "H5Group")) return(.h5_read_sparse_matrix(obj, nr, nc))
+    v <- .h5_safe_read(obj)                            # hdf5r reverses dims -> (nr, nc)
+    if (is.null(dim(v))) dim(v) <- c(as.integer(nr), as.integer(nc))
+    v
+}
+
+.h5_write_matrix_sparse <- function(root, key, mat) {
+    is_bool <- methods::is(mat, "lgCMatrix")
+    nr <- nrow(mat); nc <- ncol(mat); nnz <- length(mat@x)
+    indtype <- .indtype_for_size(max(nr, nc, nnz))
+    grp <- root$create_group(key)
+    .h5_write_index(grp, "colptr", as.integer(mat@p) + 1L, indtype)   # 0-based -> 1-based
+    .h5_write_index(grp, "rowval", as.integer(mat@i) + 1L, indtype)
+    if (is_bool) {
+        if (!all(mat@x)) grp$create_dataset("nzval", robj = as.logical(mat@x), chunk_dims = NULL)
+    } else {
+        grp$create_dataset("nzval", robj = as.double(mat@x), chunk_dims = NULL)
+    }
+    invisible()
+}
+
+.h5_set_matrix <- function(daf, ra, ca, name, mat, overwrite) {
+    mat <- .validate_matrix_value(daf, ra, ca, name, mat)
+    if (!overwrite) .require_no_matrix(daf, ra, ca, name, relayout = FALSE)
+    root <- .h5_root(daf); key <- .hkey_matrix(ra, ca, name)
+    if (root$exists(key)) root$link_delete(key)
+    if (methods::is(mat, "dgCMatrix") || methods::is(mat, "lgCMatrix")) {
+        .h5_write_matrix_sparse(root, key, mat)
+    } else {
+        # Dense: hdf5r stores R dim (nr,nc) as HDF5 (nc,nr) col-major = Julia's
+        # convention, so write directly (string matrices too).
+        root$create_dataset(key, robj = as.matrix(mat), chunk_dims = NULL)
+    }
+    bump_matrix_counter(daf, ra, ca, name)
+    MEMORY_DATA
+}
+
+.h5_delete_matrix <- function(daf, ra, ca, name, must_exist) {
+    root <- .h5_root(daf); key <- .hkey_matrix(ra, ca, name)
+    if (!root$exists(key)) {
+        if (must_exist) .require_matrix(daf, ra, ca, name, relayout = FALSE)
+        return(invisible())
+    }
+    root$link_delete(key)
+    invisible()
+}
+
+local({
+    for (cls in list(H5df, H5dfReadOnly)) {
+        S7::method(format_has_matrix,
+            list(cls, S7::class_character, S7::class_character, S7::class_character)) <-
+            function(daf, rows_axis, columns_axis, name) .h5_has_matrix(daf, rows_axis, columns_axis, name)
+        S7::method(format_matrices_set,
+            list(cls, S7::class_character, S7::class_character)) <-
+            function(daf, rows_axis, columns_axis) .h5_matrices_set(daf, rows_axis, columns_axis)
+        S7::method(format_get_matrix,
+            list(cls, S7::class_character, S7::class_character, S7::class_character)) <-
+            function(daf, rows_axis, columns_axis, name) {
+                m <- .h5_get_matrix_impl(daf, rows_axis, columns_axis, name)
+                .cache_group_value(
+                    .attach_matrix_axis_dimnames(daf, rows_axis, columns_axis, m),
+                    .files_daf_classify_matrix(m))
+            }
+    }
+})
+
+S7::method(format_set_matrix,
+    list(H5df, S7::class_character, S7::class_character, S7::class_character, S7::class_any, S7::class_logical)) <-
+    function(daf, rows_axis, columns_axis, name, mat, overwrite) {
+        .h5_set_matrix(daf, rows_axis, columns_axis, name, mat, overwrite)
+    }
+S7::method(format_delete_matrix,
+    list(H5df, S7::class_character, S7::class_character, S7::class_character, S7::class_logical)) <-
+    function(daf, rows_axis, columns_axis, name, must_exist) {
+        .h5_delete_matrix(daf, rows_axis, columns_axis, name, must_exist)
+    }
+
+# set_matrix()'s public wrapper (writers.R) calls format_relayout_matrix
+# whenever rows_axis != columns_axis and relayout defaults to TRUE, so this
+# must exist even though it wasn't spelled out in the matrices task; mirrors
+# MemoryDaf/ZarrDaf: read, transpose, physically store at the flipped layout.
+.h5_relayout_matrix <- function(daf, ra, ca, name) {
+    src <- format_get_matrix(daf, ra, ca, name)$value
+    transposed <- if (methods::is(src, "dgCMatrix") || methods::is(src, "lgCMatrix")) {
+        Matrix::t(src)
+    } else {
+        t(src)
+    }
+    format_set_matrix(daf, ca, ra, name, transposed, overwrite = TRUE)
+    invisible()
+}
+S7::method(format_relayout_matrix,
+    list(H5df, S7::class_character, S7::class_character, S7::class_character)) <-
+    function(daf, rows_axis, columns_axis, name) {
+        .h5_relayout_matrix(daf, rows_axis, columns_axis, name)
+    }
