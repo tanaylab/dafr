@@ -47,7 +47,11 @@ test_that("Julia-written .h5df is readable by R with identical values", {
         'add_axis!(daf, "cell", ["A","B","C","D"])',
         'add_axis!(daf, "gene", ["X","Y"])',
         'set_scalar!(daf, "pi", 3.14)',
+        'set_scalar!(daf, "note", "hello")',
         'set_vector!(daf, "cell", "donor", Int32[1,2,3,4])',
+        'set_vector!(daf, "cell", "flag", Bool[1,0,1,1])',
+        'set_vector!(daf, "cell", "label", ["a","b","c","d"])',
+        'set_vector!(daf, "cell", "sv", sparsevec([2,4], Float64[10,30], 4))',
         'set_matrix!(daf, "cell", "gene", "dm", Float64[1 5; 2 6; 3 7; 4 8])',
         'set_matrix!(daf, "cell", "gene", "sm", sparse(Float64[10 0; 0 30; 20 0; 0 0]))',
         'println("JULIA_WROTE")'
@@ -56,7 +60,14 @@ test_that("Julia-written .h5df is readable by R with identical values", {
     skip_if_not(any(grepl("JULIA_WROTE", out)), paste(out, collapse = "\n"))
     d <- h5df(p, mode = "r")
     expect_equal(get_scalar(d, "pi"), 3.14)
+    expect_equal(get_scalar(d, "note"), "hello")
     expect_equal(as.integer(get_vector(d, "cell", "donor")), 1:4)
+    # Julia encodes Bool as an HDF5 bitfield, which hdf5r cannot read; we surface
+    # a clear error. (R -> Julia bool works; only reading Julia-written Bool
+    # components is unsupported - see NEWS.)
+    expect_error(get_vector(d, "cell", "flag"), "bitfield")
+    expect_equal(get_vector(d, "cell", "label"), c("a", "b", "c", "d"), ignore_attr = TRUE)
+    expect_equal(as.numeric(get_vector(d, "cell", "sv")), c(0, 10, 0, 30))
     expect_equal(as.vector(get_matrix(d, "cell", "gene", "dm")), as.double(1:8), ignore_attr = TRUE)
     sm <- get_matrix(d, "cell", "gene", "sm")
     expect_equal(as.matrix(sm),
