@@ -576,3 +576,86 @@ S7::method(format_relayout_matrix,
     function(daf, rows_axis, columns_axis, name) {
         .h5_relayout_matrix(daf, rows_axis, columns_axis, name)
     }
+
+# ==== reorder ================================================================
+#
+# Simplified reorder: read -> permute -> overwrite, per property. No
+# crash-safe lock/backup machinery, unlike FilesDaf's hardlink-backup
+# protocol (files_daf_write.R); mirrors ZarrDaf's best-effort reorder
+# (zarr_format.R) instead - a crash mid-reorder leaves the store in an
+# undefined state.
+# ponytail: not crash-safe; add the backup protocol only if a crash
+# mid-reorder must be recoverable for this backend.
+.h5_replace_reorder <- function(daf, plan) {
+    for (axis in names(plan$planned_axes)) {
+        pa <- plan$planned_axes[[axis]]
+        root <- .h5_root(daf); key <- .hkey_axis(axis)
+        if (root$exists(key)) root$link_delete(key)
+        root$create_dataset(key, robj = pa$new_entries, chunk_dims = NULL)
+        cache <- S7::prop(daf, "internal")$axes
+        if (exists(axis, envir = cache, inherits = FALSE)) rm(list = axis, envir = cache)
+    }
+    for (pv in plan$planned_vectors) {
+        pa <- plan$planned_axes[[pv$axis]]
+        v <- format_get_vector(daf, pv$axis, pv$name)$value      # dense (scattered)
+        # Axes are already renamed above, so format_get_vector's name-attachment
+        # (.attach_vector_axis_names) mislabels this still-old-order vector with
+        # the NEW entries. Strip names before permuting: .validate_vector_value
+        # would otherwise re-sort a named vector by axis order on the way back
+        # in, silently undoing the permutation we're about to apply.
+        format_set_vector(daf, pv$axis, pv$name, unname(v)[pa$permutation], overwrite = TRUE)
+    }
+    for (pm in plan$planned_matrices) {
+        pr <- plan$planned_axes[[pm$rows_axis]]; pc <- plan$planned_axes[[pm$columns_axis]]
+        m <- format_get_matrix(daf, pm$rows_axis, pm$columns_axis, pm$name)$value
+        r_perm <- if (!is.null(pr)) pr$permutation else seq_len(nrow(m))
+        c_perm <- if (!is.null(pc)) pc$permutation else seq_len(ncol(m))
+        format_set_matrix(daf, pm$rows_axis, pm$columns_axis, pm$name,
+            m[r_perm, c_perm, drop = FALSE], overwrite = TRUE)
+    }
+    invisible()
+}
+
+S7::method(format_replace_reorder, list(H5df, S7::class_list)) <-
+    function(daf, plan, crash_counter = NULL) .h5_replace_reorder(daf, plan)
+
+# format_set_vector()/format_set_matrix() above already bump the vector/matrix
+# version counters; cleanup only needs to bump the axis counters. There is no
+# backup to roll back (mirrors ZarrDaf: format_reset_reorder always reports
+# "nothing pending").
+S7::method(format_cleanup_reorder, list(H5df, S7::class_list)) <-
+    function(daf, plan, crash_counter = NULL) {
+        for (axis in names(plan$planned_axes)) bump_axis_counter(daf, axis)
+        invisible()
+    }
+S7::method(format_reset_reorder, H5df) <-
+    function(daf, crash_counter = NULL) invisible(FALSE)
+
+# ==== read-only guards (mutating on H5dfReadOnly) ============================
+
+S7::method(format_set_scalar,
+    list(H5dfReadOnly, S7::class_character, S7::class_any, S7::class_logical)) <-
+    function(daf, name, value, overwrite) .h5_read_only_guard("set_scalar")
+S7::method(format_delete_scalar, list(H5dfReadOnly, S7::class_character, S7::class_logical)) <-
+    function(daf, name, must_exist) .h5_read_only_guard("delete_scalar")
+S7::method(format_add_axis, list(H5dfReadOnly, S7::class_character, S7::class_character)) <-
+    function(daf, axis, entries) .h5_read_only_guard("add_axis")
+S7::method(format_delete_axis, list(H5dfReadOnly, S7::class_character, S7::class_logical)) <-
+    function(daf, axis, must_exist) .h5_read_only_guard("delete_axis")
+S7::method(format_set_vector,
+    list(H5dfReadOnly, S7::class_character, S7::class_character, S7::class_any, S7::class_logical)) <-
+    function(daf, axis, name, vec, overwrite) .h5_read_only_guard("set_vector")
+S7::method(format_delete_vector,
+    list(H5dfReadOnly, S7::class_character, S7::class_character, S7::class_logical)) <-
+    function(daf, axis, name, must_exist) .h5_read_only_guard("delete_vector")
+S7::method(format_set_matrix,
+    list(H5dfReadOnly, S7::class_character, S7::class_character, S7::class_character, S7::class_any, S7::class_logical)) <-
+    function(daf, rows_axis, columns_axis, name, mat, overwrite) .h5_read_only_guard("set_matrix")
+S7::method(format_delete_matrix,
+    list(H5dfReadOnly, S7::class_character, S7::class_character, S7::class_character, S7::class_logical)) <-
+    function(daf, rows_axis, columns_axis, name, must_exist) .h5_read_only_guard("delete_matrix")
+S7::method(format_relayout_matrix,
+    list(H5dfReadOnly, S7::class_character, S7::class_character, S7::class_character)) <-
+    function(daf, rows_axis, columns_axis, name) .h5_read_only_guard("relayout_matrix")
+S7::method(format_replace_reorder, list(H5dfReadOnly, S7::class_list)) <-
+    function(daf, plan, crash_counter = NULL) .h5_read_only_guard("reorder_axes")

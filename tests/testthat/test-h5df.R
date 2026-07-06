@@ -125,3 +125,48 @@ test_that("h5df matrices round-trip: dense, sparse, bool, orientation, delete", 
     expect_false(has_matrix(d, "cell", "gene", "dm"))
     rm(d); gc()
 })
+
+test_that("h5df relayout and reorder", {
+    skip_if_no_hdf5r()
+    p <- tempfile(fileext = ".h5df")
+    d <- h5df(p, mode = "w")
+    add_axis(d, "cell", c("A", "B", "C"))
+    add_axis(d, "gene", c("X", "Y"))
+    m <- matrix(as.double(1:6), nrow = 3, ncol = 2)
+    # relayout defaults to TRUE on set_matrix(), which would already write the
+    # transposed copy; disable it here so the explicit relayout_matrix() call
+    # below has something to do (mirrors relayout_matrix()'s own doc example).
+    set_matrix(d, "cell", "gene", "m", m, relayout = FALSE)
+    relayout_matrix(d, "cell", "gene", "m")
+    expect_true(has_matrix(d, "gene", "cell", "m"))
+    expect_equal(as.matrix(get_matrix(d, "gene", "cell", "m")), t(m), ignore_attr = TRUE)
+    set_vector(d, "cell", "v", c(10, 20, 30))
+    # permutation is a 1-based integer vector: new_entries[i] = old_entries[permutation[i]].
+    # To land on c("C", "A", "B") from c("A", "B", "C"): perm = c(3, 1, 2).
+    reorder_axes(d, cell = c(3L, 1L, 2L))
+    expect_equal(axis_vector(d, "cell"), c("C", "A", "B"))
+    expect_equal(get_vector(d, "cell", "v"), c(30, 10, 20), ignore_attr = TRUE)
+    rm(d); gc()
+})
+
+test_that("h5df string vectors and matrices round-trip (written dense)", {
+    skip_if_no_hdf5r()
+    p <- tempfile(fileext = ".h5df")
+    d <- h5df(p, mode = "w")
+    add_axis(d, "cell", c("A", "B"))
+    add_axis(d, "gene", c("X", "Y"))
+    set_matrix(d, "cell", "gene", "sm", matrix(c("a", "b", "c", "d"), 2, 2))
+    expect_equal(as.vector(get_matrix(d, "cell", "gene", "sm")), c("a", "b", "c", "d"), ignore_attr = TRUE)
+    rm(d); gc()
+})
+
+test_that("h5df read-only store rejects mutation", {
+    skip_if_no_hdf5r()
+    p <- tempfile(fileext = ".h5df")
+    d <- h5df(p, mode = "w"); add_axis(d, "cell", c("A", "B")); rm(d); gc()
+    r <- h5df(p, mode = "r")
+    expect_error(set_scalar(r, "x", 1), "read-only")
+    expect_error(add_axis(r, "z", "a"), "read-only")
+    expect_error(set_vector(r, "cell", "v", c(1, 2)), "read-only")
+    rm(r); gc()
+})
