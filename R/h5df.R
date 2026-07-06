@@ -207,3 +207,120 @@ S7::method(format_set_scalar,
     function(daf, name, value, overwrite) .h5_set_scalar(daf, name, value, overwrite)
 S7::method(format_delete_scalar, list(H5df, S7::class_character, S7::class_logical)) <-
     function(daf, name, must_exist) .h5_delete_scalar(daf, name, must_exist)
+
+# hdf5r crashes reclaiming an empty vlen-string buffer; return a typed empty
+# vector for zero-length datasets, otherwise read normally.
+.h5_safe_read <- function(obj) {
+    if (prod(obj$dims) == 0L) {
+        return(tryCatch(obj$read(), error = function(e) character(0L)))
+    }
+    obj$read()
+}
+
+# ==== axes ===================================================================
+
+.h5_axis_parsed <- function(daf, axis) {
+    cache <- S7::prop(daf, "internal")$axes
+    if (exists(axis, envir = cache, inherits = FALSE)) {
+        return(get(axis, envir = cache, inherits = FALSE))
+    }
+    root <- .h5_root(daf); key <- .hkey_axis(axis)
+    if (!root$exists(key)) return(NULL)
+    entries <- as.character(.h5_safe_read(root[[key]]))
+    if (anyNA(entries) || (length(entries) && any(!nzchar(entries)))) {
+        stop(sprintf("h5df: axis %s contains empty entries", sQuote(axis)), call. = FALSE)
+    }
+    dict <- new.env(parent = emptyenv(), size = length(entries))
+    for (i in seq_along(entries)) assign(entries[[i]], i, envir = dict)
+    parsed <- list(entries = entries, dict = dict)
+    assign(axis, parsed, envir = cache)
+    parsed
+}
+.h5_axis_require <- function(daf, axis) {
+    parsed <- .h5_axis_parsed(daf, axis)
+    if (is.null(parsed)) .require_axis(daf, "for: h5df backend", axis)
+    parsed
+}
+.h5_has_axis <- function(daf, axis) .h5_root(daf)$exists(.hkey_axis(axis))
+.h5_axes_set <- function(daf) {
+    root <- .h5_root(daf)
+    if (!root$exists("axes")) return(character(0L))
+    sort(root[["axes"]]$names, method = "radix")
+}
+
+.h5_add_axis <- function(daf, axis, entries) {
+    if (!is.character(entries)) {
+        stop(sprintf("axis %s entries must be a character vector", sQuote(axis)), call. = FALSE)
+    }
+    if (anyNA(entries)) {
+        stop(sprintf("axis %s entries contain NA", sQuote(axis)), call. = FALSE)
+    }
+    if (any(!nzchar(entries))) {
+        stop(sprintf("axis %s entries contain empty strings", sQuote(axis)), call. = FALSE)
+    }
+    if (any(grepl("[\n\r]", entries))) {
+        stop(sprintf("axis %s entries contain newline characters", sQuote(axis)), call. = FALSE)
+    }
+    if (anyDuplicated(entries)) {
+        stop(sprintf("non-unique entries for new axis: %s\nin the daf data: %s",
+            axis, S7::prop(daf, "name")), call. = FALSE)
+    }
+    .require_no_axis(daf, axis)
+    root <- .h5_root(daf)
+    # A zero-length `robj` writes a valid empty vlen-string dataset; reads of it
+    # go through `.h5_safe_read` (hdf5r crashes reading empty vlen strings).
+    root$create_dataset(.hkey_axis(axis), robj = entries, chunk_dims = NULL)
+    # Eagerly create vectors/<axis> and every matrices/<a>/<b> pairing (incl.
+    # self) so a Julia reader scanning the store does not trip on missing groups.
+    root$create_group(paste0("vectors/", axis))
+    existing <- root[["matrices"]]$names
+    root$create_group(paste0("matrices/", axis))
+    for (other in existing) {
+        root$create_group(paste0("matrices/", axis, "/", other))
+        root$create_group(paste0("matrices/", other, "/", axis))
+    }
+    root$create_group(paste0("matrices/", axis, "/", axis))
+    dict <- new.env(parent = emptyenv(), size = length(entries))
+    for (i in seq_along(entries)) assign(entries[[i]], i, envir = dict)
+    assign(axis, list(entries = entries, dict = dict),
+        envir = S7::prop(daf, "internal")$axes)
+    invisible()
+}
+
+.h5_delete_axis <- function(daf, axis, must_exist) {
+    root <- .h5_root(daf); key <- .hkey_axis(axis)
+    if (!root$exists(key)) {
+        if (must_exist) .require_axis(daf, "for: delete_axis", axis)
+        return(invisible())
+    }
+    root$link_delete(key)
+    if (root$exists(paste0("vectors/", axis))) root$link_delete(paste0("vectors/", axis))
+    if (root$exists(paste0("matrices/", axis))) root$link_delete(paste0("matrices/", axis))
+    for (other in root[["matrices"]]$names) {
+        k <- paste0("matrices/", other, "/", axis)
+        if (root$exists(k)) root$link_delete(k)
+    }
+    cache <- S7::prop(daf, "internal")$axes
+    if (exists(axis, envir = cache, inherits = FALSE)) rm(list = axis, envir = cache)
+    bump_axis_counter(daf, axis)
+    invisible()
+}
+
+local({
+    for (cls in list(H5df, H5dfReadOnly)) {
+        S7::method(format_has_axis, list(cls, S7::class_character)) <-
+            function(daf, axis) .h5_has_axis(daf, axis)
+        S7::method(format_axes_set, cls) <- function(daf) .h5_axes_set(daf)
+        S7::method(format_axis_length, list(cls, S7::class_character)) <-
+            function(daf, axis) length(.h5_axis_require(daf, axis)$entries)
+        S7::method(format_axis_array, list(cls, S7::class_character)) <-
+            function(daf, axis) .cache_group_value(.h5_axis_require(daf, axis)$entries, MEMORY_DATA)
+        S7::method(format_axis_dict, list(cls, S7::class_character)) <-
+            function(daf, axis) .h5_axis_require(daf, axis)$dict
+    }
+})
+
+S7::method(format_add_axis, list(H5df, S7::class_character, S7::class_character)) <-
+    function(daf, axis, entries) .h5_add_axis(daf, axis, entries)
+S7::method(format_delete_axis, list(H5df, S7::class_character, S7::class_logical)) <-
+    function(daf, axis, must_exist) .h5_delete_axis(daf, axis, must_exist)
