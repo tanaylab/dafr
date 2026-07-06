@@ -3,10 +3,11 @@
 A `Daf` reader that fetches a
 [`files_daf()`](https://tanaylab.github.io/dafr/reference/files_daf.md)
 directory served over HTTP(S). The server must expose the FilesDaf tree
-verbatim and include a `metadata.zip` bundle at the root (see
+verbatim and include a `metadata.json` consolidated index at the root
+(see
 [`pack_files_daf_metadata()`](https://tanaylab.github.io/dafr/reference/pack_files_daf_metadata.md)).
-From dafr 0.2.0 onward, FilesDaf writes maintain `metadata.zip`
-automatically; for pre-0.2.0 stores call
+From dafr 0.5.0 onward, FilesDaf writes maintain `metadata.json`
+automatically; for pre-0.5.0 stores call
 [`pack_files_daf_metadata()`](https://tanaylab.github.io/dafr/reference/pack_files_daf_metadata.md)
 before publishing.
 
@@ -65,14 +66,14 @@ A `HttpDaf` instance (`DafReadOnly` subclass).
 
 ## Details
 
-The client downloads `metadata.zip` once at open time, parses it in
+The client downloads `metadata.json` once at open time, parses it in
 memory, and serves all JSON metadata from it (no further HTTP traffic
 for `format_has_*` / `format_*_set` / scalar reads). Non-JSON payloads
 (axis `.txt` files, vector/matrix `.data` / `.nzind` / `.nzval` /
 `.colptr` / `.rowval` / `.nztxt`) are fetched lazily on first access via
 one HTTP GET each, cached by the standard cache layer.
 
-Read-only — mutations are not supported. Server data is assumed stable
+Read-only - mutations are not supported. Server data is assumed stable
 while a HttpDaf is open; reopen to pick up changes.
 
 ## HTTP timeout

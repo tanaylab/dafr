@@ -11,7 +11,7 @@ Writes are non-atomic; only one writer may touch a store at a time."></head><bod
 
     <a class="navbar-brand me-2" href="../index.html">dafr</a>
 
-    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">0.4.9</small>
+    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">0.6.0</small>
 
 
     <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbar" aria-controls="navbar" aria-expanded="false" aria-label="Toggle navigation">
@@ -102,7 +102,7 @@ components and string properties always stay flat. Tuning is read from the
 
 
 <p><code>files_daf</code> does not lock the store. Two writers opening the same
-path in mode <code>"r+"</code> or <code>"w+"</code> will race on <code>metadata.zip</code> rebuilds
+path in mode <code>"r+"</code> or <code>"w+"</code> will race on <code>metadata.json</code> rebuilds
 and per-entry JSON writes, with no guarantee of last-writer-wins
 consistency. The supported pattern is single-writer plus arbitrary
 read-only readers; cross-process concurrency must be coordinated

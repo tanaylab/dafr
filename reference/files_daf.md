@@ -47,7 +47,7 @@ A `FilesDaf` instance (`DafWriter` under `"r+"`/`"w"`/`"w+"`,
 ## Concurrent access
 
 `files_daf` does not lock the store. Two writers opening the same path
-in mode `"r+"` or `"w+"` will race on `metadata.zip` rebuilds and
+in mode `"r+"` or `"w+"` will race on `metadata.json` rebuilds and
 per-entry JSON writes, with no guarantee of last-writer-wins
 consistency. The supported pattern is single-writer plus arbitrary
 read-only readers; cross-process concurrency must be coordinated

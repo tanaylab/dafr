@@ -9,6 +9,10 @@ URIs:
 - filesystem directory path —
   [`files_daf()`](https://tanaylab.github.io/dafr/reference/files_daf.md).
 
+- `*.daf.zip` —
+  [`zip_daf()`](https://tanaylab.github.io/dafr/reference/zip_daf.md)
+  (single-file, append-only archive).
+
 - `*.daf.zarr` or `*.daf.zarr.zip` (filesystem or HTTP) —
   [`zarr_daf()`](https://tanaylab.github.io/dafr/reference/zarr_daf.md).
 

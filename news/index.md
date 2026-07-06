@@ -1,5 +1,50 @@
 # Changelog
 
+## dafr 0.6.0
+
+New `ZipDaf` backend: a whole Daf store in a single append-only
+`.daf.zip` archive, byte-compatible with `DataAxesFormats.jl` 0.3.0
+(verified bidirectionally - Julia reads dafr-written `.daf.zip` and
+vice-versa).
+
+- **`zip_daf(path, mode, name, packed)`** opens
+  (`"r"`/`"r+"`/`"w"`/`"w+"`) a single-file `.daf.zip` store, and
+  [`open_daf()`](https://tanaylab.github.io/dafr/reference/open_daf.md)
+  now dispatches a `*.daf.zip` path to it. The on-disk layout inside the
+  archive is the same as
+  [`files_daf()`](https://tanaylab.github.io/dafr/reference/files_daf.md)
+  (`daf.json` marker + `scalars`/`axes`/`vectors`/`matrices` keys,
+  identical component serialization); the ZIP central directory replaces
+  the `metadata.json` index, so no `metadata.json` is written. Reuses
+  the existing append-only, mmap-backed ZIP store (the one behind
+  `.daf.zarr.zip`).
+- **Append-only.** The archive cannot be modified in place: overwriting
+  or deleting a scalar/axis/vector/matrix, or reordering an axis, raises
+  a clear error (matching Julia’s `ZipDaf`). Writing new properties, and
+  `relayout` into a not-yet-written orientation, work normally.
+- **Not yet supported:** grouped multi-daf `*.dafs.zip#/group` archives
+  (`open_daf` rejects them with an actionable error) and the `H5df`
+  backend.
+
+## dafr 0.5.0
+
+Cross-language JSON parity with DataAxesFormats.jl: dafr now reads and
+writes Julia’s exact `metadata.json` store index and `base_daf_view`
+chain spec.
+
+- **FilesDaf/HttpDaf root `metadata.json`.** FilesDaf now writes a
+  single root `metadata.json` (the DataAxesFormats consolidated index)
+  instead of a `metadata.zip` bundle; HttpDaf enumerates a remote store
+  from it. A dafr-written store is now readable by DataAxesFormats.jl
+  0.3.0 and vice-versa, and the index now works on Windows (it was
+  POSIX-only before). Migrate an older (metadata.zip) store, or one
+  modified outside dafr, with `pack_files_daf_metadata(path)`.
+  (Breaking: dafr no longer writes or reads `metadata.zip`; an old store
+  served over HTTP must be re-packed first.)
+- **complete_daf `base_daf_view`.** The persisted chain view spec now
+  uses the JSON schema DataAxesFormats’ reader accepts, so a chain
+  written by one language reopens in the other.
+
 ## dafr 0.4.9
 
 Maintenance release - no user-facing changes. Drops a non-portable test

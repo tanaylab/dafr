@@ -1,5 +1,6 @@
 <urlset xmlns = 'http://www.sitemaps.org/schemas/sitemap/0.9'>
 <url><loc>https://tanaylab.github.io/dafr/404.html</loc></url>
+<url><loc>https://tanaylab.github.io/dafr/AGENTS.html</loc></url>
 <url><loc>https://tanaylab.github.io/dafr/LICENSE-text.html</loc></url>
 <url><loc>https://tanaylab.github.io/dafr/LICENSE.html</loc></url>
 <url><loc>https://tanaylab.github.io/dafr/articles/anndata.html</loc></url>
@@ -94,6 +95,8 @@
 <url><loc>https://tanaylab.github.io/dafr/reference/ZarrDaf.html</loc></url>
 <url><loc>https://tanaylab.github.io/dafr/reference/ZarrDafReadOnly.html</loc></url>
 <url><loc>https://tanaylab.github.io/dafr/reference/ZarrStore.html</loc></url>
+<url><loc>https://tanaylab.github.io/dafr/reference/ZipDaf.html</loc></url>
+<url><loc>https://tanaylab.github.io/dafr/reference/ZipDafReadOnly.html</loc></url>
 <url><loc>https://tanaylab.github.io/dafr/reference/adapter.html</loc></url>
 <url><loc>https://tanaylab.github.io/dafr/reference/add_axis.html</loc></url>
 <url><loc>https://tanaylab.github.io/dafr/reference/as_anndata.html</loc></url>
@@ -212,5 +215,6 @@
 <url><loc>https://tanaylab.github.io/dafr/reference/zarr_daf.html</loc></url>
 <url><loc>https://tanaylab.github.io/dafr/reference/zarr_store_generics.html</loc></url>
 <url><loc>https://tanaylab.github.io/dafr/reference/zarr_to_files.html</loc></url>
+<url><loc>https://tanaylab.github.io/dafr/reference/zip_daf.html</loc></url>
 </urlset>
 

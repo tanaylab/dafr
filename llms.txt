@@ -387,6 +387,12 @@ SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
   [`http_daf()`](https://tanaylab.github.io/dafr/reference/HttpDaf.md) :
   Read-only HTTP-served FilesDaf.
 
+- [`ZipDaf()`](https://tanaylab.github.io/dafr/reference/ZipDaf.md) :
+  File-backed (zip) Daf writer class.
+
+- [`ZipDafReadOnly()`](https://tanaylab.github.io/dafr/reference/ZipDafReadOnly.md)
+  : File-backed (zip) read-only Daf class.
+
 - [`memory_daf()`](https://tanaylab.github.io/dafr/reference/memory_daf.md)
   : In-memory Daf store.
 
@@ -396,10 +402,11 @@ SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 - [`zarr_daf()`](https://tanaylab.github.io/dafr/reference/zarr_daf.md)
   : Open a Zarr-backed Daf store.
 
-- [`pack_files_daf_metadata()`](https://tanaylab.github.io/dafr/reference/pack_files_daf_metadata.md)
-  :
+- [`zip_daf()`](https://tanaylab.github.io/dafr/reference/zip_daf.md) :
+  Single-file (zip) Daf store.
 
-  Pack a FilesDaf directory's JSON metadata into `metadata.zip`.
+- [`pack_files_daf_metadata()`](https://tanaylab.github.io/dafr/reference/pack_files_daf_metadata.md)
+  : Rebuild a FilesDaf store's root metadata.json index.
 
 - [`is_daf()`](https://tanaylab.github.io/dafr/reference/is_daf.md) :
 

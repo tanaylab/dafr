@@ -28,11 +28,11 @@ set_matrix(d, "cell", "gene", "UMIs",
 print(d)
 #> <dafr::MemoryDaf>
 #>  @ name                  : chr "demo"
-#>  @ internal              :<environment: 0x5619227594c0> 
-#>  @ cache                 :<environment: 0x561922796490> 
-#>  @ axis_version_counter  :<environment: 0x56192279c848> 
-#>  @ vector_version_counter:<environment: 0x56192279c570> 
-#>  @ matrix_version_counter:<environment: 0x56192279c298>
+#>  @ internal              :<environment: 0x55e9f6262420> 
+#>  @ cache                 :<environment: 0x55e9f627b460> 
+#>  @ axis_version_counter  :<environment: 0x55e9f627f888> 
+#>  @ vector_version_counter:<environment: 0x55e9f627f5b0> 
+#>  @ matrix_version_counter:<environment: 0x55e9f627f2d8>
 ```
 
 `description(d)` produces a more detailed dump of axes, vectors,
@@ -151,11 +151,11 @@ fd <- files_daf(path, mode = "w+", name = "persisted")
 copy_all(fd, d)  # destination first, then source
 list.files(path, recursive = TRUE)
 #>  [1] "axes/cell.txt"                "axes/gene.txt"               
-#>  [3] "axes/metadata.json"           "daf.json"                    
-#>  [5] "matrices/cell/gene/UMIs.data" "matrices/cell/gene/UMIs.json"
-#>  [7] "matrices/gene/cell/UMIs.data" "matrices/gene/cell/UMIs.json"
-#>  [9] "metadata.zip"                 "scalars/organism.json"       
-#> [11] "vectors/cell/donor.json"      "vectors/cell/donor.txt"
+#>  [3] "daf.json"                     "matrices/cell/gene/UMIs.data"
+#>  [5] "matrices/cell/gene/UMIs.json" "matrices/gene/cell/UMIs.data"
+#>  [7] "matrices/gene/cell/UMIs.json" "metadata.json"               
+#>  [9] "scalars/organism.json"        "vectors/cell/donor.json"     
+#> [11] "vectors/cell/donor.txt"
 ```
 
 ``` r

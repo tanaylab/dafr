@@ -3,6 +3,7 @@
 Supported URIs:
 memory:// (or no path / NULL) — in-memory memory_daf().
 filesystem directory path — files_daf().
+*.daf.zip — zip_daf() (single-file, append-only archive).
 *.daf.zarr or *.daf.zarr.zip (filesystem or HTTP) — zarr_daf().
 any other http(s):// URL — http_daf() (read-only HTTP-served
 FilesDaf).
@@ -11,6 +12,7 @@ FilesDaf).
 Supported URIs:
 memory:// (or no path / NULL) — in-memory memory_daf().
 filesystem directory path — files_daf().
+*.daf.zip — zip_daf() (single-file, append-only archive).
 *.daf.zarr or *.daf.zarr.zip (filesystem or HTTP) — zarr_daf().
 any other http(s):// URL — http_daf() (read-only HTTP-served
 FilesDaf).
@@ -23,7 +25,7 @@ FilesDaf).
 
     <a class="navbar-brand me-2" href="../index.html">dafr</a>
 
-    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">0.4.9</small>
+    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">0.6.0</small>
 
 
     <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbar" aria-controls="navbar" aria-expanded="false" aria-label="Toggle navigation">
@@ -66,6 +68,7 @@ FilesDaf).
     <p>Path/URL-aware factory that dispatches to the right backend.
 Supported URIs:</p><ul><li><p><code>memory://</code> (or no path / <code>NULL</code>) — in-memory <code><a href="memory_daf.html">memory_daf()</a></code>.</p></li>
 <li><p>filesystem directory path — <code><a href="files_daf.html">files_daf()</a></code>.</p></li>
+<li><p><code>*.daf.zip</code> — <code><a href="zip_daf.html">zip_daf()</a></code> (single-file, append-only archive).</p></li>
 <li><p><code>*.daf.zarr</code> or <code>*.daf.zarr.zip</code> (filesystem or HTTP) — <code><a href="zarr_daf.html">zarr_daf()</a></code>.</p></li>
 <li><p>any other <code>http(s)://</code> URL — <code><a href="HttpDaf.html">http_daf()</a></code> (read-only HTTP-served
 FilesDaf).</p></li>

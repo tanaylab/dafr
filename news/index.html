@@ -7,7 +7,7 @@
 
     <a class="navbar-brand me-2" href="../index.html">dafr</a>
 
-    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">0.4.9</small>
+    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">0.6.0</small>
 
 
     <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbar" aria-controls="navbar" aria-expanded="false" aria-label="Toggle navigation">
@@ -45,6 +45,24 @@
       <small>Source: <a href="https://github.com/tanaylab/dafr/blob/main/NEWS.md" class="external-link"><code>NEWS.md</code></a></small>
     </div>
 
+    <div class="section level2">
+<h2 class="pkg-version" data-toc-text="0.6.0" id="dafr-060">dafr 0.6.0<a class="anchor" aria-label="anchor" href="#dafr-060"></a></h2>
+<p>New <code>ZipDaf</code> backend: a whole Daf store in a single append-only <code>.daf.zip</code> archive, byte-compatible with <code>DataAxesFormats.jl</code> 0.3.0 (verified bidirectionally - Julia reads dafr-written <code>.daf.zip</code> and vice-versa).</p>
+<ul><li>
+<strong><code>zip_daf(path, mode, name, packed)</code></strong> opens (<code>"r"</code>/<code>"r+"</code>/<code>"w"</code>/<code>"w+"</code>) a single-file <code>.daf.zip</code> store, and <code><a href="../reference/open_daf.html">open_daf()</a></code> now dispatches a <code>*.daf.zip</code> path to it. The on-disk layout inside the archive is the same as <code><a href="../reference/files_daf.html">files_daf()</a></code> (<code>daf.json</code> marker + <code>scalars</code>/<code>axes</code>/<code>vectors</code>/<code>matrices</code> keys, identical component serialization); the ZIP central directory replaces the <code>metadata.json</code> index, so no <code>metadata.json</code> is written. Reuses the existing append-only, mmap-backed ZIP store (the one behind <code>.daf.zarr.zip</code>).</li>
+<li>
+<strong>Append-only.</strong> The archive cannot be modified in place: overwriting or deleting a scalar/axis/vector/matrix, or reordering an axis, raises a clear error (matching Julia’s <code>ZipDaf</code>). Writing new properties, and <code>relayout</code> into a not-yet-written orientation, work normally.</li>
+<li>
+<strong>Not yet supported:</strong> grouped multi-daf <code>*.dafs.zip#/group</code> archives (<code>open_daf</code> rejects them with an actionable error) and the <code>H5df</code> backend.</li>
+</ul></div>
+    <div class="section level2">
+<h2 class="pkg-version" data-toc-text="0.5.0" id="dafr-050">dafr 0.5.0<a class="anchor" aria-label="anchor" href="#dafr-050"></a></h2>
+<p>Cross-language JSON parity with DataAxesFormats.jl: dafr now reads and writes Julia’s exact <code>metadata.json</code> store index and <code>base_daf_view</code> chain spec.</p>
+<ul><li>
+<strong>FilesDaf/HttpDaf root <code>metadata.json</code>.</strong> FilesDaf now writes a single root <code>metadata.json</code> (the DataAxesFormats consolidated index) instead of a <code>metadata.zip</code> bundle; HttpDaf enumerates a remote store from it. A dafr-written store is now readable by DataAxesFormats.jl 0.3.0 and vice-versa, and the index now works on Windows (it was POSIX-only before). Migrate an older (metadata.zip) store, or one modified outside dafr, with <code>pack_files_daf_metadata(path)</code>. (Breaking: dafr no longer writes or reads <code>metadata.zip</code>; an old store served over HTTP must be re-packed first.)</li>
+<li>
+<strong>complete_daf <code>base_daf_view</code>.</strong> The persisted chain view spec now uses the JSON schema DataAxesFormats’ reader accepts, so a chain written by one language reopens in the other.</li>
+</ul></div>
     <div class="section level2">
 <h2 class="pkg-version" data-toc-text="0.4.9" id="dafr-049">dafr 0.4.9<a class="anchor" aria-label="anchor" href="#dafr-049"></a></h2>
 <p>Maintenance release - no user-facing changes. Drops a non-portable test assertion that compared a freshly re-compressed packed <code>gzip</code> shard byte-for-byte against a fixture; that comparison depends on the platform zlib’s DEFLATE output (R’s zlib vs Julia’s CodecZlib) and failed CI on some runners. Only the <em>framing</em> is guaranteed byte-identical across implementations (still tested); the 0.4.8 packed/sharded write feature is otherwise unchanged.</p>
