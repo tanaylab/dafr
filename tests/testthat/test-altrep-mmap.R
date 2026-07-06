@@ -32,6 +32,39 @@ test_that("mmap_lgl reads logical (int32-stored)", {
     expect_identical(v[1:3], c(TRUE, FALSE, NA))
 })
 
+test_that("mmap_real reads doubles from a byte offset", {
+    f <- new_tempfile("bin")
+    vals <- seq(2.0, 500.0, length.out = 250)
+    con <- file(f, "wb")
+    writeBin(as.raw(1:16), con)          # 16 junk bytes before the data
+    writeBin(vals, con, size = 8L)
+    close(con)
+
+    v <- mmap_real(f, 250, offset = 16)
+    expect_equal(length(v), 250L)
+    expect_equal(v[1], 2)
+    expect_equal(v[250], 500)
+    expect_equal(sum(v), sum(vals))
+})
+
+test_that("mmap_int reads int32 from a byte offset", {
+    f <- new_tempfile("bin")
+    con <- file(f, "wb")
+    writeBin(as.raw(1:8), con)
+    writeBin(1:100L, con, size = 4L)
+    close(con)
+
+    v <- mmap_int(f, 100, offset = 8)
+    expect_equal(v[100], 100L)
+    expect_equal(sum(v), sum(1:100L))
+})
+
+test_that("mmap_real rejects an offset past end of file", {
+    f <- new_tempfile("bin")
+    writeBin(c(1.0, 2.0), f, size = 8L)  # 16 bytes
+    expect_error(mmap_real(f, 1, offset = 16))
+})
+
 test_that("writing to an mmap-backed vector triggers materialization", {
     f <- new_tempfile("bin")
     writeBin(c(1.0, 2.0, 3.0), f, size = 8L)

@@ -1,3 +1,15 @@
+# dafr 0.8.0
+
+* `h5df()` dense reads are now memory-mapped (zero-copy ALTREP) for large
+  contiguous native Float64 / signed Int32 datasets, matching `files_daf()` and
+  `DataAxesFormats.jl`'s `H5df` on large dense components. Reading a 160 MB dense
+  matrix drops from ~130 ms to ~45 ms (full read) and a lazy/sliced read from
+  ~100 ms to sub-millisecond. Datasets below HDF5's small-data-block size
+  (2048 B), non-contiguous/compressed datasets, and non-native types fall back
+  to the eager reader; disable entirely with `options(dafr.mmap = FALSE)`.
+* `mmap_real()` / `mmap_int()` / `mmap_lgl()` gain an `offset` argument to map a
+  sub-region of a file (used by the H5df fast path above).
+
 # dafr 0.7.0
 
 * New `h5df()` backend: a whole Daf store in one `.h5df` HDF5 file,

@@ -10,6 +10,9 @@
 #'
 #' @param path Path to the binary file.
 #' @param length Number of elements to map.
+#' @param offset Byte offset at which the elements begin (default 0). Lets a
+#'   sub-region of a file - e.g. a contiguous HDF5 dataset at a known offset -
+#'   be mapped. Must leave at least `length * sizeof(element)` bytes to EOF.
 #' @return An ALTREP-backed R vector sharing the file's memory.
 #' @examples
 #' f <- tempfile(fileext = ".bin")
@@ -18,21 +21,24 @@
 #' v[]
 #' unlink(f)
 #' @export
-mmap_real <- function(path, length) {
-    stopifnot(file.exists(path), is.numeric(length), length >= 0)
-    mmap_real_altrep_cpp(path.expand(path), as.double(length))
+mmap_real <- function(path, length, offset = 0) {
+    stopifnot(file.exists(path), is.numeric(length), length >= 0,
+              is.numeric(offset), offset >= 0)
+    mmap_real_altrep_cpp(path.expand(path), as.double(length), as.double(offset))
 }
 
 #' @rdname mmap_real
 #' @export
-mmap_int <- function(path, length) {
-    stopifnot(file.exists(path), is.numeric(length), length >= 0)
-    mmap_int_altrep_cpp(path.expand(path), as.double(length))
+mmap_int <- function(path, length, offset = 0) {
+    stopifnot(file.exists(path), is.numeric(length), length >= 0,
+              is.numeric(offset), offset >= 0)
+    mmap_int_altrep_cpp(path.expand(path), as.double(length), as.double(offset))
 }
 
 #' @rdname mmap_real
 #' @export
-mmap_lgl <- function(path, length) {
-    stopifnot(file.exists(path), is.numeric(length), length >= 0)
-    mmap_lgl_altrep_cpp(path.expand(path), as.double(length))
+mmap_lgl <- function(path, length, offset = 0) {
+    stopifnot(file.exists(path), is.numeric(length), length >= 0,
+              is.numeric(offset), offset >= 0)
+    mmap_lgl_altrep_cpp(path.expand(path), as.double(length), as.double(offset))
 }

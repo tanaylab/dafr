@@ -10,9 +10,9 @@ void dafr_init_altrep_mmap(DllInfo* dll) {
 }
 
 [[cpp11::register]]
-SEXP mmap_real_altrep_cpp(std::string path, double length_double) {
+SEXP mmap_real_altrep_cpp(std::string path, double length_double, double offset_double) {
     R_xlen_t length = static_cast<R_xlen_t>(length_double);
-    auto region = dafr::MmapRegion::open_readonly(path);
+    auto region = dafr::MmapRegion::open_readonly(path, static_cast<std::size_t>(offset_double));
     std::size_t required = static_cast<std::size_t>(length) * sizeof(double);
     if (region->nbytes() < required) {
         cpp11::stop("mmap_real: file '%s' has %zu bytes, need at least %zu for length=%lld",
@@ -23,9 +23,9 @@ SEXP mmap_real_altrep_cpp(std::string path, double length_double) {
 }
 
 [[cpp11::register]]
-SEXP mmap_int_altrep_cpp(std::string path, double length_double) {
+SEXP mmap_int_altrep_cpp(std::string path, double length_double, double offset_double) {
     R_xlen_t length = static_cast<R_xlen_t>(length_double);
-    auto region = dafr::MmapRegion::open_readonly(path);
+    auto region = dafr::MmapRegion::open_readonly(path, static_cast<std::size_t>(offset_double));
     std::size_t required = static_cast<std::size_t>(length) * sizeof(int);
     if (region->nbytes() < required) {
         cpp11::stop("mmap_int: file '%s' has %zu bytes, need at least %zu for length=%lld",
@@ -36,9 +36,9 @@ SEXP mmap_int_altrep_cpp(std::string path, double length_double) {
 }
 
 [[cpp11::register]]
-SEXP mmap_lgl_altrep_cpp(std::string path, double length_double) {
+SEXP mmap_lgl_altrep_cpp(std::string path, double length_double, double offset_double) {
     R_xlen_t length = static_cast<R_xlen_t>(length_double);
-    auto region = dafr::MmapRegion::open_readonly(path);
+    auto region = dafr::MmapRegion::open_readonly(path, static_cast<std::size_t>(offset_double));
     std::size_t required = static_cast<std::size_t>(length) * sizeof(int);
     if (region->nbytes() < required) {
         cpp11::stop("mmap_lgl: file '%s' has %zu bytes, need at least %zu for length=%lld",
