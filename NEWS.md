@@ -1,3 +1,12 @@
+# dafr 0.7.0
+
+* New `h5df()` backend: a whole Daf store in one `.h5df` HDF5 file,
+  interoperable with `DataAxesFormats.jl` `H5df` (read + write + delete +
+  overwrite + reorder), verified by bidirectional Julia interop tests.
+  `open_daf()` dispatches `*.h5df`. Requires the `hdf5r` package.
+  Compressed/packed writing, grouped `.h5dfs#/group` stores, mmap reads, and
+  crash-safe reorder are deferred.
+
 # dafr 0.6.0
 
 New `ZipDaf` backend: a whole Daf store in a single append-only `.daf.zip`

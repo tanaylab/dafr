@@ -1,6 +1,6 @@
 Package: dafr
 Title: Data in Axes in Formats (DAF) for R
-Version: 0.6.0
+Version: 0.7.0
 Authors@R: c(
     person("Aviezer", "Lifshitz", , "aviezer.lifshitz@weizmann.ac.il",
            role = c("aut", "cre"),
@@ -111,6 +111,7 @@ Collate:
     'zarr_sharded.R'
     'files_packed.R'
     'groups.R'
+    'h5df.R'
     'http_client.R'
     'http_format.R'
     'zarr_store.R'
@@ -132,6 +133,5 @@ Collate:
     'zarr_format.R'
     'zarr_convert.R'
     'zip_daf.R'
-    'h5df.R'
     'zzz.R'
 Config/roxygen2/version: 8.0.0
