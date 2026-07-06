@@ -159,3 +159,51 @@ local({
             }
     }
 })
+
+# ==== scalars ================================================================
+
+.h5_has_scalar <- function(daf, name) .h5_root(daf)$exists(.hkey_scalar(name))
+.h5_get_scalar <- function(daf, name) {
+    root <- .h5_root(daf); key <- .hkey_scalar(name)
+    if (!root$exists(key)) .require_scalar(daf, name)
+    root[[key]]$read()
+}
+.h5_scalars_set <- function(daf) {
+    root <- .h5_root(daf)
+    if (!root$exists("scalars")) return(character(0L))
+    sort(root[["scalars"]]$names, method = "radix")
+}
+.h5_set_scalar <- function(daf, name, value, overwrite) {
+    .assert_scalar_value(name, value)
+    root <- .h5_root(daf); key <- .hkey_scalar(name)
+    if (!overwrite) .require_no_scalar(daf, name)
+    if (root$exists(key)) root$link_delete(key)
+    root$create_dataset(key, robj = value,
+        space = hdf5r::H5S$new("scalar"), chunk_dims = NULL)
+    MEMORY_DATA
+}
+.h5_delete_scalar <- function(daf, name, must_exist) {
+    root <- .h5_root(daf); key <- .hkey_scalar(name)
+    if (!root$exists(key)) {
+        if (must_exist) .require_scalar(daf, name)
+        return(invisible())
+    }
+    root$link_delete(key)
+    invisible()
+}
+
+local({
+    for (cls in list(H5df, H5dfReadOnly)) {
+        S7::method(format_has_scalar, list(cls, S7::class_character)) <-
+            function(daf, name) .h5_has_scalar(daf, name)
+        S7::method(format_get_scalar, list(cls, S7::class_character)) <-
+            function(daf, name) .cache_group_value(.h5_get_scalar(daf, name), MEMORY_DATA)
+        S7::method(format_scalars_set, cls) <- function(daf) .h5_scalars_set(daf)
+    }
+})
+
+S7::method(format_set_scalar,
+    list(H5df, S7::class_character, S7::class_any, S7::class_logical)) <-
+    function(daf, name, value, overwrite) .h5_set_scalar(daf, name, value, overwrite)
+S7::method(format_delete_scalar, list(H5df, S7::class_character, S7::class_logical)) <-
+    function(daf, name, must_exist) .h5_delete_scalar(daf, name, must_exist)
