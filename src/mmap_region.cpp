@@ -73,7 +73,8 @@ MmapRegion::~MmapRegion() {
     }
 }
 
-std::shared_ptr<MmapRegion> MmapRegion::open_readonly(const std::string &path) {
+std::shared_ptr<MmapRegion> MmapRegion::open_readonly(const std::string &path,
+                                                      std::size_t offset) {
     std::wstring wpath = utf8_to_utf16(path);
     if (wpath.empty() && !path.empty()) {
         throw std::runtime_error(win_error_message(
@@ -105,9 +106,15 @@ std::shared_ptr<MmapRegion> MmapRegion::open_readonly(const std::string &path) {
     }
 
     std::size_t nbytes = static_cast<std::size_t>(size.QuadPart);
+    if (offset > nbytes) {
+        CloseHandle(h_file);
+        throw std::runtime_error("mmap offset " + std::to_string(offset) +
+            " past end of '" + path + "' (" + std::to_string(nbytes) + " bytes)");
+    }
     if (nbytes == 0) {
         // CreateFileMapping rejects zero-size mappings. Mirror the POSIX
         // path: return a nullptr region that represents an empty file.
+        // offset is guaranteed 0 here (offset <= nbytes == 0).
         CloseHandle(h_file);
         return std::make_shared<MmapRegion>(nullptr, 0, INVALID_HANDLE_VALUE,
                                             nullptr, path);
@@ -135,7 +142,9 @@ std::shared_ptr<MmapRegion> MmapRegion::open_readonly(const std::string &path) {
             "MapViewOfFile '" + path + "'", code));
     }
 
-    return std::make_shared<MmapRegion>(ptr, nbytes, h_file, h_map, path);
+    auto region = std::make_shared<MmapRegion>(ptr, nbytes, h_file, h_map, path);
+    region->offset_ = offset;
+    return region;
 }
 
 #else // !_WIN32
@@ -156,9 +165,10 @@ MmapRegion::~MmapRegion() {
 #endif
 }
 
-std::shared_ptr<MmapRegion> MmapRegion::open_readonly(const std::string &path) {
+std::shared_ptr<MmapRegion> MmapRegion::open_readonly(const std::string &path,
+                                                      std::size_t offset) {
 #if !defined(DAFR_HAVE_MMAP) || !DAFR_HAVE_MMAP
-    (void) path;
+    (void) path; (void) offset;
     throw std::runtime_error("mmap not available on this platform");
 #else
     int fd = ::open(path.c_str(), O_RDONLY);
@@ -174,8 +184,14 @@ std::shared_ptr<MmapRegion> MmapRegion::open_readonly(const std::string &path) {
             "fstat '" + path + "': " + std::strerror(e));
     }
     std::size_t nbytes = static_cast<std::size_t>(st.st_size);
+    if (offset > nbytes) {
+        ::close(fd);
+        throw std::runtime_error("mmap offset " + std::to_string(offset) +
+            " past end of '" + path + "' (" + std::to_string(nbytes) + " bytes)");
+    }
     if (nbytes == 0) {
         // Empty file: can't mmap a zero-length region. Treat as empty.
+        // offset is guaranteed 0 here (offset <= nbytes == 0).
         ::close(fd);
         return std::make_shared<MmapRegion>(nullptr, 0, -1, path);
     }
@@ -186,7 +202,9 @@ std::shared_ptr<MmapRegion> MmapRegion::open_readonly(const std::string &path) {
         throw std::runtime_error(
             "mmap '" + path + "': " + std::strerror(e));
     }
-    return std::make_shared<MmapRegion>(p, nbytes, fd, path);
+    auto region = std::make_shared<MmapRegion>(p, nbytes, fd, path);
+    region->offset_ = offset;
+    return region;
 #endif
 }
 

@@ -386,12 +386,47 @@ S7::method(format_delete_axis, list(H5df, S7::class_character, S7::class_logical
     out <- logical(n); out[idx] <- TRUE; out        # bool-all-true: nzval omitted
 }
 
+# Return an mmap-backed ALTREP view of a dense contiguous HDF5 dataset, or NULL
+# to fall back to the eager reader. Mirrors DAF.jl's `ismmappable` gate: native
+# little-endian Float64 or signed Int32, contiguous & uncompressed, non-empty,
+# element-aligned. hdf5r's $get_offset() gives the raw data's byte offset in the
+# file (verified to match $read()); it *errors* for chunked/compact datasets, so
+# the tryCatch doubles as the contiguity check.
+#
+# Alignment: an unaligned pointer can't safely back an R double/int vector, so
+# we require an element-aligned offset. HDF5 allocates datasets >= its small-
+# data-block size (2048 B by default) on their own, naturally element-aligned;
+# smaller datasets are packed into an unaligned aggregation block and fall back
+# to eager. That is the behavior we want anyway - mmap matters for large dense
+# components; tiny ones read eagerly in microseconds.
+.h5_mmap_dense <- function(daf, obj, n) {
+    if (!isTRUE(dafr_opt("dafr.mmap")) || n == 0) return(NULL)
+    ty <- obj$get_type()
+    sz <- ty$get_size()
+    kind <- if (ty$get_class() == hdf5r::h5const$H5T_FLOAT && sz == 8L) {
+        "real"
+    } else if (ty$get_class() == hdf5r::h5const$H5T_INTEGER && sz == 4L &&
+               ty$get_sign() == hdf5r::h5const$H5T_SGN_2) {
+        "int"
+    } else {
+        return(NULL)  # Int64, Bool/bitfield, String, UInt, big-endian: eager
+    }
+    if (ty$get_order() != hdf5r::h5const$H5T_ORDER_LE) return(NULL)
+    if (obj$get_storage_size() != as.double(n) * sz) return(NULL)  # compressed/partial
+    off <- tryCatch(obj$get_offset(), error = function(e) NULL)    # NULL => not contiguous
+    if (is.null(off) || !is.finite(off) || off < 0 || off %% sz != 0) return(NULL)
+    path <- .h5_root(daf)$get_filename()
+    if (kind == "real") mmap_real(path, n, off) else mmap_int(path, n, off)
+}
+
 .h5_get_vector_impl <- function(daf, axis, name) {
     root <- .h5_root(daf); key <- .hkey_vector(axis, name)
     if (!root$exists(key)) .require_vector(daf, axis, name)
     n <- format_axis_length(daf, axis)
     obj <- root[[key]]
     if (inherits(obj, "H5Group")) return(.h5_read_sparse_vector(obj, n))
+    mapped <- .h5_mmap_dense(daf, obj, n)
+    if (!is.null(mapped)) return(mapped)
     v <- .h5_safe_read(obj)
     .h5_coerce_int64(obj, v)
 }
@@ -514,6 +549,11 @@ S7::method(format_delete_vector,
     nr <- format_axis_length(daf, ra); nc <- format_axis_length(daf, ca)
     obj <- root[[key]]
     if (inherits(obj, "H5Group")) return(.h5_read_sparse_matrix(obj, nr, nc))
+    mapped <- .h5_mmap_dense(daf, obj, as.double(nr) * nc)   # flat, column-major on disk
+    if (!is.null(mapped)) {
+        dim(mapped) <- c(as.integer(nr), as.integer(nc))     # ALTREP survives dim<-
+        return(mapped)
+    }
     v <- .h5_safe_read(obj)                            # hdf5r reverses dims -> (nr, nc)
     v <- .h5_coerce_int64(obj, v)                      # Int64 -> integer64 (drops dim)
     if (is.null(dim(v))) dim(v) <- c(as.integer(nr), as.integer(nc))
