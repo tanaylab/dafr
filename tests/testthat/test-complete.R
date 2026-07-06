@@ -19,9 +19,12 @@ test_that("open_daf opens a FilesDaf directory in r+ mode", {
     expect_identical(unname(get_vector(d, "cell", "tag")), c("x"))
 })
 
-test_that("open_daf rejects H5df paths", {
-    expect_error(open_daf("x.h5df", "r"), "H5df backend not supported yet")
-    expect_error(open_daf("x.h5dfs#/grp", "r"), "H5df backend not supported yet")
+test_that("open_daf dispatches .h5df and rejects grouped h5dfs", {
+    skip_if_not_installed("hdf5r")
+    # .h5df now dispatches to h5df(); a nonexistent path errors on open.
+    expect_error(open_daf("x.h5df", "r"), "not a daf store")
+    # Grouped .h5dfs#/group archives remain unsupported (rejected in open_daf).
+    expect_error(open_daf("x.h5dfs#/grp", "r"), "not supported")
 })
 
 test_that("complete_chain sets base_daf_repository and returns a write chain", {
