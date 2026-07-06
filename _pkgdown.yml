@@ -40,10 +40,13 @@ reference:
       - ZarrDaf
       - ZarrDafReadOnly
       - HttpDaf
+      - ZipDaf
+      - ZipDafReadOnly
       - memory_daf
       - files_daf
       - zarr_daf
       - http_daf
+      - zip_daf
       - pack_files_daf_metadata
       - is_daf
       - is_leaf
