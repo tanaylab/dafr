@@ -39,11 +39,11 @@ new_dir <- file.path(tmp_root, "new")
 files_daf(base_dir, name = "base", mode = "w+")
 #> <dafr::FilesDaf>
 #>  @ name                  : chr "base"
-#>  @ internal              :<environment: 0x5556075f7dc0> 
-#>  @ cache                 :<environment: 0x5556075faf08> 
-#>  @ axis_version_counter  :<environment: 0x555607625fb8> 
-#>  @ vector_version_counter:<environment: 0x555607625ce0> 
-#>  @ matrix_version_counter:<environment: 0x555607625a08> 
+#>  @ internal              :<environment: 0x55dd366d2068> 
+#>  @ cache                 :<environment: 0x55dd366d1380> 
+#>  @ axis_version_counter  :<environment: 0x55dd366d3690> 
+#>  @ vector_version_counter:<environment: 0x55dd366d33b8> 
+#>  @ matrix_version_counter:<environment: 0x55dd366d30e0> 
 new <- files_daf(new_dir, name = "new", mode = "w+")
 complete_chain(
     base_daf = open_daf(base_dir, "r"),
@@ -51,32 +51,32 @@ complete_chain(
 )
 #> <dafr::WriteChainDaf>
 #>  @ name                  : chr "new"
-#>  @ internal              :<environment: 0x55560d039508> 
-#>  @ cache                 :<environment: 0x55560d0391c0> 
-#>  @ axis_version_counter  :<environment: 0x55560723cd20> 
-#>  @ vector_version_counter:<environment: 0x55560723ca48> 
-#>  @ matrix_version_counter:<environment: 0x5556072405a0> 
+#>  @ internal              :<environment: 0x55dd346cb880> 
+#>  @ cache                 :<environment: 0x55dd346cb538> 
+#>  @ axis_version_counter  :<environment: 0x55dd346cd848> 
+#>  @ vector_version_counter:<environment: 0x55dd346cd570> 
+#>  @ matrix_version_counter:<environment: 0x55dd346cd298> 
 #>  @ dafs                  :List of 2
 #>  .. $ : <dafr::FilesDafReadOnly>
 #>  ..  ..@ name                  : chr "base"
-#>  ..  ..@ internal              :<environment: 0x55560af20b38> 
-#>  ..  ..@ cache                 :<environment: 0x55560c7189c8> 
-#>  ..  ..@ axis_version_counter  :<environment: 0x55560c71abf8> 
-#>  ..  ..@ vector_version_counter:<environment: 0x55560c71a920> 
-#>  ..  ..@ matrix_version_counter:<environment: 0x55560c71a648> 
+#>  ..  ..@ internal              :<environment: 0x55dd33dd9ea8> 
+#>  ..  ..@ cache                 :<environment: 0x55dd3484b280> 
+#>  ..  ..@ axis_version_counter  :<environment: 0x55dd34849728> 
+#>  ..  ..@ vector_version_counter:<environment: 0x55dd3484d280> 
+#>  ..  ..@ matrix_version_counter:<environment: 0x55dd3484cfa8> 
 #>  .. $ : <dafr::FilesDaf>
 #>  ..  ..@ name                  : chr "new"
-#>  ..  ..@ internal              :<environment: 0x55560bfcdc28> 
-#>  ..  ..@ cache                 :<environment: 0x55560bfccf40> 
-#>  ..  ..@ axis_version_counter  :<environment: 0x55560bfcf250> 
-#>  ..  ..@ vector_version_counter:<environment: 0x55560bfcef78> 
-#>  ..  ..@ matrix_version_counter:<environment: 0x55560bfd2ad0> 
+#>  ..  ..@ internal              :<environment: 0x55dd316834a8> 
+#>  ..  ..@ cache                 :<environment: 0x55dd316827c0> 
+#>  ..  ..@ axis_version_counter  :<environment: 0x55dd31684ad0> 
+#>  ..  ..@ vector_version_counter:<environment: 0x55dd316847f8> 
+#>  ..  ..@ matrix_version_counter:<environment: 0x55dd31684520> 
 #>  @ writer                : <dafr::FilesDaf>
 #>  .. @ name                  : chr "new"
-#>  .. @ internal              :<environment: 0x55560bfcdc28> 
-#>  .. @ cache                 :<environment: 0x55560bfccf40> 
-#>  .. @ axis_version_counter  :<environment: 0x55560bfcf250> 
-#>  .. @ vector_version_counter:<environment: 0x55560bfcef78> 
-#>  .. @ matrix_version_counter:<environment: 0x55560bfd2ad0> 
+#>  .. @ internal              :<environment: 0x55dd316834a8> 
+#>  .. @ cache                 :<environment: 0x55dd316827c0> 
+#>  .. @ axis_version_counter  :<environment: 0x55dd31684ad0> 
+#>  .. @ vector_version_counter:<environment: 0x55dd316847f8> 
+#>  .. @ matrix_version_counter:<environment: 0x55dd31684520> 
 chain <- complete_daf(new_dir, "r")
 ```

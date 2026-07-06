@@ -13,7 +13,7 @@ bytes."></head><body>
 
     <a class="navbar-brand me-2" href="../index.html">dafr</a>
 
-    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">0.7.0</small>
+    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">0.8.0</small>
 
 
     <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbar" aria-controls="navbar" aria-expanded="false" aria-label="Toggle navigation">
@@ -61,11 +61,11 @@ bytes.</p>
 
     <div class="section level2">
     <h2 id="ref-usage">Usage<a class="anchor" aria-label="anchor" href="#ref-usage"></a></h2>
-    <div class="sourceCode"><pre class="sourceCode r"><code><span><span class="fu">mmap_real</span><span class="op">(</span><span class="va">path</span>, <span class="va">length</span><span class="op">)</span></span>
+    <div class="sourceCode"><pre class="sourceCode r"><code><span><span class="fu">mmap_real</span><span class="op">(</span><span class="va">path</span>, <span class="va">length</span>, offset <span class="op">=</span> <span class="fl">0</span><span class="op">)</span></span>
 <span></span>
-<span><span class="fu">mmap_int</span><span class="op">(</span><span class="va">path</span>, <span class="va">length</span><span class="op">)</span></span>
+<span><span class="fu">mmap_int</span><span class="op">(</span><span class="va">path</span>, <span class="va">length</span>, offset <span class="op">=</span> <span class="fl">0</span><span class="op">)</span></span>
 <span></span>
-<span><span class="fu">mmap_lgl</span><span class="op">(</span><span class="va">path</span>, <span class="va">length</span><span class="op">)</span></span></code></pre></div>
+<span><span class="fu">mmap_lgl</span><span class="op">(</span><span class="va">path</span>, <span class="va">length</span>, offset <span class="op">=</span> <span class="fl">0</span><span class="op">)</span></span></code></pre></div>
     </div>
 
     <div class="section level2">
@@ -78,6 +78,12 @@ bytes.</p>
 
 <dt id="arg-length">length<a class="anchor" aria-label="anchor" href="#arg-length"></a></dt>
 <dd><p>Number of elements to map.</p></dd>
+
+
+<dt id="arg-offset">offset<a class="anchor" aria-label="anchor" href="#arg-offset"></a></dt>
+<dd><p>Byte offset at which the elements begin (default 0). Lets a
+sub-region of a file - e.g. a contiguous HDF5 dataset at a known offset -
+be mapped. Must leave at least <code>length * sizeof(element)</code> bytes to EOF.</p></dd>
 
 </dl></div>
     <div class="section level2">

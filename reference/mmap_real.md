@@ -8,11 +8,11 @@ bytes.
 ## Usage
 
 ``` r
-mmap_real(path, length)
+mmap_real(path, length, offset = 0)
 
-mmap_int(path, length)
+mmap_int(path, length, offset = 0)
 
-mmap_lgl(path, length)
+mmap_lgl(path, length, offset = 0)
 ```
 
 ## Arguments
@@ -24,6 +24,12 @@ mmap_lgl(path, length)
 - length:
 
   Number of elements to map.
+
+- offset:
+
+  Byte offset at which the elements begin (default 0). Lets a sub-region
+  of a file - e.g. a contiguous HDF5 dataset at a known offset - be
+  mapped. Must leave at least `length * sizeof(element)` bytes to EOF.
 
 ## Value
 

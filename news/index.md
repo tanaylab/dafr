@@ -1,5 +1,25 @@
 # Changelog
 
+## dafr 0.8.0
+
+- [`h5df()`](https://tanaylab.github.io/dafr/reference/h5df.md) dense
+  reads are now memory-mapped (zero-copy ALTREP) for large contiguous
+  native Float64 / signed Int32 datasets, matching
+  [`files_daf()`](https://tanaylab.github.io/dafr/reference/files_daf.md)
+  and `DataAxesFormats.jl`’s `H5df` on large dense components. Reading a
+  160 MB dense matrix drops from ~130 ms to ~45 ms (full read) and a
+  lazy/sliced read from ~100 ms to sub-millisecond. Datasets below
+  HDF5’s small-data-block size (2048 B), non-contiguous/compressed
+  datasets, and non-native types fall back to the eager reader; disable
+  entirely with `options(dafr.mmap = FALSE)`.
+- [`mmap_real()`](https://tanaylab.github.io/dafr/reference/mmap_real.md)
+  /
+  [`mmap_int()`](https://tanaylab.github.io/dafr/reference/mmap_real.md)
+  /
+  [`mmap_lgl()`](https://tanaylab.github.io/dafr/reference/mmap_real.md)
+  gain an `offset` argument to map a sub-region of a file (used by the
+  H5df fast path above).
+
 ## dafr 0.7.0
 
 - New [`h5df()`](https://tanaylab.github.io/dafr/reference/h5df.md)
