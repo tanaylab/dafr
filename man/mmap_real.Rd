@@ -6,16 +6,20 @@
 \alias{mmap_lgl}
 \title{Open a binary file as a read-only mmap-backed vector.}
 \usage{
-mmap_real(path, length)
+mmap_real(path, length, offset = 0)
 
-mmap_int(path, length)
+mmap_int(path, length, offset = 0)
 
-mmap_lgl(path, length)
+mmap_lgl(path, length, offset = 0)
 }
 \arguments{
 \item{path}{Path to the binary file.}
 
 \item{length}{Number of elements to map.}
+
+\item{offset}{Byte offset at which the elements begin (default 0). Lets a
+sub-region of a file - e.g. a contiguous HDF5 dataset at a known offset -
+be mapped. Must leave at least \code{length * sizeof(element)} bytes to EOF.}
 }
 \value{
 An ALTREP-backed R vector sharing the file's memory.

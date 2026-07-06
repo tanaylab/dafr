@@ -6,24 +6,24 @@
 #include <R_ext/Visibility.h>
 
 // altrep_mmap_r.cpp
-SEXP mmap_real_altrep_cpp(std::string path, double length_double);
-extern "C" SEXP _dafr_mmap_real_altrep_cpp(SEXP path, SEXP length_double) {
+SEXP mmap_real_altrep_cpp(std::string path, double length_double, double offset_double);
+extern "C" SEXP _dafr_mmap_real_altrep_cpp(SEXP path, SEXP length_double, SEXP offset_double) {
   BEGIN_CPP11
-    return cpp11::as_sexp(mmap_real_altrep_cpp(cpp11::as_cpp<cpp11::decay_t<std::string>>(path), cpp11::as_cpp<cpp11::decay_t<double>>(length_double)));
+    return cpp11::as_sexp(mmap_real_altrep_cpp(cpp11::as_cpp<cpp11::decay_t<std::string>>(path), cpp11::as_cpp<cpp11::decay_t<double>>(length_double), cpp11::as_cpp<cpp11::decay_t<double>>(offset_double)));
   END_CPP11
 }
 // altrep_mmap_r.cpp
-SEXP mmap_int_altrep_cpp(std::string path, double length_double);
-extern "C" SEXP _dafr_mmap_int_altrep_cpp(SEXP path, SEXP length_double) {
+SEXP mmap_int_altrep_cpp(std::string path, double length_double, double offset_double);
+extern "C" SEXP _dafr_mmap_int_altrep_cpp(SEXP path, SEXP length_double, SEXP offset_double) {
   BEGIN_CPP11
-    return cpp11::as_sexp(mmap_int_altrep_cpp(cpp11::as_cpp<cpp11::decay_t<std::string>>(path), cpp11::as_cpp<cpp11::decay_t<double>>(length_double)));
+    return cpp11::as_sexp(mmap_int_altrep_cpp(cpp11::as_cpp<cpp11::decay_t<std::string>>(path), cpp11::as_cpp<cpp11::decay_t<double>>(length_double), cpp11::as_cpp<cpp11::decay_t<double>>(offset_double)));
   END_CPP11
 }
 // altrep_mmap_r.cpp
-SEXP mmap_lgl_altrep_cpp(std::string path, double length_double);
-extern "C" SEXP _dafr_mmap_lgl_altrep_cpp(SEXP path, SEXP length_double) {
+SEXP mmap_lgl_altrep_cpp(std::string path, double length_double, double offset_double);
+extern "C" SEXP _dafr_mmap_lgl_altrep_cpp(SEXP path, SEXP length_double, SEXP offset_double) {
   BEGIN_CPP11
-    return cpp11::as_sexp(mmap_lgl_altrep_cpp(cpp11::as_cpp<cpp11::decay_t<std::string>>(path), cpp11::as_cpp<cpp11::decay_t<double>>(length_double)));
+    return cpp11::as_sexp(mmap_lgl_altrep_cpp(cpp11::as_cpp<cpp11::decay_t<std::string>>(path), cpp11::as_cpp<cpp11::decay_t<double>>(length_double), cpp11::as_cpp<cpp11::decay_t<double>>(offset_double)));
   END_CPP11
 }
 // altrep_mmap_r.cpp
@@ -382,9 +382,9 @@ static const R_CallMethodDef CallEntries[] = {
     {"_dafr_kernel_top_k_per_col_csc_cpp",    (DL_FUNC) &_dafr_kernel_top_k_per_col_csc_cpp,     8},
     {"_dafr_kernel_top_k_per_col_dense_cpp",  (DL_FUNC) &_dafr_kernel_top_k_per_col_dense_cpp,   4},
     {"_dafr_kernel_var_csc_cpp",              (DL_FUNC) &_dafr_kernel_var_csc_cpp,               9},
-    {"_dafr_mmap_int_altrep_cpp",             (DL_FUNC) &_dafr_mmap_int_altrep_cpp,              2},
-    {"_dafr_mmap_lgl_altrep_cpp",             (DL_FUNC) &_dafr_mmap_lgl_altrep_cpp,              2},
-    {"_dafr_mmap_real_altrep_cpp",            (DL_FUNC) &_dafr_mmap_real_altrep_cpp,             2},
+    {"_dafr_mmap_int_altrep_cpp",             (DL_FUNC) &_dafr_mmap_int_altrep_cpp,              3},
+    {"_dafr_mmap_lgl_altrep_cpp",             (DL_FUNC) &_dafr_mmap_lgl_altrep_cpp,              3},
+    {"_dafr_mmap_real_altrep_cpp",            (DL_FUNC) &_dafr_mmap_real_altrep_cpp,             3},
     {NULL, NULL, 0}
 };
 }
