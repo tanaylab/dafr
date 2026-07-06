@@ -1,0 +1,222 @@
+skip_if_no_hdf5r <- function() testthat::skip_if_not_installed("hdf5r")
+
+test_that("h5df creates a store, marks it, and reopens read-only", {
+    skip_if_no_hdf5r()
+    p <- tempfile(fileext = ".h5df")
+    d <- h5df(p, mode = "w")
+    expect_s3_class(d, "dafr::H5df")
+    expect_true(file.exists(p))
+    rm(d)
+    gc()
+    r <- h5df(p, mode = "r")
+    expect_s3_class(r, "dafr::H5dfReadOnly")
+    expect_equal(dafr:::.is_leaf_dispatch(r), TRUE)
+    rm(r)
+    gc()
+})
+
+test_that("h5df mode guards", {
+    skip_if_no_hdf5r()
+    p <- tempfile(fileext = ".h5df")
+    expect_error(h5df(p, mode = "r"), "not a daf")
+    d <- h5df(p, mode = "w"); rm(d); gc()
+    expect_error(h5df(p, mode = "w"), "already a daf")   # use w+
+    d2 <- h5df(p, mode = "w+"); rm(d2); gc()             # append ok
+})
+
+test_that("open_daf dispatches .h5df and rejects grouped", {
+    skip_if_no_hdf5r()
+    p <- tempfile(fileext = ".h5df")
+    d <- open_daf(p, mode = "w")
+    expect_s3_class(d, "dafr::H5df")
+    rm(d); gc()
+    expect_error(open_daf("x.h5dfs#/g", mode = "r"), "not supported")
+})
+
+test_that("h5df scalars round-trip, list, overwrite, delete", {
+    skip_if_no_hdf5r()
+    p <- tempfile(fileext = ".h5df")
+    d <- h5df(p, mode = "w")
+    set_scalar(d, "pi", 3.14)
+    set_scalar(d, "n", 5L)
+    set_scalar(d, "big", bit64::as.integer64(2^40))
+    set_scalar(d, "note", "hello")
+    expect_equal(get_scalar(d, "pi"), 3.14)
+    expect_equal(get_scalar(d, "note"), "hello")
+    expect_equal(as.numeric(get_scalar(d, "big")), 2^40)
+    expect_setequal(scalars_set(d), c("pi", "n", "big", "note"))
+    expect_error(set_scalar(d, "pi", 9), "exist")          # no overwrite
+    set_scalar(d, "pi", 9, overwrite = TRUE)
+    expect_equal(get_scalar(d, "pi"), 9)
+    delete_scalar(d, "pi")
+    expect_false(has_scalar(d, "pi"))
+    expect_error(get_scalar(d, "pi"), "missing scalar")
+    rm(d); gc()
+})
+
+test_that("h5df axes round-trip, list, delete cascade, empty axis", {
+    skip_if_no_hdf5r()
+    p <- tempfile(fileext = ".h5df")
+    d <- h5df(p, mode = "w")
+    add_axis(d, "cell", c("A", "B", "C", "D"))
+    add_axis(d, "gene", c("X", "Y"))
+    add_axis(d, "empty", character(0))
+    expect_true(has_axis(d, "cell"))
+    expect_equal(axis_vector(d, "cell"), c("A", "B", "C", "D"))
+    expect_equal(axis_length(d, "gene"), 2L)
+    expect_equal(axis_length(d, "empty"), 0L)
+    expect_setequal(axes_set(d), c("cell", "gene", "empty"))
+    expect_error(add_axis(d, "cell", c("A", "B")), "exist")
+    expect_error(add_axis(d, "bad", c("a", "a")), "non-unique")
+    set_vector(d, "gene", "gv", c(1, 2))
+    set_matrix(d, "cell", "gene", "gm", matrix(as.double(1:8), 4, 2), relayout = FALSE)
+    delete_axis(d, "gene")
+    expect_false(has_axis(d, "gene"))
+    # delete_axis cascades: gene's vector + matrix subgroups are gone from disk
+    h5 <- dafr:::.h5_root(d)
+    expect_false(h5$exists("vectors/gene"))
+    expect_false(h5$exists("matrices/gene"))
+    expect_false(h5$exists("matrices/cell/gene"))
+    rm(d); gc()
+})
+
+test_that("h5df vectors round-trip: numeric, int, string, bool, sparse, empty", {
+    skip_if_no_hdf5r()
+    p <- tempfile(fileext = ".h5df")
+    d <- h5df(p, mode = "w")
+    add_axis(d, "cell", c("A", "B", "C", "D"))
+    add_axis(d, "none", character(0))
+    set_vector(d, "cell", "score", c(1.5, 2.5, 3.5, 4.5))
+    set_vector(d, "cell", "donor", c(1L, 2L, 3L, 4L))
+    set_vector(d, "cell", "label", c("a", "b", "c", "d"))
+    set_vector(d, "cell", "flag", c(TRUE, FALSE, TRUE, TRUE))
+    sv <- Matrix::sparseVector(x = c(10, 30), i = c(2L, 4L), length = 4L)
+    set_vector(d, "cell", "sx", sv)
+    set_vector(d, "none", "e", numeric(0))
+    expect_equal(get_vector(d, "cell", "score"), c(1.5, 2.5, 3.5, 4.5), ignore_attr = TRUE)
+    expect_equal(as.integer(get_vector(d, "cell", "donor")), 1:4)
+    expect_equal(get_vector(d, "cell", "label"), c("a", "b", "c", "d"), ignore_attr = TRUE)
+    expect_equal(get_vector(d, "cell", "flag"), c(TRUE, FALSE, TRUE, TRUE), ignore_attr = TRUE)
+    expect_equal(get_vector(d, "cell", "sx"), c(0, 10, 0, 30), ignore_attr = TRUE)
+    expect_length(get_vector(d, "none", "e"), 0L)
+    expect_setequal(vectors_set(d, "cell"), c("score", "donor", "label", "flag", "sx"))
+    expect_error(set_vector(d, "cell", "score", c(9, 9, 9, 9)), "exist")
+    set_vector(d, "cell", "score", c(9, 9, 9, 9), overwrite = TRUE)
+    expect_equal(get_vector(d, "cell", "score"), c(9, 9, 9, 9), ignore_attr = TRUE)
+    delete_vector(d, "cell", "donor")
+    expect_false(has_vector(d, "cell", "donor"))
+    rm(d); gc()
+})
+
+test_that("h5df Int64 vectors/scalars read back as integer64 (dtype fidelity)", {
+    skip_if_no_hdf5r()
+    p <- tempfile(fileext = ".h5df")
+    d <- h5df(p, mode = "w")
+    add_axis(d, "cell", c("A", "B", "C", "D"))
+    # Small Int64 values (<2^53): hdf5r would decode them to double; the
+    # backend must still surface integer64 to match FilesDaf/ZipDaf, so a
+    # read-modify-rewrite keeps the on-disk dtype.
+    set_vector(d, "cell", "big64", bit64::as.integer64(c(1, 2, 3, 4)))
+    got <- get_vector(d, "cell", "big64")
+    expect_true(bit64::is.integer64(got))
+    expect_equal(as.numeric(got), c(1, 2, 3, 4), ignore_attr = TRUE)
+    # Sparse Int64 nzval scatters to a dense integer64 vector. Matrix's
+    # sparseVector can't hold integer64 (its x slot must extend numeric), so a
+    # sparse Int64 only reaches the store from a Julia writer; hand-craft the
+    # on-disk group to exercise the interop read path directly.
+    root <- S7::prop(d, "internal")$h5
+    grp <- root$create_group("vectors/cell/sp64")
+    grp$create_dataset("nzind", robj = c(2L, 4L),
+        dtype = hdf5r::h5types$H5T_NATIVE_UINT32, chunk_dims = NULL)
+    grp$create_dataset("nzval", robj = bit64::as.integer64(c(10, 30)), chunk_dims = NULL)
+    gotsp <- get_vector(d, "cell", "sp64")
+    expect_true(bit64::is.integer64(gotsp))
+    expect_equal(as.numeric(gotsp), c(0, 10, 0, 30), ignore_attr = TRUE)
+    set_scalar(d, "cnt", bit64::as.integer64(1000))
+    expect_true(bit64::is.integer64(get_scalar(d, "cnt")))
+    expect_equal(as.numeric(get_scalar(d, "cnt")), 1000)
+    # Int32 and Bool must NOT become integer64 (size / class checks exclude them).
+    set_vector(d, "cell", "i32", c(1L, 2L, 3L, 4L))
+    set_vector(d, "cell", "flag", c(TRUE, FALSE, TRUE, TRUE))
+    expect_false(bit64::is.integer64(get_vector(d, "cell", "i32")))
+    expect_type(as.vector(get_vector(d, "cell", "i32")), "integer")
+    expect_false(bit64::is.integer64(get_vector(d, "cell", "flag")))
+    expect_type(as.vector(get_vector(d, "cell", "flag")), "logical")
+    rm(d); gc()
+})
+
+test_that("h5df matrices round-trip: dense, sparse, bool, orientation, delete", {
+    skip_if_no_hdf5r()
+    p <- tempfile(fileext = ".h5df")
+    d <- h5df(p, mode = "w")
+    add_axis(d, "cell", c("A", "B", "C", "D"))
+    add_axis(d, "gene", c("X", "Y"))
+    dm <- matrix(as.double(1:8), nrow = 4, ncol = 2)   # (cell, gene)
+    set_matrix(d, "cell", "gene", "dm", dm)
+    got <- get_matrix(d, "cell", "gene", "dm")
+    expect_equal(dim(got), c(4L, 2L))
+    expect_equal(as.vector(got), as.double(1:8))       # orientation preserved
+    sp <- Matrix::sparseMatrix(i = c(1, 3, 2), j = c(1, 1, 2), x = c(10, 20, 30), dims = c(4, 2))
+    set_matrix(d, "cell", "gene", "sm", sp)
+    gotsp <- get_matrix(d, "cell", "gene", "sm")
+    expect_s4_class(gotsp, "dgCMatrix")
+    expect_equal(as.matrix(gotsp), as.matrix(sp), ignore_attr = TRUE)
+    bm <- Matrix::sparseMatrix(i = c(1, 4), j = c(1, 2), x = c(TRUE, TRUE), dims = c(4, 2))
+    set_matrix(d, "cell", "gene", "bm", bm)
+    expect_equal(as.matrix(get_matrix(d, "cell", "gene", "bm")), as.matrix(bm), ignore_attr = TRUE)
+    expect_setequal(matrices_set(d, "cell", "gene"), c("dm", "sm", "bm"))
+    delete_matrix(d, "cell", "gene", "dm")
+    expect_false(has_matrix(d, "cell", "gene", "dm"))
+    rm(d); gc()
+})
+
+test_that("h5df relayout and reorder", {
+    skip_if_no_hdf5r()
+    p <- tempfile(fileext = ".h5df")
+    d <- h5df(p, mode = "w")
+    add_axis(d, "cell", c("A", "B", "C"))
+    add_axis(d, "gene", c("X", "Y"))
+    m <- matrix(as.double(1:6), nrow = 3, ncol = 2)
+    # relayout defaults to TRUE on set_matrix(), which would already write the
+    # transposed copy; disable it here so the explicit relayout_matrix() call
+    # below has something to do (mirrors relayout_matrix()'s own doc example).
+    set_matrix(d, "cell", "gene", "m", m, relayout = FALSE)
+    relayout_matrix(d, "cell", "gene", "m")
+    expect_true(has_matrix(d, "gene", "cell", "m"))
+    expect_equal(as.matrix(get_matrix(d, "gene", "cell", "m")), t(m), ignore_attr = TRUE)
+    set_vector(d, "cell", "v", c(10, 20, 30))
+    # permutation is a 1-based integer vector: new_entries[i] = old_entries[permutation[i]].
+    # To land on c("C", "A", "B") from c("A", "B", "C"): perm = c(3, 1, 2).
+    reorder_axes(d, cell = c(3L, 1L, 2L))
+    expect_equal(axis_vector(d, "cell"), c("C", "A", "B"))
+    expect_equal(get_vector(d, "cell", "v"), c(30, 10, 20), ignore_attr = TRUE)
+    # the planned_matrices path runs too: rows of (cell,gene) and columns of the
+    # relayout'd (gene,cell) copy must be permuted by the same permutation.
+    expect_equal(as.matrix(get_matrix(d, "cell", "gene", "m")),
+        m[c(3, 1, 2), ], ignore_attr = TRUE)
+    expect_equal(as.matrix(get_matrix(d, "gene", "cell", "m")),
+        t(m)[, c(3, 1, 2)], ignore_attr = TRUE)
+    rm(d); gc()
+})
+
+test_that("h5df string vectors and matrices round-trip (written dense)", {
+    skip_if_no_hdf5r()
+    p <- tempfile(fileext = ".h5df")
+    d <- h5df(p, mode = "w")
+    add_axis(d, "cell", c("A", "B"))
+    add_axis(d, "gene", c("X", "Y"))
+    set_matrix(d, "cell", "gene", "sm", matrix(c("a", "b", "c", "d"), 2, 2))
+    expect_equal(as.vector(get_matrix(d, "cell", "gene", "sm")), c("a", "b", "c", "d"), ignore_attr = TRUE)
+    rm(d); gc()
+})
+
+test_that("h5df read-only store rejects mutation", {
+    skip_if_no_hdf5r()
+    p <- tempfile(fileext = ".h5df")
+    d <- h5df(p, mode = "w"); add_axis(d, "cell", c("A", "B")); rm(d); gc()
+    r <- h5df(p, mode = "r")
+    expect_error(set_scalar(r, "x", 1), "read-only")
+    expect_error(add_axis(r, "z", "a"), "read-only")
+    expect_error(set_vector(r, "cell", "v", c(1, 2)), "read-only")
+    rm(r); gc()
+})

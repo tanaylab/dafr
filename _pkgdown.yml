@@ -47,6 +47,7 @@ reference:
       - zarr_daf
       - http_daf
       - zip_daf
+      - h5df
       - pack_files_daf_metadata
       - is_daf
       - is_leaf
