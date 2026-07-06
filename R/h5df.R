@@ -6,18 +6,17 @@ NULL
 # UInt8[1,0] marks the store; scalars/axes/vectors/matrices groups hold typed
 # HDF5 datasets. Sparsity = group-vs-dataset. Built on hdf5r (Suggests).
 
-#' File-backed (HDF5) Daf writer class.
-#'
-#' Concrete `DafWriter` subclass instantiated by [h5df()] for writable modes
-#' (`"r+"`, `"w"`, `"w+"`). Use [h5df()] to construct instances.
-#' @inheritParams DafReader
+# `H5df` (writer) and `H5dfReadOnly` (reader) share the `h5df` help topic via
+# `@rdname h5df` rather than getting their own `H5df.Rd` - an `H5df.Rd` would
+# collide case-insensitively with `h5df.Rd` and fail R CMD check's portable
+# file-name check (unlike `zip_daf`/`ZipDaf`, the constructor and class names
+# differ only by case here).
+
+#' @rdname h5df
 #' @export
 H5df <- S7::new_class(name = "H5df", package = "dafr", parent = DafWriter)
 
-#' File-backed (HDF5) read-only Daf class.
-#'
-#' Concrete `DafReadOnly` subclass instantiated by [h5df()] with mode `"r"`.
-#' @inheritParams DafReader
+#' @rdname h5df
 #' @export
 H5dfReadOnly <- S7::new_class(
     name = "H5dfReadOnly", package = "dafr", parent = DafReadOnly
@@ -80,6 +79,7 @@ H5dfReadOnly <- S7::new_class(
 #'   append).
 #' @param name Human-readable identifier. Default derived from the store's
 #'   `name` scalar if present, else `basename(path)`.
+#' @inheritParams DafReader
 #' @return An `H5df` (writable modes) or `H5dfReadOnly` (`"r"`).
 #' @examples
 #' if (requireNamespace("hdf5r", quietly = TRUE)) {
