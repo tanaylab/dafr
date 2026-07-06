@@ -68,8 +68,15 @@ test_that("h5df axes round-trip, list, delete cascade, empty axis", {
     expect_setequal(axes_set(d), c("cell", "gene", "empty"))
     expect_error(add_axis(d, "cell", c("A", "B")), "exist")
     expect_error(add_axis(d, "bad", c("a", "a")), "non-unique")
+    set_vector(d, "gene", "gv", c(1, 2))
+    set_matrix(d, "cell", "gene", "gm", matrix(as.double(1:8), 4, 2), relayout = FALSE)
     delete_axis(d, "gene")
     expect_false(has_axis(d, "gene"))
+    # delete_axis cascades: gene's vector + matrix subgroups are gone from disk
+    h5 <- dafr:::.h5_root(d)
+    expect_false(h5$exists("vectors/gene"))
+    expect_false(h5$exists("matrices/gene"))
+    expect_false(h5$exists("matrices/cell/gene"))
     rm(d); gc()
 })
 
@@ -183,6 +190,12 @@ test_that("h5df relayout and reorder", {
     reorder_axes(d, cell = c(3L, 1L, 2L))
     expect_equal(axis_vector(d, "cell"), c("C", "A", "B"))
     expect_equal(get_vector(d, "cell", "v"), c(30, 10, 20), ignore_attr = TRUE)
+    # the planned_matrices path runs too: rows of (cell,gene) and columns of the
+    # relayout'd (gene,cell) copy must be permuted by the same permutation.
+    expect_equal(as.matrix(get_matrix(d, "cell", "gene", "m")),
+        m[c(3, 1, 2), ], ignore_attr = TRUE)
+    expect_equal(as.matrix(get_matrix(d, "gene", "cell", "m")),
+        t(m)[, c(3, 1, 2)], ignore_attr = TRUE)
     rm(d); gc()
 })
 

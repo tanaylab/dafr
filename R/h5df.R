@@ -210,18 +210,29 @@ S7::method(format_delete_scalar, list(H5df, S7::class_character, S7::class_logic
     function(daf, name, must_exist) .h5_delete_scalar(daf, name, must_exist)
 
 # hdf5r crashes reclaiming an empty vlen-string buffer; return a typed empty
-# vector for zero-length datasets, otherwise read normally.
+# vector for zero-length datasets, otherwise read normally. Julia encodes `Bool`
+# as an HDF5 bitfield, which hdf5r has no conversion path for - surface a clear
+# error instead of hdf5r's cryptic "can't find datatype conversion path" wall.
+# (R -> Julia bool works; only reading a Julia-written Bool component fails.)
 .h5_safe_read <- function(obj) {
     if (prod(obj$dims) == 0L) {
         return(tryCatch(obj$read(), error = function(e) character(0L)))
     }
-    obj$read()
+    tryCatch(obj$read(), error = function(e) {
+        if (identical(obj$get_type()$get_class(), hdf5r::h5const$H5T_BITFIELD)) {
+            stop(paste0("h5df: cannot read HDF5 bitfield data (e.g. a ",
+                "Julia-written Bool component); hdf5r has no bitfield ",
+                "conversion path. Read it in Julia, or rewrite it as Int8."),
+                call. = FALSE)
+        }
+        stop(e)
+    })
 }
 
-# hdf5r decodes an on-disk 64-bit integer to R double when values fit in 2^53
-# (value-dependent). FilesDaf/ZipDaf always yield integer64 for Int64; match
-# that so a read-modify-rewrite preserves the on-disk dtype. Vectors/scalars
-# only - Int64 matrices are left as-is (coercion would drop the dim).
+# hdf5r decodes an on-disk 64-bit integer to R integer/double when the values
+# fit (value-dependent). FilesDaf/ZipDaf always yield integer64 for Int64; match
+# that so a read-modify-rewrite preserves the on-disk dtype. `as.integer64`
+# strips attributes, so a matrix caller must restore `dim` after coercing.
 .h5_coerce_int64 <- function(obj, v) {
     ty <- obj$get_type()
     if (ty$get_size() == 8L && ty$get_class() == hdf5r::h5const$H5T_INTEGER) {
@@ -504,6 +515,7 @@ S7::method(format_delete_vector,
     obj <- root[[key]]
     if (inherits(obj, "H5Group")) return(.h5_read_sparse_matrix(obj, nr, nc))
     v <- .h5_safe_read(obj)                            # hdf5r reverses dims -> (nr, nc)
+    v <- .h5_coerce_int64(obj, v)                      # Int64 -> integer64 (drops dim)
     if (is.null(dim(v))) dim(v) <- c(as.integer(nr), as.integer(nc))
     v
 }
