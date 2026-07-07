@@ -1564,6 +1564,33 @@ SEXP dafr_mmap_zip_data_offsets(SEXP xptr) {
     }
 }
 
+// Returns c(offset, nbytes): the file byte offset and length of a STORE'd
+// (uncompressed) entry's data region, or NULL if the key is absent or the
+// entry is compressed. Lets the R mmap gate build a zero-copy ALTREP over the
+// archive, mirroring the H5df mmap path. Callers must open the store read-only
+// (mode "r"): a writable store's pending overlay entries are not in the file
+// mmap, so their data_offset would be out of bounds.
+[[cpp11::register]]
+SEXP dafr_mmap_zip_stored_offset(SEXP xptr, std::string key) {
+    auto* store = xptr_to_store(xptr);
+    try {
+        const uint8_t* p = nullptr;
+        uint64_t len = 0;
+        uint16_t method = 0;
+        uint32_t crc = 0;
+        if (!store->stored_view(key, &p, &len, &method, &crc)) return R_NilValue;
+        const uint8_t* base = store->file_mmap_base();
+        if (base == nullptr || p == nullptr || p < base) return R_NilValue;
+        SEXP out = PROTECT(Rf_allocVector(REALSXP, 2));
+        REAL(out)[0] = static_cast<double>(p - base);
+        REAL(out)[1] = static_cast<double>(len);
+        UNPROTECT(1);
+        return out;
+    } catch (const std::exception& e) {
+        cpp11::stop("%s", e.what());
+    }
+}
+
 [[cpp11::register]]
 SEXP dafr_mmap_zip_exists(SEXP xptr, std::string key) {
     auto* store = xptr_to_store(xptr);

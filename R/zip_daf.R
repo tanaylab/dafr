@@ -121,6 +121,35 @@ ZipDafReadOnly <- S7::new_class(
     .zip_names_in(.zip_store(daf), paste0("vectors/", axis), ".json")
 }
 
+# Return an mmap-backed ALTREP view of a STORE'd (uncompressed) dense component,
+# or NULL to fall back to the eager reader. Mirrors DAF.jl's mmap gate and the
+# H5df `.h5_mmap_dense` path: native little-endian Float64 or signed Int32 only,
+# non-empty, data offset element-aligned. The archive writer 8-byte-aligns every
+# entry's data region (compute_alignment_padding), so the alignment check is a
+# belt-and-suspenders guard that also fires for Julia-written stores.
+#
+# Only read-only opens (mode "r") mmap: a writable store keeps pending appends in
+# an in-memory overlay that is not in the file mmap, so its entries' data offsets
+# would be out of bounds. `key` is the component base key (no extension).
+.zip_mmap_dense <- function(daf, key, eltype, n) {
+    internal <- S7::prop(daf, "internal")
+    if (!isTRUE(dafr_opt("dafr.mmap")) || n == 0 || internal$mode != "r") {
+        return(NULL)
+    }
+    kind <- switch(eltype, Float64 = "real", Int32 = "int", return(NULL))
+    sz <- if (kind == "real") 8L else 4L
+    ov <- dafr_mmap_zip_stored_offset(
+        S7::prop(internal$store, "xptr"), paste0(key, ".data"))
+    if (is.null(ov)) return(NULL)                        # missing / compressed
+    off <- ov[[1L]]; nbytes <- ov[[2L]]
+    if (nbytes != as.double(n) * sz || off %% sz != 0) return(NULL)
+    if (kind == "real") {
+        mmap_real(internal$path, n, off)
+    } else {
+        mmap_int(internal$path, n, off)
+    }
+}
+
 .zip_get_vector_dense <- function(daf, axis, name, desc, n) {
     store <- .zip_store(daf)
     base <- .zkey_vector(axis, name)
@@ -137,6 +166,8 @@ ZipDafReadOnly <- S7::new_class(
         }
         return(vals)
     }
+    mapped <- .zip_mmap_dense(daf, base, elt, n)
+    if (!is.null(mapped)) return(mapped)
     .decode_dense(store_get_bytes(store, paste0(base, ".data")), n, elt)
 }
 
@@ -240,7 +271,8 @@ ZipDafReadOnly <- S7::new_class(
         return(matrix(vals, nrow = nr, ncol = nc))
     }
     total <- as.numeric(nr) * as.numeric(nc)
-    v <- .decode_dense(store_get_bytes(store, paste0(base, ".data")), total, elt)
+    v <- .zip_mmap_dense(daf, base, elt, total)
+    if (is.null(v)) v <- .decode_dense(store_get_bytes(store, paste0(base, ".data")), total, elt)
     dim(v) <- c(as.integer(nr), as.integer(nc))
     v
 }

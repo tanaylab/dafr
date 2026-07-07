@@ -56,6 +56,7 @@ SEXP dafr_mmap_zip_get_bytes(SEXP /*xptr*/, std::string /*key*/) { mmap_zip_unsu
 SEXP dafr_mmap_zip_set_bytes(SEXP /*xptr*/, std::string /*key*/, cpp11::raws /*bytes*/) { mmap_zip_unsupported(); }
 SEXP dafr_mmap_zip_delete(SEXP /*xptr*/, std::string /*key*/) { mmap_zip_unsupported(); }
 SEXP dafr_mmap_zip_data_offsets(SEXP /*xptr*/) { mmap_zip_unsupported(); }
+SEXP dafr_mmap_zip_stored_offset(SEXP /*xptr*/, std::string /*key*/) { mmap_zip_unsupported(); }
 SEXP dafr_mmap_zip_exists(SEXP /*xptr*/, std::string /*key*/) { mmap_zip_unsupported(); }
 SEXP dafr_mmap_zip_list(SEXP /*xptr*/, std::string /*prefix*/) { mmap_zip_unsupported(); }
 SEXP dafr_mmap_zip_reserve(SEXP /*xptr*/, std::string /*key*/, double /*size_double*/) { mmap_zip_unsupported(); }

@@ -1,3 +1,15 @@
+# dafr 0.9.0
+
+* `zip_daf()` dense reads are now memory-mapped (zero-copy ALTREP) for STORE'd
+  (uncompressed, `packed = FALSE`) native Float64 / signed Int32 components,
+  matching `files_daf()`, `h5df()`, and `DataAxesFormats.jl`'s `ZipDaf`. The
+  archive writer already 8-byte-aligns every entry's data region, so mmap fires
+  for any dense read opened read-only. On a 160 MB dense matrix a lazy read
+  drops from ~280 ms to sub-millisecond and a full read reaches the `files_daf()`
+  mmap ceiling (~44 ms). Compressed/packed components, writable-mode reads (the
+  in-memory append overlay is not in the file mmap), and non-native types fall
+  back to the eager reader; disable entirely with `options(dafr.mmap = FALSE)`.
+
 # dafr 0.8.0
 
 * `h5df()` dense reads are now memory-mapped (zero-copy ALTREP) for large
