@@ -7,7 +7,7 @@
 
     <a class="navbar-brand me-2" href="../index.html">dafr</a>
 
-    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">0.8.0</small>
+    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">0.9.0</small>
 
 
     <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbar" aria-controls="navbar" aria-expanded="false" aria-label="Toggle navigation">
@@ -45,6 +45,11 @@
       <small>Source: <a href="https://github.com/tanaylab/dafr/blob/main/NEWS.md" class="external-link"><code>NEWS.md</code></a></small>
     </div>
 
+    <div class="section level2">
+<h2 class="pkg-version" data-toc-text="0.9.0" id="dafr-090">dafr 0.9.0<a class="anchor" aria-label="anchor" href="#dafr-090"></a></h2>
+<ul><li>
+<code><a href="../reference/zip_daf.html">zip_daf()</a></code> dense reads are now memory-mapped (zero-copy ALTREP) for STORE’d (uncompressed, <code>packed = FALSE</code>) native Float64 / signed Int32 components, matching <code><a href="../reference/files_daf.html">files_daf()</a></code>, <code><a href="../reference/h5df.html">h5df()</a></code>, and <code>DataAxesFormats.jl</code>’s <code>ZipDaf</code>. The archive writer already 8-byte-aligns every entry’s data region, so mmap fires for any dense read opened read-only. On a 160 MB dense matrix a lazy read drops from ~280 ms to sub-millisecond and a full read reaches the <code><a href="../reference/files_daf.html">files_daf()</a></code> mmap ceiling (~44 ms). Compressed/packed components, writable-mode reads (the in-memory append overlay is not in the file mmap), and non-native types fall back to the eager reader; disable entirely with <code>options(dafr.mmap = FALSE)</code>.</li>
+</ul></div>
     <div class="section level2">
 <h2 class="pkg-version" data-toc-text="0.8.0" id="dafr-080">dafr 0.8.0<a class="anchor" aria-label="anchor" href="#dafr-080"></a></h2>
 <ul><li>
