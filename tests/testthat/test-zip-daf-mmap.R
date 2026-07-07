@@ -24,6 +24,7 @@ NC <- 20L
 }
 
 test_that("dense Float64 matrix read is mmap-backed (ALTREP) and correct", {
+    skip_if_no_mmap_zip()
     d <- zip_daf(.mk_zip(), mode = "r")
     m <- get_matrix(d, "row", "col", "dense")
     expect_true(dafr:::is_altrep_cpp(m))
@@ -34,6 +35,7 @@ test_that("dense Float64 matrix read is mmap-backed (ALTREP) and correct", {
 })
 
 test_that("dense Float64 vector read is mmap-backed and correct", {
+    skip_if_no_mmap_zip()
     d <- zip_daf(.mk_zip(), mode = "r")
     v <- get_vector(d, "row", "fvec")
     expect_true(dafr:::is_altrep_cpp(v))
@@ -42,6 +44,7 @@ test_that("dense Float64 vector read is mmap-backed and correct", {
 })
 
 test_that("dense Int32 vector read is mmap-backed and correct", {
+    skip_if_no_mmap_zip()
     d <- zip_daf(.mk_zip(), mode = "r")
     v <- get_vector(d, "row", "ivec")
     expect_true(dafr:::is_altrep_cpp(v))
@@ -50,6 +53,7 @@ test_that("dense Int32 vector read is mmap-backed and correct", {
 })
 
 test_that("dafr.mmap toggles the mmap fast path with identical values", {
+    skip_if_no_mmap_zip()
     # Test below dafr's content-addressed component cache at the impl fn.
     d <- zip_daf(.mk_zip(), mode = "r")
     on_read <- dafr:::.zip_get_matrix_impl(d, "row", "col", "dense")
@@ -62,6 +66,7 @@ test_that("dafr.mmap toggles the mmap fast path with identical values", {
 })
 
 test_that("sparse matrix read is unaffected (not mmap-backed)", {
+    skip_if_no_mmap_zip()
     d <- zip_daf(.mk_zip(), mode = "r")
     sp <- get_matrix(d, "row", "col", "sparse")
     expect_false(dafr:::is_altrep_cpp(sp))
@@ -71,6 +76,7 @@ test_that("sparse matrix read is unaffected (not mmap-backed)", {
 })
 
 test_that("non-mmappable dtype (Int64) reads eagerly but correctly", {
+    skip_if_no_mmap_zip()
     # Assert at the impl level: get_vector wraps integer64 in an ALTREP wrapper
     # regardless of mmap (a bit64 quirk), so is_altrep_cpp is only meaningful for
     # Int64 below that layer.
@@ -82,6 +88,7 @@ test_that("non-mmappable dtype (Int64) reads eagerly but correctly", {
 })
 
 test_that("writable-mode read falls back to eager (no overlay mmap)", {
+    skip_if_no_mmap_zip()
     p <- .mk_zip()
     d <- zip_daf(p, mode = "r+")
     m <- dafr:::.zip_get_matrix_impl(d, "row", "col", "dense")
