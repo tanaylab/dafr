@@ -124,6 +124,10 @@ dafr_mmap_zip_data_offsets <- function(xptr) {
   .Call(`_dafr_dafr_mmap_zip_data_offsets`, xptr)
 }
 
+dafr_mmap_zip_stored_offset <- function(xptr, key) {
+  .Call(`_dafr_dafr_mmap_zip_stored_offset`, xptr, key)
+}
+
 dafr_mmap_zip_exists <- function(xptr, key) {
   .Call(`_dafr_dafr_mmap_zip_exists`, xptr, key)
 }

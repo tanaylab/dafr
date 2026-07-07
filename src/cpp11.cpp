@@ -223,6 +223,13 @@ extern "C" SEXP _dafr_dafr_mmap_zip_data_offsets(SEXP xptr) {
   END_CPP11
 }
 // mmap_zip_store.cpp
+SEXP dafr_mmap_zip_stored_offset(SEXP xptr, std::string key);
+extern "C" SEXP _dafr_dafr_mmap_zip_stored_offset(SEXP xptr, SEXP key) {
+  BEGIN_CPP11
+    return cpp11::as_sexp(dafr_mmap_zip_stored_offset(cpp11::as_cpp<cpp11::decay_t<SEXP>>(xptr), cpp11::as_cpp<cpp11::decay_t<std::string>>(key)));
+  END_CPP11
+}
+// mmap_zip_store.cpp
 SEXP dafr_mmap_zip_exists(SEXP xptr, std::string key);
 extern "C" SEXP _dafr_dafr_mmap_zip_exists(SEXP xptr, SEXP key) {
   BEGIN_CPP11
@@ -357,6 +364,7 @@ static const R_CallMethodDef CallEntries[] = {
     {"_dafr_dafr_mmap_zip_reserve",           (DL_FUNC) &_dafr_dafr_mmap_zip_reserve,            3},
     {"_dafr_dafr_mmap_zip_set_bytes",         (DL_FUNC) &_dafr_dafr_mmap_zip_set_bytes,          3},
     {"_dafr_dafr_mmap_zip_set_crash_counter", (DL_FUNC) &_dafr_dafr_mmap_zip_set_crash_counter,  3},
+    {"_dafr_dafr_mmap_zip_stored_offset",     (DL_FUNC) &_dafr_dafr_mmap_zip_stored_offset,      2},
     {"_dafr_dafr_set_num_threads",            (DL_FUNC) &_dafr_dafr_set_num_threads,             1},
     {"_dafr_dafr_zstd_compress_cpp",          (DL_FUNC) &_dafr_dafr_zstd_compress_cpp,           2},
     {"_dafr_dafr_zstd_decompress_cpp",        (DL_FUNC) &_dafr_dafr_zstd_decompress_cpp,         2},
