@@ -28,6 +28,6 @@ tmp <- tempfile("dafr-")
 dir.create(tmp)
 fd <- files_daf(tmp, mode = "w+", name = "fd")
 complete_path(fd)
-#> [1] "/tmp/RtmpaNPlRg/dafr-1c921aa51db0"
+#> [1] "/tmp/Rtmp2Vur4X/dafr-28f93521e62a"
 unlink(tmp, recursive = TRUE)
 ```
