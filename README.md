@@ -31,6 +31,16 @@ remotes::install_github("tanaylab/dafr")
 # R CMD INSTALL /path/to/dafr
 ```
 
+Or from conda:
+
+``` bash
+conda install -c aviezerl r-dafr
+```
+
+The conda build ships `c-blosc2` and `zstd`, so it reads packed and
+sharded Zarr v3 stores out of the box; other installs need those
+libraries present at build time for that (see `SystemRequirements`).
+
 This package has no Julia dependency. It is pure R + C++.
 
 ## Native advantages
@@ -223,27 +233,29 @@ tbl(d, "cell") |>
     select(name, donor, experiment) |>
     collect() |>
     head()
-#> # A tibble: 6 x 3
-#>                                  name donor       experiment
-#> 1 demux_07_12_20_1_AACAAGATCCATTTCA-1   N89 demux_07_12_20_1
-#> 2 demux_07_12_20_1_AGATAGACATTCCTCG-1   N89 demux_07_12_20_1
-#> 3 demux_07_12_20_1_ATCGTAGTCCAGTGCG-1   N89 demux_07_12_20_1
-#> 4 demux_07_12_20_1_CACAGGCGTCCTACAA-1   N89 demux_07_12_20_1
-#> 5 demux_07_12_20_1_CCTACGTAGCCAACCC-1   N89 demux_07_12_20_1
-#> 6 demux_07_12_20_1_GAAGGGTGTCCCTGAG-1   N89 demux_07_12_20_1
+#> # A tibble: 6 × 3
+#>   name                                donor experiment      
+#>   <chr>                               <chr> <chr>           
+#> 1 demux_07_12_20_1_AACAAGATCCATTTCA-1 N89   demux_07_12_20_1
+#> 2 demux_07_12_20_1_AGATAGACATTCCTCG-1 N89   demux_07_12_20_1
+#> 3 demux_07_12_20_1_ATCGTAGTCCAGTGCG-1 N89   demux_07_12_20_1
+#> 4 demux_07_12_20_1_CACAGGCGTCCTACAA-1 N89   demux_07_12_20_1
+#> 5 demux_07_12_20_1_CCTACGTAGCCAACCC-1 N89   demux_07_12_20_1
+#> 6 demux_07_12_20_1_GAAGGGTGTCCCTGAG-1 N89   demux_07_12_20_1
 
 tbl(d, "cell") |>
     count(experiment, sort = TRUE) |>
     collect() |>
     head()
-#> # A tibble: 6 x 2
-#>               name  n
-#> 1 demux_28_12_20_2 72
-#> 2 demux_28_12_20_1 58
-#> 3 demux_21_02_21_2 51
-#> 4 demux_22_02_21_2 47
-#> 5 demux_01_03_21_1 45
-#> 6 demux_07_12_20_2 42
+#> # A tibble: 6 × 2
+#>   name                 n
+#>   <chr>            <int>
+#> 1 demux_28_12_20_2    72
+#> 2 demux_28_12_20_1    58
+#> 3 demux_21_02_21_2    51
+#> 4 demux_22_02_21_2    47
+#> 5 demux_01_03_21_1    45
+#> 6 demux_07_12_20_2    42
 ```
 
 Supported verbs: `filter`, `select`, `mutate`, `arrange`, `summarise`,

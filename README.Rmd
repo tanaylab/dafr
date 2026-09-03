@@ -41,6 +41,16 @@ remotes::install_github("tanaylab/dafr")
 # R CMD INSTALL /path/to/dafr
 ```
 
+Or from conda:
+
+``` bash
+conda install -c aviezerl r-dafr
+```
+
+The conda build ships `c-blosc2` and `zstd`, so it reads packed and sharded
+Zarr v3 stores out of the box; other installs need those libraries present at
+build time for that (see `SystemRequirements`).
+
 This package has no Julia dependency. It is pure R + C++.
 
 ## Native advantages

@@ -64,8 +64,15 @@ test_that("bulk vector writes are sub-quadratic (incremental consolidation)", {
         system.time(for (i in seq_len(K))
             set_vector(d, "cell", paste0("v", i), as.numeric(1:20)))[["elapsed"]]
     }
-    t100 <- write_n(100)
-    t200 <- write_n(200)
+    # Noise only ever inflates an elapsed time, so the minimum of a few runs is
+    # the robust estimate. These workloads take a fraction of a second, and a
+    # single sample on a shared runner drifts far enough to cross the threshold
+    # on its own: CI saw ratios of 3.35 and 4.30 where the settled value is
+    # ~2.15. Raising the threshold instead would not do - 4 IS quadratic, so
+    # moving towards it is what the test exists to catch.
+    best_of <- function(K) min(replicate(3, write_n(K)))
+    t100 <- best_of(100)
+    t200 <- best_of(200)
     # O(N^2) would roughly quadruple (t200/t100 ~ 4); incremental keeps the
     # ratio near-linear. Allow generous slack for noise but well below quadratic.
     expect_lt(t200 / max(t100, 1e-3), 3)

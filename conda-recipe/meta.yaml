@@ -1,0 +1,84 @@
+{% set name = "dafr" %}
+{% set version = environ.get("PACKAGE_VERSION", "0.10.1") %}
+
+package:
+  name: r-{{ name|lower }}
+  version: {{ version }}
+
+source:
+  path: ..
+
+build:
+  number: 0
+  skip: true  # [win]
+  rpaths:
+    - lib/R/lib/
+    - lib/
+
+requirements:
+  build:
+    - {{ compiler('cxx') }}
+    - sysroot_linux-64 2.17  # [linux64]
+    - make
+  host:
+    - r-base {{ r_base }}.*
+    - r-cpp11
+    - r-s7
+    - r-matrix
+    - r-cli
+    - r-bit64
+    - r-httr2
+    - r-jsonlite
+    - r-matrixstats
+    - r-r6
+    - r-rlang
+    - zlib
+    # `configure` probes $CONDA_PREFIX for these, so a conda build gets
+    # packed/sharded Zarr v3 read without any further setup. Absent them the
+    # package still builds, but a packed store errors at read time.
+    - c-blosc2
+    - zstd
+    # src/Makevars uses $(SHLIB_OPENMP_CXXFLAGS); conda's clang needs this to
+    # resolve it. On Linux libgomp comes with the compiler.
+    - llvm-openmp  # [osx]
+  run:
+    - r-base {{ r_base }}.*
+    - r-s7
+    - r-matrix
+    - r-cli
+    - r-bit64
+    - r-httr2
+    - r-jsonlite
+    - r-matrixstats
+    - r-r6
+    - r-rlang
+    - zlib
+    - c-blosc2
+    - zstd
+    - llvm-openmp  # [osx]
+
+test:
+  commands:
+    # Exercises the compiled code rather than only loading it, so a shared
+    # object that links but does not work fails the build.
+    - $R -e "library('dafr'); d <- memory_daf(name = 'test'); add_axis(d, 'cell', c('a', 'b')); set_vector(d, 'cell', 'v', c(1.5, 2.5)); stopifnot(unname(get_vector(d, 'cell', 'v')) == c(1.5, 2.5))"
+
+about:
+  home: https://github.com/tanaylab/dafr
+  license: MIT
+  license_family: MIT
+  license_file: LICENSE
+  summary: Data in Axes in Formats (DAF) for R
+  description: |
+    A native R implementation of the DataAxesFormats.jl data model, providing
+    a uniform interface for accessing 1D and 2D data arranged along arbitrary
+    axes. This generalizes and extends AnnData-like functionality, supporting
+    both scalars and multiple data modalities (e.g. RNA-seq, ATAC-seq),
+    efficient memory management via memory-mapped reads, and a composable
+    query DSL. Unlike the dafrjulia interface, dafr has no Julia dependency.
+  dev_url: https://github.com/tanaylab/dafr
+  doc_url: https://tanaylab.github.io/dafr/
+
+extra:
+  recipe-maintainers:
+    - aviezerl

@@ -35,3 +35,4 @@
 (^|/)_problems$
 (^|/)_problems/
 (^|/)testthat-problems\.rds$
+^conda-recipe$

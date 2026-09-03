@@ -6,5 +6,9 @@
 # enabling packed/sharded ZarrDaf read; absent either, the flat path is built.
 PKG_CPPFLAGS = @DAFR_SHARD_CPPFLAGS@
 PKG_CXXFLAGS = -DDAFR_HAVE_MMAP=1 $(SHLIB_OPENMP_CXXFLAGS)
-PKG_LIBS = $(SHLIB_OPENMP_CXXFLAGS) $(LAPACK_LIBS) $(BLAS_LIBS) $(FLIBS) -lz @DAFR_SHARD_LIBS@
+# No $(LAPACK_LIBS) $(BLAS_LIBS) $(FLIBS): nothing here calls BLAS or LAPACK,
+# and linking them gives the shared object a hard dependency on whichever
+# BLAS R was built against (MKL, say), which then has to be present wherever
+# the object is loaded.
+PKG_LIBS = $(SHLIB_OPENMP_CXXFLAGS) -lz @DAFR_SHARD_LIBS@
 CXX_STD = CXX17

@@ -1,0 +1,5 @@
+# dafr's DESCRIPTION says `Depends: R (>= 4.4.0)`, and conda-forge's r-s7 is
+# built for r44 / r45 only, so there is nothing below 4.4 to build against.
+r_base:
+  - 4.4  # [linux]
+  - 4.5
