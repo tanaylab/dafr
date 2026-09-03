@@ -1,3 +1,20 @@
+# dafr 0.10.1
+
+* Conda packages: `conda install -c aviezerl r-dafr`. A tagged release (or a
+  manual workflow run) builds `r-dafr` for R 4.4 and 4.5 on Linux and for R 4.5
+  on macOS, following the same recipe layout as `misha` and `prego`. The build
+  includes `c-blosc2` and `zstd`, which `configure` picks up, so a conda install
+  reads packed and sharded Zarr v3 stores without further setup.
+
+* The shared object no longer links BLAS, LAPACK or the Fortran runtime. No C++
+  in the package calls them, but `src/Makevars.in` passed `$(LAPACK_LIBS)
+  $(BLAS_LIBS) $(FLIBS)` to the linker anyway, which left `dafr.so` with a
+  load-time dependency on whichever BLAS the *building* machine's R used - on a
+  host with Intel MKL, three `libmkl_*` libraries plus `libgfortran` and
+  `libquadmath`. Loading then failed anywhere those were absent. Nothing about
+  the package's behaviour changes; it just stops requiring libraries it never
+  calls.
+
 # dafr 0.10.0
 
 Picks up the 14 commits `DataAxesFormats.jl` made after its 0.3.0 release,
