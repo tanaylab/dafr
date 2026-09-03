@@ -6,6 +6,14 @@
   includes `c-blosc2` and `zstd`, which `configure` picks up, so a conda install
   reads packed and sharded Zarr v3 stores without further setup.
 
+* The `zarr_daf()` sub-quadratic consolidation test takes the best of three
+  timings for each of its two workloads rather than a single sample. Elapsed
+  time is only ever inflated by noise, so the minimum is the robust estimate;
+  a lone sample of a sub-second workload drifted far enough on shared CI
+  runners to cross the threshold on its own (ratios of 3.35 and 4.30 against a
+  settled value of ~2.15). The threshold is unchanged, since 4 is the quadratic
+  ratio the test exists to catch.
+
 * The shared object no longer links BLAS, LAPACK or the Fortran runtime. No C++
   in the package calls them, but `src/Makevars.in` passed `$(LAPACK_LIBS)
   $(BLAS_LIBS) $(FLIBS)` to the linker anyway, which left `dafr.so` with a
