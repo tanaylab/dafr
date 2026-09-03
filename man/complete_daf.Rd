@@ -17,9 +17,16 @@ complete_daf(leaf, mode = "r", name = NULL)
 A \code{DafReader} or \code{DafWriter}.
 }
 \description{
-Walks the \code{base_daf_repository} scalar chain rooted at \code{leaf}, opening
-each level with \code{\link[=open_daf]{open_daf()}}. Returns a \code{chain_reader} (\code{mode = "r"}) or
-\code{chain_writer} (\code{mode = "r+"}, only the leaf is writable).
+Opens the complete chain of repositories rooted at \code{leaf} by following
+the \code{base_daf_repository} scalar of each. Returns a \code{\link[=chain_reader]{chain_reader()}}
+(\code{mode = "r"}) or \code{\link[=chain_writer]{chain_writer()}} (\code{mode = "r+"}, only the leaf is
+writable).
+}
+\details{
+A repository records only its own immediate bases; what each of them
+rests on is recorded in it. A repository reached through more than one
+of them appears once, at its earliest position, so that a base never
+overrides what rests on it.
 }
 \examples{
 tmp_root <- tempfile(); dir.create(tmp_root)

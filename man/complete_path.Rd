@@ -10,13 +10,14 @@ complete_path(daf)
 \item{daf}{A \link{DafReader}.}
 }
 \value{
-Character scalar (absolute path).
+Character scalar, or \code{NULL}.
 }
 \description{
 Public alias of the internal \code{.complete_path}. For a \code{FilesDaf},
-returns the root directory on disk. For a chain whose last writer
-is a \code{FilesDaf}, returns that directory. Errors on dafs with no
-on-disk location.
+returns the root directory on disk. For a chain, returns the path of
+its last repository, but only when the chain holds exactly what
+reopening that path with \code{\link[=complete_daf]{complete_daf()}} would give; otherwise
+\code{NULL}. Returns \code{NULL} for a daf with no on-disk location.
 }
 \examples{
 tmp <- tempfile("dafr-")

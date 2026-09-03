@@ -9,7 +9,6 @@ reconstruct_axis(
   existing_axis,
   implicit_axis,
   rename_axis = NULL,
-  empty_implicit = NULL,
   implicit_properties = NULL,
   skipped_properties = NULL,
   properties_defaults = NULL
@@ -24,9 +23,6 @@ reconstruct_axis(
 axis's name (unless \code{rename_axis}).}
 
 \item{rename_axis}{Optional name for the new axis.}
-
-\item{empty_implicit}{If non-NULL, values equal to this are treated as
-empty (equivalent to the empty string).}
 
 \item{implicit_properties}{Optional character vector: only these
 properties are considered for migration.}
@@ -57,6 +53,11 @@ Returns a named list: for each migrated property, the (consistent) value
 associated with \code{existing_axis} entries whose implicit value is empty —
 or \code{NULL} if no such entries exist. These values can be used to
 reconstruct the original property via the \code{?? X} query modifier.
+
+The \code{implicit_axis} property must be a property of strings, where an
+empty string means "this entry has no value". Data that spells that
+some other way (\code{NA}, \code{Outliers}, a sentinel number) must be passed
+through \code{\link[=unify_empty_vector_values]{unify_empty_vector_values()}} first.
 
 Requires that \code{rename_axis} (or the default, \code{implicit_axis} name)
 does not already exist in \code{daf}. Merging into a pre-existing axis is

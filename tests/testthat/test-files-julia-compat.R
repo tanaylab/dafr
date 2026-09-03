@@ -52,7 +52,9 @@ test_that("can read Julia-written dense + sparse + Bool matrices", {
     }
     for (ra in axes_set(src)) {
         for (ca in axes_set(src)) {
-            for (nm in matrices_set(src, ra, ca)) {
+            # Only the layouts actually stored: `matrices_set()` defaults to
+            # also listing the flipped ones, which `set_matrix()` writes anyway.
+            for (nm in matrices_set(src, ra, ca, relayout = FALSE)) {
                 set_matrix(dst, ra, ca, nm, unname(get_matrix(src, ra, ca, nm)))
             }
         }

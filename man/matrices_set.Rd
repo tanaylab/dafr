@@ -4,7 +4,7 @@
 \alias{matrices_set}
 \title{Names of matrices for an axis pair, sorted.}
 \usage{
-matrices_set(daf, rows_axis, columns_axis)
+matrices_set(daf, rows_axis, columns_axis, relayout = TRUE)
 }
 \arguments{
 \item{daf}{A \code{DafReader}.}
@@ -12,6 +12,12 @@ matrices_set(daf, rows_axis, columns_axis)
 \item{rows_axis}{Row-axis name.}
 
 \item{columns_axis}{Column-axis name.}
+
+\item{relayout}{If \code{TRUE} (the default, matching Julia
+\verb{matrices_set(...; relayout = true)}), also include the names of
+matrices stored only in the flipped layout. If \code{FALSE}, this lists
+exactly the matrices stored in this layout, which is exactly the set
+\code{\link[=get_matrix]{get_matrix()}} will give when asked the same way.}
 }
 \value{
 Character vector.

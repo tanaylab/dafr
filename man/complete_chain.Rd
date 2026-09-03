@@ -2,42 +2,41 @@
 % Please edit documentation in R/complete.R
 \name{complete_chain}
 \alias{complete_chain}
-\title{Create a persistent chain by linking \code{new_daf} to a \code{base_daf}.}
+\title{Create a persistent chain by linking \code{new_daf} to its base repositories.}
 \usage{
-complete_chain(
-  base_daf,
-  new_daf,
-  name = NULL,
-  axes = NULL,
-  data = NULL,
-  absolute = FALSE
-)
+complete_chain(base_daf, new_daf, name = NULL, absolute = FALSE)
 }
 \arguments{
-\item{base_daf}{A \code{DafReader} on disk (its path is stored).}
+\item{base_daf}{A \code{DafReader} on disk, a \code{\link[=base_daf]{base_daf()}} spec, or a list
+of either.}
 
 \item{new_daf}{A \code{DafWriter} on disk (receives the pointer scalar).}
 
 \item{name}{Optional name for the returned chain.}
 
-\item{axes, data}{Optional \code{viewer()} axes / data spec applied on top of
-\code{base_daf}.}
-
-\item{absolute}{If \code{TRUE}, store the absolute base path (default is
+\item{absolute}{If \code{TRUE}, store absolute base paths (default is
 relative).}
 }
 \value{
 The write chain.
 }
 \description{
-Writes a \code{base_daf_repository} scalar on \code{new_daf} that points at
-\code{base_daf}'s filesystem path. If \code{axes} and/or \code{data} are specified, the
-chain reads through a \code{viewer()} of \code{base_daf} and the spec is stored as
-JSON under \code{base_daf_view}. The returned chain is \code{chain_writer(list( viewer_or_base, new_daf))}.
+Immediately after creating an empty disk-based \code{new_daf}, chain it on
+top of one or more disk-based base repositories and return the new
+chain. Each base is a \code{DafReader}, or a \code{\link[=base_daf]{base_daf()}} spec when only a
+view of it is used. Give several when \code{new_daf} rests on more than one
+repository - say, a repository of shared computed results and one of
+the parameters this variant of the analysis uses, both resting in turn
+on the same raw data. Later bases override earlier ones, as in any
+chain, and a repository reached more than once is used once, at its
+earliest position.
 }
 \details{
-Call \code{\link[=complete_daf]{complete_daf()}} later to reopen the chain from disk using the
-stored scalars.
+This sets the \code{base_daf_repository} scalar of \code{new_daf} to describe
+the bases, so the chain can be recreated later by \code{\link[=complete_daf]{complete_daf()}}.
+By default the stored paths are relative to \code{new_daf}, for the common
+case where a group of repositories is stored under a common root; set
+\code{absolute} to store absolute paths.
 }
 \examples{
 base_dir <- tempfile(); dir.create(base_dir)

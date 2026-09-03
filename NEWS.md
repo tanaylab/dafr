@@ -1,3 +1,74 @@
+# dafr 0.10.0
+
+Picks up the 14 commits `DataAxesFormats.jl` made after its 0.3.0 release,
+through 379d00c (2026-08-30).
+
+## Reconstruction
+
+* New `unify_empty_vector_values()`: replace every one of several values
+  meaning "there is no value here" with a single one, converting the
+  property to another type on the way. This is where the "which values
+  mean nothing" concept now lives, and it handles data that spells
+  absence several ways in the same property (`NA` in some entries,
+  `(Missing)` in others, a sentinel number elsewhere).
+
+* New `connect_axes()`: given a base axis with properties referencing two
+  other axes, record for each entry of the first which entry of the
+  second it belongs to. Unlike `reconstruct_axis()`, which *moves* data,
+  this *copies* it and leaves the original in place - for the case where
+  some base entries reference the second axis but not the first.
+
+* **Breaking**: `reconstruct_axis()` no longer accepts `empty_implicit`,
+  requires the implicit property to be a property of strings (where `""`
+  means "no value"), and no longer rewrites that property. Pass the
+  property through `unify_empty_vector_values()` first; a non-string
+  property is now an error naming that function.
+
+## Repository chains
+
+* `complete_chain()` accepts several base repositories, so a repository
+  can rest on more than one - say, shared computed results and the
+  parameters of this variant of the analysis, both resting in turn on the
+  same raw data. Pass a list of `DafReader`s, or of `base_daf()` specs
+  where only a view of a base is used. A repository reached more than
+  once is used once, at its earliest position.
+
+* **Breaking**: `complete_chain()` no longer takes `axes` / `data`; wrap
+  the base in the new `base_daf(daf, axes, data)` instead. The view is
+  now recorded inside `base_daf_repository` rather than in a separate
+  `base_daf_view` scalar, matching `DataAxesFormats.jl`. Repositories
+  written by earlier dafr versions still open: `complete_daf()` keeps
+  reading a legacy `base_daf_view`.
+
+* `base_daf_repository` may now be a path (the common case, unchanged), a
+  JSON object `{"path", "axes", "data"}`, or a JSON array of either.
+
+* `chain_reader()` / `chain_writer()` flatten a chain of chains into one
+  chain, drop a repository reached more than once (keeping it at its
+  earliest position, so a base never overrides what rests on it), and
+  reject a repository that is a base of itself.
+
+* `complete_path()` on a chain now returns the path of its last
+  repository when the chain holds exactly what reopening that path would
+  give, and `NULL` otherwise (it previously always returned `NULL`).
+
+## Readers
+
+* `matrices_set()` and `get_matrix()` gained the `relayout` argument they
+  have in Julia, defaulting to `TRUE`. **Breaking**: `matrices_set()`
+  therefore now also lists matrices stored only in the flipped layout;
+  pass `relayout = FALSE` for the previous behaviour.
+
+## Robustness
+
+* `complete_daf()` rejects records that lead back to a repository (a
+  cycle, or a repository naming itself) instead of following them for
+  ever, and says which recorded base has no path.
+
+* `unify_empty_vector_values()` names the types it accepts when given a
+  `dtype` it cannot build, and takes the lowercase spellings (`"float32"`,
+  `"uint32"`, `"string"`) alongside the cased ones.
+
 # dafr 0.9.0
 
 * `zip_daf()` dense reads are now memory-mapped (zero-copy ALTREP) for STORE'd

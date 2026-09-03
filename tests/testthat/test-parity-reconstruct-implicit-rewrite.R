@@ -1,22 +1,32 @@
-# Parity fix: after reconstruct_axis, the implicit property on the existing axis
-# must be rewritten as a STRING foreign-key into the new axis (with "" for empty
-# entries) - matching Julia's overwrite_implicit_values. dafr left the implicit
-# property unchanged (e.g. numeric), so cell.batch stayed [1,1,2,0] instead of
-# ["1","1","2",""]. Julia rewrites when the property is not already a string OR
-# when a non-empty empty_implicit was given. Audit probe recon-int-rewrite.
+# Parity: since DataAxesFormats 0.3.0+, `reconstruct_axis!` no longer accepts an
+# `empty_implicit` and no longer rewrites the implicit property. It requires a
+# property of strings where "" means "no value", and says so when given anything
+# else; saying which values mean nothing, and turning the rest into names, is
+# what `unify_empty_vector_values()` is for.
 
-test_that("reconstruct_axis rewrites a numeric implicit property as a string FK", {
-    d <- memory_daf(name = "d")
+test_that("reconstruct_axis rejects a non-string implicit property", {
+    d <- memory_daf(name = "memory!")
     add_axis(d, "cell", c("c1", "c2", "c3", "c4"))
     set_vector(d, "cell", "batch", c(1L, 1L, 2L, 0L))
-    reconstruct_axis(d, existing_axis = "cell", implicit_axis = "batch",
-                     empty_implicit = 0)
-    expect_identical(axis_vector(d, "batch"), c("1", "2"))
-    # rewritten string FK into the batch axis, "" for the empty (0) entry
-    expect_identical(unname(get_vector(d, "cell", "batch")), c("1", "1", "2", ""))
+    expect_error(
+        reconstruct_axis(d, existing_axis = "cell", implicit_axis = "batch"),
+        "not a property of strings: batch"
+    )
 })
 
-test_that("reconstruct_axis does NOT rewrite an already-string implicit with no empty_implicit", {
+test_that("unify_empty_vector_values makes a numeric implicit usable", {
+    d <- memory_daf(name = "memory!")
+    add_axis(d, "cell", c("c1", "c2", "c3", "c4"))
+    set_vector(d, "cell", "batch", c(1L, 1L, 2L, 0L))
+    unify_empty_vector_values(d, axis = "cell", property = "batch",
+                              empty_values = 0, dtype = "String")
+    expect_identical(unname(get_vector(d, "cell", "batch")),
+                     c("1", "1", "2", ""))
+    reconstruct_axis(d, existing_axis = "cell", implicit_axis = "batch")
+    expect_identical(axis_vector(d, "batch"), c("1", "2"))
+})
+
+test_that("reconstruct_axis leaves an already-string implicit alone", {
     d <- memory_daf(name = "d")
     add_axis(d, "cell", c("c1", "c2", "c3", "c4"))
     set_vector(d, "cell", "donor", c("dA", "dB", "dA", "dB"))

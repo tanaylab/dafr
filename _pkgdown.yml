@@ -316,4 +316,7 @@ reference:
       - open_daf
       - complete_daf
       - complete_chain
+      - base_daf
       - reconstruct_axis
+      - unify_empty_vector_values
+      - connect_axes

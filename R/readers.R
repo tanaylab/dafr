@@ -378,13 +378,25 @@ has_matrix <- function(daf, rows_axis, columns_axis, name, relayout = TRUE) {
 #' @examples
 #' # Mirrors readers.jl jldoctest at line 801.
 #' matrices_set(example_cells_daf(), "gene", "cell") # "UMIs"
+#' @param relayout If `TRUE` (the default, matching Julia
+#'   `matrices_set(...; relayout = true)`), also include the names of
+#'   matrices stored only in the flipped layout. If `FALSE`, this lists
+#'   exactly the matrices stored in this layout, which is exactly the set
+#'   [get_matrix()] will give when asked the same way.
 #' @export
-matrices_set <- function(daf, rows_axis, columns_axis) {
+matrices_set <- function(daf, rows_axis, columns_axis, relayout = TRUE) {
     .assert_name(rows_axis, "rows_axis")
     .assert_name(columns_axis, "columns_axis")
+    .assert_flag(relayout, "relayout")
     .require_axis(daf, "for the rows of: matrices_set", rows_axis)
     .require_axis(daf, "for the columns of: matrices_set", columns_axis)
-    format_matrices_set(daf, rows_axis, columns_axis)
+    names <- format_matrices_set(daf, rows_axis, columns_axis)
+    if (relayout && rows_axis != columns_axis) {
+        names <- sort(unique(c(
+            names, format_matrices_set(daf, columns_axis, rows_axis)
+        )), method = "radix")
+    }
+    names
 }
 
 #' Get a matrix, returning it with axis-entry dimnames.
@@ -397,6 +409,10 @@ matrices_set <- function(daf, rows_axis, columns_axis) {
 #' @param default If supplied and the matrix is absent under both
 #'   layouts, return a constant-valued `nrow x ncol` matrix with axis
 #'   entries as dimnames.
+#' @param relayout If `TRUE` (the default, matching Julia
+#'   `get_matrix(...; relayout = true)`), a matrix stored only in the
+#'   flipped layout is transposed on-the-fly. If `FALSE`, only the stored
+#'   layout will do.
 #' @return Dense `matrix` or sparse `dgCMatrix` / `lgCMatrix` with
 #'   dimnames set.
 #' @examples
@@ -406,10 +422,12 @@ matrices_set <- function(daf, rows_axis, columns_axis) {
 #' colnames(m)       # 7 metacell IDs
 #' m[1:3, 1:2]
 #' @export
-get_matrix <- function(daf, rows_axis, columns_axis, name, default) {
+get_matrix <- function(daf, rows_axis, columns_axis, name, default,
+                       relayout = TRUE) {
     .assert_name(rows_axis, "rows_axis")
     .assert_name(columns_axis, "columns_axis")
     .assert_name(name, "name")
+    .assert_flag(relayout, "relayout")
     .require_axis(daf, sprintf("for the rows of the matrix: %s", name), rows_axis)
     .require_axis(daf, sprintf("for the columns of the matrix: %s", name), columns_axis)
 
@@ -417,11 +435,12 @@ get_matrix <- function(daf, rows_axis, columns_axis, name, default) {
     cols <- format_axis_array(daf, columns_axis)$value
 
     primary <- format_has_matrix(daf, rows_axis, columns_axis, name)
-    flipped <- !primary && format_has_matrix(daf, columns_axis, rows_axis, name)
+    flipped <- !primary && relayout &&
+        format_has_matrix(daf, columns_axis, rows_axis, name)
 
     if (!primary && !flipped) {
         if (missing(default)) {
-            .require_matrix(daf, rows_axis, columns_axis, name, relayout = TRUE)
+            .require_matrix(daf, rows_axis, columns_axis, name, relayout = relayout)
         }
         out <- matrix(default,
             nrow = length(rows), ncol = length(cols),

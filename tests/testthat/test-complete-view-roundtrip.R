@@ -15,8 +15,8 @@ test_that("complete_daf re-applies base_daf_view on reopen", {
     axes_spec <- list(list("cell", "="), list("gene", "="))
     data_spec <- list(list(c("cell", "gene", "umi"), "="))
 
-    complete_chain(base_daf = base, new_daf = new,
-                   axes = axes_spec, data = data_spec, absolute = TRUE)
+    complete_chain(base_daf = base_daf(base, axes = axes_spec, data = data_spec),
+                   new_daf = new, absolute = TRUE)
 
     reopened <- complete_daf(new_dir)
 
@@ -46,8 +46,8 @@ test_that("complete_daf round-trips a renamed-axis view", {
     # The base axis name is extracted from the query by query_axis_name().
     axes_spec <- list(list("renamed_cell", "@ cell"))
 
-    complete_chain(base_daf = base, new_daf = new,
-                   axes = axes_spec, absolute = TRUE)
+    complete_chain(base_daf = base_daf(base, axes = axes_spec),
+                   new_daf = new, absolute = TRUE)
 
     reopened <- complete_daf(new_dir)
 
@@ -78,8 +78,8 @@ test_that("complete_daf reopen keeps leaf-local data on a viewed chain (scope = 
     set_vector(base, "cell", "umi_count", c(10L, 20L, 30L))
 
     new <- files_daf(new_dir, name = "new", mode = "w+")
-    complete_chain(base_daf = base, new_daf = new,
-                   axes = list(list("renamed_cell", "@ cell")), absolute = TRUE)
+    complete_chain(base_daf = base_daf(base, axes = list(list("renamed_cell", "@ cell"))),
+                   new_daf = new, absolute = TRUE)
 
     # Leaf-local data written directly on the renamed (view) axis.
     add_axis(new, "renamed_cell", c("c1", "c2", "c3"))
@@ -113,8 +113,8 @@ test_that("complete_daf r+ reopen keeps the leaf writable on a viewed chain", {
     set_vector(base, "cell", "umi_count", c(10L, 20L))
 
     new <- files_daf(new_dir, name = "new", mode = "w+")
-    complete_chain(base_daf = base, new_daf = new,
-                   axes = list(list("renamed_cell", "@ cell")), absolute = TRUE)
+    complete_chain(base_daf = base_daf(base, axes = list(list("renamed_cell", "@ cell"))),
+                   new_daf = new, absolute = TRUE)
 
     reopened <- complete_daf(new_dir, mode = "r+")
     # Writing a scalar routes to the leaf writer (avoids view-axis conflicts).
@@ -122,20 +122,23 @@ test_that("complete_daf r+ reopen keeps the leaf writable on a viewed chain", {
     expect_identical(get_scalar(reopened, "leaf_note"), "hi")
 })
 
-test_that("complete_chain writes Julia-schema base_daf_view and reopens", {
+test_that("complete_chain writes the Julia-schema base_daf_repository and reopens", {
     root <- withr::local_tempdir()
     bdir <- file.path(root, "base"); ndir <- file.path(root, "new")
     base <- files_daf(bdir, name = "base", mode = "w+")
     add_axis(base, "cell", paste0("c", 1:4)); add_axis(base, "gene", paste0("g", 1:3))
     set_matrix(base, "cell", "gene", "expr", matrix(as.numeric(1:12), 4, 3))
     new <- files_daf(ndir, name = "new", mode = "w+")
-    complete_chain(base_daf = base, new_daf = new, absolute = TRUE,
-                   axes = list(list("cell", "="), list("gene", "=")),
-                   data = list(list(c("cell", "gene", "expr"), "=")))
-    raw <- format_get_scalar(open_daf(ndir, "r"), "base_daf_view")$value
+    complete_chain(
+        base_daf = base_daf(base,
+            axes = list(list("cell", "="), list("gene", "=")),
+            data = list(list(c("cell", "gene", "expr"), "="))),
+        new_daf = new, absolute = TRUE)
+    raw <- format_get_scalar(open_daf(ndir, "r"), "base_daf_repository")$value
     obj <- jsonlite::fromJSON(raw, simplifyVector = FALSE)
-    expect_equal(obj$axes[[1]]$cell, "=")                  # array of single-key objects
-    expect_equal(obj$data[[1]][['("cell", "gene", "expr")']], "=")
+    expect_length(obj, 1L)                                 # array of bases
+    expect_equal(obj[[1]]$axes[[1]]$cell, "=")             # array of single-key objects
+    expect_equal(obj[[1]]$data[[1]][['("cell", "gene", "expr")']], "=")
     ch <- complete_daf(ndir, "r")
     expect_equal(as.numeric(get_matrix(ch, "cell", "gene", "expr")),
                  as.numeric(1:12))
