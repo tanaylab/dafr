@@ -76,8 +76,12 @@ NULL
         startsWith(path, "\\\\")
 }
 
+# Always with forward slashes, on Windows too: a recorded base path is part of
+# an on-disk format that is read on other platforms, and `/` is the spelling
+# every platform accepts. It also makes "is this base under the new
+# repository's directory?" one comparison rather than one per separator.
 .norm_path <- function(path) {
-    if (is.null(path)) NULL else normalizePath(path, mustWork = FALSE)
+    if (is.null(path)) NULL else normalizePath(path, winslash = "/", mustWork = FALSE)
 }
 
 # Resolve a daf's on-disk path. FilesDaf and friends store `path` in their

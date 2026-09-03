@@ -39,7 +39,7 @@ test_that("complete_chain sets base_daf_repository and returns a write chain", {
 
     expect_true(format_has_scalar(new, "base_daf_repository"))
     expect_identical(format_get_scalar(new, "base_daf_repository")$value,
-                     normalizePath(tmp_base))
+                     normalizePath(tmp_base, winslash = "/"))
     expect_identical(unname(get_vector(chain, "cell", "age")), c(1L, 2L))
     set_vector(chain, "cell", "tag", c("x", "y"))
     expect_true(has_vector(new, "cell", "tag"))
@@ -226,7 +226,7 @@ test_that("a chain reports its complete path only when the records lead to it", 
     leaf <- files_daf(file.path(root, "leaf"), name = "leaf!", mode = "w+")
     chain <- complete_chain(base_daf = list(d$results, d$masks), new_daf = leaf)
     expect_identical(complete_path(chain),
-                     normalizePath(file.path(root, "leaf")))
+                     normalizePath(file.path(root, "leaf"), winslash = "/"))
 
     # A repository the records do not lead to means reopening the leaf would
     # not give this chain.
@@ -272,4 +272,17 @@ test_that("two pathless repositories are never the same one", {
         name = "chain!"
     )
     expect_identical(.chain_names(chain), c("cells!", "first!", "second!"))
+})
+
+test_that("a recorded base path is relative to the new repository's directory", {
+    # `.norm_path()` spells every path with forward slashes, on Windows too, so
+    # this is one comparison rather than one per separator. Runs everywhere,
+    # which is the point: the Windows spelling is what got this wrong.
+    rel <- dafr:::.relative_base_path
+    expect_identical(rel("C:/tmp/root/cells", "C:/tmp/root"), "cells")
+    expect_identical(rel("C:/tmp/root/sub/cells", "C:/tmp/root"), "sub/cells")
+    expect_identical(rel("/tmp/root/cells", "/tmp/root"), "cells")
+    expect_identical(rel("/tmp/root", "/tmp/root"), ".")
+    # Not under it: nothing relative to give, so the absolute path stands.
+    expect_identical(rel("/other/cells", "/tmp/root"), "/other/cells")
 })
