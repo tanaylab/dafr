@@ -7,7 +7,7 @@
 
     <a class="navbar-brand me-2" href="../index.html">dafr</a>
 
-    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">0.9.0</small>
+    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">0.10.0</small>
 
 
     <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbar" aria-controls="navbar" aria-expanded="false" aria-label="Toggle navigation">
@@ -45,6 +45,34 @@
       <small>Source: <a href="https://github.com/tanaylab/dafr/blob/main/NEWS.md" class="external-link"><code>NEWS.md</code></a></small>
     </div>
 
+    <div class="section level2">
+<h2 class="pkg-version" data-toc-text="0.10.0" id="dafr-0100">dafr 0.10.0<a class="anchor" aria-label="anchor" href="#dafr-0100"></a></h2>
+<p>Picks up the 14 commits <code>DataAxesFormats.jl</code> made after its 0.3.0 release, through 379d00c (2026-08-30).</p>
+<div class="section level3">
+<h3 id="reconstruction-0-10-0">Reconstruction<a class="anchor" aria-label="anchor" href="#reconstruction-0-10-0"></a></h3>
+<ul><li><p>New <code><a href="../reference/unify_empty_vector_values.html">unify_empty_vector_values()</a></code>: replace every one of several values meaning “there is no value here” with a single one, converting the property to another type on the way. This is where the “which values mean nothing” concept now lives, and it handles data that spells absence several ways in the same property (<code>NA</code> in some entries, <code>(Missing)</code> in others, a sentinel number elsewhere).</p></li>
+<li><p>New <code><a href="../reference/connect_axes.html">connect_axes()</a></code>: given a base axis with properties referencing two other axes, record for each entry of the first which entry of the second it belongs to. Unlike <code><a href="../reference/reconstruct_axis.html">reconstruct_axis()</a></code>, which <em>moves</em> data, this <em>copies</em> it and leaves the original in place - for the case where some base entries reference the second axis but not the first.</p></li>
+<li><p><strong>Breaking</strong>: <code><a href="../reference/reconstruct_axis.html">reconstruct_axis()</a></code> no longer accepts <code>empty_implicit</code>, requires the implicit property to be a property of strings (where <code>""</code> means “no value”), and no longer rewrites that property. Pass the property through <code><a href="../reference/unify_empty_vector_values.html">unify_empty_vector_values()</a></code> first; a non-string property is now an error naming that function.</p></li>
+</ul></div>
+<div class="section level3">
+<h3 id="repository-chains-0-10-0">Repository chains<a class="anchor" aria-label="anchor" href="#repository-chains-0-10-0"></a></h3>
+<ul><li><p><code><a href="../reference/complete_chain.html">complete_chain()</a></code> accepts several base repositories, so a repository can rest on more than one - say, shared computed results and the parameters of this variant of the analysis, both resting in turn on the same raw data. Pass a list of <code>DafReader</code>s, or of <code><a href="../reference/base_daf.html">base_daf()</a></code> specs where only a view of a base is used. A repository reached more than once is used once, at its earliest position.</p></li>
+<li><p><strong>Breaking</strong>: <code><a href="../reference/complete_chain.html">complete_chain()</a></code> no longer takes <code>axes</code> / <code>data</code>; wrap the base in the new <code>base_daf(daf, axes, data)</code> instead. The view is now recorded inside <code>base_daf_repository</code> rather than in a separate <code>base_daf_view</code> scalar, matching <code>DataAxesFormats.jl</code>. Repositories written by earlier dafr versions still open: <code><a href="../reference/complete_daf.html">complete_daf()</a></code> keeps reading a legacy <code>base_daf_view</code>.</p></li>
+<li><p><code>base_daf_repository</code> may now be a path (the common case, unchanged), a JSON object <code>{"path", "axes", "data"}</code>, or a JSON array of either.</p></li>
+<li><p><code><a href="../reference/chain_reader.html">chain_reader()</a></code> / <code><a href="../reference/chain_writer.html">chain_writer()</a></code> flatten a chain of chains into one chain, drop a repository reached more than once (keeping it at its earliest position, so a base never overrides what rests on it), and reject a repository that is a base of itself.</p></li>
+<li><p><code><a href="../reference/complete_path.html">complete_path()</a></code> on a chain now returns the path of its last repository when the chain holds exactly what reopening that path would give, and <code>NULL</code> otherwise (it previously always returned <code>NULL</code>).</p></li>
+</ul></div>
+<div class="section level3">
+<h3 id="readers-0-10-0">Readers<a class="anchor" aria-label="anchor" href="#readers-0-10-0"></a></h3>
+<ul><li>
+<code><a href="../reference/matrices_set.html">matrices_set()</a></code> and <code><a href="../reference/get_matrix.html">get_matrix()</a></code> gained the <code>relayout</code> argument they have in Julia, defaulting to <code>TRUE</code>. <strong>Breaking</strong>: <code><a href="../reference/matrices_set.html">matrices_set()</a></code> therefore now also lists matrices stored only in the flipped layout; pass <code>relayout = FALSE</code> for the previous behaviour.</li>
+</ul></div>
+<div class="section level3">
+<h3 id="robustness-0-10-0">Robustness<a class="anchor" aria-label="anchor" href="#robustness-0-10-0"></a></h3>
+<ul><li><p><code><a href="../reference/complete_daf.html">complete_daf()</a></code> rejects records that lead back to a repository (a cycle, or a repository naming itself) instead of following them for ever, and says which recorded base has no path.</p></li>
+<li><p><code><a href="../reference/unify_empty_vector_values.html">unify_empty_vector_values()</a></code> names the types it accepts when given a <code>dtype</code> it cannot build, and takes the lowercase spellings (<code>"float32"</code>, <code>"uint32"</code>, <code>"string"</code>) alongside the cased ones.</p></li>
+</ul></div>
+</div>
     <div class="section level2">
 <h2 class="pkg-version" data-toc-text="0.9.0" id="dafr-090">dafr 0.9.0<a class="anchor" aria-label="anchor" href="#dafr-090"></a></h2>
 <ul><li>

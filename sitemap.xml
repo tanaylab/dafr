@@ -108,6 +108,7 @@
 <url><loc>https://tanaylab.github.io/dafr/reference/axis_length.html</loc></url>
 <url><loc>https://tanaylab.github.io/dafr/reference/axis_vector.html</loc></url>
 <url><loc>https://tanaylab.github.io/dafr/reference/axis_version_counter.html</loc></url>
+<url><loc>https://tanaylab.github.io/dafr/reference/base_daf.html</loc></url>
 <url><loc>https://tanaylab.github.io/dafr/reference/cache_group_constants.html</loc></url>
 <url><loc>https://tanaylab.github.io/dafr/reference/canonical_query.html</loc></url>
 <url><loc>https://tanaylab.github.io/dafr/reference/chain_reader.html</loc></url>
@@ -119,6 +120,7 @@
 <url><loc>https://tanaylab.github.io/dafr/reference/complete_path.html</loc></url>
 <url><loc>https://tanaylab.github.io/dafr/reference/computation.html</loc></url>
 <url><loc>https://tanaylab.github.io/dafr/reference/concatenate.html</loc></url>
+<url><loc>https://tanaylab.github.io/dafr/reference/connect_axes.html</loc></url>
 <url><loc>https://tanaylab.github.io/dafr/reference/contract-entries.html</loc></url>
 <url><loc>https://tanaylab.github.io/dafr/reference/contract_description.html</loc></url>
 <url><loc>https://tanaylab.github.io/dafr/reference/contract_docs.html</loc></url>
@@ -208,6 +210,7 @@
 <url><loc>https://tanaylab.github.io/dafr/reference/tensor_contract.html</loc></url>
 <url><loc>https://tanaylab.github.io/dafr/reference/top_k_per_col.html</loc></url>
 <url><loc>https://tanaylab.github.io/dafr/reference/unescape_value.html</loc></url>
+<url><loc>https://tanaylab.github.io/dafr/reference/unify_empty_vector_values.html</loc></url>
 <url><loc>https://tanaylab.github.io/dafr/reference/vector_version_counter.html</loc></url>
 <url><loc>https://tanaylab.github.io/dafr/reference/vectors_set.html</loc></url>
 <url><loc>https://tanaylab.github.io/dafr/reference/verify_contract.html</loc></url>

@@ -1,30 +1,29 @@
-# Create a persistent chain by linking `new_daf` to a `base_daf`.
+# Create a persistent chain by linking `new_daf` to its base repositories.
 
-Writes a `base_daf_repository` scalar on `new_daf` that points at
-`base_daf`'s filesystem path. If `axes` and/or `data` are specified, the
-chain reads through a
-[`viewer()`](https://tanaylab.github.io/dafr/reference/viewer.md) of
-`base_daf` and the spec is stored as JSON under `base_daf_view`. The
-returned chain is `chain_writer(list( viewer_or_base, new_daf))`.
+Immediately after creating an empty disk-based `new_daf`, chain it on
+top of one or more disk-based base repositories and return the new
+chain. Each base is a `DafReader`, or a
+[`base_daf()`](https://tanaylab.github.io/dafr/reference/base_daf.md)
+spec when only a view of it is used. Give several when `new_daf` rests
+on more than one repository - say, a repository of shared computed
+results and one of the parameters this variant of the analysis uses,
+both resting in turn on the same raw data. Later bases override earlier
+ones, as in any chain, and a repository reached more than once is used
+once, at its earliest position.
 
 ## Usage
 
 ``` r
-complete_chain(
-  base_daf,
-  new_daf,
-  name = NULL,
-  axes = NULL,
-  data = NULL,
-  absolute = FALSE
-)
+complete_chain(base_daf, new_daf, name = NULL, absolute = FALSE)
 ```
 
 ## Arguments
 
 - base_daf:
 
-  A `DafReader` on disk (its path is stored).
+  A `DafReader` on disk, a
+  [`base_daf()`](https://tanaylab.github.io/dafr/reference/base_daf.md)
+  spec, or a list of either.
 
 - new_daf:
 
@@ -34,15 +33,9 @@ complete_chain(
 
   Optional name for the returned chain.
 
-- axes, data:
-
-  Optional
-  [`viewer()`](https://tanaylab.github.io/dafr/reference/viewer.md) axes
-  / data spec applied on top of `base_daf`.
-
 - absolute:
 
-  If `TRUE`, store the absolute base path (default is relative).
+  If `TRUE`, store absolute base paths (default is relative).
 
 ## Value
 
@@ -50,9 +43,12 @@ The write chain.
 
 ## Details
 
-Call
-[`complete_daf()`](https://tanaylab.github.io/dafr/reference/complete_daf.md)
-later to reopen the chain from disk using the stored scalars.
+This sets the `base_daf_repository` scalar of `new_daf` to describe the
+bases, so the chain can be recreated later by
+[`complete_daf()`](https://tanaylab.github.io/dafr/reference/complete_daf.md).
+By default the stored paths are relative to `new_daf`, for the common
+case where a group of repositories is stored under a common root; set
+`absolute` to store absolute paths.
 
 ## Examples
 

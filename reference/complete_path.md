@@ -1,8 +1,11 @@
 # Canonical disk path of a (possibly chained) daf.
 
 Public alias of the internal `.complete_path`. For a `FilesDaf`, returns
-the root directory on disk. For a chain whose last writer is a
-`FilesDaf`, returns that directory. Errors on dafs with no on-disk
+the root directory on disk. For a chain, returns the path of its last
+repository, but only when the chain holds exactly what reopening that
+path with
+[`complete_daf()`](https://tanaylab.github.io/dafr/reference/complete_daf.md)
+would give; otherwise `NULL`. Returns `NULL` for a daf with no on-disk
 location.
 
 ## Usage
@@ -19,7 +22,7 @@ complete_path(daf)
 
 ## Value
 
-Character scalar (absolute path).
+Character scalar, or `NULL`.
 
 ## Examples
 
@@ -28,6 +31,6 @@ tmp <- tempfile("dafr-")
 dir.create(tmp)
 fd <- files_daf(tmp, mode = "w+", name = "fd")
 complete_path(fd)
-#> [1] "/tmp/Rtmp2Vur4X/dafr-28f93521e62a"
+#> [1] "/tmp/RtmpYdif65/dafr-22362669237a"
 unlink(tmp, recursive = TRUE)
 ```

@@ -13,7 +13,6 @@ reconstruct_axis(
   existing_axis,
   implicit_axis,
   rename_axis = NULL,
-  empty_implicit = NULL,
   implicit_properties = NULL,
   skipped_properties = NULL,
   properties_defaults = NULL
@@ -38,11 +37,6 @@ reconstruct_axis(
 - rename_axis:
 
   Optional name for the new axis.
-
-- empty_implicit:
-
-  If non-NULL, values equal to this are treated as empty (equivalent to
-  the empty string).
 
 - implicit_properties:
 
@@ -73,6 +67,12 @@ Returns a named list: for each migrated property, the (consistent) value
 associated with `existing_axis` entries whose implicit value is empty —
 or `NULL` if no such entries exist. These values can be used to
 reconstruct the original property via the `?? X` query modifier.
+
+The `implicit_axis` property must be a property of strings, where an
+empty string means "this entry has no value". Data that spells that some
+other way (`NA`, `Outliers`, a sentinel number) must be passed through
+[`unify_empty_vector_values()`](https://tanaylab.github.io/dafr/reference/unify_empty_vector_values.md)
+first.
 
 Requires that `rename_axis` (or the default, `implicit_axis` name) does
 not already exist in `daf`. Merging into a pre-existing axis is not

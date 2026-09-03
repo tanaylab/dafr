@@ -7,7 +7,7 @@ returns with the requested dimnames.
 ## Usage
 
 ``` r
-get_matrix(daf, rows_axis, columns_axis, name, default)
+get_matrix(daf, rows_axis, columns_axis, name, default, relayout = TRUE)
 ```
 
 ## Arguments
@@ -32,6 +32,13 @@ get_matrix(daf, rows_axis, columns_axis, name, default)
 
   If supplied and the matrix is absent under both layouts, return a
   constant-valued `nrow x ncol` matrix with axis entries as dimnames.
+
+- relayout:
+
+  If `TRUE` (the default, matching Julia
+  `get_matrix(...; relayout = true)`), a matrix stored only in the
+  flipped layout is transposed on-the-fly. If `FALSE`, only the stored
+  layout will do.
 
 ## Value
 

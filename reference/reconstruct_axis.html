@@ -13,7 +13,7 @@ uniquely determined by the implicit value, migrate it to the new axis."></head><
 
     <a class="navbar-brand me-2" href="../index.html">dafr</a>
 
-    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">0.9.0</small>
+    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">0.10.0</small>
 
 
     <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbar" aria-controls="navbar" aria-expanded="false" aria-label="Toggle navigation">
@@ -66,7 +66,6 @@ uniquely determined by the implicit value, migrate it to the new axis.</p>
 <span>  <span class="va">existing_axis</span>,</span>
 <span>  <span class="va">implicit_axis</span>,</span>
 <span>  rename_axis <span class="op">=</span> <span class="cn">NULL</span>,</span>
-<span>  empty_implicit <span class="op">=</span> <span class="cn">NULL</span>,</span>
 <span>  implicit_properties <span class="op">=</span> <span class="cn">NULL</span>,</span>
 <span>  skipped_properties <span class="op">=</span> <span class="cn">NULL</span>,</span>
 <span>  properties_defaults <span class="op">=</span> <span class="cn">NULL</span></span>
@@ -92,11 +91,6 @@ axis's name (unless <code>rename_axis</code>).</p></dd>
 
 <dt id="arg-rename-axis">rename_axis<a class="anchor" aria-label="anchor" href="#arg-rename-axis"></a></dt>
 <dd><p>Optional name for the new axis.</p></dd>
-
-
-<dt id="arg-empty-implicit">empty_implicit<a class="anchor" aria-label="anchor" href="#arg-empty-implicit"></a></dt>
-<dd><p>If non-NULL, values equal to this are treated as
-empty (equivalent to the empty string).</p></dd>
 
 
 <dt id="arg-implicit-properties">implicit_properties<a class="anchor" aria-label="anchor" href="#arg-implicit-properties"></a></dt>
@@ -130,6 +124,10 @@ property.</p>
 associated with <code>existing_axis</code> entries whose implicit value is empty —
 or <code>NULL</code> if no such entries exist. These values can be used to
 reconstruct the original property via the <code>?? X</code> query modifier.</p>
+<p>The <code>implicit_axis</code> property must be a property of strings, where an
+empty string means "this entry has no value". Data that spells that
+some other way (<code>NA</code>, <code>Outliers</code>, a sentinel number) must be passed
+through <code><a href="unify_empty_vector_values.html">unify_empty_vector_values()</a></code> first.</p>
 <p>Requires that <code>rename_axis</code> (or the default, <code>implicit_axis</code> name)
 does not already exist in <code>daf</code>. Merging into a pre-existing axis is
 not supported.</p>

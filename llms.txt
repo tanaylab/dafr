@@ -975,10 +975,23 @@ auto-capped to two cores on package load.
 - [`complete_chain()`](https://tanaylab.github.io/dafr/reference/complete_chain.md)
   :
 
-  Create a persistent chain by linking `new_daf` to a `base_daf`.
+  Create a persistent chain by linking `new_daf` to its base
+  repositories.
+
+- [`base_daf()`](https://tanaylab.github.io/dafr/reference/base_daf.md)
+  :
+
+  One base repository of a
+  [`complete_chain()`](https://tanaylab.github.io/dafr/reference/complete_chain.md).
 
 - [`reconstruct_axis()`](https://tanaylab.github.io/dafr/reference/reconstruct_axis.md)
   : Promote an implicit property to an explicit axis.
+
+- [`unify_empty_vector_values()`](https://tanaylab.github.io/dafr/reference/unify_empty_vector_values.md)
+  : Spell "there is no value here" one way in a vector property.
+
+- [`connect_axes()`](https://tanaylab.github.io/dafr/reference/connect_axes.md)
+  : Record which entry of one axis each entry of another belongs to.
 
 # Articles
 
