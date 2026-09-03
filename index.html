@@ -22,7 +22,7 @@
 
     <a class="navbar-brand me-2" href="index.html">dafr</a>
 
-    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">0.10.0</small>
+    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">0.10.1</small>
 
 
     <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbar" aria-controls="navbar" aria-expanded="false" aria-label="Toggle navigation">
@@ -77,6 +77,9 @@
 <span></span>
 <span><span class="co"># Or from a local checkout:</span></span>
 <span><span class="co"># R CMD INSTALL /path/to/dafr</span></span></code></pre></div>
+<p>Or from conda:</p>
+<div class="sourceCode" id="cb2"><pre class="sourceCode bash"><code class="sourceCode bash"><span id="cb2-1"><a href="#cb2-1" tabindex="-1"></a><span class="ex">conda</span> install <span class="at">-c</span> aviezerl r-dafr</span></code></pre></div>
+<p>The conda build ships <code>c-blosc2</code> and <code>zstd</code>, so it reads packed and sharded Zarr v3 stores out of the box; other installs need those libraries present at build time for that (see <code>SystemRequirements</code>).</p>
 <p>This package has no Julia dependency. It is pure R + C++.</p>
 </div>
 <div class="section level2">
@@ -95,7 +98,7 @@
 <div class="section level2">
 <h2 id="usage">Usage<a class="anchor" aria-label="anchor" href="#usage"></a>
 </h2>
-<div class="sourceCode" id="cb2"><pre class="downlit sourceCode r">
+<div class="sourceCode" id="cb3"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span><span class="kw"><a href="https://rdrr.io/r/base/library.html" class="external-link">library</a></span><span class="op">(</span><span class="va"><a href="https://tanaylab.github.io/dafr/">dafr</a></span><span class="op">)</span></span>
 <span><span class="co">#&gt; </span></span>
 <span><span class="co">#&gt; Attaching package: 'dafr'</span></span>
@@ -138,7 +141,7 @@
 <h2 id="querying-data">Querying Data<a class="anchor" aria-label="anchor" href="#querying-data"></a>
 </h2>
 <p><code>dafr</code> provides two equivalent query interfaces: a compact string DSL and pipe-composable builders. The <code>[</code> operator on any <code>DafReader</code> accepts either form.</p>
-<div class="sourceCode" id="cb3"><pre class="downlit sourceCode r">
+<div class="sourceCode" id="cb4"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span><span class="co"># Create a sample dataset</span></span>
 <span><span class="va">daf</span> <span class="op">&lt;-</span> <span class="fu"><a href="reference/memory_daf.html">memory_daf</a></span><span class="op">(</span><span class="st">"query_examples"</span><span class="op">)</span></span>
 <span><span class="fu"><a href="reference/add_axis.html">add_axis</a></span><span class="op">(</span><span class="va">daf</span>, <span class="st">"cell"</span>, <span class="fu"><a href="https://rdrr.io/r/base/c.html" class="external-link">c</a></span><span class="op">(</span><span class="st">"A"</span>, <span class="st">"B"</span>, <span class="st">"C"</span><span class="op">)</span><span class="op">)</span></span>
@@ -217,7 +220,7 @@
 <h2 id="anndata-interop">AnnData interop<a class="anchor" aria-label="anchor" href="#anndata-interop"></a>
 </h2>
 <p>A Daf object can be exposed as an <code>AnnData</code>-shaped facade with the familiar <code>X</code> / <code>obs</code> / <code>var</code> / <code>layers</code> / <code>uns</code> / <code>obs_names</code> / <code>var_names</code> / <code>shape</code> properties:</p>
-<div class="sourceCode" id="cb4"><pre class="downlit sourceCode r">
+<div class="sourceCode" id="cb5"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span><span class="va">d</span> <span class="op">&lt;-</span> <span class="fu"><a href="reference/example_cells_daf.html">example_cells_daf</a></span><span class="op">(</span><span class="op">)</span></span>
 <span><span class="va">ann</span> <span class="op">&lt;-</span> <span class="fu"><a href="reference/as_anndata.html">as_anndata</a></span><span class="op">(</span><span class="va">d</span><span class="op">)</span></span>
 <span></span>
@@ -241,7 +244,7 @@
 <span><span class="co">#&gt; demux_07_12_20_1_ATCGTAGTCCAGTGCG-1   N89 demux_07_12_20_1</span></span></code></pre></div>
 <p>The facade is read-only; writes (<code>ann$X &lt;- ...</code>) raise an error. Modify the underlying Daf directly if you need to change data.</p>
 <p>Round-trip h5ad I/O is supported (requires the <code>hdf5r</code> Suggests dep). Sparse <code>X</code>, categorical <code>obs</code> / <code>var</code> columns, nested <code>uns</code>, and <code>obsm</code> / <code>varm</code> all round-trip:</p>
-<div class="sourceCode" id="cb5"><pre class="downlit sourceCode r">
+<div class="sourceCode" id="cb6"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span><span class="va">d</span>  <span class="op">&lt;-</span> <span class="fu"><a href="reference/h5ad_as_daf.html">h5ad_as_daf</a></span><span class="op">(</span><span class="st">"path/to/file.h5ad"</span><span class="op">)</span></span>
 <span><span class="fu"><a href="reference/daf_as_h5ad.html">daf_as_h5ad</a></span><span class="op">(</span><span class="va">d</span>, <span class="st">"out.h5ad"</span>, overwrite <span class="op">=</span> <span class="cn">TRUE</span><span class="op">)</span></span></code></pre></div>
 </div>
@@ -249,7 +252,7 @@
 <h2 id="dplyr-backend">dplyr backend<a class="anchor" aria-label="anchor" href="#dplyr-backend"></a>
 </h2>
 <p><code>tbl(daf, axis)</code> returns a lazy <code>daf_axis_tbl</code> where rows are axis entries and columns are per-axis vectors. Most dplyr verbs work natively:</p>
-<div class="sourceCode" id="cb6"><pre class="downlit sourceCode r">
+<div class="sourceCode" id="cb7"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span><span class="kw"><a href="https://rdrr.io/r/base/library.html" class="external-link">library</a></span><span class="op">(</span><span class="va"><a href="https://dplyr.tidyverse.org" class="external-link">dplyr</a></span><span class="op">)</span></span>
 <span></span>
 <span><span class="va">d</span> <span class="op">&lt;-</span> <span class="fu"><a href="reference/example_cells_daf.html">example_cells_daf</a></span><span class="op">(</span><span class="op">)</span></span>
@@ -259,37 +262,39 @@
 <span>    <span class="fu"><a href="https://dplyr.tidyverse.org/reference/select.html" class="external-link">select</a></span><span class="op">(</span><span class="va">name</span>, <span class="va">donor</span>, <span class="va">experiment</span><span class="op">)</span> <span class="op">|&gt;</span></span>
 <span>    <span class="fu"><a href="https://dplyr.tidyverse.org/reference/compute.html" class="external-link">collect</a></span><span class="op">(</span><span class="op">)</span> <span class="op">|&gt;</span></span>
 <span>    <span class="fu"><a href="https://rdrr.io/r/utils/head.html" class="external-link">head</a></span><span class="op">(</span><span class="op">)</span></span>
-<span><span class="co">#&gt; # A tibble: 6 x 3</span></span>
-<span><span class="co">#&gt;                                  name donor       experiment</span></span>
-<span><span class="co">#&gt; 1 demux_07_12_20_1_AACAAGATCCATTTCA-1   N89 demux_07_12_20_1</span></span>
-<span><span class="co">#&gt; 2 demux_07_12_20_1_AGATAGACATTCCTCG-1   N89 demux_07_12_20_1</span></span>
-<span><span class="co">#&gt; 3 demux_07_12_20_1_ATCGTAGTCCAGTGCG-1   N89 demux_07_12_20_1</span></span>
-<span><span class="co">#&gt; 4 demux_07_12_20_1_CACAGGCGTCCTACAA-1   N89 demux_07_12_20_1</span></span>
-<span><span class="co">#&gt; 5 demux_07_12_20_1_CCTACGTAGCCAACCC-1   N89 demux_07_12_20_1</span></span>
-<span><span class="co">#&gt; 6 demux_07_12_20_1_GAAGGGTGTCCCTGAG-1   N89 demux_07_12_20_1</span></span>
+<span><span class="co">#&gt; # A tibble: 6 × 3</span></span>
+<span><span class="co">#&gt;   name                                donor experiment      </span></span>
+<span><span class="co">#&gt;   &lt;chr&gt;                               &lt;chr&gt; &lt;chr&gt;           </span></span>
+<span><span class="co">#&gt; 1 demux_07_12_20_1_AACAAGATCCATTTCA-1 N89   demux_07_12_20_1</span></span>
+<span><span class="co">#&gt; 2 demux_07_12_20_1_AGATAGACATTCCTCG-1 N89   demux_07_12_20_1</span></span>
+<span><span class="co">#&gt; 3 demux_07_12_20_1_ATCGTAGTCCAGTGCG-1 N89   demux_07_12_20_1</span></span>
+<span><span class="co">#&gt; 4 demux_07_12_20_1_CACAGGCGTCCTACAA-1 N89   demux_07_12_20_1</span></span>
+<span><span class="co">#&gt; 5 demux_07_12_20_1_CCTACGTAGCCAACCC-1 N89   demux_07_12_20_1</span></span>
+<span><span class="co">#&gt; 6 demux_07_12_20_1_GAAGGGTGTCCCTGAG-1 N89   demux_07_12_20_1</span></span>
 <span></span>
 <span><span class="fu"><a href="https://dplyr.tidyverse.org/reference/tbl.html" class="external-link">tbl</a></span><span class="op">(</span><span class="va">d</span>, <span class="st">"cell"</span><span class="op">)</span> <span class="op">|&gt;</span></span>
 <span>    <span class="fu"><a href="https://dplyr.tidyverse.org/reference/count.html" class="external-link">count</a></span><span class="op">(</span><span class="va">experiment</span>, sort <span class="op">=</span> <span class="cn">TRUE</span><span class="op">)</span> <span class="op">|&gt;</span></span>
 <span>    <span class="fu"><a href="https://dplyr.tidyverse.org/reference/compute.html" class="external-link">collect</a></span><span class="op">(</span><span class="op">)</span> <span class="op">|&gt;</span></span>
 <span>    <span class="fu"><a href="https://rdrr.io/r/utils/head.html" class="external-link">head</a></span><span class="op">(</span><span class="op">)</span></span>
-<span><span class="co">#&gt; # A tibble: 6 x 2</span></span>
-<span><span class="co">#&gt;               name  n</span></span>
-<span><span class="co">#&gt; 1 demux_28_12_20_2 72</span></span>
-<span><span class="co">#&gt; 2 demux_28_12_20_1 58</span></span>
-<span><span class="co">#&gt; 3 demux_21_02_21_2 51</span></span>
-<span><span class="co">#&gt; 4 demux_22_02_21_2 47</span></span>
-<span><span class="co">#&gt; 5 demux_01_03_21_1 45</span></span>
-<span><span class="co">#&gt; 6 demux_07_12_20_2 42</span></span></code></pre></div>
+<span><span class="co">#&gt; # A tibble: 6 × 2</span></span>
+<span><span class="co">#&gt;   name                 n</span></span>
+<span><span class="co">#&gt;   &lt;chr&gt;            &lt;int&gt;</span></span>
+<span><span class="co">#&gt; 1 demux_28_12_20_2    72</span></span>
+<span><span class="co">#&gt; 2 demux_28_12_20_1    58</span></span>
+<span><span class="co">#&gt; 3 demux_21_02_21_2    51</span></span>
+<span><span class="co">#&gt; 4 demux_22_02_21_2    47</span></span>
+<span><span class="co">#&gt; 5 demux_01_03_21_1    45</span></span>
+<span><span class="co">#&gt; 6 demux_07_12_20_2    42</span></span></code></pre></div>
 <p>Supported verbs: <code>filter</code>, <code>select</code>, <code>mutate</code>, <code>arrange</code>, <code>summarise</code>, <code>group_by</code> / <code>ungroup</code>, <code>distinct</code>, <code>pull</code>, <code>collect</code>, <code>as_tibble</code>, <code>rename</code> / <code>relocate</code>, <code>transmute</code>, <code>reframe</code>, <code>slice</code> and the <code>slice_head</code> / <code>slice_tail</code> / <code>slice_min</code> / <code>slice_max</code> / <code>slice_sample</code> family, <code>count</code> / <code>tally</code> / <code>add_count</code> / <code>add_tally</code>. Inside <code><a href="https://dplyr.tidyverse.org/reference/mutate.html" class="external-link">mutate()</a></code> / <code><a href="https://dplyr.tidyverse.org/reference/summarise.html" class="external-link">summarise()</a></code>: window functions (<code>lag</code>, <code>lead</code>, <code>cumsum</code>, <code>row_number</code>, rank family), scalar helpers (<code>if_else</code>, <code>case_when</code>, <code>coalesce</code>, <code>n_distinct</code>, <code>first</code> / <code>last</code> / <code>nth</code>), <code>across(where(...), ...)</code>, and tidyselect helpers in <code><a href="https://dplyr.tidyverse.org/reference/select.html" class="external-link">select()</a></code>. <code>.by =</code> (dplyr 1.1+) works on <code>filter</code> / <code>mutate</code> / <code>summarise</code>. See <code><a href="articles/dplyr.html">vignette("dplyr", package = "dafr")</a></code> for details.</p>
 <p>When a grouping variable names another axis already in the daf, <code><a href="https://dplyr.tidyverse.org/reference/summarise.html" class="external-link">summarise()</a></code> and <code><a href="https://dplyr.tidyverse.org/reference/count.html" class="external-link">count()</a></code> <strong>auto-tie-back</strong> to a lazy <code>daf_axis_tbl</code> on that axis - so the pipeline can continue. Axis entries then appear in the <code>name</code> column (the convention for the axis-identity column). Example:</p>
-<div class="sourceCode" id="cb7"><pre class="downlit sourceCode r">
+<div class="sourceCode" id="cb8"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span><span class="co"># `donor` is an axis of example_cells_daf(); count() re-anchors onto it.</span></span>
 <span><span class="fu"><a href="https://dplyr.tidyverse.org/reference/tbl.html" class="external-link">tbl</a></span><span class="op">(</span><span class="va">d</span>, <span class="st">"cell"</span><span class="op">)</span> <span class="op">|&gt;</span></span>
 <span>    <span class="fu"><a href="https://dplyr.tidyverse.org/reference/count.html" class="external-link">count</a></span><span class="op">(</span><span class="va">donor</span>, sort <span class="op">=</span> <span class="cn">TRUE</span><span class="op">)</span> <span class="op">|&gt;</span></span>
 <span>    <span class="fu"><a href="https://rdrr.io/r/base/class.html" class="external-link">class</a></span><span class="op">(</span><span class="op">)</span>   <span class="co"># daf_axis_tbl + tbl_df</span></span>
 <span><span class="co">#&gt; [1] "daf_axis_tbl"</span></span></code></pre></div>
 <p>Mutations are accumulated lazily and can be written back with <code>dplyr::compute(tbl, vectors = c(...))</code>:</p>
-<div class="sourceCode" id="cb8"><pre class="downlit sourceCode r">
+<div class="sourceCode" id="cb9"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span><span class="co"># Lazy pipeline...</span></span>
 <span><span class="va">updated</span> <span class="op">&lt;-</span> <span class="fu"><a href="https://dplyr.tidyverse.org/reference/tbl.html" class="external-link">tbl</a></span><span class="op">(</span><span class="va">d</span>, <span class="st">"cell"</span><span class="op">)</span> <span class="op">|&gt;</span></span>
 <span>    <span class="fu"><a href="https://dplyr.tidyverse.org/reference/mutate.html" class="external-link">mutate</a></span><span class="op">(</span>donor_upper <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/chartr.html" class="external-link">toupper</a></span><span class="op">(</span><span class="va">donor</span><span class="op">)</span><span class="op">)</span></span>
