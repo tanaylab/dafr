@@ -261,3 +261,18 @@ test_that("reconstruction / gaps", {
     expect_true(is.nan(scores[[1L]]))
     expect_identical(scores[[2L]], 2.0)
 })
+
+test_that("unify / dtype names", {
+    d <- .recon_fresh_daf()
+    # `.UNIFY_STORAGE_MODE` is a named character vector, and `[[` on one throws
+    # for an unknown name, so an unusable dtype has to be caught by name first.
+    expect_error(
+        unify_empty_vector_values(d, axis = "cell", property = "age",
+                                  empty_values = 1, dtype = "Complex"),
+        "unsupported dtype: Complex"
+    )
+    # The lowercase spellings Julia's DTYPE_BY_NAME accepts, plus "string".
+    unify_empty_vector_values(d, axis = "cell", property = "age",
+                              empty_values = 1, dtype = "string")
+    expect_identical(unname(get_vector(d, "cell", "age")), c("", "", "2", "3"))
+})

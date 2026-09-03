@@ -59,6 +59,16 @@ through 379d00c (2026-08-30).
   therefore now also lists matrices stored only in the flipped layout;
   pass `relayout = FALSE` for the previous behaviour.
 
+## Robustness
+
+* `complete_daf()` rejects records that lead back to a repository (a
+  cycle, or a repository naming itself) instead of following them for
+  ever, and says which recorded base has no path.
+
+* `unify_empty_vector_values()` names the types it accepts when given a
+  `dtype` it cannot build, and takes the lowercase spellings (`"float32"`,
+  `"uint32"`, `"string"`) alongside the cased ones.
+
 # dafr 0.9.0
 
 * `zip_daf()` dense reads are now memory-mapped (zero-copy ALTREP) for STORE'd

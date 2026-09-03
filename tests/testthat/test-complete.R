@@ -286,3 +286,41 @@ test_that("a recorded base path is relative to the new repository's directory", 
     # Not under it: nothing relative to give, so the absolute path stands.
     expect_identical(rel("/other/cells", "/tmp/root"), "/other/cells")
 })
+
+test_that("complete_daf rejects records that lead back to a repository", {
+    # DataAxesFormats' own collect_dafs follows these records without a guard,
+    # so a cycle there recurses for ever; dafr says what is wrong instead.
+    root <- withr::local_tempdir()
+    a <- files_daf(file.path(root, "a"), name = "a!", mode = "w+")
+    add_axis(a, "cell", "A")
+    b <- files_daf(file.path(root, "b"), name = "b!", mode = "w+")
+    add_axis(b, "cell", "A")
+    set_scalar(a, "base_daf_repository", "b")
+    set_scalar(b, "base_daf_repository", "a")
+    expect_error(complete_daf(file.path(root, "a"), name = "cyc!"),
+                 "cyclic repository")
+
+    self <- files_daf(file.path(root, "self"), name = "self!", mode = "w+")
+    add_axis(self, "cell", "A")
+    set_scalar(self, "base_daf_repository", "self")
+    expect_error(complete_daf(file.path(root, "self"), name = "self!"),
+                 "cyclic repository")
+})
+
+test_that("complete_daf says which recorded base has no path", {
+    root <- withr::local_tempdir()
+    cells <- files_daf(file.path(root, "cells"), name = "cells!", mode = "w+")
+    add_axis(cells, "cell", "A")
+    leaf <- files_daf(file.path(root, "leaf"), name = "leaf!", mode = "w+")
+    set_scalar(leaf, "base_daf_repository", '["cells", {"axes": [{"cell": "="}]}]')
+    expect_error(complete_daf(file.path(root, "leaf"), name = "p!"),
+                 "no path in the recorded base")
+})
+
+test_that("complete_daf on a repository recording no bases is that repository", {
+    root <- withr::local_tempdir()
+    leaf <- files_daf(file.path(root, "leaf"), name = "leaf!", mode = "w+")
+    add_axis(leaf, "cell", "A")
+    set_scalar(leaf, "base_daf_repository", "[]")
+    expect_identical(axis_vector(complete_daf(file.path(root, "leaf")), "cell"), "A")
+})

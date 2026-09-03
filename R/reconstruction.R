@@ -190,6 +190,25 @@ reconstruct_axis <- function(daf, existing_axis, implicit_axis,
     }
 }
 
+# Resolve a requested type name to one this can build, accepting the lowercase
+# spellings `.canonicalize_julia_type()` already knows plus "string". `[[` on a
+# named character vector throws for an unknown name rather than returning NULL,
+# so the name has to be checked before it is used as an index.
+.unify_resolve_dtype <- function(dtype) {
+    known <- names(.UNIFY_STORAGE_MODE)
+    if (dtype %in% known) {
+        return(dtype)
+    }
+    matched <- known[tolower(known) == tolower(dtype)]
+    if (length(matched) == 1L) {
+        return(matched)
+    }
+    stop(sprintf(
+        "unsupported dtype: %s\nmust be one of: %s",
+        dtype, paste(known, collapse = ", ")
+    ), call. = FALSE)
+}
+
 # What "there is no value here" is spelled as, for each kind of type that has
 # such a spelling. A signed integer or a Boolean has none.
 .unify_default_empty_value <- function(daf, axis, property, dtype) {
@@ -315,9 +334,7 @@ unify_empty_vector_values <- function(daf, axis, property, empty_values,
     } else {
         .canonicalize_julia_type(dtype)
     }
-    if (is.null(.UNIFY_STORAGE_MODE[[dtype]])) {
-        stop(sprintf("unsupported dtype: %s", dtype), call. = FALSE)
-    }
+    dtype <- .unify_resolve_dtype(dtype)
 
     empty_values <- unlist(empty_values, use.names = FALSE)
     if (length(empty_values) == 0L && identical(dtype, current_dtype)) {

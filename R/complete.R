@@ -260,6 +260,12 @@ base_daf <- function(daf, axes = NULL, data = NULL) {
         if (is.character(entry)) {
             list(path = entry, axes = NULL, data = NULL)
         } else {
+            if (is.null(entry$path) || !nzchar(entry$path)) {
+                stop(sprintf(
+                    "no path in the recorded base: %s",
+                    as.character(jsonlite::toJSON(entry, auto_unbox = TRUE))
+                ), call. = FALSE)
+            }
             list(
                 path = as.character(entry$path),
                 axes = .view_spec_from_julia_json(entry$axes, is_data = FALSE),
