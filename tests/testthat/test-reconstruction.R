@@ -18,15 +18,16 @@ test_that("reconstruct_axis creates new axis from unique implicit values", {
     expect_identical(empties$donor_age, NULL)
 })
 
-test_that("reconstruct_axis: empty_implicit marks entries as no-value", {
+test_that("reconstruct_axis: unified empty values mark entries as no-value", {
     d <- memory_daf(name = "d")
     add_axis(d, "cell", c("c1", "c2", "c3", "c4"))
     set_vector(d, "cell", "type", c("T", "NA", "B", "NA"))
     set_vector(d, "cell", "color", c("red", "gray", "blue", "gray"))
 
+    unify_empty_vector_values(d,
+        axis = "cell", property = "type", empty_values = "NA")
     empties <- reconstruct_axis(d,
-        existing_axis = "cell", implicit_axis = "type",
-        empty_implicit = "NA")
+        existing_axis = "cell", implicit_axis = "type")
 
     expect_identical(axis_vector(d, "type"), c("B", "T"))
     expect_identical(unname(get_vector(d, "type", "color")),

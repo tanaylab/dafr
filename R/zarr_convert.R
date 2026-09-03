@@ -129,7 +129,7 @@ zarr_to_files <- function(src, dst) {
     }
     for (rows in axes) {
         for (cols in axes) {
-            for (name in matrices_set(src_daf, rows, cols)) {
+            for (name in matrices_set(src_daf, rows, cols, relayout = FALSE)) {
                 # Copy each PHYSICALLY-stored orientation as-is. set_matrix now
                 # defaults relayout=TRUE, which would pre-create the flip on the
                 # first orientation and make the second collide ("existing

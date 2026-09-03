@@ -1,4 +1,4 @@
-#' @include classes.R format_api.R cache.R
+#' @include classes.R format_api.R cache.R view_daf.R
 NULL
 
 #' Read-only chain of DafReaders.
@@ -78,6 +78,7 @@ chain_reader <- function(dafs, name = NULL) {
             collapse = ";"
         )
     }
+    dafs <- .flatten_chain_dafs(dafs, name)
     .validate_chain_axes(dafs, name)
     .new_read_only_chain(dafs, name)
 }
@@ -166,6 +167,7 @@ chain_writer <- function(dafs, name = NULL) {
             collapse = ";"
         )
     }
+    dafs <- .flatten_chain_dafs(dafs, name)
     .validate_chain_axes(dafs, name)
     WriteChainDaf(
         name                   = name,
@@ -177,6 +179,68 @@ chain_writer <- function(dafs, name = NULL) {
         dafs                   = dafs,
         writer                 = writer
     )
+}
+
+# The repositories of a chain: whatever the caller gave us, flattened, and with
+# each repository appearing once.
+#
+# A chain of chains is the same data as one long chain, and repositories form a
+# tree rather than a list - two bases of the same repository typically rest on a
+# common ancestor, reached through both of them. It is the same data either way,
+# so it is kept at its earliest position: a chain resolves later-wins, and an
+# ancestor must not override what is based on it.
+.flatten_chain_dafs <- function(dafs, name) {
+    expanded <- list()
+    expand <- function(ds) {
+        for (d in ds) {
+            if (S7::S7_inherits(d, ReadOnlyChainDaf) ||
+                S7::S7_inherits(d, WriteChainDaf)) {
+                expand(.chain_dafs(d))
+            } else {
+                expanded[[length(expanded) + 1L]] <<- d
+            }
+        }
+    }
+    expand(dafs)
+
+    # The last repository is the one a `chain_writer` writes to. Reaching it
+    # again is a repository based on itself rather than a diamond, and there is
+    # no order which makes sense of that. This is asked before dropping repeats,
+    # since dropping one would remove the very repository that is written to.
+    last_path <- .norm_path(.complete_path(expanded[[length(expanded)]]))
+    if (!is.null(last_path) && length(expanded) > 1L) {
+        earlier <- vapply(expanded[-length(expanded)],
+            function(d) .norm_path(.complete_path(d)) %||% NA_character_,
+            character(1))
+        if (last_path %in% earlier) {
+            stop(sprintf(
+                "cyclic repository: %s\nis also a base of itself\nin the chain: %s",
+                last_path, name
+            ), call. = FALSE)
+        }
+    }
+
+    # Only a whole repository is the same data as another copy of itself. A view
+    # is a subset of one, and two views of the same repository - or a view of it
+    # and the repository itself - report the same path while exposing different
+    # data, so a view is never dropped. Neither is a repository which is not
+    # persistent, having no path to be recognized by.
+    flat <- list()
+    seen <- character(0)
+    for (d in expanded) {
+        path <- if (S7::S7_inherits(d, ViewDaf)) {
+            NULL
+        } else {
+            .norm_path(.complete_path(d))
+        }
+        if (is.null(path)) {
+            flat[[length(flat) + 1L]] <- d
+        } else if (!(path %in% seen)) {
+            seen <- c(seen, path)
+            flat[[length(flat) + 1L]] <- d
+        }
+    }
+    flat
 }
 
 .chain_dafs <- function(daf) S7::prop(daf, "dafs")

@@ -92,3 +92,184 @@ test_that(".is_absolute_path recognises unix, windows and UNC paths", {
     expect_false(f("."))
     expect_false(f("./x"))
 })
+
+# --- DAG of repositories (port of DataAxesFormats' test/complete.jl) ---
+
+.complete_diamond <- function(root) {
+    cells <- files_daf(file.path(root, "cells"), name = "cells!", mode = "w+")
+    add_axis(cells, "cell", c("A", "B", "C"))
+    add_axis(cells, "gene", c("X", "Y"))
+    set_vector(cells, "cell", "age", c(10L, 20L, 30L))
+
+    results <- files_daf(file.path(root, "results"), name = "results!", mode = "w+")
+    results_chain <- complete_chain(base_daf = cells, new_daf = results)
+    set_vector(results_chain, "cell", "score", c(1, 2, 3))
+
+    masks <- files_daf(file.path(root, "masks"), name = "masks!", mode = "w+")
+    masks_chain <- complete_chain(base_daf = cells, new_daf = masks)
+    set_vector(masks_chain, "gene", "is_marker", c(TRUE, FALSE))
+
+    list(cells = cells, results = results_chain, masks = masks_chain)
+}
+
+.chain_names <- function(chain) {
+    vapply(dafr:::.chain_dafs(chain), function(d) S7::prop(d, "name"), character(1))
+}
+
+test_that("complete_chain records a lone unviewed base as its relative path", {
+    root <- withr::local_tempdir()
+    cells <- files_daf(file.path(root, "cells"), name = "cells!", mode = "w+")
+    add_axis(cells, "cell", c("A", "B"))
+    metacells <- files_daf(file.path(root, "metacells"), name = "metacells!", mode = "w+")
+    complete_chain(base_daf = cells, new_daf = metacells)
+    expect_identical(get_scalar(metacells, "base_daf_repository"), "cells")
+})
+
+test_that("complete_chain records several bases as a JSON array", {
+    root <- withr::local_tempdir()
+    d <- .complete_diamond(root)
+    leaf <- files_daf(file.path(root, "leaf"), name = "leaf!", mode = "w+")
+    chain <- complete_chain(base_daf = list(d$results, d$masks), new_daf = leaf)
+
+    # Only the immediate bases are recorded; that both rest on the cells is
+    # recorded in them.
+    expect_identical(
+        jsonlite::fromJSON(get_scalar(leaf, "base_daf_repository")),
+        c("results", "masks")
+    )
+    # The cells are reached through both arms and appear once, before
+    # everything resting on them.
+    expect_identical(.chain_names(chain),
+                     c("cells!", "results!", "masks!", "leaf!"))
+})
+
+test_that("complete_chain records the same base twice only once", {
+    root <- withr::local_tempdir()
+    cells <- files_daf(file.path(root, "cells"), name = "cells!", mode = "w+")
+    add_axis(cells, "cell", c("A", "B"))
+    metacells <- files_daf(file.path(root, "metacells"), name = "metacells!", mode = "w+")
+    chain <- complete_chain(base_daf = list(cells, cells), new_daf = metacells)
+    expect_identical(get_scalar(metacells, "base_daf_repository"), "cells")
+    expect_identical(.chain_names(chain), c("cells!", "metacells!"))
+})
+
+test_that("complete_chain keeps two different views of one base apart", {
+    root <- withr::local_tempdir()
+    cells <- files_daf(file.path(root, "cells"), name = "cells!", mode = "w+")
+    add_axis(cells, "cell", c("A", "B"))
+    add_axis(cells, "gene", c("X", "Y"))
+    metacells <- files_daf(file.path(root, "metacells"), name = "metacells!", mode = "w+")
+    chain <- complete_chain(
+        base_daf = list(
+            base_daf(cells, axes = list(list("cell", "="))),
+            base_daf(cells, axes = list(list("gene", "=")))
+        ),
+        new_daf = metacells
+    )
+    expect_length(
+        jsonlite::fromJSON(get_scalar(metacells, "base_daf_repository"),
+                           simplifyVector = FALSE),
+        2L
+    )
+    expect_length(dafr:::.chain_dafs(chain), 3L)
+    expect_setequal(axes_set(chain), c("cell", "gene"))
+})
+
+test_that("complete_daf reopens a diamond of repositories", {
+    root <- withr::local_tempdir()
+    d <- .complete_diamond(root)
+    leaf <- files_daf(file.path(root, "leaf"), name = "leaf!", mode = "w+")
+    complete_chain(base_daf = list(d$results, d$masks), new_daf = leaf)
+
+    reopened <- complete_daf(file.path(root, "leaf"), name = "reopened!")
+    expect_identical(unname(get_vector(reopened, "cell", "age")), c(10L, 20L, 30L))
+    expect_identical(unname(get_vector(reopened, "cell", "score")), c(1, 2, 3))
+    expect_identical(unname(get_vector(reopened, "gene", "is_marker")),
+                     c(TRUE, FALSE))
+})
+
+test_that("complete_daf reads a hand-written object-form base_daf_repository", {
+    root <- withr::local_tempdir()
+    cells <- files_daf(file.path(root, "cells"), name = "cells!", mode = "w+")
+    add_axis(cells, "cell", c("A", "B"))
+    add_axis(cells, "gene", c("X", "Y"))
+
+    metacells <- files_daf(file.path(root, "metacells"), name = "metacells!", mode = "w+")
+    set_scalar(metacells, "base_daf_repository",
+               '{"path": "cells", "axes": [{"cell": "="}]}')
+
+    reopened <- complete_daf(file.path(root, "metacells"), name = "reopened!")
+    expect_setequal(axes_set(reopened), "cell")
+    expect_false(has_axis(reopened, "gene"))
+})
+
+test_that("complete_daf still reads a legacy base_daf_view scalar", {
+    # dafr up to 0.9.0 stored a lone base path plus a separate base_daf_view.
+    root <- withr::local_tempdir()
+    cells <- files_daf(file.path(root, "cells"), name = "cells!", mode = "w+")
+    add_axis(cells, "cell", c("A", "B"))
+    add_axis(cells, "gene", c("X", "Y"))
+
+    metacells <- files_daf(file.path(root, "metacells"), name = "metacells!", mode = "w+")
+    set_scalar(metacells, "base_daf_repository", "cells")
+    set_scalar(metacells, "base_daf_view",
+               dafr:::.view_spec_to_julia_json(list(list("cell", "=")), NULL))
+
+    reopened <- complete_daf(file.path(root, "metacells"), name = "reopened!")
+    expect_setequal(axes_set(reopened), "cell")
+    expect_false(has_axis(reopened, "gene"))
+})
+
+test_that("a chain reports its complete path only when the records lead to it", {
+    root <- withr::local_tempdir()
+    d <- .complete_diamond(root)
+    leaf <- files_daf(file.path(root, "leaf"), name = "leaf!", mode = "w+")
+    chain <- complete_chain(base_daf = list(d$results, d$masks), new_daf = leaf)
+    expect_identical(complete_path(chain),
+                     normalizePath(file.path(root, "leaf")))
+
+    # A repository the records do not lead to means reopening the leaf would
+    # not give this chain.
+    other <- files_daf(file.path(root, "other"), name = "other!", mode = "w+")
+    expect_null(complete_path(
+        chain_writer(list(d$cells, other, leaf), name = "extra!")))
+
+    # A base the records name but which is not here means this is only part of
+    # the complete chain.
+    expect_null(complete_path(chain_writer(list(leaf), name = "missing!")))
+
+    # A repository which is not persistent cannot be reopened.
+    expect_null(complete_path(chain_writer(
+        list(memory_daf(name = "memory!"), d$cells, leaf), name = "pathless!")))
+})
+
+test_that("a chain rejects a repository that is a base of itself", {
+    root <- withr::local_tempdir()
+    cells <- files_daf(file.path(root, "cells"), name = "cells!", mode = "w+")
+    add_axis(cells, "cell", c("A", "B"))
+    expect_error(chain_writer(list(cells, cells), name = "cycle!"),
+                 "cyclic repository")
+})
+
+test_that("a chain of chains is one long chain", {
+    root <- withr::local_tempdir()
+    cells <- files_daf(file.path(root, "cells"), name = "cells!", mode = "w+")
+    add_axis(cells, "cell", c("A", "B"))
+    metacells <- files_daf(file.path(root, "metacells"), name = "metacells!", mode = "w+")
+    metacells_chain <- complete_chain(base_daf = cells, new_daf = metacells)
+
+    blocks <- files_daf(file.path(root, "blocks"), name = "blocks!", mode = "w+")
+    chain <- chain_writer(list(metacells_chain, blocks), name = "chain!")
+    expect_identical(.chain_names(chain), c("cells!", "metacells!", "blocks!"))
+})
+
+test_that("two pathless repositories are never the same one", {
+    root <- withr::local_tempdir()
+    cells <- files_daf(file.path(root, "cells"), name = "cells!", mode = "w+")
+    add_axis(cells, "cell", c("A", "B"))
+    chain <- chain_writer(
+        list(cells, memory_daf(name = "first!"), memory_daf(name = "second!")),
+        name = "chain!"
+    )
+    expect_identical(.chain_names(chain), c("cells!", "first!", "second!"))
+})

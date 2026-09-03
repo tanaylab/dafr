@@ -10,9 +10,11 @@ test_that("Julia complete_daf reads a dafr-written chain view", {
     add_axis(base, "cell", paste0("c", 1:4)); add_axis(base, "gene", paste0("g", 1:3))
     set_matrix(base, "cell", "gene", "expr", matrix(as.numeric(1:12), 4, 3))
     new <- files_daf(ndir, name = "new", mode = "w+")
-    complete_chain(base_daf = base, new_daf = new, absolute = TRUE,
-                   axes = list(list("cell", "="), list("gene", "=")),
-                   data = list(list(c("cell", "gene", "expr"), "=")))
+    complete_chain(
+        base_daf = base_daf(base,
+            axes = list(list("cell", "="), list("gene", "=")),
+            data = list(list(c("cell", "gene", "expr"), "="))),
+        new_daf = new, absolute = TRUE)
     res <- run_julia(c(
         "using DataAxesFormats",
         sprintf('d = complete_daf(raw"%s", "r")', ndir),

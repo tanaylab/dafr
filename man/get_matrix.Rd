@@ -4,7 +4,7 @@
 \alias{get_matrix}
 \title{Get a matrix, returning it with axis-entry dimnames.}
 \usage{
-get_matrix(daf, rows_axis, columns_axis, name, default)
+get_matrix(daf, rows_axis, columns_axis, name, default, relayout = TRUE)
 }
 \arguments{
 \item{daf}{A \code{DafReader}.}
@@ -18,6 +18,11 @@ get_matrix(daf, rows_axis, columns_axis, name, default)
 \item{default}{If supplied and the matrix is absent under both
 layouts, return a constant-valued \verb{nrow x ncol} matrix with axis
 entries as dimnames.}
+
+\item{relayout}{If \code{TRUE} (the default, matching Julia
+\verb{get_matrix(...; relayout = true)}), a matrix stored only in the
+flipped layout is transposed on-the-fly. If \code{FALSE}, only the stored
+layout will do.}
 }
 \value{
 Dense \code{matrix} or sparse \code{dgCMatrix} / \code{lgCMatrix} with
