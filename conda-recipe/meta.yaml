@@ -1,5 +1,5 @@
 {% set name = "dafr" %}
-{% set version = environ.get("PACKAGE_VERSION", "0.10.1") %}
+{% set version = environ.get("PACKAGE_VERSION", "0.10.2") %}
 
 package:
   name: r-{{ name|lower }}
