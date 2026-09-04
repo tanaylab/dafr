@@ -7,7 +7,7 @@
 
     <a class="navbar-brand me-2" href="../index.html">dafr</a>
 
-    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">0.10.1</small>
+    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">0.10.2</small>
 
 
     <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbar" aria-controls="navbar" aria-expanded="false" aria-label="Toggle navigation">
@@ -45,6 +45,10 @@
       <small>Source: <a href="https://github.com/tanaylab/dafr/blob/main/NEWS.md" class="external-link"><code>NEWS.md</code></a></small>
     </div>
 
+    <div class="section level2">
+<h2 class="pkg-version" data-toc-text="0.10.2" id="dafr-0102">dafr 0.10.2<a class="anchor" aria-label="anchor" href="#dafr-0102"></a></h2>
+<ul><li>The conda packages pin the build compiler to gcc 13 rather than taking conda-forge’s newest. An unpinned <code>{{ compiler('cxx') }}</code> resolved to gcc 16 on the runner, which stamped <code>libgcc &gt;=16</code> and <code>libstdcxx &gt;=16</code> onto the package: correct, but a floor most established environments cannot meet, so the package would not install into them. The floor is now <code>libgcc &gt;=13</code>. Nothing about the R package changes; this is purely what the conda build declares.</li>
+</ul></div>
     <div class="section level2">
 <h2 class="pkg-version" data-toc-text="0.10.1" id="dafr-0101">dafr 0.10.1<a class="anchor" aria-label="anchor" href="#dafr-0101"></a></h2>
 <ul><li><p>Conda packages: <code>conda install -c aviezerl r-dafr</code>. A tagged release (or a manual workflow run) builds <code>r-dafr</code> for R 4.4 and 4.5 on Linux and for R 4.5 on macOS, following the same recipe layout as <code>misha</code> and <code>prego</code>. The build includes <code>c-blosc2</code> and <code>zstd</code>, which <code>configure</code> picks up, so a conda install reads packed and sharded Zarr v3 stores without further setup.</p></li>

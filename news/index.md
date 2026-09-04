@@ -1,5 +1,15 @@
 # Changelog
 
+## dafr 0.10.2
+
+- The conda packages pin the build compiler to gcc 13 rather than taking
+  conda-forge’s newest. An unpinned `{{ compiler('cxx') }}` resolved to
+  gcc 16 on the runner, which stamped `libgcc >=16` and `libstdcxx >=16`
+  onto the package: correct, but a floor most established environments
+  cannot meet, so the package would not install into them. The floor is
+  now `libgcc >=13`. Nothing about the R package changes; this is purely
+  what the conda build declares.
+
 ## dafr 0.10.1
 
 - Conda packages: `conda install -c aviezerl r-dafr`. A tagged release
