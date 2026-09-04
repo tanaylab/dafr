@@ -42,13 +42,13 @@
   <main id="main" class="col-md-9"><div class="page-header">
 
       <h1>Changelog</h1>
-      <small>Source: <a href="https://github.com/tanaylab/dafr/blob/v0.10.1/NEWS.md" class="external-link"><code>NEWS.md</code></a></small>
+      <small>Source: <a href="https://github.com/tanaylab/dafr/blob/main/NEWS.md" class="external-link"><code>NEWS.md</code></a></small>
     </div>
 
     <div class="section level2">
 <h2 class="pkg-version" data-toc-text="0.10.1" id="dafr-0101">dafr 0.10.1<a class="anchor" aria-label="anchor" href="#dafr-0101"></a></h2>
 <ul><li><p>Conda packages: <code>conda install -c aviezerl r-dafr</code>. A tagged release (or a manual workflow run) builds <code>r-dafr</code> for R 4.4 and 4.5 on Linux and for R 4.5 on macOS, following the same recipe layout as <code>misha</code> and <code>prego</code>. The build includes <code>c-blosc2</code> and <code>zstd</code>, which <code>configure</code> picks up, so a conda install reads packed and sharded Zarr v3 stores without further setup.</p></li>
-<li><p>The <code><a href="../reference/zarr_daf.html">zarr_daf()</a></code> sub-quadratic consolidation test takes the best of three timings for each of its two workloads rather than a single sample. Elapsed time is only ever inflated by noise, so the minimum is the robust estimate; a lone sample of a sub-second workload drifted far enough on shared CI runners to cross the threshold on its own (ratios of 3.35 and 4.30 against a settled value of ~2.15). The threshold is unchanged, since 4 is the quadratic ratio the test exists to catch.</p></li>
+<li><p>The <code><a href="../reference/zarr_daf.html">zarr_daf()</a></code> incremental-consolidation test counts full store re-scans instead of timing two workloads and comparing the ratio. Writing a property edits the existing index rather than re-scanning the store, so the store is scanned once at creation however many properties follow; an O(N^2) implementation would re-scan per write. Counting that asserts the mechanism directly, and is unaffected by how loaded the machine is - the timing form failed CI at 3.35, 4.10 and 4.30 against a local value of ~2.15, the 4.10 after the timings were already averaged over repeats.</p></li>
 <li><p>The shared object no longer links BLAS, LAPACK or the Fortran runtime. No C++ in the package calls them, but <code>src/Makevars.in</code> passed <code>$(LAPACK_LIBS) $(BLAS_LIBS) $(FLIBS)</code> to the linker anyway, which left <code>dafr.so</code> with a load-time dependency on whichever BLAS the <em>building</em> machine’s R used - on a host with Intel MKL, three <code>libmkl_*</code> libraries plus <code>libgfortran</code> and <code>libquadmath</code>. Loading then failed anywhere those were absent. Nothing about the package’s behaviour changes; it just stops requiring libraries it never calls.</p></li>
 </ul></div>
     <div class="section level2">
