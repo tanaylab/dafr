@@ -1,5 +1,12 @@
 # Changelog
 
+## dafr 0.10.3
+
+- The conda compiler pin is gcc 14, not 13. R 4.5 compiles C as C23 and
+  its `Makeconf` passes `-std=gnu23`, which gcc 13 rejects, so the
+  0.10.2 Linux R 4.5 package failed to build. 14 builds both R 4.4 and R
+  4.5 and gives a floor of `libgcc >=14`.
+
 ## dafr 0.10.2
 
 - The conda packages pin the build compiler to gcc 13 rather than taking
