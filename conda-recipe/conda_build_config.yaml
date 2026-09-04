@@ -8,9 +8,14 @@ r_base:
 # unpinned {{ compiler('cxx') }} on a current runner resolves to gcc 16, which
 # stamps `libgcc >=16` / `libstdcxx >=16` onto the package and makes it
 # uninstallable in any environment holding an older libgcc - which is most
-# established ones. gcc 13 covers the C++17 this needs and drops the floor to
-# `libgcc >=13`, verified against the built package's index.json.
+# established ones.
+#
+# 14 rather than something older: R 4.5 compiles C as C23 and its Makeconf
+# passes `-std=gnu23`, which gcc 13 rejects ("unrecognized command-line option
+# '-std=gnu23'; did you mean '-std=gnu2x'?"). 14 is the floor that builds both
+# R 4.4 and R 4.5, and gives `libgcc >=14`, verified for each r_base against
+# the built package's index.json.
 c_compiler_version:
-  - 13  # [linux]
+  - 14  # [linux]
 cxx_compiler_version:
-  - 13  # [linux]
+  - 14  # [linux]
