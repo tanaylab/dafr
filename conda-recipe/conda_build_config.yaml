@@ -3,3 +3,14 @@
 r_base:
   - 4.4  # [linux]
   - 4.5
+
+# Pin the compiler instead of taking whatever conda-forge's newest is. An
+# unpinned {{ compiler('cxx') }} on a current runner resolves to gcc 16, which
+# stamps `libgcc >=16` / `libstdcxx >=16` onto the package and makes it
+# uninstallable in any environment holding an older libgcc - which is most
+# established ones. gcc 13 covers the C++17 this needs and drops the floor to
+# `libgcc >=13`, verified against the built package's index.json.
+c_compiler_version:
+  - 13  # [linux]
+cxx_compiler_version:
+  - 13  # [linux]
