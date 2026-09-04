@@ -36,7 +36,13 @@ requirements:
     # `configure` probes $CONDA_PREFIX for these, so a conda build gets
     # packed/sharded Zarr v3 read without any further setup. Absent them the
     # package still builds, but a packed store errors at read time.
-    - c-blosc2
+    #
+    # Classic c-blosc (v1), not c-blosc2: src/shard_codecs.cpp's HAVE_BLOSC2
+    # branch calls blosc1_compress_ctx and BLOSC_MAX_OVERHEAD, and c-blosc2 3.x
+    # declares neither - its blosc1 compatibility layer sits behind
+    # BLOSC1_COMPAT and does not cover the _ctx entry points at all. `configure`
+    # prefers v1 anyway, which is the branch that is actually exercised.
+    - blosc
     - zstd
     # src/Makevars uses $(SHLIB_OPENMP_CXXFLAGS); conda's clang needs this to
     # resolve it. On Linux libgomp comes with the compiler.
@@ -53,7 +59,7 @@ requirements:
     - r-r6
     - r-rlang
     - zlib
-    - c-blosc2
+    - blosc
     - zstd
     - llvm-openmp  # [osx]
 
