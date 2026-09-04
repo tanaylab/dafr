@@ -9,4 +9,10 @@ export DISABLE_AUTOBREW=1
 export BLOSC_HOME="${PREFIX}"
 export ZSTD_HOME="${PREFIX}"
 
+# `source: path: ..` copies the working tree as it is, objects included. A
+# stale src/*.o from a local devtools build would be linked instead of being
+# recompiled here, so the codec paths this recipe enables would never actually
+# be built. Start from source every time.
+rm -f src/*.o src/*.so src/Makevars
+
 ${R} CMD INSTALL --build . ${R_ARGS}
