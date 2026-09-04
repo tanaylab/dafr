@@ -56,26 +56,49 @@ test_that("overwriting sparse with dense drops the stale nzind/nzval from the in
     expect_setequal(names(idx), names(.read_root_index(store)))
 })
 
-test_that("bulk vector writes are sub-quadratic (incremental consolidation)", {
+test_that("bulk vector writes stay incremental (no O(N^2) re-scan)", {
     skip_on_cran()
-    write_n <- function(K) {
+    # What the incremental path is for: setting a property edits the existing
+    # index (zarr_v3_consolidate_upsert) instead of re-scanning and re-parsing
+    # the whole store (zarr_v3_write_consolidated). Counting those two calls
+    # asserts that mechanism directly and deterministically.
+    #
+    # This used to time 100 against 200 writes and require the ratio to stay
+    # under 3, which measures the runner as much as the code: CI failed it at
+    # 3.35, 4.10 and 4.30 where the local value settles at ~2.15, the 4.10
+    # being after the timings were already averaged over repeats. A count does
+    # not care how loaded the machine is.
+    count_writes <- function(K) {
+        rebuilds <- 0L
+        upserts <- 0L
+        suppressMessages({
+            trace(dafr:::zarr_v3_write_consolidated,
+                  tracer = function() rebuilds <<- rebuilds + 1L, print = FALSE)
+            trace(dafr:::zarr_v3_consolidate_upsert,
+                  tracer = function() upserts <<- upserts + 1L, print = FALSE)
+        })
+        on.exit(suppressMessages({
+            untrace(dafr:::zarr_v3_write_consolidated)
+            untrace(dafr:::zarr_v3_consolidate_upsert)
+        }), add = TRUE)
+
         d <- zarr_daf(tempfile(fileext = ".daf.zarr"), "w")
         add_axis(d, "cell", paste0("c", 1:20))
-        system.time(for (i in seq_len(K))
-            set_vector(d, "cell", paste0("v", i), as.numeric(1:20)))[["elapsed"]]
+        for (i in seq_len(K)) {
+            set_vector(d, "cell", paste0("v", i), as.numeric(1:20))
+        }
+        list(rebuilds = rebuilds, upserts = upserts)
     }
-    # Noise only ever inflates an elapsed time, so the minimum of a few runs is
-    # the robust estimate. These workloads take a fraction of a second, and a
-    # single sample on a shared runner drifts far enough to cross the threshold
-    # on its own: CI saw ratios of 3.35 and 4.30 where the settled value is
-    # ~2.15. Raising the threshold instead would not do - 4 IS quadratic, so
-    # moving towards it is what the test exists to catch.
-    best_of <- function(K) min(replicate(3, write_n(K)))
-    t100 <- best_of(100)
-    t200 <- best_of(200)
-    # O(N^2) would roughly quadruple (t200/t100 ~ 4); incremental keeps the
-    # ratio near-linear. Allow generous slack for noise but well below quadratic.
-    expect_lt(t200 / max(t100, 1e-3), 3)
-    # Absolute guard: 200 writes should be quick once consolidation is O(1)-ish.
-    expect_lt(t200, 4)
+
+    small <- count_writes(50)
+    large <- count_writes(200)
+
+    # The store is scanned once, when it is created, however many properties
+    # are then written to it. An O(N^2) implementation re-scans on every write,
+    # so this count would track K instead of staying put.
+    expect_identical(small$rebuilds, large$rebuilds)
+    expect_lte(large$rebuilds, 2L)
+
+    # And exactly one incremental edit per write.
+    expect_identical(large$upserts - small$upserts, 150L)
 })
